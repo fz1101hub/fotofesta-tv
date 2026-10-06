@@ -3,6 +3,8 @@
 **Data:** 7 settembre 2026  
 **Versione app:** 1.0.0 (`versionCode 1`)
 
+> Questo rapporto descrive la build 1.0.0. Le correzioni successive all’audit del 6 ottobre 2026 sono documentate in [AUDIT.md](AUDIT.md) e verificate dalla CI GitHub Actions.
+
 ## Risultati
 
 | Controllo | Comando / evidenza | Risultato |

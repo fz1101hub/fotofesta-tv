@@ -13,8 +13,14 @@ fi
 export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$HOME/android-sdk}"
 export ANDROID_HOME="$ANDROID_SDK_ROOT"
 ./gradlew clean testDebugUnitTest assembleDebug lintDebug bundleRelease
+rm -rf dist
 mkdir -p dist
 cp app/build/outputs/apk/debug/app-debug.apk dist/FotoFesta-TV-debug.apk
-cp app/build/outputs/bundle/release/app-release.aab dist/FotoFesta-TV-release-unsigned.aab
+# L'AAB è firmato solo se RELEASE_STORE_FILE è configurato (vedi docs/CONFIGURATION.md).
+if grep -qs '^RELEASE_STORE_FILE=' local.properties || [ -n "${RELEASE_STORE_FILE:-}" ]; then
+  cp app/build/outputs/bundle/release/app-release.aab dist/FotoFesta-TV-release.aab
+else
+  cp app/build/outputs/bundle/release/app-release.aab dist/FotoFesta-TV-release-unsigned.aab
+fi
 printf 'SHA-256\n' > dist/SHA256SUMS.txt
 sha256sum dist/*.apk dist/*.aab >> dist/SHA256SUMS.txt

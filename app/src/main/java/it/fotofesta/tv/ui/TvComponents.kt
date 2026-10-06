@@ -30,14 +30,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
@@ -57,8 +55,7 @@ fun TvButton(
         enabled = enabled,
         modifier = modifier
             .scale(scale)
-            .onFocusChanged { focused = it.isFocused }
-            .semantics { role = Role.Button },
+            .onFocusChanged { focused = it.isFocused },
         shape = RoundedCornerShape(14.dp),
         border = if (focused) BorderStroke(3.dp, Amber) else BorderStroke(1.dp, if (selected) Coral else Color.Transparent),
         colors = ButtonDefaults.buttonColors(
@@ -89,15 +86,22 @@ fun SourceCard(
     accent: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(if (focused) 1.035f else 1f, label = "cardFocus")
     Button(
         onClick = onClick,
-        modifier = modifier.scale(scale).onFocusChanged { focused = it.isFocused },
+        enabled = enabled,
+        modifier = modifier.scale(scale).alpha(if (enabled) 1f else .45f).onFocusChanged { focused = it.isFocused },
         shape = RoundedCornerShape(22.dp),
         border = BorderStroke(if (focused) 3.dp else 1.dp, if (focused) Amber else Color(0xFF394563)),
-        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = TextPrimary),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Color.Transparent,
+            contentColor = TextPrimary,
+            disabledContainerColor = Color.Transparent,
+            disabledContentColor = TextSecondary,
+        ),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
     ) {
         Column(

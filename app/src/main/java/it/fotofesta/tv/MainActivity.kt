@@ -2,7 +2,7 @@ package it.fotofesta.tv
 
 import android.app.PendingIntent
 import android.content.Intent
-import android.database.Cursor
+import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
 import android.view.WindowManager
@@ -28,10 +28,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.media.session.MediaButtonReceiver
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
+import com.google.android.gms.cast.tv.CastReceiverContext
 import it.fotofesta.tv.model.Destination
 import it.fotofesta.tv.ui.FotoFestaTheme
 import it.fotofesta.tv.ui.GamesScreen
@@ -59,33 +59,21 @@ class MainActivity : ComponentActivity() {
                     uri?.let(viewModel::loadUsb)
                 }
                 val musicPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-                    uri?.let {
-                        runCatching {
-                            contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        }
-                        viewModel.selectMusic(it, displayName(it))
-                    }
+                    uri?.let { viewModel.selectMusic(it, displayName(it)) }
                 }
 
-                BackHandler(enabled = state.destination != Destination.HOME) {
-                    if (state.destination == Destination.SLIDESHOW) viewModel.pause()
-                    viewModel.navigate(
-                        if (state.destination in setOf(Destination.MEMORY, Destination.MYSTERY)) Destination.GAMES
-                        else Destination.HOME
-                    )
-                }
+                BackHandler(enabled = state.destination != Destination.HOME, onBack = viewModel::back)
 
                 DisposableEffect(state.destination) {
-                    if (state.destination in setOf(Destination.SLIDESHOW, Destination.MEMORY, Destination.MYSTERY)) {
-                        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                    } else {
-                        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    val keepScreenOn = state.destination in setOf(Destination.SLIDESHOW, Destination.MEMORY, Destination.MYSTERY)
+                    if (keepScreenOn) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    onDispose {
+                        if (keepScreenOn) window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                     }
-                    onDispose { }
                 }
 
                 LaunchedEffect(state.isPlaying, state.currentIndex, state.photos) {
-                    updateMediaSession(state.isPlaying, state.currentIndex, state.photos.getOrNull(state.currentIndex)?.title)
+                    updateMediaSession(state.isPlaying, state.photos.getOrNull(state.currentIndex)?.title)
                 }
 
                 LaunchedEffect(state.message) {
@@ -117,7 +105,8 @@ class MainActivity : ComponentActivity() {
                         )
                         Destination.SLIDESHOW -> SlideshowScreen(
                             state = state,
-                            onBack = { viewModel.pause(); viewModel.navigate(Destination.HOME) },
+                            upcoming = viewModel.upcomingPhoto(),
+                            onBack = viewModel::back,
                             onToggle = viewModel::togglePlayback,
                             onNext = viewModel::next,
                             onPrevious = viewModel::previous,
@@ -184,9 +173,13 @@ class MainActivity : ComponentActivity() {
             )
             isActive = true
         }
+        // Collega la MediaSession a Cast Connect: i comandi play/pausa/skip dei sender arrivano qui.
+        runCatching {
+            CastReceiverContext.getInstance().mediaManager.setSessionCompatToken(mediaSession.sessionToken)
+        }
     }
 
-    private fun updateMediaSession(playing: Boolean, index: Int, title: String?) {
+    private fun updateMediaSession(playing: Boolean, title: String?) {
         val actions = PlaybackStateCompat.ACTION_PLAY or PlaybackStateCompat.ACTION_PAUSE or
             PlaybackStateCompat.ACTION_PLAY_PAUSE or PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
             PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or PlaybackStateCompat.ACTION_STOP
@@ -201,22 +194,18 @@ class MainActivity : ComponentActivity() {
                 .setActions(actions)
                 .setState(
                     if (playing) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED,
-                    index.toLong(),
+                    PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN,
                     if (playing) 1f else 0f,
                 )
                 .build()
         )
     }
 
-    private fun displayName(uri: android.net.Uri): String? {
-        var cursor: Cursor? = null
-        return try {
-            cursor = contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
-            if (cursor?.moveToFirst() == true) cursor.getString(0) else null
-        } finally {
-            cursor?.close()
+    private fun displayName(uri: Uri): String? = runCatching {
+        contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) cursor.getString(0) else null
         }
-    }
+    }.getOrNull()
 
     override fun onDestroy() {
         mediaSession.release()

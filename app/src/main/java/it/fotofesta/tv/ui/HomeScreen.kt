@@ -15,11 +15,16 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.SportsEsports
 import androidx.compose.material.icons.rounded.Usb
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -35,6 +40,9 @@ fun HomeScreen(
     onSettings: () -> Unit,
     onGames: () -> Unit,
 ) {
+    // Su TV serve un elemento a fuoco all'apertura, altrimenti il primo tasto del telecomando va perso.
+    val primaryFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { primaryFocus.requestFocus() } }
     Box(
         Modifier.fillMaxSize().background(
             Brush.radialGradient(listOf(Color(0xFF1A2948), Navy), radius = 1_250f)
@@ -53,7 +61,12 @@ fun HomeScreen(
                         "Google Foto resta sul tuo account. USB funziona anche senza internet.",
                     )
                     Spacer(Modifier.weight(1f))
-                    TvButton("Avvia slideshow", onPlay, icon = Icons.Rounded.PlayArrow)
+                    TvButton(
+                        "Avvia slideshow",
+                        onPlay,
+                        modifier = Modifier.focusRequester(primaryFocus),
+                        icon = Icons.Rounded.PlayArrow,
+                    )
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
                     SourceCard(
@@ -84,6 +97,9 @@ fun HomeScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                     TvButton("Impostazioni", onSettings, icon = Icons.Rounded.Settings)
                     TvButton("Giochi con le foto", onGames, icon = Icons.Rounded.SportsEsports)
+                }
+                if (state.busy) {
+                    LinearProgressIndicator(Modifier.fillMaxWidth(.5f), color = Amber)
                 }
                 if (state.message != null) {
                     Text(state.message, style = MaterialTheme.typography.bodyLarge, color = Amber)

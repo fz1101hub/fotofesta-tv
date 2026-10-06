@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Backup fino ad Android 11: solo le impostazioni dello slideshow. I token Google restano esclusi
+     (sono cifrati con una chiave Keystore che non viene trasferita). Se dopo un ripristino la cartella USB
+     o il brano non sono più accessibili, l'app lo segnala e torna alle foto dimostrative. -->
+<full-backup-content>
+    <include domain="sharedpref" path="slideshow_settings.xml" />
+</full-backup-content>

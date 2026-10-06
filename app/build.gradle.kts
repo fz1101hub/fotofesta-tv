@@ -6,14 +6,19 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use(::load)
+}
+
+/** Valore da local.properties, poi da gradle.properties / -P, poi da variabile d'ambiente (CI). */
+fun ownerProperty(name: String): String? =
+    localProperties.getProperty(name)?.takeIf(String::isNotBlank)
+        ?: providers.gradleProperty(name).orNull?.takeIf(String::isNotBlank)
+        ?: providers.environmentVariable(name).orNull?.takeIf(String::isNotBlank)
+
 fun quotedProperty(name: String): String {
-    val local = Properties().apply {
-        val file = rootProject.file("local.properties")
-        if (file.exists()) file.inputStream().use(::load)
-    }
-    val value = local.getProperty(name)
-        ?: providers.gradleProperty(name).orNull
-        ?: ""
+    val value = ownerProperty(name).orEmpty()
     return "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
 }
 
@@ -49,8 +54,27 @@ android {
         resources.excludes += setOf("META-INF/AL2.0", "META-INF/LGPL2.1")
     }
 
+    // Firma release opzionale: se RELEASE_STORE_FILE non è configurato l'AAB resta non firmato.
+    val releaseStoreFile = ownerProperty("RELEASE_STORE_FILE")?.let(rootProject::file)
+    signingConfigs {
+        if (releaseStoreFile != null) {
+            create("release") {
+                storeFile = releaseStoreFile
+                storePassword = ownerProperty("RELEASE_STORE_PASSWORD")
+                keyAlias = ownerProperty("RELEASE_KEY_ALIAS")
+                keyPassword = ownerProperty("RELEASE_KEY_PASSWORD")
+            }
+        }
+    }
+
+    testOptions {
+        // android.util.Log e simili restituiscono valori di default nei test JVM invece di fallire.
+        unitTests.isReturnDefaultValues = true
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

@@ -31,6 +31,27 @@ data class SlideshowSettings(
     val musicVolume: Float = 0.35f,
 )
 
+/** Aggiornamento parziale delle impostazioni: i campi `null` lasciano invariato il valore corrente. */
+data class SettingsPatch(
+    val intervalSeconds: Int? = null,
+    val transition: TransitionType? = null,
+    val fitMode: FitMode? = null,
+    val shuffle: Boolean? = null,
+    val reducedMotion: Boolean? = null,
+    val showClock: Boolean? = null,
+    val musicVolume: Float? = null,
+) {
+    fun applyTo(base: SlideshowSettings) = SlideshowSettings(
+        intervalSeconds = intervalSeconds ?: base.intervalSeconds,
+        transition = transition ?: base.transition,
+        fitMode = fitMode ?: base.fitMode,
+        shuffle = shuffle ?: base.shuffle,
+        reducedMotion = reducedMotion ?: base.reducedMotion,
+        showClock = showClock ?: base.showClock,
+        musicVolume = musicVolume ?: base.musicVolume,
+    )
+}
+
 sealed interface GoogleConnectState {
     data object Idle : GoogleConnectState
     data class WaitingForAuthorization(

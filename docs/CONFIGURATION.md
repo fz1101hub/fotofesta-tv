@@ -43,7 +43,9 @@ L’app chiede esclusivamente lo scope `https://www.googleapis.com/auth/photospi
 
 ### Flusso utente
 
-La TV richiede un `device_code`, mostra QR, URL e `user_code`, quindi rispetta l’intervallo di polling restituito da Google.[3] Dopo l’autorizzazione, crea una sessione Picker con UUID v4, mostra un secondo QR e attende `mediaItemsSet=true`. Le foto vengono recuperate a 4K nella cache privata. La sessione viene eliminata al termine.
+La TV richiede un `device_code`, mostra QR, URL e `user_code`, quindi rispetta l’intervallo di polling restituito da Google.[3] Dopo l’autorizzazione, crea una sessione Picker con UUID v4, mostra un secondo QR e attende `mediaItemsSet=true`, ricalcolando la scadenza da `pollingConfig.timeoutIn` a ogni risposta. Le foto vengono scaricate a 4K (quattro alla volta) in una cartella temporanea che sostituisce la cache precedente solo a download concluso: se l’operazione viene annullata o fallisce, la raccolta in uso resta intatta. Il download si interrompe se lo spazio libero scende sotto 300 MB e l’app indica quante foto non sono state preparate. Titoli e ordine originali sono salvati in un piccolo manifest nella cache. La sessione Picker viene eliminata al termine anche in caso di errore o annullamento.
+
+Se l’utente revoca l’accesso dall’account Google, al collegamento successivo l’app cancella i token non più validi e mostra di nuovo il codice di autorizzazione, senza richiedere “Disconnetti e cancella”.
 
 Il `client_secret` di un client installato/TV è un identificatore distribuito nell’app e non deve essere considerato una credenziale server realmente segreta. La sicurezza dell’utente dipende da consenso OAuth, scope minimo, refresh token cifrato e possibilità di revoca. Non riutilizzare queste credenziali in un backend riservato.
 
@@ -84,6 +86,17 @@ keytool -genkeypair \
   -alias fotofesta-upload \
   -keyalg RSA -keysize 4096 -validity 10000
 ```
+
+Per firmare automaticamente l’AAB release aggiungere a `local.properties` (o come variabili d’ambiente in CI):
+
+```properties
+RELEASE_STORE_FILE=/percorso/sicuro/fotofesta-upload.jks
+RELEASE_STORE_PASSWORD=...
+RELEASE_KEY_ALIAS=fotofesta-upload
+RELEASE_KEY_PASSWORD=...
+```
+
+Senza queste chiavi la build release resta non firmata e `scripts/build.sh` produce `FotoFesta-TV-release-unsigned.aab`; con le chiavi produce `FotoFesta-TV-release.aab`. `scripts/setup_android_sdk.sh` aggiorna solo `sdk.dir` e non tocca le altre chiavi.
 
 Non aggiungere `.jks`, password o `local.properties` al repository. La soluzione preferita per il Play Store è **Play App Signing**, usando la chiave locale come upload key.
 

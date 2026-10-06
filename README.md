@@ -2,7 +2,7 @@
 
 **FotoFesta TV** è un’app Android nativa per Android TV e Google TV che mostra fotografie in slideshow direttamente da una cartella USB oppure da una selezione sicura in Google Foto. Include durata regolabile, tre transizioni, adattamento immagine, ordine casuale, musica locale, controlli D-pad, Google Cast Connect e due minigiochi basati sulle fotografie attive.
 
-> **Stato del progetto:** MVP funzionale e compilato. L’APK allegato funziona subito con foto demo, USB, musica e giochi. Per Google Foto occorre inserire un proprio client OAuth; per ricevere sessioni Cast occorre registrare il ricevitore nella Google Cast SDK Developer Console.
+> **Stato del progetto:** MVP funzionale. L’APK debug (generato da `scripts/build.sh` o scaricabile dagli artefatti della CI GitHub) funziona subito con foto demo, USB, musica e giochi. Per Google Foto occorre inserire un proprio client OAuth; per ricevere sessioni Cast occorre registrare il ricevitore nella Google Cast SDK Developer Console.
 
 ![Architettura di FotoFesta TV](docs/architecture.png)
 
@@ -71,7 +71,7 @@ Queste scelte applicano minimizzazione e privacy by design. Prima di una pubblic
 
 ## Compatibilità e qualità
 
-Il progetto usa `minSdk 26`, `targetSdk 35` e `compileSdk 35`. Il target supera il minimo richiesto per nuove app Android TV nel 2026.[6] Il manifest espone `LEANBACK_LAUNCHER`, dichiara il touchscreen non necessario e include un banner TV. I controlli principali sono utilizzabili con D-pad; nello slideshow, centro alterna play/pausa e sinistra/destra cambiano foto. Il pacchetto include ABI a 32 e 64 bit e ha superato il controllo `zipalign -P 16` per l’allineamento 16 KB.[5] [11]
+Il progetto usa `minSdk 26`, `targetSdk 35` e `compileSdk 35`. Il target supera il minimo richiesto per nuove app Android TV nel 2026.[6] Il manifest espone `LEANBACK_LAUNCHER`, dichiara il touchscreen non necessario e include un banner TV. I controlli principali sono utilizzabili con D-pad; nello slideshow i controlli si nascondono dopo 5 secondi, centro alterna play/pausa, sinistra/destra cambiano foto e su/giù mostrano la barra dei comandi, dove le frecce spostano il focus tra i pulsanti. La foto successiva viene precaricata per transizioni senza attese. Il pacchetto include ABI a 32 e 64 bit e ha superato il controllo `zipalign -P 16` per l’allineamento 16 KB.[5] [11]
 
 L’architettura separa modello, repository e protocollo dall’interfaccia. Questo permette di riutilizzare il protocollo Cast e la logica di dominio per un futuro sender iOS senza compromettere il client Android TV.
 
@@ -80,6 +80,10 @@ L’architettura separa modello, repository e protocollo dall’interfaccia. Que
 Google Foto non espone più l’intera libreria a un’app di terze parti: l’utente deve selezionare i contenuti per ogni nuova raccolta. La cache viene sostituita alla selezione successiva. Il progetto mostra immagini, non video. Il sottofondo musicale è un file locale scelto sulla TV e non viene inviato dal sender Cast. La modalità screensaver di sistema non è inclusa in questa prima build, perché alcuni produttori limitano i salvaschermi di terze parti; lo slideshow può però restare acceso finché è in esecuzione.
 
 ## Verifica effettuata
+
+Ogni push e ogni pull request verso `main` eseguono in GitHub Actions i 21 test unitari (protocollo Cast e validazione URL, ordine di riproduzione, ordinamento dei file, risposte HTTP Google), Android Lint e la build dell’APK debug (`.github/workflows/android.yml`); l’APK e i report sono scaricabili come artefatti. Il rapporto di audit e le correzioni applicate sono descritti in [AUDIT.md](docs/AUDIT.md).
+
+Risultati della validazione della versione 1.0.0 (vedi [VALIDATION.md](docs/VALIDATION.md)):
 
 | Controllo | Risultato |
 | --- | --- |

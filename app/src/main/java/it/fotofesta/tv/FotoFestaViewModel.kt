@@ -3,6 +3,7 @@ package it.fotofesta.tv
 import android.app.Application
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import it.fotofesta.tv.cast.CastBridge
@@ -11,6 +12,7 @@ import it.fotofesta.tv.data.SettingsRepository
 import it.fotofesta.tv.data.UsbPhotoRepository
 import it.fotofesta.tv.google.GoogleDeviceAuthRepository
 import it.fotofesta.tv.google.GooglePhotosPickerRepository
+import it.fotofesta.tv.google.HttpStatusException
 import it.fotofesta.tv.google.SecureTokenStore
 import it.fotofesta.tv.media.BackgroundMusicPlayer
 import it.fotofesta.tv.model.AppState
@@ -18,13 +20,17 @@ import it.fotofesta.tv.model.Destination
 import it.fotofesta.tv.model.GoogleConnectState
 import it.fotofesta.tv.model.PhotoItem
 import it.fotofesta.tv.model.PhotoRef
+import it.fotofesta.tv.model.PlaybackOrder
 import it.fotofesta.tv.model.SlideshowSettings
 import it.fotofesta.tv.model.SourceType
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
@@ -33,7 +39,9 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         get() = getApplication<Application>().applicationContext
     private val settingsRepository = SettingsRepository(context)
     private val usbRepository = UsbPhotoRepository(context)
-    private val musicPlayer = BackgroundMusicPlayer(context)
+    private val musicPlayer = BackgroundMusicPlayer(context) {
+        showMessage("Impossibile riprodurre il brano scelto. Selezionane un altro dalle impostazioni.")
+    }
     private val http = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
@@ -42,7 +50,9 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private val tokenStore = SecureTokenStore(context)
     private val googleAuth = GoogleDeviceAuthRepository(http, tokenStore)
     private val googlePhotos = GooglePhotosPickerRepository(context, http)
+    private val playbackOrder = PlaybackOrder()
     private var googleJob: Job? = null
+    private var usbJob: Job? = null
     private val savedMusic = settingsRepository.loadMusic()
 
     private val demoPhotos = listOf(
@@ -63,6 +73,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     val state = _state.asStateFlow()
 
     init {
+        playbackOrder.reset(demoPhotos.size, _state.value.settings.shuffle)
         viewModelScope.launch {
             CastBridge.connected.collect { connected ->
                 _state.update { it.copy(castSenderConnected = connected) }
@@ -73,9 +84,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         }
         when (settingsRepository.loadLastSource()) {
             "GOOGLE" -> googlePhotos.cachedPhotos().takeIf { it.isNotEmpty() }?.let { cached ->
-                _state.update {
-                    it.copy(photos = cached, sourceLabel = "Google Foto · ${cached.size} foto in cache privata")
-                }
+                showPhotos(cached, googleLabel(cached.size))
             }
             "USB" -> settingsRepository.loadUsbTree()?.let { stored -> loadUsb(Uri.parse(stored)) }
         }
@@ -85,17 +94,24 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         _state.update { it.copy(destination = destination, message = null) }
     }
 
+    /** Azione del tasto Indietro, coerente con i pulsanti "Indietro" delle singole schermate. */
+    fun back() {
+        when (_state.value.destination) {
+            Destination.HOME -> Unit
+            Destination.SLIDESHOW -> {
+                pause()
+                navigate(Destination.HOME)
+            }
+            Destination.MEMORY, Destination.MYSTERY -> navigate(Destination.GAMES)
+            Destination.GOOGLE_CONNECT -> cancelGoogleConnect()
+            Destination.SETTINGS, Destination.GAMES -> navigate(Destination.HOME)
+        }
+    }
+
     fun useDemoAndPlay() {
         settingsRepository.saveLastSource("DEMO")
-        _state.update {
-            it.copy(
-                photos = demoPhotos,
-                sourceLabel = "Foto dimostrative",
-                destination = Destination.SLIDESHOW,
-                currentIndex = 0,
-                isPlaying = true,
-            )
-        }
+        showPhotos(demoPhotos, DEMO_LABEL)
+        _state.update { it.copy(destination = Destination.SLIDESHOW, isPlaying = true) }
         syncMusic()
     }
 
@@ -121,26 +137,30 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     fun next() {
         _state.update { current ->
             if (current.photos.isEmpty()) current
-            else {
-                val nextIndex = if (current.settings.shuffle && current.photos.size > 1) {
-                    generateSequence { current.photos.indices.random() }
-                        .first { it != current.currentIndex }
-                } else (current.currentIndex + 1) % current.photos.size
-                current.copy(currentIndex = nextIndex)
-            }
+            else current.copy(currentIndex = playbackOrder.next(current.currentIndex))
         }
     }
 
     fun previous() {
         _state.update { current ->
             if (current.photos.isEmpty()) current
-            else current.copy(currentIndex = (current.currentIndex - 1 + current.photos.size) % current.photos.size)
+            else current.copy(currentIndex = playbackOrder.previous(current.currentIndex))
         }
     }
 
+    /** Foto successiva prevista, usata dallo slideshow per precaricarla. */
+    fun upcomingPhoto(): PhotoItem? {
+        val current = _state.value
+        return playbackOrder.peekNext(current.currentIndex)?.let(current.photos::getOrNull)
+    }
+
     fun updateSettings(value: SlideshowSettings) {
+        val previous = _state.value.settings
         settingsRepository.save(value)
         _state.update { it.copy(settings = value) }
+        if (previous.shuffle != value.shuffle) {
+            playbackOrder.reset(_state.value.photos.size, value.shuffle, _state.value.currentIndex)
+        }
         musicPlayer.setVolume(value.musicVolume)
     }
 
@@ -148,28 +168,29 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         runCatching {
             context.contentResolver.takePersistableUriPermission(treeUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        viewModelScope.launch {
+        usbJob?.cancel()
+        usbJob = viewModelScope.launch {
             _state.update { it.copy(busy = true, message = "Indicizzazione cartella in corso…") }
-            runCatching { usbRepository.scan(treeUri) }
-                .onSuccess { photos ->
-                    if (photos.isEmpty()) {
-                        _state.update { it.copy(busy = false, message = "Nessuna immagine trovata nella cartella scelta.") }
-                    } else {
-                        settingsRepository.saveUsbTree(treeUri.toString())
-                        _state.update {
-                            it.copy(
-                                photos = photos,
-                                sourceLabel = "USB o cartella locale · ${photos.size} foto",
-                                currentIndex = 0,
-                                busy = false,
-                                message = "${photos.size} foto pronte.",
-                            )
-                        }
-                    }
+            try {
+                val photos = usbRepository.scan(treeUri)
+                if (photos.isEmpty()) {
+                    _state.update { it.copy(busy = false, message = "Nessuna immagine trovata nella cartella scelta.") }
+                } else {
+                    settingsRepository.saveUsbTree(treeUri.toString())
+                    showPhotos(photos, "USB o cartella locale · ${photos.size} foto")
+                    _state.update { it.copy(busy = false, message = "${photos.size} foto pronte.") }
                 }
-                .onFailure { error ->
-                    _state.update { it.copy(busy = false, message = error.userMessage()) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                Log.w(TAG, "Scansione USB non riuscita", failure)
+                _state.update {
+                    it.copy(
+                        busy = false,
+                        message = "Cartella non disponibile: collega di nuovo il disco USB o scegli un'altra cartella.",
+                    )
                 }
+            }
         }
     }
 
@@ -203,47 +224,72 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         }
         googleJob?.cancel()
         googleJob = viewModelScope.launch {
-            val requestId = googlePhotos.newRequestId()
             _state.update { it.copy(destination = Destination.GOOGLE_CONNECT, google = GoogleConnectState.Idle) }
-            runCatching {
-                var token = googleAuth.validAccessToken()
-                if (token == null) {
-                    val code = googleAuth.requestDeviceCode(requestId)
-                    _state.update {
-                        it.copy(
-                            google = GoogleConnectState.WaitingForAuthorization(
-                                code.verificationUrl,
-                                code.userCode,
-                                code.expiresIn,
-                            )
-                        )
-                    }
-                    token = googleAuth.pollForToken(code).accessToken
+            var token: String? = null
+            var sessionId: String? = null
+            try {
+                var accessToken = authorizeGoogle()
+                val session = try {
+                    googlePhotos.createSession(accessToken)
+                } catch (unauthorized: HttpStatusException) {
+                    if (unauthorized.code != 401) throw unauthorized
+                    // Token revocato dall'utente: si ripete il collegamento da capo una sola volta.
+                    googleAuth.disconnect()
+                    accessToken = authorizeGoogle()
+                    googlePhotos.createSession(accessToken)
                 }
-                val session = googlePhotos.createSession(token, requestId)
+                token = accessToken
+                sessionId = session.id
                 _state.update { it.copy(google = GoogleConnectState.WaitingForPhotos(session.pickerUri)) }
-                val completed = googlePhotos.awaitSelection(token, session)
-                val picked = googlePhotos.listPickedMedia(token, completed.id)
+                val completed = googlePhotos.awaitSelection(accessToken, session)
+                val picked = googlePhotos.listPickedMedia(accessToken, completed.id)
                 check(picked.isNotEmpty()) { "Non hai selezionato foto." }
-                val downloaded = googlePhotos.downloadToPrivateCache(token, picked) { done, total ->
+                _state.update { it.copy(google = GoogleConnectState.Downloading(0, picked.size)) }
+                val downloaded = googlePhotos.downloadToPrivateCache(accessToken, picked) { done, total ->
                     _state.update { it.copy(google = GoogleConnectState.Downloading(done, total)) }
                 }
-                googlePhotos.deleteSession(token, completed.id)
                 check(downloaded.isNotEmpty()) { "Non è stato possibile preparare le foto selezionate." }
                 settingsRepository.saveLastSource("GOOGLE")
+                showPhotos(downloaded, googleLabel(downloaded.size))
+                val skipped = picked.size - downloaded.size
                 _state.update {
                     it.copy(
-                        photos = downloaded,
-                        sourceLabel = "Google Foto · ${downloaded.size} foto in cache privata",
-                        currentIndex = 0,
                         google = GoogleConnectState.Complete(downloaded.size),
-                        message = "Foto Google pronte per lo slideshow.",
+                        message = if (skipped > 0) {
+                            "$skipped foto non scaricate (spazio insufficiente o file non disponibili)."
+                        } else {
+                            "Foto Google pronte per lo slideshow."
+                        },
                     )
                 }
-            }.onFailure { error ->
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
                 _state.update { it.copy(google = GoogleConnectState.Error(error.userMessage())) }
+            } finally {
+                val usedToken = token
+                val openSession = sessionId
+                if (usedToken != null && openSession != null) {
+                    withContext(NonCancellable) { googlePhotos.deleteSession(usedToken, openSession) }
+                }
             }
         }
+    }
+
+    /** Restituisce un token valido o avvia il flusso di autorizzazione con codice e QR. */
+    private suspend fun authorizeGoogle(): String {
+        googleAuth.validAccessToken()?.let { return it }
+        val code = googleAuth.requestDeviceCode()
+        _state.update {
+            it.copy(
+                google = GoogleConnectState.WaitingForAuthorization(
+                    code.verificationUrl,
+                    code.userCode,
+                    code.expiresIn,
+                )
+            )
+        }
+        return googleAuth.pollForToken(code).accessToken
     }
 
     fun cancelGoogleConnect() {
@@ -256,12 +302,13 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         googleJob?.cancel()
         googleAuth.disconnect()
         googlePhotos.clearCache()
-        settingsRepository.saveLastSource("DEMO")
+        val wasShowingGoogle = _state.value.photos.any { it.source == SourceType.GOOGLE_PHOTOS }
+        if (wasShowingGoogle || settingsRepository.loadLastSource() == "GOOGLE") {
+            settingsRepository.saveLastSource("DEMO")
+        }
+        if (wasShowingGoogle) showPhotos(demoPhotos, DEMO_LABEL)
         _state.update {
             it.copy(
-                photos = demoPhotos,
-                sourceLabel = "Foto dimostrative",
-                currentIndex = 0,
                 google = GoogleConnectState.Idle,
                 message = "Account e cache Google Foto rimossi da questa TV.",
             )
@@ -276,21 +323,22 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             CastCommand.Pause -> pause()
             CastCommand.Next -> next()
             CastCommand.Previous -> previous()
-            is CastCommand.ChangeSettings -> updateSettings(command.settings)
+            is CastCommand.ChangeSettings -> updateSettings(command.settings.applyTo(_state.value.settings))
             is CastCommand.Load -> {
-                command.settings?.let(::updateSettings)
-                _state.update {
-                    it.copy(
-                        photos = command.photos,
-                        sourceLabel = "Chromecast · ${command.photos.size} foto",
-                        destination = Destination.SLIDESHOW,
-                        currentIndex = 0,
-                        isPlaying = true,
-                    )
-                }
+                command.settings?.let { updateSettings(it.applyTo(_state.value.settings)) }
+                showPhotos(command.photos, "Chromecast · ${command.photos.size} foto")
+                _state.update { it.copy(destination = Destination.SLIDESHOW, isPlaying = true) }
                 syncMusic()
             }
         }
+    }
+
+    /** Sostituisce la raccolta attiva ripartendo dalla prima foto dell'ordine di riproduzione. */
+    private fun showPhotos(photos: List<PhotoItem>, label: String) {
+        val shuffle = _state.value.settings.shuffle
+        val start = if (shuffle && photos.isNotEmpty()) photos.indices.random() else 0
+        playbackOrder.reset(photos.size, shuffle, start)
+        _state.update { it.copy(photos = photos, sourceLabel = label, currentIndex = start) }
     }
 
     private fun syncMusic() {
@@ -304,10 +352,18 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private fun Throwable.userMessage(): String =
         message?.takeIf { it.isNotBlank() } ?: "Operazione non riuscita. Controlla rete e impostazioni."
 
+    private fun googleLabel(count: Int) = "Google Foto · $count foto in cache privata"
+
     override fun onCleared() {
         googleJob?.cancel()
+        usbJob?.cancel()
         musicPlayer.release()
         http.dispatcher.executorService.shutdown()
         super.onCleared()
+    }
+
+    private companion object {
+        const val TAG = "FotoFestaViewModel"
+        const val DEMO_LABEL = "Foto dimostrative"
     }
 }
