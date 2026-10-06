@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <!-- Android TV richiede il banner launcher 320x180 in drawable-xhdpi; le foto demo sono nodpi. -->
+    <issue id="IconMissingDensityFolder" severity="ignore" />
+    <!-- Versioni successive richiedono compileSdk 37/AGP 9.1; questa release usa la baseline TV testata API 35. -->
+    <issue id="GradleDependency" severity="ignore" />
+</lint>

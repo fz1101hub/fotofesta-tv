@@ -1,0 +1,33 @@
+flowchart LR
+    subgraph Sources["Sorgenti dati"]
+        GP["Google Photos Picker API"]
+        USB["USB / Storage Access Framework"]
+        CAST["Sender Google Cast"]
+        MUSIC["File audio locale"]
+    end
+
+    subgraph Security["Confine privato sul televisore"]
+        AUTH["OAuth 2.0 Device Flow\nScope minimo"]
+        KEY["Android Keystore\nAES-GCM"]
+        CACHE["Cache foto privata\ntemporanea 4K"]
+        INDEX["Indice URI USB\nnessuna copia"]
+        PROTOCOL["Protocollo Cast v1\nsolo HTTPS, max 500"]
+    end
+
+    subgraph App["FotoFesta TV"]
+        VM["ViewModel / stato"]
+        SHOW["Slideshow Compose\nD-pad + transizioni"]
+        AUDIO["Musica in loop"]
+        GAMES["Memory + Foto misteriosa"]
+        MEDIA["MediaSession + Cast Connect"]
+    end
+
+    GP --> AUTH --> KEY
+    AUTH --> CACHE --> VM
+    USB --> INDEX --> VM
+    CAST --> PROTOCOL --> VM
+    MUSIC --> AUDIO
+    VM --> SHOW
+    VM --> GAMES
+    VM --> MEDIA
+    MEDIA --> SHOW

@@ -1,0 +1,27 @@
+# Build Android/Gradle e cache locali
+.gradle/
+.kotlin/
+.idea/
+build/
+**/build/
+*.iml
+
+# Percorsi e credenziali del proprietario
+local.properties
+.env
+.env.*
+google-services.json
+*.jks
+*.keystore
+*.pem
+*.p12
+
+# Artefatti generati (APK, AAB e archivio di consegna)
+dist/
+*.apk
+*.aab
+
+# File temporanei
+.DS_Store
+__pycache__/
+*.pyc
