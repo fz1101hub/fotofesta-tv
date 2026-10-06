@@ -53,19 +53,21 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import coil.imageLoader
 import coil.request.ImageRequest
 import coil.size.Precision
 import coil.size.Scale
+import it.fotofesta.tv.R
 import it.fotofesta.tv.model.AppState
 import it.fotofesta.tv.model.FitMode
 import it.fotofesta.tv.model.PhotoItem
 import it.fotofesta.tv.model.PhotoRef
 import it.fotofesta.tv.model.TransitionType
-import kotlinx.coroutines.delay
 import java.util.Date
+import kotlinx.coroutines.delay
 
 private const val CONTROLS_TIMEOUT_MS = 5_000L
 
@@ -178,7 +180,7 @@ fun SlideshowScreen(
                 PhotoContent(item, state.settings.fitMode, Modifier.fillMaxSize())
             }
         } else {
-            Text("Nessuna foto da mostrare", Modifier.align(Alignment.Center), style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(R.string.slideshow_empty), Modifier.align(Alignment.Center), style = MaterialTheme.typography.titleLarge)
         }
 
         AnimatedVisibility(
@@ -193,30 +195,30 @@ fun SlideshowScreen(
                 ).padding(horizontal = 34.dp, vertical = 24.dp)
             ) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    TvButton("Indietro", onBack, icon = Icons.AutoMirrored.Rounded.ArrowBack)
+                    TvButton(stringResource(R.string.action_back), onBack, icon = Icons.AutoMirrored.Rounded.ArrowBack)
                     Spacer(Modifier.size(12.dp))
-                    TvButton("Precedente", onPrevious, icon = Icons.Rounded.SkipPrevious)
+                    TvButton(stringResource(R.string.slideshow_previous), onPrevious, icon = Icons.Rounded.SkipPrevious)
                     Spacer(Modifier.size(12.dp))
                     TvButton(
-                        if (state.isPlaying) "Pausa" else "Riprendi",
+                        if (state.isPlaying) stringResource(R.string.slideshow_pause) else stringResource(R.string.slideshow_resume),
                         onToggle,
                         modifier = Modifier.focusRequester(playFocus),
                         icon = if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                         selected = state.isPlaying,
                     )
                     Spacer(Modifier.size(12.dp))
-                    TvButton("Successiva", onNext, icon = Icons.Rounded.SkipNext)
+                    TvButton(stringResource(R.string.slideshow_next), onNext, icon = Icons.Rounded.SkipNext)
                     Spacer(Modifier.weight(1f))
                     Column(horizontalAlignment = Alignment.End) {
                         Text(photo?.title.orEmpty(), style = MaterialTheme.typography.titleLarge, maxLines = 1)
                         Text(
-                            "${state.currentIndex + 1} / ${state.photos.size}  ·  ${state.settings.intervalSeconds}s  ·  ${state.settings.transition.label}",
+                            stringResource(R.string.slideshow_info, state.currentIndex + 1, state.photos.size, state.settings.intervalSeconds, stringResource(state.settings.transition.labelRes)),
                             style = MaterialTheme.typography.bodyMedium,
                             color = TextSecondary,
                         )
                     }
                     Spacer(Modifier.size(18.dp))
-                    TvButton("Impostazioni", onSettings, icon = Icons.Rounded.Settings)
+                    TvButton(stringResource(R.string.action_settings), onSettings, icon = Icons.Rounded.Settings)
                 }
             }
         }

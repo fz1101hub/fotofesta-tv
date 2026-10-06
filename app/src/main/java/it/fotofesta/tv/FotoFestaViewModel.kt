@@ -4,6 +4,9 @@ import android.app.Application
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
+import androidx.annotation.DrawableRes
+import androidx.annotation.PluralsRes
+import androidx.annotation.StringRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import it.fotofesta.tv.cast.CastBridge
@@ -23,7 +26,9 @@ import it.fotofesta.tv.model.PhotoRef
 import it.fotofesta.tv.model.PlaybackOrder
 import it.fotofesta.tv.model.SlideshowSettings
 import it.fotofesta.tv.model.SourceType
+import it.fotofesta.tv.model.UserFacingException
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,6 +37,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 class FotoFestaViewModel(application: Application) : AndroidViewModel(application) {
@@ -40,7 +46,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private val settingsRepository = SettingsRepository(context)
     private val usbRepository = UsbPhotoRepository(context)
     private val musicPlayer = BackgroundMusicPlayer(context) {
-        showMessage("Impossibile riprodurre il brano scelto. Selezionane un altro dalle impostazioni.")
+        showMessage(context.getString(R.string.message_music_error))
     }
     private val http = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -56,15 +62,16 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private val savedMusic = settingsRepository.loadMusic()
 
     private val demoPhotos = listOf(
-        PhotoItem("demo:coast", "Costa al tramonto", PhotoRef.Resource(R.drawable.demo_coast), SourceType.DEMO),
-        PhotoItem("demo:picnic", "Picnic in famiglia", PhotoRef.Resource(R.drawable.demo_picnic), SourceType.DEMO),
-        PhotoItem("demo:mountains", "Lago nelle Dolomiti", PhotoRef.Resource(R.drawable.demo_mountains), SourceType.DEMO),
-        PhotoItem("demo:birthday", "Festa di compleanno", PhotoRef.Resource(R.drawable.demo_birthday), SourceType.DEMO),
+        demoPhoto("demo:coast", R.string.demo_coast, R.drawable.demo_coast),
+        demoPhoto("demo:picnic", R.string.demo_picnic, R.drawable.demo_picnic),
+        demoPhoto("demo:mountains", R.string.demo_mountains, R.drawable.demo_mountains),
+        demoPhoto("demo:birthday", R.string.demo_birthday, R.drawable.demo_birthday),
     )
 
     private val _state = MutableStateFlow(
         AppState(
             photos = demoPhotos,
+            sourceLabel = context.getString(R.string.source_demo),
             settings = settingsRepository.load(),
             musicUri = savedMusic?.uri,
             musicName = savedMusic?.name,
@@ -83,8 +90,12 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             CastBridge.commands.collect(::handleCastCommand)
         }
         when (settingsRepository.loadLastSource()) {
-            "GOOGLE" -> googlePhotos.cachedPhotos().takeIf { it.isNotEmpty() }?.let { cached ->
-                showPhotos(cached, googleLabel(cached.size))
+            "GOOGLE" -> viewModelScope.launch {
+                val cached = withContext(Dispatchers.IO) { googlePhotos.cachedPhotos() }
+                // Non sovrascrive una sorgente scelta nel frattempo (es. comando Cast).
+                if (cached.isNotEmpty() && _state.value.photos === demoPhotos) {
+                    showPhotos(cached, googleLabel(cached.size))
+                }
             }
             "USB" -> settingsRepository.loadUsbTree()?.let { stored -> loadUsb(Uri.parse(stored)) }
         }
@@ -110,14 +121,14 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun useDemoAndPlay() {
         settingsRepository.saveLastSource("DEMO")
-        showPhotos(demoPhotos, DEMO_LABEL)
+        showPhotos(demoPhotos, context.getString(R.string.source_demo))
         _state.update { it.copy(destination = Destination.SLIDESHOW, isPlaying = true) }
         syncMusic()
     }
 
     fun playCurrent() {
         if (_state.value.photos.isEmpty()) {
-            showMessage("Scegli prima una sorgente di foto.")
+            showMessage(context.getString(R.string.message_choose_source))
             return
         }
         _state.update { it.copy(destination = Destination.SLIDESHOW, isPlaying = true) }
@@ -134,18 +145,18 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         syncMusic()
     }
 
+    // PlaybackOrder ha effetti collaterali (rimescola a fine giro): l'indice va calcolato fuori da
+    // update {}, il cui blocco può essere rieseguito in caso di scritture concorrenti.
     fun next() {
-        _state.update { current ->
-            if (current.photos.isEmpty()) current
-            else current.copy(currentIndex = playbackOrder.next(current.currentIndex))
-        }
+        if (_state.value.photos.isEmpty()) return
+        val index = playbackOrder.next(_state.value.currentIndex)
+        _state.update { it.copy(currentIndex = index) }
     }
 
     fun previous() {
-        _state.update { current ->
-            if (current.photos.isEmpty()) current
-            else current.copy(currentIndex = playbackOrder.previous(current.currentIndex))
-        }
+        if (_state.value.photos.isEmpty()) return
+        val index = playbackOrder.previous(_state.value.currentIndex)
+        _state.update { it.copy(currentIndex = index) }
     }
 
     /** Foto successiva prevista, usata dallo slideshow per precaricarla. */
@@ -170,15 +181,15 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         }
         usbJob?.cancel()
         usbJob = viewModelScope.launch {
-            _state.update { it.copy(busy = true, message = "Indicizzazione cartella in corso…") }
+            _state.update { it.copy(busy = true, message = context.getString(R.string.message_usb_indexing)) }
             try {
                 val photos = usbRepository.scan(treeUri)
                 if (photos.isEmpty()) {
-                    _state.update { it.copy(busy = false, message = "Nessuna immagine trovata nella cartella scelta.") }
+                    _state.update { it.copy(busy = false, message = context.getString(R.string.message_usb_empty)) }
                 } else {
                     settingsRepository.saveUsbTree(treeUri.toString())
-                    showPhotos(photos, "USB o cartella locale · ${photos.size} foto")
-                    _state.update { it.copy(busy = false, message = "${photos.size} foto pronte.") }
+                    showPhotos(photos, quantityString(R.plurals.source_usb, photos.size))
+                    _state.update { it.copy(busy = false, message = quantityString(R.plurals.message_usb_ready, photos.size)) }
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -187,7 +198,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                 _state.update {
                     it.copy(
                         busy = false,
-                        message = "Cartella non disponibile: collega di nuovo il disco USB o scegli un'altra cartella.",
+                        message = context.getString(R.string.message_usb_unavailable),
                     )
                 }
             }
@@ -198,7 +209,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         runCatching {
             context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        val name = displayName ?: "Brano scelto"
+        val name = displayName ?: context.getString(R.string.music_default_name)
         settingsRepository.saveMusic(uri.toString(), name)
         _state.update { it.copy(musicUri = uri.toString(), musicName = name) }
         syncMusic()
@@ -215,9 +226,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             _state.update {
                 it.copy(
                     destination = Destination.GOOGLE_CONNECT,
-                    google = GoogleConnectState.Error(
-                        "Mancano le credenziali Google Photos Picker. Segui CONFIGURATION.md e ricompila l'app."
-                    ),
+                    google = GoogleConnectState.Error(context.getString(R.string.error_google_not_configured)),
                 )
             }
             return
@@ -243,12 +252,12 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                 _state.update { it.copy(google = GoogleConnectState.WaitingForPhotos(session.pickerUri)) }
                 val completed = googlePhotos.awaitSelection(accessToken, session)
                 val picked = googlePhotos.listPickedMedia(accessToken, completed.id)
-                check(picked.isNotEmpty()) { "Non hai selezionato foto." }
+                if (picked.isEmpty()) throw UserFacingException(R.string.error_google_nothing_selected)
                 _state.update { it.copy(google = GoogleConnectState.Downloading(0, picked.size)) }
                 val downloaded = googlePhotos.downloadToPrivateCache(accessToken, picked) { done, total ->
                     _state.update { it.copy(google = GoogleConnectState.Downloading(done, total)) }
                 }
-                check(downloaded.isNotEmpty()) { "Non è stato possibile preparare le foto selezionate." }
+                if (downloaded.isEmpty()) throw UserFacingException(R.string.error_google_download_failed)
                 settingsRepository.saveLastSource("GOOGLE")
                 showPhotos(downloaded, googleLabel(downloaded.size))
                 val skipped = picked.size - downloaded.size
@@ -256,16 +265,17 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                     it.copy(
                         google = GoogleConnectState.Complete(downloaded.size),
                         message = if (skipped > 0) {
-                            "$skipped foto non scaricate (spazio insufficiente o file non disponibili)."
+                            quantityString(R.plurals.message_google_skipped, skipped)
                         } else {
-                            "Foto Google pronte per lo slideshow."
+                            context.getString(R.string.message_google_ready)
                         },
                     )
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
-            } catch (error: Exception) {
-                _state.update { it.copy(google = GoogleConnectState.Error(error.userMessage())) }
+            } catch (failure: Exception) {
+                Log.w(TAG, "Collegamento Google non riuscito", failure)
+                _state.update { it.copy(google = GoogleConnectState.Error(failure.userMessage())) }
             } finally {
                 val usedToken = token
                 val openSession = sessionId
@@ -306,11 +316,11 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         if (wasShowingGoogle || settingsRepository.loadLastSource() == "GOOGLE") {
             settingsRepository.saveLastSource("DEMO")
         }
-        if (wasShowingGoogle) showPhotos(demoPhotos, DEMO_LABEL)
+        if (wasShowingGoogle) showPhotos(demoPhotos, context.getString(R.string.source_demo))
         _state.update {
             it.copy(
                 google = GoogleConnectState.Idle,
-                message = "Account e cache Google Foto rimossi da questa TV.",
+                message = context.getString(R.string.message_google_removed),
             )
         }
     }
@@ -326,7 +336,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             is CastCommand.ChangeSettings -> updateSettings(command.settings.applyTo(_state.value.settings))
             is CastCommand.Load -> {
                 command.settings?.let { updateSettings(it.applyTo(_state.value.settings)) }
-                showPhotos(command.photos, "Chromecast · ${command.photos.size} foto")
+                showPhotos(command.photos, quantityString(R.plurals.source_cast, command.photos.size))
                 _state.update { it.copy(destination = Destination.SLIDESHOW, isPlaying = true) }
                 syncMusic()
             }
@@ -349,10 +359,20 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
 
     private fun showMessage(value: String) = _state.update { it.copy(message = value) }
 
-    private fun Throwable.userMessage(): String =
-        message?.takeIf { it.isNotBlank() } ?: "Operazione non riuscita. Controlla rete e impostazioni."
+    private fun Throwable.userMessage(): String = when (this) {
+        is UserFacingException -> context.getString(messageRes)
+        is HttpStatusException -> serverMessage ?: context.getString(R.string.error_google_http, code)
+        is IOException -> context.getString(R.string.error_network)
+        else -> context.getString(R.string.error_generic)
+    }
 
-    private fun googleLabel(count: Int) = "Google Foto · $count foto in cache privata"
+    private fun googleLabel(count: Int) = quantityString(R.plurals.source_google, count)
+
+    private fun quantityString(@PluralsRes id: Int, count: Int): String =
+        context.resources.getQuantityString(id, count, count)
+
+    private fun demoPhoto(id: String, @StringRes title: Int, @DrawableRes drawable: Int) =
+        PhotoItem(id, context.getString(title), PhotoRef.Resource(drawable), SourceType.DEMO)
 
     override fun onCleared() {
         googleJob?.cancel()
@@ -364,6 +384,5 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
 
     private companion object {
         const val TAG = "FotoFestaViewModel"
-        const val DEMO_LABEL = "Foto dimostrative"
     }
 }

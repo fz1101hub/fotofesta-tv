@@ -67,7 +67,9 @@ class BackgroundMusicPlayer(
     }
 
     private fun prepare(uriValue: String): Boolean = try {
-        player = MediaPlayer().apply {
+        // Assegnato subito: se setDataSource fallisce, release() libera anche questo player.
+        player = MediaPlayer()
+        player?.apply {
             setAudioAttributes(attributes)
             setDataSource(context, Uri.parse(uriValue))
             isLooping = true

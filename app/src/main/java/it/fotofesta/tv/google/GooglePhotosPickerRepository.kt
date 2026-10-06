@@ -1,9 +1,11 @@
 package it.fotofesta.tv.google
 
 import android.content.Context
+import it.fotofesta.tv.R
 import it.fotofesta.tv.model.PhotoItem
 import it.fotofesta.tv.model.PhotoRef
 import it.fotofesta.tv.model.SourceType
+import it.fotofesta.tv.model.UserFacingException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -56,14 +58,14 @@ class GooglePhotosPickerRepository(
         val request = authorized(url, token)
             .post("{}".toRequestBody("application/json".toMediaType()))
             .build()
-        return parseSession(client.fetchJson(request, ::serviceError))
+        return parseSession(client.fetchJson(request))
     }
 
     suspend fun awaitSelection(token: String, initial: PickingSession): PickingSession {
         var current = initial
         var deadline = deadlineFor(current, fallbackSeconds = DEFAULT_SESSION_TIMEOUT_SECONDS)
         while (!current.mediaItemsSet) {
-            check(System.currentTimeMillis() < deadline) { "La selezione Google Foto è scaduta." }
+            if (System.currentTimeMillis() >= deadline) throw UserFacingException(R.string.error_google_selection_expired)
             delay(current.pollIntervalSeconds.coerceIn(2L, 30L) * 1_000L)
             current = getSession(token, current.id)
             // timeoutIn è relativo alla risposta: la scadenza va ricalcolata a ogni polling.
@@ -82,7 +84,7 @@ class GooglePhotosPickerRepository(
                 .addQueryParameter("pageSize", "100")
                 .apply { pageToken?.let { addQueryParameter("pageToken", it) } }
                 .build()
-            val json = client.fetchJson(authorized(url, token).build(), ::serviceError)
+            val json = client.fetchJson(authorized(url, token).build())
             val items = json.optJSONArray("mediaItems")
             if (items != null) {
                 for (index in 0 until items.length()) {
@@ -144,9 +146,16 @@ class GooglePhotosPickerRepository(
                 )
             }
             writeManifest(staging, photos)
-            cacheDirectory.deleteRecursively()
-            check(staging.renameTo(cacheDirectory)) { "Impossibile salvare le foto nella cache." }
+            // La cache precedente viene spostata da parte e cancellata solo dopo lo scambio riuscito.
+            val previous = File(context.cacheDir, "$CACHE_DIR.old-${UUID.randomUUID()}")
+            val hadPrevious = cacheDirectory.exists()
+            if (hadPrevious && !cacheDirectory.renameTo(previous)) throw UserFacingException(R.string.error_cache_write)
+            if (!staging.renameTo(cacheDirectory)) {
+                if (hadPrevious) previous.renameTo(cacheDirectory)
+                throw UserFacingException(R.string.error_cache_write)
+            }
             committed = true
+            previous.deleteRecursively()
             photos
         } finally {
             if (!committed) staging.deleteRecursively()
@@ -192,7 +201,7 @@ class GooglePhotosPickerRepository(
 
     fun clearCache() {
         context.cacheDir.listFiles()
-            ?.filter { it.name == CACHE_DIR || it.name.startsWith("$CACHE_DIR.staging-") }
+            ?.filter { it.name == CACHE_DIR || it.name.startsWith("$CACHE_DIR.") }
             ?.forEach { it.deleteRecursively() }
     }
 
@@ -243,7 +252,7 @@ class GooglePhotosPickerRepository(
 
     private suspend fun getSession(token: String, id: String): PickingSession {
         val url = apiBase.newBuilder().addPathSegment("sessions").addPathSegment(id).build()
-        return parseSession(client.fetchJson(authorized(url, token).build(), ::serviceError))
+        return parseSession(client.fetchJson(authorized(url, token).build()))
     }
 
     private fun authorized(url: HttpUrl, token: String) =
@@ -262,8 +271,6 @@ class GooglePhotosPickerRepository(
 
     private fun deadlineFor(session: PickingSession, fallbackSeconds: Long): Long =
         System.currentTimeMillis() + (session.timeoutSeconds ?: fallbackSeconds).coerceAtLeast(60L) * 1_000L
-
-    private fun serviceError(code: Int) = "Google Foto non disponibile ($code)."
 
     companion object {
         private const val CACHE_DIR = "google_photos"

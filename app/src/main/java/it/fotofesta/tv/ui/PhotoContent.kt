@@ -17,10 +17,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImagePainter
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
+import it.fotofesta.tv.R
 import it.fotofesta.tv.model.FitMode
 import it.fotofesta.tv.model.PhotoItem
 import it.fotofesta.tv.model.PhotoRef
@@ -71,7 +73,7 @@ private fun UnavailablePhoto() {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Icon(Icons.Rounded.BrokenImage, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(56.dp))
-            Text("Foto non disponibile", style = MaterialTheme.typography.bodyLarge, color = TextSecondary)
+            Text(stringResource(R.string.photo_unavailable), style = MaterialTheme.typography.bodyLarge, color = TextSecondary)
         }
     }
 }

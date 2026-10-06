@@ -22,6 +22,7 @@
 | Giochi | Memory dei ricordi | Pronta |
 | Giochi | Foto misteriosa | Pronta |
 | Privacy | Nessuna pubblicità o analytics; token AES-GCM in Android Keystore | Pronta |
+| Lingue | Italiano e inglese (predefinito per le altre lingue del televisore) | Pronta |
 | Google Play | Banner 320×180, icona 512×512, Leanback launcher, AAB | Pronta |
 
 ## Scelta dell’approccio
@@ -81,7 +82,7 @@ Google Foto non espone più l’intera libreria a un’app di terze parti: l’u
 
 ## Verifica effettuata
 
-Ogni push e ogni pull request verso `main` eseguono in GitHub Actions i 21 test unitari (protocollo Cast e validazione URL, ordine di riproduzione, ordinamento dei file, risposte HTTP Google), Android Lint e la build dell’APK debug (`.github/workflows/android.yml`); l’APK e i report sono scaricabili come artefatti. Il rapporto di audit e le correzioni applicate sono descritti in [AUDIT.md](docs/AUDIT.md).
+Ogni push e ogni pull request verso `main` eseguono in GitHub Actions i 24 test unitari (protocollo Cast e validazione URL, ordine di riproduzione, ordinamento dei file, risposte HTTP Google, coerenza delle traduzioni), Android Lint e la build dell’APK debug (`.github/workflows/android.yml`); l’APK e i report sono scaricabili come artefatti. Il rapporto di audit e le correzioni applicate sono descritti in [AUDIT.md](docs/AUDIT.md).
 
 Risultati della validazione della versione 1.0.0 (vedi [VALIDATION.md](docs/VALIDATION.md)):
 

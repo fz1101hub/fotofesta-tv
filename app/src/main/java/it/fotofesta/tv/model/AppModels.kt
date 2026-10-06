@@ -1,10 +1,25 @@
 package it.fotofesta.tv.model
 
 import androidx.annotation.DrawableRes
+import androidx.annotation.StringRes
+import it.fotofesta.tv.R
 
 enum class Destination { HOME, SETTINGS, SLIDESHOW, GAMES, MEMORY, MYSTERY, GOOGLE_CONNECT }
-enum class TransitionType(val label: String) { FADE("Dissolvenza"), SLIDE("Scorrimento"), ZOOM("Zoom dolce") }
-enum class FitMode(val label: String) { CONTAIN("Foto intera"), CROP("Riempi schermo") }
+
+enum class TransitionType(@StringRes val labelRes: Int) {
+    FADE(R.string.transition_fade),
+    SLIDE(R.string.transition_slide),
+    ZOOM(R.string.transition_zoom),
+}
+
+enum class FitMode(@StringRes val labelRes: Int) {
+    CONTAIN(R.string.fit_contain),
+    CROP(R.string.fit_crop),
+}
+
+/** Errore da mostrare all'utente con un testo localizzato. */
+class UserFacingException(@StringRes val messageRes: Int) : Exception()
+
 enum class SourceType { DEMO, USB, GOOGLE_PHOTOS, CAST }
 
 sealed interface PhotoRef {
@@ -75,7 +90,7 @@ data class MemoryCard(
 data class AppState(
     val destination: Destination = Destination.HOME,
     val photos: List<PhotoItem> = emptyList(),
-    val sourceLabel: String = "Foto dimostrative",
+    val sourceLabel: String = "",
     val settings: SlideshowSettings = SlideshowSettings(),
     val currentIndex: Int = 0,
     val isPlaying: Boolean = false,

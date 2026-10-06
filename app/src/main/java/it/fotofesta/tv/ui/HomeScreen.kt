@@ -27,7 +27,9 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import it.fotofesta.tv.R
 import it.fotofesta.tv.model.AppState
 
 @Composable
@@ -56,13 +58,13 @@ fun HomeScreen(
             ) {
                 Row(verticalAlignment = Alignment.Bottom) {
                     SectionTitle(
-                        "I tuoi ricordi sul grande schermo",
-                        "Scegli da dove iniziare",
-                        "Google Foto resta sul tuo account. USB funziona anche senza internet.",
+                        stringResource(R.string.home_kicker),
+                        stringResource(R.string.home_title),
+                        stringResource(R.string.home_subtitle),
                     )
                     Spacer(Modifier.weight(1f))
                     TvButton(
-                        "Avvia slideshow",
+                        stringResource(R.string.action_start_slideshow),
                         onPlay,
                         modifier = Modifier.focusRequester(primaryFocus),
                         icon = Icons.Rounded.PlayArrow,
@@ -70,24 +72,24 @@ fun HomeScreen(
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
                     SourceCard(
-                        "Google Foto",
-                        "Seleziona dal telefono con QR. Nessun cast e nessun import manuale.",
+                        stringResource(R.string.home_google_title),
+                        stringResource(R.string.home_google_body),
                         Icons.Rounded.Cloud,
                         Cyan,
                         onGoogle,
                         Modifier.weight(1f),
                     )
                     SourceCard(
-                        "Hard disk USB",
-                        "Scegli una cartella. L’accesso resta solo su questa TV.",
+                        stringResource(R.string.home_usb_title),
+                        stringResource(R.string.home_usb_body),
                         Icons.Rounded.Usb,
                         Amber,
                         onUsb,
                         Modifier.weight(1f),
                     )
                     SourceCard(
-                        "Prova subito",
-                        "Quattro foto demo per esplorare transizioni, musica e giochi.",
+                        stringResource(R.string.home_demo_title),
+                        stringResource(R.string.home_demo_body),
                         Icons.Rounded.PlayArrow,
                         Coral,
                         onDemo,
@@ -95,8 +97,8 @@ fun HomeScreen(
                     )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    TvButton("Impostazioni", onSettings, icon = Icons.Rounded.Settings)
-                    TvButton("Giochi con le foto", onGames, icon = Icons.Rounded.SportsEsports)
+                    TvButton(stringResource(R.string.action_settings), onSettings, icon = Icons.Rounded.Settings)
+                    TvButton(stringResource(R.string.home_games), onGames, icon = Icons.Rounded.SportsEsports)
                 }
                 if (state.busy) {
                     LinearProgressIndicator(Modifier.fillMaxWidth(.5f), color = Amber)

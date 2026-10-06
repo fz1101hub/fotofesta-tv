@@ -13,12 +13,15 @@ import java.io.IOException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-/** Risposta HTTP non riuscita. [oauthError] contiene il codice OAuth (es. `invalid_grant`), se presente. */
+/**
+ * Risposta HTTP non riuscita. [oauthError] contiene il codice OAuth (es. `invalid_grant`) e
+ * [serverMessage] la descrizione fornita da Google, se presenti.
+ */
 class HttpStatusException(
     val code: Int,
     val oauthError: String?,
-    message: String,
-) : IOException(message)
+    val serverMessage: String?,
+) : IOException(serverMessage ?: "HTTP $code")
 
 /** Esegue la chiamata in modo asincrono: se la coroutine viene annullata, anche la richiesta HTTP lo è. */
 suspend fun Call.await(): Response = suspendCancellableCoroutine { continuation ->
@@ -35,24 +38,24 @@ suspend fun Call.await(): Response = suspendCancellableCoroutine { continuation 
 }
 
 /** Esegue [request] e restituisce il corpo JSON, oppure lancia [HttpStatusException] con il messaggio Google. */
-suspend fun OkHttpClient.fetchJson(request: Request, fallbackMessage: (Int) -> String): JSONObject {
+suspend fun OkHttpClient.fetchJson(request: Request): JSONObject {
     val response = newCall(request).await()
     return withContext(Dispatchers.IO) {
         response.use {
             val text = it.body?.string().orEmpty()
-            if (!it.isSuccessful) throw httpError(it.code, text, fallbackMessage)
+            if (!it.isSuccessful) throw httpError(it.code, text)
             JSONObject(text.ifBlank { "{}" })
         }
     }
 }
 
-internal fun httpError(code: Int, body: String, fallbackMessage: (Int) -> String): HttpStatusException {
+internal fun httpError(code: Int, body: String): HttpStatusException {
     val json = runCatching { JSONObject(body) }.getOrNull()
     // Le API Google usano {"error":{"message":…}}, l'endpoint OAuth {"error":"…","error_description":…}.
     val apiMessage = json?.optJSONObject("error")?.optString("message")
     val oauthError = json?.opt("error") as? String
     val description = json?.optString("error_description")
-    val message = listOf(apiMessage, description).firstOrNull { !it.isNullOrBlank() } ?: fallbackMessage(code)
+    val message = listOf(apiMessage, description).firstOrNull { !it.isNullOrBlank() }
     return HttpStatusException(code, oauthError, message)
 }
 

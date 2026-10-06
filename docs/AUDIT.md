@@ -59,13 +59,24 @@ L’audit ha riguardato codice Kotlin, manifest, build Gradle, script e document
 
 I 21 test unitari sono stati compilati ed eseguiti con Kotlin 2.0.21 su JVM 17: tutti superati, senza avvisi del compilatore. L’ambiente in cui è stato svolto l’audit non poteva scaricare l’Android SDK (`dl.google.com` bloccato dalla policy di rete), quindi la build completa dell’APK e Android Lint **non** sono stati eseguiti localmente: la prima esecuzione della nuova CI li verifica. Restano necessari i test manuali su TV reale elencati in [VALIDATION.md](VALIDATION.md).
 
+## Seconda revisione (versione 1.1.0)
+
+- **Revisione indipendente** del codice Android non compilabile in questo ambiente: nessun errore di compilazione trovato. Le API Coil sono state verificate sul bytecode reale, i costrutti Kotlin a rischio con kotlinc 2.0.21. Sono stati corretti i cinque problemi minori segnalati:
+  - `next()`/`previous()` modificavano l’ordine di riproduzione dentro `MutableStateFlow.update {}`, che può essere rieseguito;
+  - il precaricamento poteva rimescolare l’ordine durante la composizione;
+  - un `MediaPlayer` restava aperto se `setDataSource` falliva;
+  - la “Foto misteriosa” poteva apparire già risolta dopo un cambio di raccolta;
+  - la sostituzione della cache Google ora sposta da parte la cache precedente e la ripristina se lo scambio fallisce.
+- **Localizzazione**: tutti i testi dell’interfaccia, i messaggi e gli errori sono in `strings.xml`, con plurali corretti. L’inglese è la lingua predefinita per i televisori in lingue non tradotte; l’italiano è in `values-it`. Gli errori mostrati all’utente non sono più messaggi tecnici delle eccezioni ma testi localizzati (rete assente, servizio Google non disponibile, codice scaduto…). Un test unitario verifica che le due lingue abbiano le stesse chiavi e gli stessi segnaposto.
+- La cache Google viene letta all’avvio fuori dal thread principale.
+- Versione portata a 1.1.0 (`versionCode 2`). Test unitari: 24, tutti superati con kotlinc 2.0.21.
+
 ## Raccomandazioni aperte
 
 | Priorità | Raccomandazione |
 | --- | --- |
 | Alta | Eseguire sulla TV i flussi modificati: collegamento Google (incluso annullamento e token revocato), USB con migliaia di foto, Indietro e barra dei comandi nello slideshow, Foto misteriosa su Android 9–11. |
-| Media | Spostare i testi dell’interfaccia in `strings.xml` per abilitare traduzioni e la verifica di lint sui testi codificati. |
-| Media | Aggiornare `versionCode`/`versionName` prima del prossimo rilascio. |
 | Media | Valutare l’introduzione di Hilt o di una factory per iniettare repository e `OkHttpClient` nel ViewModel, così da testare anche i flussi Google con un server finto (es. MockWebServer). |
+| Bassa | I titoli predefiniti generati per le foto senza nome (“Foto N”) e i messaggi interni di log restano in italiano. |
 | Bassa | Adottare `androidx.tv:tv-material` per componenti con focus e indicazioni TV native. |
 | Bassa | Aggiungere un Web Receiver di fallback per dispositivi Cast senza l’app installata. |

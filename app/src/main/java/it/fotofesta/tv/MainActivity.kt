@@ -185,8 +185,8 @@ class MainActivity : ComponentActivity() {
             PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or PlaybackStateCompat.ACTION_STOP
         mediaSession.setMetadata(
             MediaMetadataCompat.Builder()
-                .putString(MediaMetadataCompat.METADATA_KEY_TITLE, title ?: "FotoFesta TV")
-                .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, "Slideshow fotografico")
+                .putString(MediaMetadataCompat.METADATA_KEY_TITLE, title ?: getString(R.string.app_name))
+                .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, getString(R.string.slideshow_session_subtitle))
                 .build()
         )
         mediaSession.setPlaybackState(

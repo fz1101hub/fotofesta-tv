@@ -35,9 +35,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import it.fotofesta.tv.R
 import it.fotofesta.tv.model.FitMode
 import it.fotofesta.tv.model.MemoryCard
 import it.fotofesta.tv.model.PhotoItem
@@ -48,7 +50,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun MemoryGameScreen(photos: List<PhotoItem>, onBack: () -> Unit) {
     if (photos.size < MIN_GAME_PHOTOS) {
-        NotEnoughPhotos("Memory", onBack)
+        NotEnoughPhotos(stringResource(R.string.memory_title), onBack)
         return
     }
     var round by remember { mutableIntStateOf(0) }
@@ -70,13 +72,13 @@ fun MemoryGameScreen(photos: List<PhotoItem>, onBack: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(34.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             SectionTitle(
-                "Memory · mosse: $moves",
-                if (complete) "Hai trovato tutti i ricordi in $moves mosse!" else "Trova le coppie",
+                stringResource(R.string.memory_kicker, moves),
+                if (complete) stringResource(R.string.memory_complete, moves) else stringResource(R.string.memory_find_pairs),
             )
             Spacer(Modifier.weight(1f))
-            TvButton("Nuova partita", ::newGame, icon = Icons.Rounded.Refresh)
+            TvButton(stringResource(R.string.memory_new_game), ::newGame, icon = Icons.Rounded.Refresh)
             Spacer(Modifier.padding(6.dp))
-            TvButton("Indietro", onBack, icon = Icons.AutoMirrored.Rounded.ArrowBack)
+            TvButton(stringResource(R.string.action_back), onBack, icon = Icons.AutoMirrored.Rounded.ArrowBack)
         }
         LazyVerticalGrid(
             columns = GridCells.Fixed(4),
@@ -86,6 +88,11 @@ fun MemoryGameScreen(photos: List<PhotoItem>, onBack: () -> Unit) {
         ) {
             itemsIndexed(cards, key = { _, card -> card.key }) { index, card ->
                 var focused by remember { mutableStateOf(false) }
+                val cardDescription = when {
+                    card.matched -> stringResource(R.string.memory_card_matched, card.photo.title)
+                    card.revealed -> card.photo.title
+                    else -> stringResource(R.string.memory_card_covered, index + 1)
+                }
                 Button(
                     onClick = {
                         if (pendingCheck != null || card.revealed || card.matched) return@Button
@@ -108,13 +115,7 @@ fun MemoryGameScreen(photos: List<PhotoItem>, onBack: () -> Unit) {
                     },
                     modifier = Modifier.aspectRatio(1.45f)
                         .onFocusChanged { focused = it.isFocused }
-                        .semantics {
-                            contentDescription = when {
-                                card.matched -> "Coppia trovata: ${card.photo.title}"
-                                card.revealed -> card.photo.title
-                                else -> "Carta coperta ${index + 1}"
-                            }
-                        },
+                        .semantics { contentDescription = cardDescription },
                     shape = RoundedCornerShape(18.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = if (focused) Amber else SurfaceBlue),
                     contentPadding = PaddingValues(if (focused) 4.dp else 6.dp),

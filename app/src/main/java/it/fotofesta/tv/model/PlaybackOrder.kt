@@ -44,8 +44,9 @@ class PlaybackOrder(private val random: Random = Random.Default) {
     /** Foto che verrà mostrata dopo [current] senza modificare l'ordine (usata per il prefetch). */
     fun peekNext(current: Int): Int? {
         if (order.size <= 1) return null
-        val position = positionOf(current)
-        return if (position == order.lastIndex && shuffle) null else order[(position + 1) % order.size]
+        val position = order.indexOf(current)
+        if (position < 0 || (position == order.lastIndex && shuffle)) return null
+        return order[(position + 1) % order.size]
     }
 
     private fun positionOf(current: Int): Int {

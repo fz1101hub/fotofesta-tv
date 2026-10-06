@@ -30,17 +30,19 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.size.Precision
+import it.fotofesta.tv.R
 import it.fotofesta.tv.model.FitMode
 import it.fotofesta.tv.model.PhotoItem
 
 @Composable
 fun MysteryGameScreen(photos: List<PhotoItem>, onBack: () -> Unit) {
     if (photos.size < MIN_GAME_PHOTOS) {
-        NotEnoughPhotos("Foto misteriosa", onBack)
+        NotEnoughPhotos(stringResource(R.string.games_mystery_title), onBack)
         return
     }
     var round by remember { mutableIntStateOf(0) }
@@ -52,17 +54,20 @@ fun MysteryGameScreen(photos: List<PhotoItem>, onBack: () -> Unit) {
     val choices = remember(answer, photos) {
         (listOf(answer) + photos.filter { it.id != answer.id }.shuffled().take(2)).shuffled()
     }
-    var revealed by remember(round) { mutableStateOf(false) }
-    var hintLevel by remember(round) { mutableIntStateOf(0) }
-    var feedback by remember(round) { mutableStateOf("Scegli il titolo corretto") }
+    var revealed by remember(round, photos) { mutableStateOf(false) }
+    var hintLevel by remember(round, photos) { mutableIntStateOf(0) }
+    var feedbackRes by remember(round, photos) { mutableIntStateOf(R.string.mystery_prompt) }
 
     Column(Modifier.fillMaxSize().padding(34.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            SectionTitle("Foto misteriosa", if (revealed) "Esatto: ${answer.title}" else "Quale ricordo è nascosto?")
+            SectionTitle(
+                stringResource(R.string.games_mystery_title),
+                if (revealed) stringResource(R.string.mystery_solved, answer.title) else stringResource(R.string.mystery_question),
+            )
             Spacer(Modifier.weight(1f))
-            TvButton("Nuova foto", { round++ }, icon = Icons.Rounded.Refresh)
+            TvButton(stringResource(R.string.mystery_new_photo), { round++ }, icon = Icons.Rounded.Refresh)
             Spacer(Modifier.padding(6.dp))
-            TvButton("Indietro", onBack, icon = Icons.AutoMirrored.Rounded.ArrowBack)
+            TvButton(stringResource(R.string.action_back), onBack, icon = Icons.AutoMirrored.Rounded.ArrowBack)
         }
         Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(28.dp)) {
             Box(
@@ -76,13 +81,13 @@ fun MysteryGameScreen(photos: List<PhotoItem>, onBack: () -> Unit) {
                         answer,
                         FitMode.CROP,
                         Modifier.fillMaxSize().blur((34 - hintLevel * 10).dp),
-                        contentDescription = HIDDEN_DESCRIPTION,
+                        contentDescription = stringResource(R.string.mystery_hidden_photo),
                     )
                     else -> LowResolutionPhoto(answer, sizePx = 10 + hintLevel * 12, Modifier.fillMaxSize())
                 }
             }
             Column(Modifier.weight(.75f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
-                Text(feedback, style = MaterialTheme.typography.titleLarge, color = if (revealed) Cyan else Amber)
+                Text(stringResource(feedbackRes), style = MaterialTheme.typography.titleLarge, color = if (revealed) Cyan else Amber)
                 Spacer(Modifier.padding(8.dp))
                 choices.forEach { choice ->
                     TvButton(
@@ -90,10 +95,10 @@ fun MysteryGameScreen(photos: List<PhotoItem>, onBack: () -> Unit) {
                         onClick = {
                             if (choice.id == answer.id) {
                                 revealed = true
-                                feedback = "Risposta corretta!"
+                                feedbackRes = R.string.mystery_correct
                             } else {
                                 hintLevel = (hintLevel + 1).coerceAtMost(2)
-                                feedback = "Non è questa. La foto ora è più nitida."
+                                feedbackRes = R.string.mystery_wrong
                             }
                         },
                         modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
@@ -109,6 +114,7 @@ fun MysteryGameScreen(photos: List<PhotoItem>, onBack: () -> Unit) {
 @Composable
 private fun LowResolutionPhoto(photo: PhotoItem, sizePx: Int, modifier: Modifier = Modifier) {
     val context = LocalContext.current
+    val description = stringResource(R.string.mystery_hidden_photo)
     val request = remember(photo.id, sizePx) {
         ImageRequest.Builder(context)
             .data(photo.ref.coilModel())
@@ -120,11 +126,10 @@ private fun LowResolutionPhoto(photo: PhotoItem, sizePx: Int, modifier: Modifier
     }
     AsyncImage(
         model = request,
-        contentDescription = HIDDEN_DESCRIPTION,
+        contentDescription = description,
         contentScale = ContentScale.Crop,
         filterQuality = FilterQuality.Low,
         modifier = modifier,
     )
 }
 
-private const val HIDDEN_DESCRIPTION = "Foto nascosta"

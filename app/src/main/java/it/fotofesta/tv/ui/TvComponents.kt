@@ -1,5 +1,6 @@
 package it.fotofesta.tv.ui
 
+import androidx.annotation.PluralsRes
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -36,8 +37,11 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import it.fotofesta.tv.R
 
 @Composable
 fun TvButton(
@@ -130,7 +134,7 @@ fun AppHeader(sourceLabel: String, castConnected: Boolean) {
         }
         Spacer(Modifier.size(14.dp))
         Column {
-            Text("FotoFesta TV", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Text(sourceLabel, style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
         }
         Spacer(Modifier.weight(1f))
@@ -141,7 +145,7 @@ fun AppHeader(sourceLabel: String, castConnected: Boolean) {
             ) {
                 Icon(Icons.Rounded.CastConnected, contentDescription = null, tint = Cyan, modifier = Modifier.size(22.dp))
                 Spacer(Modifier.size(8.dp))
-                Text("Chromecast collegato", color = Cyan, style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.header_cast_connected), color = Cyan, style = MaterialTheme.typography.bodyMedium)
             }
         }
     }
@@ -170,3 +174,8 @@ fun SettingRow(title: String, description: String, content: @Composable () -> Un
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) { content() }
     }
 }
+
+/** Testo plurale localizzato con [count] come unico argomento di formato. */
+@Composable
+fun quantityStringResource(@PluralsRes id: Int, count: Int): String =
+    LocalContext.current.resources.getQuantityString(id, count, count)

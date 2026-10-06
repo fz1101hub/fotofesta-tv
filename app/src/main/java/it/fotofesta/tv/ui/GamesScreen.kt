@@ -14,7 +14,9 @@ import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import it.fotofesta.tv.R
 
 /** Numero minimo di foto perché i giochi abbiano senso (almeno due coppie / due risposte). */
 const val MIN_GAME_PHOTOS = 2
@@ -24,14 +26,18 @@ fun GamesScreen(photoCount: Int, onBack: () -> Unit, onMemory: () -> Unit, onMys
     val playable = photoCount >= MIN_GAME_PHOTOS
     Column(Modifier.fillMaxSize().padding(46.dp), verticalArrangement = Arrangement.spacedBy(30.dp)) {
         Row(Modifier.fillMaxWidth()) {
-            SectionTitle("Gioca insieme", "Minigiochi con le tue foto", "Usa il telecomando. Nessun punteggio o dato lascia la TV.")
+            SectionTitle(
+                stringResource(R.string.games_kicker),
+                stringResource(R.string.games_title),
+                stringResource(R.string.games_subtitle),
+            )
             Spacer(Modifier.weight(1f))
-            TvButton("Indietro", onBack, icon = Icons.AutoMirrored.Rounded.ArrowBack)
+            TvButton(stringResource(R.string.action_back), onBack, icon = Icons.AutoMirrored.Rounded.ArrowBack)
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(22.dp)) {
             SourceCard(
-                "Memory dei ricordi",
-                "Trova le coppie di foto nel minor numero di mosse. Perfetto da giocare in famiglia.",
+                stringResource(R.string.games_memory_title),
+                stringResource(R.string.games_memory_body),
                 Icons.Rounded.GridView,
                 Coral,
                 onMemory,
@@ -39,8 +45,8 @@ fun GamesScreen(photoCount: Int, onBack: () -> Unit, onMemory: () -> Unit, onMys
                 enabled = playable,
             )
             SourceCard(
-                "Foto misteriosa",
-                "Indovina il ricordo nascosto tra più possibilità.",
+                stringResource(R.string.games_mystery_title),
+                stringResource(R.string.games_mystery_body),
                 Icons.Rounded.Visibility,
                 Cyan,
                 onMystery,
@@ -49,8 +55,8 @@ fun GamesScreen(photoCount: Int, onBack: () -> Unit, onMemory: () -> Unit, onMys
             )
         }
         Text(
-            if (playable) "Raccolta attiva: $photoCount foto"
-            else "Servono almeno $MIN_GAME_PHOTOS foto: scegli una sorgente dalla schermata principale.",
+            if (playable) quantityStringResource(R.plurals.games_active_collection, photoCount)
+            else stringResource(R.string.games_need_photos, MIN_GAME_PHOTOS),
             color = TextSecondary,
         )
     }
@@ -59,7 +65,11 @@ fun GamesScreen(photoCount: Int, onBack: () -> Unit, onMemory: () -> Unit, onMys
 @Composable
 fun NotEnoughPhotos(title: String, onBack: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(46.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
-        SectionTitle(title, "Servono più foto", "Per giocare occorrono almeno $MIN_GAME_PHOTOS foto nella raccolta attiva.")
-        TvButton("Indietro", onBack, icon = Icons.AutoMirrored.Rounded.ArrowBack)
+        SectionTitle(
+            title,
+            stringResource(R.string.games_more_photos_title),
+            stringResource(R.string.games_more_photos_body, MIN_GAME_PHOTOS),
+        )
+        TvButton(stringResource(R.string.action_back), onBack, icon = Icons.AutoMirrored.Rounded.ArrowBack)
     }
 }

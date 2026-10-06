@@ -1,6 +1,8 @@
 package it.fotofesta.tv.google
 
 import it.fotofesta.tv.BuildConfig
+import it.fotofesta.tv.R
+import it.fotofesta.tv.model.UserFacingException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -41,7 +43,6 @@ class GoogleDeviceAuthRepository(
             .build()
         val json = client.fetchJson(
             Request.Builder().url("https://oauth2.googleapis.com/device/code").post(body).build(),
-            ::networkError,
         )
         return DeviceCode(
             deviceCode = json.getString("device_code"),
@@ -64,7 +65,7 @@ class GoogleDeviceAuthRepository(
                 .add("grant_type", "urn:ietf:params:oauth:grant-type:device_code")
                 .build()
             val json = try {
-                client.fetchJson(Request.Builder().url(tokenUrl).post(body).build(), ::networkError)
+                client.fetchJson(Request.Builder().url(tokenUrl).post(body).build())
             } catch (failure: HttpStatusException) {
                 when (failure.oauthError) {
                     "authorization_pending" -> continue
@@ -72,14 +73,14 @@ class GoogleDeviceAuthRepository(
                         intervalSeconds += 5
                         continue
                     }
-                    "access_denied" -> error("Autorizzazione annullata sul telefono.")
-                    "expired_token" -> error("Il codice Google è scaduto. Riprova.")
+                    "access_denied" -> throw UserFacingException(R.string.error_google_access_denied)
+                    "expired_token" -> throw UserFacingException(R.string.error_google_code_expired)
                     else -> throw failure
                 }
             }
             return persistToken(json)
         }
-        error("Il codice Google è scaduto. Riprova.")
+        throw UserFacingException(R.string.error_google_code_expired)
     }
 
     /**
@@ -113,7 +114,7 @@ class GoogleDeviceAuthRepository(
             .add("refresh_token", refresh)
             .add("grant_type", "refresh_token")
             .build()
-        val json = client.fetchJson(Request.Builder().url(tokenUrl).post(body).build(), ::networkError)
+        val json = client.fetchJson(Request.Builder().url(tokenUrl).post(body).build())
         return persistToken(json).accessToken
     }
 
@@ -131,11 +132,7 @@ class GoogleDeviceAuthRepository(
         result
     }
 
-    private fun networkError(code: Int) = "Errore di rete Google ($code)."
-
     private fun requireConfigured() {
-        check(isConfigured()) {
-            "Configura PHOTOS_CLIENT_ID e PHOTOS_CLIENT_SECRET nel file local.properties."
-        }
+        if (!isConfigured()) throw UserFacingException(R.string.error_google_not_configured)
     }
 }

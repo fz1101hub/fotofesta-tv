@@ -19,11 +19,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import it.fotofesta.tv.R
 import it.fotofesta.tv.model.AppState
 import it.fotofesta.tv.model.FitMode
 import it.fotofesta.tv.model.SlideshowSettings
 import it.fotofesta.tv.model.TransitionType
+import kotlin.math.roundToInt
 
 @Composable
 fun SettingsScreen(
@@ -42,54 +45,54 @@ fun SettingsScreen(
     ) {
         Row(Modifier.fillMaxWidth()) {
             Column(Modifier.weight(1f)) {
-                SectionTitle("Personalizza", "Impostazioni slideshow", "Le modifiche vengono salvate solo su questa TV.")
+                SectionTitle(stringResource(R.string.settings_kicker), stringResource(R.string.settings_title), stringResource(R.string.settings_subtitle))
             }
-            TvButton("Indietro", onBack, icon = Icons.AutoMirrored.Rounded.ArrowBack)
+            TvButton(stringResource(R.string.action_back), onBack, icon = Icons.AutoMirrored.Rounded.ArrowBack)
             Spacer(Modifier.size(12.dp))
-            TvButton("Avvia", onPlay, icon = Icons.Rounded.PlayArrow)
+            TvButton(stringResource(R.string.action_start), onPlay, icon = Icons.Rounded.PlayArrow)
         }
         Column(
             Modifier.weight(1f).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            SettingRow("Durata di ogni foto", "Tempo prima della diapositiva successiva.") {
+            SettingRow(stringResource(R.string.settings_interval), stringResource(R.string.settings_interval_body)) {
                 listOf(3, 5, 8, 12, 20).forEach { seconds ->
-                    TvButton("${seconds}s", { onChange(settings.copy(intervalSeconds = seconds)) }, selected = settings.intervalSeconds == seconds)
+                    TvButton(stringResource(R.string.settings_seconds, seconds), { onChange(settings.copy(intervalSeconds = seconds)) }, selected = settings.intervalSeconds == seconds)
                 }
             }
-            SettingRow("Transizione", "Scegli un movimento sobrio tra le immagini.") {
+            SettingRow(stringResource(R.string.settings_transition), stringResource(R.string.settings_transition_body)) {
                 TransitionType.entries.forEach { transition ->
-                    TvButton(transition.label, { onChange(settings.copy(transition = transition)) }, selected = settings.transition == transition)
+                    TvButton(stringResource(transition.labelRes), { onChange(settings.copy(transition = transition)) }, selected = settings.transition == transition)
                 }
             }
-            SettingRow("Adattamento foto", "Mostra tutta la foto oppure riempi lo schermo tagliando i bordi.") {
+            SettingRow(stringResource(R.string.settings_fit), stringResource(R.string.settings_fit_body)) {
                 FitMode.entries.forEach { fit ->
-                    TvButton(fit.label, { onChange(settings.copy(fitMode = fit)) }, selected = settings.fitMode == fit)
+                    TvButton(stringResource(fit.labelRes), { onChange(settings.copy(fitMode = fit)) }, selected = settings.fitMode == fit)
                 }
             }
-            SettingRow("Ordine casuale", "Evita la sequenza alfabetica della cartella.") {
-                TvButton(if (settings.shuffle) "Attivo" else "Disattivo", { onChange(settings.copy(shuffle = !settings.shuffle)) }, selected = settings.shuffle)
+            SettingRow(stringResource(R.string.settings_shuffle), stringResource(R.string.settings_shuffle_body)) {
+                TvButton(if (settings.shuffle) stringResource(R.string.settings_on) else stringResource(R.string.settings_off), { onChange(settings.copy(shuffle = !settings.shuffle)) }, selected = settings.shuffle)
             }
-            SettingRow("Riduci movimento", "Disattiva le animazioni, utile per sensibilità al movimento.") {
-                TvButton(if (settings.reducedMotion) "Attivo" else "Disattivo", { onChange(settings.copy(reducedMotion = !settings.reducedMotion)) }, selected = settings.reducedMotion)
+            SettingRow(stringResource(R.string.settings_reduced_motion), stringResource(R.string.settings_reduced_motion_body)) {
+                TvButton(if (settings.reducedMotion) stringResource(R.string.settings_on) else stringResource(R.string.settings_off), { onChange(settings.copy(reducedMotion = !settings.reducedMotion)) }, selected = settings.reducedMotion)
             }
-            SettingRow("Orologio", "Mostra l’ora nell’angolo in alto a destra.") {
-                TvButton(if (settings.showClock) "Visibile" else "Nascosto", { onChange(settings.copy(showClock = !settings.showClock)) }, selected = settings.showClock)
+            SettingRow(stringResource(R.string.settings_clock), stringResource(R.string.settings_clock_body)) {
+                TvButton(if (settings.showClock) stringResource(R.string.settings_visible) else stringResource(R.string.settings_hidden), { onChange(settings.copy(showClock = !settings.showClock)) }, selected = settings.showClock)
             }
-            SettingRow("Musica di sottofondo", state.musicName ?: "Nessun brano selezionato. Sono supportati i formati riconosciuti dalla TV.") {
-                TvButton("Scegli brano", onPickMusic, icon = Icons.Rounded.LibraryMusic)
-                if (state.musicUri != null) TvButton("Rimuovi", onRemoveMusic, icon = Icons.Rounded.DeleteOutline)
+            SettingRow(stringResource(R.string.settings_music), state.musicName ?: stringResource(R.string.settings_music_none)) {
+                TvButton(stringResource(R.string.settings_music_pick), onPickMusic, icon = Icons.Rounded.LibraryMusic)
+                if (state.musicUri != null) TvButton(stringResource(R.string.settings_music_remove), onRemoveMusic, icon = Icons.Rounded.DeleteOutline)
             }
-            SettingRow("Volume musica", "Regola il sottofondo senza modificare il volume generale della TV.") {
+            SettingRow(stringResource(R.string.settings_volume), stringResource(R.string.settings_volume_body)) {
                 listOf(.15f, .35f, .60f).forEach { volume ->
-                    TvButton("${(volume * 100).toInt()}%", { onChange(settings.copy(musicVolume = volume)) }, selected = settings.musicVolume == volume)
+                    TvButton(stringResource(R.string.settings_volume_value, (volume * 100).roundToInt()), { onChange(settings.copy(musicVolume = volume)) }, selected = settings.musicVolume == volume)
                 }
             }
-            SettingRow("Dati Google Foto", "Rimuove token cifrati e cache privata delle foto dalla TV.") {
-                TvButton("Disconnetti e cancella", onDisconnectGoogle, icon = Icons.Rounded.DeleteOutline)
+            SettingRow(stringResource(R.string.settings_google_data), stringResource(R.string.settings_google_data_body)) {
+                TvButton(stringResource(R.string.settings_google_disconnect), onDisconnectGoogle, icon = Icons.Rounded.DeleteOutline)
             }
             Text(
-                "Privacy: FotoFesta TV non contiene pubblicità o analytics. Le foto USB non vengono copiate. Le foto scelte da Google sono scaricate automaticamente in una cache privata temporanea per evitare la scadenza degli URL e vengono eliminate con ‘Disconnetti e cancella’ o dal sistema.",
+                stringResource(R.string.settings_privacy),
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextSecondary,
                 modifier = Modifier.padding(vertical = 8.dp),
