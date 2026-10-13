@@ -1,6 +1,5 @@
 package it.fotofesta.tv.google
 
-import android.content.Context
 import it.fotofesta.tv.R
 import it.fotofesta.tv.model.PhotoItem
 import it.fotofesta.tv.model.PhotoRef
@@ -27,9 +26,15 @@ import java.io.File
 import java.util.Locale
 import java.util.UUID
 
+/**
+ * Google Photos Picker API e cache privata delle foto scelte. [cacheRoot] è la cartella cache
+ * dell'app; endpoint e soglia di spazio libero sono iniettabili per i test.
+ */
 class GooglePhotosPickerRepository(
-    private val context: Context,
+    private val cacheRoot: File,
     private val client: OkHttpClient,
+    private val apiBase: HttpUrl = DEFAULT_API_BASE,
+    private val minFreeBytes: Long = DEFAULT_MIN_FREE_BYTES,
 ) {
     data class PickingSession(
         val id: String,
@@ -47,8 +52,7 @@ class GooglePhotosPickerRepository(
         val mimeType: String,
     )
 
-    private val apiBase = "https://photospicker.googleapis.com/v1".toHttpUrl()
-    private val cacheDirectory get() = File(context.cacheDir, CACHE_DIR)
+    private val cacheDirectory get() = File(cacheRoot, CACHE_DIR)
 
     suspend fun createSession(token: String): PickingSession {
         val url = apiBase.newBuilder()
@@ -117,7 +121,7 @@ class GooglePhotosPickerRepository(
         items: List<PickedMedia>,
         onProgress: (Int, Int) -> Unit,
     ): List<PhotoItem> = withContext(Dispatchers.IO) {
-        val staging = File(context.cacheDir, "$CACHE_DIR.staging-${UUID.randomUUID()}").apply { mkdirs() }
+        val staging = File(cacheRoot, "$CACHE_DIR.staging-${UUID.randomUUID()}").apply { mkdirs() }
         var committed = false
         try {
             var completed = 0
@@ -127,7 +131,7 @@ class GooglePhotosPickerRepository(
                 items.mapIndexed { index, item ->
                     async {
                         permits.withPermit {
-                            val fileName = if (staging.usableSpace > MIN_FREE_BYTES) {
+                            val fileName = if (staging.usableSpace > minFreeBytes) {
                                 downloadOne(token, item, index, staging)
                             } else null
                             synchronized(progressLock) { onProgress(++completed, items.size) }
@@ -147,7 +151,7 @@ class GooglePhotosPickerRepository(
             }
             writeManifest(staging, photos)
             // La cache precedente viene spostata da parte e cancellata solo dopo lo scambio riuscito.
-            val previous = File(context.cacheDir, "$CACHE_DIR.old-${UUID.randomUUID()}")
+            val previous = File(cacheRoot, "$CACHE_DIR.old-${UUID.randomUUID()}")
             val hadPrevious = cacheDirectory.exists()
             if (hadPrevious && !cacheDirectory.renameTo(previous)) throw UserFacingException(R.string.error_cache_write)
             if (!staging.renameTo(cacheDirectory)) {
@@ -200,7 +204,7 @@ class GooglePhotosPickerRepository(
     }
 
     fun clearCache() {
-        context.cacheDir.listFiles()
+        cacheRoot.listFiles()
             ?.filter { it.name == CACHE_DIR || it.name.startsWith("$CACHE_DIR.") }
             ?.forEach { it.deleteRecursively() }
     }
@@ -276,7 +280,8 @@ class GooglePhotosPickerRepository(
         private const val CACHE_DIR = "google_photos"
         private const val MANIFEST = "index.json"
         private const val PARALLEL_DOWNLOADS = 4
-        private const val MIN_FREE_BYTES = 300L * 1024 * 1024
+        const val DEFAULT_MIN_FREE_BYTES = 300L * 1024 * 1024
+        val DEFAULT_API_BASE = "https://photospicker.googleapis.com/v1".toHttpUrl()
         private const val DEFAULT_SESSION_TIMEOUT_SECONDS = 900L
     }
 }

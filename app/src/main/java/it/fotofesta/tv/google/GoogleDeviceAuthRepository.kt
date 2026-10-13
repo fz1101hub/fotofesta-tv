@@ -1,19 +1,28 @@
 package it.fotofesta.tv.google
 
-import it.fotofesta.tv.BuildConfig
 import it.fotofesta.tv.R
 import it.fotofesta.tv.model.UserFacingException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import okhttp3.FormBody
+import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
 
+/**
+ * OAuth 2.0 per TV e dispositivi a input limitato. Credenziali, archivio dei token, endpoint e
+ * orologio sono iniettati, così il flusso è verificabile nei test contro un server finto.
+ */
 class GoogleDeviceAuthRepository(
     private val client: OkHttpClient,
-    private val tokens: SecureTokenStore,
+    private val tokens: TokenStore,
+    private val clientId: String,
+    private val clientSecret: String,
+    oauthBase: HttpUrl = DEFAULT_OAUTH_BASE,
+    private val clock: () -> Long = System::currentTimeMillis,
 ) {
     data class DeviceCode(
         val deviceCode: String,
@@ -29,20 +38,19 @@ class GoogleDeviceAuthRepository(
         val expiresIn: Int,
     )
 
-    private val scope = "https://www.googleapis.com/auth/photospicker.mediaitems.readonly"
-    private val tokenUrl = "https://oauth2.googleapis.com/token"
+    private val deviceCodeUrl = oauthBase.newBuilder().addPathSegments("device/code").build()
+    private val tokenUrl = oauthBase.newBuilder().addPathSegment("token").build()
 
-    fun isConfigured(): Boolean =
-        BuildConfig.PHOTOS_CLIENT_ID.isNotBlank() && BuildConfig.PHOTOS_CLIENT_SECRET.isNotBlank()
+    fun isConfigured(): Boolean = clientId.isNotBlank() && clientSecret.isNotBlank()
 
     suspend fun requestDeviceCode(): DeviceCode {
         requireConfigured()
         val body = FormBody.Builder()
-            .add("client_id", BuildConfig.PHOTOS_CLIENT_ID)
-            .add("scope", scope)
+            .add("client_id", clientId)
+            .add("scope", SCOPE)
             .build()
         val json = client.fetchJson(
-            Request.Builder().url("https://oauth2.googleapis.com/device/code").post(body).build(),
+            Request.Builder().url(deviceCodeUrl).post(body).build(),
         )
         return DeviceCode(
             deviceCode = json.getString("device_code"),
@@ -54,13 +62,13 @@ class GoogleDeviceAuthRepository(
     }
 
     suspend fun pollForToken(code: DeviceCode): TokenResult {
-        val deadline = System.currentTimeMillis() + code.expiresIn * 1_000L
+        val deadline = clock() + code.expiresIn * 1_000L
         var intervalSeconds = code.interval
-        while (System.currentTimeMillis() < deadline) {
+        while (clock() < deadline) {
             delay(intervalSeconds * 1_000L)
             val body = FormBody.Builder()
-                .add("client_id", BuildConfig.PHOTOS_CLIENT_ID)
-                .add("client_secret", BuildConfig.PHOTOS_CLIENT_SECRET)
+                .add("client_id", clientId)
+                .add("client_secret", clientSecret)
                 .add("device_code", code.deviceCode)
                 .add("grant_type", "urn:ietf:params:oauth:grant-type:device_code")
                 .build()
@@ -88,7 +96,7 @@ class GoogleDeviceAuthRepository(
      * revocato o è scaduto, cancella i token salvati e restituisce `null` per avviare un nuovo collegamento.
      */
     suspend fun validAccessToken(): String? {
-        val now = System.currentTimeMillis() / 1_000L
+        val now = clock() / 1_000L
         val cached = withContext(Dispatchers.IO) {
             tokens.accessToken?.takeIf { tokens.expiresAtEpochSeconds > now + 60 }
         }
@@ -109,8 +117,8 @@ class GoogleDeviceAuthRepository(
         requireConfigured()
         val refresh = withContext(Dispatchers.IO) { tokens.refreshToken } ?: return null
         val body = FormBody.Builder()
-            .add("client_id", BuildConfig.PHOTOS_CLIENT_ID)
-            .add("client_secret", BuildConfig.PHOTOS_CLIENT_SECRET)
+            .add("client_id", clientId)
+            .add("client_secret", clientSecret)
             .add("refresh_token", refresh)
             .add("grant_type", "refresh_token")
             .build()
@@ -128,11 +136,16 @@ class GoogleDeviceAuthRepository(
         )
         tokens.accessToken = result.accessToken
         result.refreshToken?.let { tokens.refreshToken = it }
-        tokens.expiresAtEpochSeconds = System.currentTimeMillis() / 1_000L + result.expiresIn
+        tokens.expiresAtEpochSeconds = clock() / 1_000L + result.expiresIn
         result
     }
 
     private fun requireConfigured() {
         if (!isConfigured()) throw UserFacingException(R.string.error_google_not_configured)
+    }
+
+    companion object {
+        const val SCOPE = "https://www.googleapis.com/auth/photospicker.mediaitems.readonly"
+        val DEFAULT_OAUTH_BASE = "https://oauth2.googleapis.com/".toHttpUrl()
     }
 }

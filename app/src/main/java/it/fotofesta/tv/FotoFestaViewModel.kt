@@ -14,6 +14,7 @@ import it.fotofesta.tv.cast.CastCommand
 import it.fotofesta.tv.data.SettingsRepository
 import it.fotofesta.tv.data.UsbPhotoRepository
 import it.fotofesta.tv.google.GoogleDeviceAuthRepository
+import it.fotofesta.tv.google.GoogleImportFlow
 import it.fotofesta.tv.google.GooglePhotosPickerRepository
 import it.fotofesta.tv.google.HttpStatusException
 import it.fotofesta.tv.google.SecureTokenStore
@@ -30,7 +31,6 @@ import it.fotofesta.tv.model.UserFacingException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -53,9 +53,14 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         .readTimeout(60, TimeUnit.SECONDS)
         .callTimeout(90, TimeUnit.SECONDS)
         .build()
-    private val tokenStore = SecureTokenStore(context)
-    private val googleAuth = GoogleDeviceAuthRepository(http, tokenStore)
-    private val googlePhotos = GooglePhotosPickerRepository(context, http)
+    private val googleAuth = GoogleDeviceAuthRepository(
+        client = http,
+        tokens = SecureTokenStore(context),
+        clientId = BuildConfig.PHOTOS_CLIENT_ID,
+        clientSecret = BuildConfig.PHOTOS_CLIENT_SECRET,
+    )
+    private val googlePhotos = GooglePhotosPickerRepository(context.cacheDir, http)
+    private val googleImport = GoogleImportFlow(googleAuth, googlePhotos)
     private val playbackOrder = PlaybackOrder()
     private var googleJob: Job? = null
     private var usbJob: Job? = null
@@ -234,38 +239,15 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         googleJob?.cancel()
         googleJob = viewModelScope.launch {
             _state.update { it.copy(destination = Destination.GOOGLE_CONNECT, google = GoogleConnectState.Idle) }
-            var token: String? = null
-            var sessionId: String? = null
             try {
-                var accessToken = authorizeGoogle()
-                val session = try {
-                    googlePhotos.createSession(accessToken)
-                } catch (unauthorized: HttpStatusException) {
-                    if (unauthorized.code != 401) throw unauthorized
-                    // Token revocato dall'utente: si ripete il collegamento da capo una sola volta.
-                    googleAuth.disconnect()
-                    accessToken = authorizeGoogle()
-                    googlePhotos.createSession(accessToken)
-                }
-                token = accessToken
-                sessionId = session.id
-                _state.update { it.copy(google = GoogleConnectState.WaitingForPhotos(session.pickerUri)) }
-                val completed = googlePhotos.awaitSelection(accessToken, session)
-                val picked = googlePhotos.listPickedMedia(accessToken, completed.id)
-                if (picked.isEmpty()) throw UserFacingException(R.string.error_google_nothing_selected)
-                _state.update { it.copy(google = GoogleConnectState.Downloading(0, picked.size)) }
-                val downloaded = googlePhotos.downloadToPrivateCache(accessToken, picked) { done, total ->
-                    _state.update { it.copy(google = GoogleConnectState.Downloading(done, total)) }
-                }
-                if (downloaded.isEmpty()) throw UserFacingException(R.string.error_google_download_failed)
+                val result = googleImport.run { step -> _state.update { it.copy(google = step) } }
                 settingsRepository.saveLastSource("GOOGLE")
-                showPhotos(downloaded, googleLabel(downloaded.size))
-                val skipped = picked.size - downloaded.size
+                showPhotos(result.photos, googleLabel(result.photos.size))
                 _state.update {
                     it.copy(
-                        google = GoogleConnectState.Complete(downloaded.size),
-                        message = if (skipped > 0) {
-                            quantityString(R.plurals.message_google_skipped, skipped)
+                        google = GoogleConnectState.Complete(result.photos.size),
+                        message = if (result.skipped > 0) {
+                            quantityString(R.plurals.message_google_skipped, result.skipped)
                         } else {
                             context.getString(R.string.message_google_ready)
                         },
@@ -276,30 +258,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             } catch (failure: Exception) {
                 Log.w(TAG, "Collegamento Google non riuscito", failure)
                 _state.update { it.copy(google = GoogleConnectState.Error(failure.userMessage())) }
-            } finally {
-                val usedToken = token
-                val openSession = sessionId
-                if (usedToken != null && openSession != null) {
-                    withContext(NonCancellable) { googlePhotos.deleteSession(usedToken, openSession) }
-                }
             }
         }
-    }
-
-    /** Restituisce un token valido o avvia il flusso di autorizzazione con codice e QR. */
-    private suspend fun authorizeGoogle(): String {
-        googleAuth.validAccessToken()?.let { return it }
-        val code = googleAuth.requestDeviceCode()
-        _state.update {
-            it.copy(
-                google = GoogleConnectState.WaitingForAuthorization(
-                    code.verificationUrl,
-                    code.userCode,
-                    code.expiresIn,
-                )
-            )
-        }
-        return googleAuth.pollForToken(code).accessToken
     }
 
     fun cancelGoogleConnect() {
