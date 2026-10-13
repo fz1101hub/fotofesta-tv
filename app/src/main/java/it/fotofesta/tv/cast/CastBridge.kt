@@ -27,6 +27,7 @@ sealed interface CastCommand {
 
 object CastBridge {
     private const val TAG = "CastBridge"
+    private const val MAX_SLEEP_MINUTES = 240
 
     // Un Channel conserva i comandi arrivati prima che la UI inizi a raccoglierli
     // (es. LOAD inviato subito dopo l'avvio dell'app tramite Cast Connect).
@@ -90,6 +91,8 @@ object CastBridge {
         reducedMotion = json.opt("reducedMotion") as? Boolean,
         showClock = json.opt("showClock") as? Boolean,
         musicVolume = (json.opt("musicVolume") as? Number)?.toFloat()?.coerceIn(0f, 1f),
+        kenBurns = json.opt("kenBurns") as? Boolean,
+        sleepTimerMinutes = (json.opt("sleepTimerMinutes") as? Number)?.toInt()?.coerceIn(0, MAX_SLEEP_MINUTES),
     )
 
     private inline fun <reified T : Enum<T>> enumOrNull(value: Any?): T? =

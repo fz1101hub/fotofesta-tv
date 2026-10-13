@@ -18,6 +18,8 @@ class SettingsRepository(context: Context) {
         reducedMotion = prefs.getBoolean("reduced_motion", false),
         showClock = prefs.getBoolean("clock", true),
         musicVolume = prefs.getFloat("volume", 0.35f),
+        kenBurns = prefs.getBoolean("ken_burns", false),
+        sleepTimerMinutes = prefs.getInt("sleep_timer", 0),
     )
 
     fun save(value: SlideshowSettings) {
@@ -29,6 +31,8 @@ class SettingsRepository(context: Context) {
             .putBoolean("reduced_motion", value.reducedMotion)
             .putBoolean("clock", value.showClock)
             .putFloat("volume", value.musicVolume)
+            .putBoolean("ken_burns", value.kenBurns)
+            .putInt("sleep_timer", value.sleepTimerMinutes)
             .apply()
     }
 

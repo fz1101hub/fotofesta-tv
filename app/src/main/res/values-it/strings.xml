@@ -88,6 +88,13 @@
     <string name="settings_google_data_body">Rimuove token cifrati e cache privata delle foto dalla TV.</string>
     <string name="settings_google_disconnect">Disconnetti e cancella</string>
     <string name="settings_privacy">Privacy: FotoFesta TV non contiene pubblicità o analytics. Le foto USB non vengono copiate. Le foto scelte da Google sono scaricate automaticamente in una cache privata temporanea per evitare la scadenza degli URL e vengono eliminate con ‘Disconnetti e cancella’ o dal sistema.</string>
+    <string name="settings_ken_burns">Movimento lento</string>
+    <string name="settings_ken_burns_body">Zoom e spostamento lenti su ogni foto mentre è sullo schermo.</string>
+    <string name="settings_sleep_timer">Pausa automatica</string>
+    <string name="settings_sleep_timer_body">Mette in pausa slideshow e musica, poi lascia spegnere lo schermo della TV.</string>
+    <string name="settings_minutes">%1$d min</string>
+    <string name="message_sleep_timer">Slideshow in pausa: è scattata la pausa automatica.</string>
+    <string name="slideshow_sleep_at">Pausa alle %1$s</string>
     <string name="transition_fade">Dissolvenza</string>
     <string name="transition_slide">Scorrimento</string>
     <string name="transition_zoom">Zoom dolce</string>

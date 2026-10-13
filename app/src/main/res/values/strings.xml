@@ -89,6 +89,13 @@
     <string name="settings_google_data_body">Removes encrypted tokens and the private photo cache from the TV.</string>
     <string name="settings_google_disconnect">Disconnect and delete</string>
     <string name="settings_privacy">Privacy: FotoFesta TV has no ads or analytics. USB photos are never copied. Photos chosen from Google are automatically downloaded to a temporary private cache so their links don’t expire, and are deleted with “Disconnect and delete” or by the system.</string>
+    <string name="settings_ken_burns">Slow pan and zoom</string>
+    <string name="settings_ken_burns_body">Gently zooms and pans each photo while it is on screen.</string>
+    <string name="settings_sleep_timer">Sleep timer</string>
+    <string name="settings_sleep_timer_body">Pauses the slideshow and music, then lets the TV screen turn off.</string>
+    <string name="settings_minutes">%1$d min</string>
+    <string name="message_sleep_timer">Slideshow paused by the sleep timer.</string>
+    <string name="slideshow_sleep_at">Pauses at %1$s</string>
     <string name="transition_fade">Fade</string>
     <string name="transition_slide">Slide</string>
     <string name="transition_zoom">Gentle zoom</string>

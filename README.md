@@ -16,6 +16,7 @@
 | Slideshow | Durata 3, 5, 8, 12 o 20 secondi | Pronta |
 | Slideshow | Dissolvenza, scorrimento e zoom dolce | Pronta |
 | Slideshow | Foto intera o riempimento schermo, shuffle, orologio | Pronta |
+| Slideshow | Movimento lento (effetto Ken Burns) e pausa automatica dopo 30, 60 o 120 minuti | Pronta |
 | Accessibilità | Focus visibile, D-pad, tasti media, riduzione movimento, contrasto elevato | Pronta |
 | Audio | Brano locale selezionato dall’utente, loop e volume | Pronta |
 | Chromecast | Ricevitore Cast Connect, `MediaSession` e protocollo JSON v1 | Pronta nel codice; registrazione Cast richiesta |

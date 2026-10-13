@@ -177,7 +177,15 @@ fun SlideshowScreen(
                 label = "slideTransition",
                 modifier = Modifier.fillMaxSize(),
             ) { item ->
-                PhotoContent(item, state.settings.fitMode, Modifier.fillMaxSize())
+                KenBurnsPhoto(
+                    item,
+                    state.settings.fitMode,
+                    enabled = state.settings.kenBurns && !state.settings.reducedMotion,
+                    playing = state.isPlaying,
+                    // Copre anche la transizione verso la foto successiva, così il movimento non si ferma.
+                    durationMillis = state.settings.intervalSeconds * 1_000 + 800,
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
         } else {
             Text(stringResource(R.string.slideshow_empty), Modifier.align(Alignment.Center), style = MaterialTheme.typography.titleLarge)
@@ -216,6 +224,13 @@ fun SlideshowScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             color = TextSecondary,
                         )
+                        state.sleepAtMillis?.let { sleepAt ->
+                            Text(
+                                stringResource(R.string.slideshow_sleep_at, rememberTimeText(sleepAt)),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Amber,
+                            )
+                        }
                     }
                     Spacer(Modifier.size(18.dp))
                     TvButton(stringResource(R.string.action_settings), onSettings, icon = Icons.Rounded.Settings)
@@ -233,6 +248,15 @@ fun SlideshowScreen(
                 style = MaterialTheme.typography.titleLarge,
             )
         }
+    }
+}
+
+/** Orario [epochMillis] nel formato 12/24 h del sistema. */
+@Composable
+private fun rememberTimeText(epochMillis: Long): String {
+    val context = LocalContext.current
+    return remember(context, epochMillis) {
+        android.text.format.DateFormat.getTimeFormat(context).format(Date(epochMillis))
     }
 }
 

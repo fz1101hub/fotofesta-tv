@@ -31,6 +31,7 @@ import it.fotofesta.tv.model.UserFacingException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -64,6 +65,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private val playbackOrder = PlaybackOrder()
     private var googleJob: Job? = null
     private var usbJob: Job? = null
+    private var sleepJob: Job? = null
+    private var sleepJobMinutes = 0
     private val savedMusic = settingsRepository.loadMusic()
 
     private val demoPhotos = listOf(
@@ -178,6 +181,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             playbackOrder.reset(_state.value.photos.size, value.shuffle, _state.value.currentIndex)
         }
         musicPlayer.setVolume(value.musicVolume)
+        if (previous.sleepTimerMinutes != value.sleepTimerMinutes) syncSleepTimer()
     }
 
     fun loadUsb(treeUri: Uri) {
@@ -315,6 +319,33 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         val current = _state.value
         if (current.isPlaying) musicPlayer.play(current.musicUri, current.settings.musicVolume)
         else musicPlayer.pause()
+        syncSleepTimer()
+    }
+
+    /**
+     * Pausa automatica: parte quando lo slideshow è in riproduzione e si azzera alla pausa o al
+     * cambio di durata. Allo scadere mette in pausa, così lo schermo della TV può spegnersi.
+     */
+    private fun syncSleepTimer() {
+        val current = _state.value
+        val minutes = current.settings.sleepTimerMinutes
+        val shouldRun = current.isPlaying && minutes > 0
+        if (shouldRun && sleepJob?.isActive == true && sleepJobMinutes == minutes) return
+        sleepJob?.cancel()
+        sleepJob = null
+        if (!shouldRun) {
+            _state.update { it.copy(sleepAtMillis = null) }
+            return
+        }
+        val durationMillis = minutes * 60_000L
+        sleepJobMinutes = minutes
+        _state.update { it.copy(sleepAtMillis = System.currentTimeMillis() + durationMillis) }
+        sleepJob = viewModelScope.launch {
+            delay(durationMillis)
+            sleepJob = null
+            pause()
+            showMessage(context.getString(R.string.message_sleep_timer))
+        }
     }
 
     private fun showMessage(value: String) = _state.update { it.copy(message = value) }
@@ -337,6 +368,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     override fun onCleared() {
         googleJob?.cancel()
         usbJob?.cancel()
+        sleepJob?.cancel()
         musicPlayer.release()
         http.dispatcher.executorService.shutdown()
         super.onCleared()

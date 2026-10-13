@@ -44,6 +44,10 @@ data class SlideshowSettings(
     val reducedMotion: Boolean = false,
     val showClock: Boolean = true,
     val musicVolume: Float = 0.35f,
+    /** Zoom e spostamento lenti durante la permanenza di ogni foto (disattivati da [reducedMotion]). */
+    val kenBurns: Boolean = false,
+    /** Minuti di riproduzione dopo i quali lo slideshow va in pausa; 0 = disattivato. */
+    val sleepTimerMinutes: Int = 0,
 )
 
 /** Aggiornamento parziale delle impostazioni: i campi `null` lasciano invariato il valore corrente. */
@@ -55,6 +59,8 @@ data class SettingsPatch(
     val reducedMotion: Boolean? = null,
     val showClock: Boolean? = null,
     val musicVolume: Float? = null,
+    val kenBurns: Boolean? = null,
+    val sleepTimerMinutes: Int? = null,
 ) {
     fun applyTo(base: SlideshowSettings) = SlideshowSettings(
         intervalSeconds = intervalSeconds ?: base.intervalSeconds,
@@ -64,6 +70,8 @@ data class SettingsPatch(
         reducedMotion = reducedMotion ?: base.reducedMotion,
         showClock = showClock ?: base.showClock,
         musicVolume = musicVolume ?: base.musicVolume,
+        kenBurns = kenBurns ?: base.kenBurns,
+        sleepTimerMinutes = sleepTimerMinutes ?: base.sleepTimerMinutes,
     )
 }
 
@@ -100,4 +108,6 @@ data class AppState(
     val busy: Boolean = false,
     val message: String? = null,
     val castSenderConnected: Boolean = false,
+    /** Istante (epoch ms) in cui scatterà la pausa automatica, se attiva. */
+    val sleepAtMillis: Long? = null,
 )

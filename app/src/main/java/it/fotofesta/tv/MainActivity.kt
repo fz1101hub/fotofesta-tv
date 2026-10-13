@@ -64,8 +64,14 @@ class MainActivity : ComponentActivity() {
 
                 BackHandler(enabled = state.destination != Destination.HOME, onBack = viewModel::back)
 
-                DisposableEffect(state.destination) {
-                    val keepScreenOn = state.destination in setOf(Destination.SLIDESHOW, Destination.MEMORY, Destination.MYSTERY)
+                // Lo schermo resta acceso durante slideshow e giochi, ma uno slideshow in pausa
+                // (anche per la pausa automatica) lascia che la TV vada in standby.
+                val keepScreenOn = when (state.destination) {
+                    Destination.SLIDESHOW -> state.isPlaying
+                    Destination.MEMORY, Destination.MYSTERY -> true
+                    else -> false
+                }
+                DisposableEffect(keepScreenOn) {
                     if (keepScreenOn) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                     onDispose {
                         if (keepScreenOn) window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)

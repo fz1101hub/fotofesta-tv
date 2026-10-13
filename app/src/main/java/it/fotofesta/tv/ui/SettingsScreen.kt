@@ -76,6 +76,28 @@ fun SettingsScreen(
             SettingRow(stringResource(R.string.settings_reduced_motion), stringResource(R.string.settings_reduced_motion_body)) {
                 TvButton(if (settings.reducedMotion) stringResource(R.string.settings_on) else stringResource(R.string.settings_off), { onChange(settings.copy(reducedMotion = !settings.reducedMotion)) }, selected = settings.reducedMotion)
             }
+            SettingRow(stringResource(R.string.settings_ken_burns), stringResource(R.string.settings_ken_burns_body)) {
+                TvButton(
+                    if (settings.kenBurns) stringResource(R.string.settings_on) else stringResource(R.string.settings_off),
+                    { onChange(settings.copy(kenBurns = !settings.kenBurns)) },
+                    selected = settings.kenBurns,
+                    enabled = !settings.reducedMotion,
+                )
+            }
+            SettingRow(stringResource(R.string.settings_sleep_timer), stringResource(R.string.settings_sleep_timer_body)) {
+                TvButton(
+                    stringResource(R.string.settings_off),
+                    { onChange(settings.copy(sleepTimerMinutes = 0)) },
+                    selected = settings.sleepTimerMinutes == 0,
+                )
+                SLEEP_TIMER_OPTIONS.forEach { minutes ->
+                    TvButton(
+                        stringResource(R.string.settings_minutes, minutes),
+                        { onChange(settings.copy(sleepTimerMinutes = minutes)) },
+                        selected = settings.sleepTimerMinutes == minutes,
+                    )
+                }
+            }
             SettingRow(stringResource(R.string.settings_clock), stringResource(R.string.settings_clock_body)) {
                 TvButton(if (settings.showClock) stringResource(R.string.settings_visible) else stringResource(R.string.settings_hidden), { onChange(settings.copy(showClock = !settings.showClock)) }, selected = settings.showClock)
             }
@@ -100,3 +122,5 @@ fun SettingsScreen(
         }
     }
 }
+
+private val SLEEP_TIMER_OPTIONS = listOf(30, 60, 120)

@@ -40,6 +40,16 @@ class CastBridgeTest {
     }
 
     @Test
+    fun `parses motion and sleep timer settings`() {
+        val result = CastBridge.parse(
+            """{"v":1,"type":"SETTINGS","settings":{"kenBurns":true,"sleepTimerMinutes":9999}}"""
+        ) as CastCommand.ChangeSettings
+        val applied = result.settings.applyTo(SlideshowSettings())
+        assertEquals(true, applied.kenBurns)
+        assertEquals(240, applied.sleepTimerMinutes)
+    }
+
+    @Test
     fun `photo ids are unique even when sender repeats them`() {
         val load = CastBridge.parse(
             """{"v":1,"type":"LOAD","photos":[{"id":"x","url":"https://example.org/a.jpg"},{"id":"x","url":"https://example.org/b.jpg"},{"url":"https://example.org/c.jpg"}]}"""

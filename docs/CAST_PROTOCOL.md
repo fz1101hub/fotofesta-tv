@@ -34,11 +34,13 @@ Ogni comando contiene `v`, che deve essere `1`, e `type`.
   "shuffle": false,
   "reducedMotion": false,
   "showClock": true,
-  "musicVolume": 0.35
+  "musicVolume": 0.35,
+  "kenBurns": false,
+  "sleepTimerMinutes": 0
 }
 ```
 
-Tutti i campi sono facoltativi: `SETTINGS` è un aggiornamento parziale e i campi assenti, di tipo errato o con valori non riconosciuti lasciano invariata l’impostazione corrente della TV. `intervalSeconds` è limitato a 2–120 e `musicVolume` a 0–1. `transition` accetta `FADE`, `SLIDE` o `ZOOM`; `fitMode` accetta `CONTAIN` o `CROP` (maiuscole e minuscole indifferenti).
+Tutti i campi sono facoltativi: `SETTINGS` è un aggiornamento parziale e i campi assenti, di tipo errato o con valori non riconosciuti lasciano invariata l’impostazione corrente della TV. `intervalSeconds` è limitato a 2–120, `musicVolume` a 0–1 e `sleepTimerMinutes` a 0–240 (0 disattiva la pausa automatica). `kenBurns` attiva zoom e spostamento lenti su ogni foto, ignorati se `reducedMotion` è attivo. `transition` accetta `FADE`, `SLIDE` o `ZOOM`; `fitMode` accetta `CONTAIN` o `CROP` (maiuscole e minuscole indifferenti).
 
 ### Caricamento
 
