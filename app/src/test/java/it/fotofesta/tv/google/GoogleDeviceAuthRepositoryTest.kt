@@ -79,6 +79,18 @@ class GoogleDeviceAuthRepositoryTest {
     }
 
     @Test
+    fun `local tokens are cleared before the revocation request`() = runTest {
+        tokens.refreshToken = "refresh-1"
+        var clearedBeforeRequest = false
+        server.onDispatch = { request -> if (request.requestUrl!!.encodedPath == "/oauth/revoke") clearedBeforeRequest = tokens.cleared }
+        server.always("POST", "/oauth/revoke", json("{}"))
+
+        repository().revokeAndDisconnect()
+
+        assertTrue(clearedBeforeRequest)
+    }
+
+    @Test
     fun `local tokens are cleared even if revocation fails`() = runTest {
         tokens.refreshToken = "refresh-1"
         server.always("POST", "/oauth/revoke", json("""{"error":"invalid_token"}""", 400))

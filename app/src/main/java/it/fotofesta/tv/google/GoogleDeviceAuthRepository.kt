@@ -2,6 +2,7 @@ package it.fotofesta.tv.google
 
 import it.fotofesta.tv.R
 import it.fotofesta.tv.model.UserFacingException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -138,12 +139,20 @@ class GoogleDeviceAuthRepository(
      * Senza revoca il refresh token resterebbe valido finché l'utente non lo rimuove dal suo account.
      */
     suspend fun revokeAndDisconnect() {
-        val token = withContext(Dispatchers.IO) { tokens.refreshToken ?: tokens.accessToken }
+        // Prima si cancellano i token locali (subito, anche se la rete è lenta), poi si revoca.
+        val token = withContext(Dispatchers.IO) {
+            (tokens.refreshToken ?: tokens.accessToken).also { disconnect() }
+        }
         if (token != null) {
             val body = FormBody.Builder().add("token", token).build()
-            runCatching { client.newCall(Request.Builder().url(revokeUrl).post(body).build()).await().close() }
+            try {
+                client.newCall(Request.Builder().url(revokeUrl).post(body).build()).await().close()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                // Best effort: l'utente può sempre revocare dall'Account Google.
+            }
         }
-        withContext(Dispatchers.IO) { disconnect() }
     }
 
     private suspend fun persistToken(json: JSONObject): TokenResult = withContext(Dispatchers.IO) {

@@ -149,12 +149,12 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // Messaggi e avanzamento sempre in sovrimpressione: nella home non c'è spazio libero
-                    // garantito sotto le schede, e lì sarebbero finiti fuori schermo.
+                    // Messaggi e avanzamento in sovrimpressione, in basso: in alto coprirebbero
+                    // l'intestazione con la sorgente e l'indicatore Chromecast.
                     if (state.message != null || state.busy) {
                         Column(
-                            modifier = Modifier.align(Alignment.TopCenter)
-                                .padding(top = 20.dp)
+                            modifier = Modifier.align(Alignment.BottomCenter)
+                                .padding(bottom = 28.dp)
                                 .widthIn(max = 760.dp)
                                 .background(Color(0xEE17213A), RoundedCornerShape(14.dp))
                                 .padding(horizontal = 22.dp, vertical = 12.dp),

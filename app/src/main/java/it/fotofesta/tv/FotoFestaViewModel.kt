@@ -29,6 +29,7 @@ import it.fotofesta.tv.model.UserFacingException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -61,6 +62,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     )
     // noBackupFilesDir e non cacheDir: il sistema non cancella le foto importate per liberare spazio.
     private val googlePhotos = GooglePhotosPickerRepository(context.noBackupFilesDir, http)
+    // Le versioni precedenti scaricavano le foto nella cache: va ripulita anche quella.
+    private val legacyGooglePhotos = GooglePhotosPickerRepository(context.cacheDir, http)
     private val googleImport = GoogleImportFlow(googleAuth, googlePhotos)
     private val playbackOrder = PlaybackOrder()
     private var googleJob: Job? = null
@@ -87,13 +90,18 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         playbackOrder.reset(demoPhotos.size, _state.value.settings.shuffle)
         // Prima si ripristina l'ultima sorgente, poi si ascoltano i comandi Cast: un LOAD già in coda
         // (avvio tramite Cast Connect) annulla il ripristino invece di essere sovrascritto.
-        when (settingsRepository.loadLastSource()) {
-            "GOOGLE" -> restoreJob = viewModelScope.launch {
-                val cached = withContext(Dispatchers.IO) { googlePhotos.cachedPhotos() }
-                if (cached.isNotEmpty()) showPhotos(cached, googleLabel(cached.size))
+        val lastSource = settingsRepository.loadLastSource()
+        restoreJob = viewModelScope.launch {
+            val cached = withContext(Dispatchers.IO) {
+                // Riordino dell'archivio: foto delle versioni precedenti spostate dalla cache,
+                // cartelle temporanee di download interrotti eliminate.
+                googlePhotos.adoptFrom(legacyGooglePhotos)
+                googlePhotos.deleteLeftovers()
+                if (lastSource == "GOOGLE") googlePhotos.cachedPhotos() else emptyList()
             }
-            "USB" -> settingsRepository.loadUsbTree()?.let { stored -> loadUsb(Uri.parse(stored)) }
+            if (cached.isNotEmpty()) showPhotos(cached, googleLabel(cached.size))
         }
+        if (lastSource == "USB") settingsRepository.loadUsbTree()?.let { stored -> loadUsb(Uri.parse(stored)) }
         viewModelScope.launch {
             CastBridge.connected.collect { connected ->
                 _state.update { it.copy(castSenderConnected = connected) }
@@ -272,11 +280,19 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun disconnectGoogle() {
-        cancelPendingSources()
-        // Revoca su Google e cancellazione dei file (anche migliaia di foto 4K) fuori dal thread principale.
+        // Solo le operazioni Google: un'eventuale scansione USB in corso non c'entra.
+        restoreJob?.cancel()
+        googleJob?.cancel()
+        // Cancellazione dei file (anche migliaia di foto 4K) e revoca fuori dal thread principale,
+        // senza interruzioni se nel frattempo l'utente esce dall'app.
         viewModelScope.launch {
-            googleAuth.revokeAndDisconnect()
-            withContext(Dispatchers.IO) { googlePhotos.clearCache() }
+            withContext(NonCancellable) {
+                withContext(Dispatchers.IO) {
+                    googlePhotos.clearCache()
+                    legacyGooglePhotos.clearCache()
+                }
+                googleAuth.revokeAndDisconnect()
+            }
         }
         val wasShowingGoogle = _state.value.photos.any { it.source == SourceType.GOOGLE_PHOTOS }
         if (wasShowingGoogle || settingsRepository.loadLastSource() == "GOOGLE") {

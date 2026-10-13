@@ -137,6 +137,26 @@ class GooglePhotosPickerRepositoryTest {
     }
 
     @Test
+    fun `collection from the old cache location is adopted and leftovers removed`() = runTest {
+        val legacyRoot = temp.newFolder("legacy")
+        val legacy = GooglePhotosPickerRepository(legacyRoot, server.client, server.apiBase, 0L)
+        server.enqueue("GET", "/media/1=w3840-h2160", image("uno"))
+        legacy.downloadToPrivateCache({ "tok" }, listOf(media("1", "Uno.jpg"))) { _, _ -> }
+        val storeRoot = temp.newFolder("store")
+        File(storeRoot, "google_photos.staging-orfana").mkdirs()
+        File(storeRoot, "google_photos.old-orfana").mkdirs()
+        val store = GooglePhotosPickerRepository(storeRoot, server.client, server.apiBase, 0L)
+
+        store.adoptFrom(legacy)
+        store.deleteLeftovers()
+
+        assertEquals(listOf("Uno.jpg"), store.cachedPhotos().map { it.title })
+        assertTrue(File((store.cachedPhotos().single().ref as PhotoRef.LocalFile).path).startsWith(storeRoot))
+        assertEquals(listOf("google_photos"), storeRoot.list()!!.toList())
+        assertTrue(legacyRoot.list()!!.isEmpty())
+    }
+
+    @Test
     fun `manifest entries cannot point outside the cache`() {
         val directory = File(temp.root, "google_photos").apply { mkdirs() }
         File(temp.root, "segreto.jpg").writeText("x")

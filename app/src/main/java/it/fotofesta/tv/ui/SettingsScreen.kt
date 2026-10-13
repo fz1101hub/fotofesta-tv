@@ -20,6 +20,7 @@ import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -46,6 +47,9 @@ fun SettingsScreen(
 ) {
     val settings = state.settings
     val pickMusicFocus = remember { FocusRequester() }
+    // Una sola richiesta all'apertura: cambi di impostazione (anche via Cast) non spostano il focus.
+    val openingFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { openingFocus.requestFocus() } }
     Column(
         Modifier.fillMaxSize().padding(horizontal = 46.dp, vertical = 30.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
@@ -68,7 +72,7 @@ fun SettingsScreen(
                     TvButton(
                         stringResource(R.string.settings_seconds, seconds),
                         { onChange(settings.copy(intervalSeconds = seconds)) },
-                        modifier = if (seconds == focusedSeconds) Modifier.initialFocus() else Modifier,
+                        modifier = if (seconds == focusedSeconds) Modifier.focusRequester(openingFocus) else Modifier,
                         selected = settings.intervalSeconds == seconds,
                     )
                 }

@@ -194,8 +194,8 @@ final class AppModel {
         googleState = .idle
         showMessage(L("message.google_removed"))
         Task.detached { [auth, picker] in
-            await auth.revokeAndDisconnect()
             picker.clearCache()
+            await auth.revokeAndDisconnect()
         }
     }
 

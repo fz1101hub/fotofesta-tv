@@ -10,23 +10,23 @@ import com.google.android.gms.cast.tv.SenderInfo
 import it.fotofesta.tv.cast.CastBridge
 
 class FotoFestaApplication : Application() {
+    // Più telefoni possono essere collegati: l'indicatore si spegne solo quando escono tutti.
+    private val castSenders = mutableSetOf<String>()
+
     override fun onCreate() {
         super.onCreate()
         runCatching {
             CastReceiverContext.initInstance(this)
             CastReceiverContext.getInstance().apply {
                 registerEventCallback(object : CastReceiverContext.EventCallback() {
-                    // Più telefoni possono essere collegati: l'indicatore si spegne solo quando escono tutti.
-                    private val senders = mutableSetOf<String>()
-
                     override fun onSenderConnected(senderInfo: SenderInfo) {
-                        senders += senderInfo.senderId
-                        CastBridge.senderConnected(senders.isNotEmpty())
+                        castSenders += senderInfo.senderId
+                        CastBridge.senderConnected(castSenders.isNotEmpty())
                     }
 
                     override fun onSenderDisconnected(eventInfo: SenderDisconnectedEventInfo) {
-                        senders -= eventInfo.senderInfo.senderId
-                        CastBridge.senderConnected(senders.isNotEmpty())
+                        castSenders -= eventInfo.senderInfo.senderId
+                        CastBridge.senderConnected(castSenders.isNotEmpty())
                     }
                 })
                 setMessageReceivedListener(BuildConfig.CAST_NAMESPACE) { _, _, message ->
@@ -40,6 +40,9 @@ class FotoFestaApplication : Application() {
 
                 override fun onStop(owner: LifecycleOwner) {
                     runCatching { CastReceiverContext.getInstance().stop() }
+                    // Fermando il ricevitore le sessioni cadono anche senza un evento per ogni telefono.
+                    castSenders.clear()
+                    CastBridge.senderConnected(false)
                 }
             })
         }

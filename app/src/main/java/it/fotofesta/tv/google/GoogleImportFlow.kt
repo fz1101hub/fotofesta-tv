@@ -5,6 +5,8 @@ import it.fotofesta.tv.model.GoogleConnectState
 import it.fotofesta.tv.model.PhotoItem
 import it.fotofesta.tv.model.UserFacingException
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
@@ -31,8 +33,12 @@ class GoogleImportFlow(
             token = authorize(onState)
             picker.createSession(token)
         }
+        // I quattro download paralleli chiedono il token insieme: il rinnovo avviene una volta sola.
+        val refreshLock = Mutex()
         val tokens: TokenProvider = {
-            auth.validAccessToken() ?: throw UserFacingException(R.string.error_google_session_expired)
+            refreshLock.withLock {
+                auth.validAccessToken() ?: throw UserFacingException(R.string.error_google_session_expired)
+            }
         }
         try {
             onState(GoogleConnectState.WaitingForPhotos(session.pickerUri))

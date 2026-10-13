@@ -97,10 +97,21 @@ public actor GoogleDeviceAuth {
     }
 
     /// Token valido, rinnovato se necessario. Con refresh token revocato cancella tutto e restituisce nil.
+    /// Le chiamate concorrenti durante un rinnovo attendono lo stesso rinnovo (l'actor è rientrante).
     public func validAccessToken() async throws -> String? {
         if let token = tokens.accessToken, let expiresAt = tokens.expiresAt, expiresAt > now().addingTimeInterval(60) {
             return token
         }
+        if let refreshing { return try await refreshing.value }
+        let task = Task { try await self.refreshAccessToken() }
+        refreshing = task
+        defer { refreshing = nil }
+        return try await task.value
+    }
+
+    private var refreshing: Task<String?, Error>?
+
+    private func refreshAccessToken() async throws -> String? {
         guard let refresh = tokens.refreshToken else { return nil }
         try requireConfigured()
         let request = formRequest(url: tokenURL, fields: [
@@ -123,10 +134,12 @@ public actor GoogleDeviceAuth {
 
     /// Revoca l'accesso anche sui server Google (best effort) e cancella i token locali.
     public func revokeAndDisconnect() async {
-        if let token = tokens.refreshToken ?? tokens.accessToken {
+        // Prima si cancellano i token locali (subito, anche se la rete è lenta), poi si revoca.
+        let token = tokens.refreshToken ?? tokens.accessToken
+        disconnect()
+        if let token {
             _ = try? await http.send(formRequest(url: revokeURL, fields: [("token", token)]))
         }
-        disconnect()
     }
 
     private func persist(_ response: TokenResponse) -> String {

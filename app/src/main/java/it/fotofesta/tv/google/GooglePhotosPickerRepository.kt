@@ -181,11 +181,11 @@ class GooglePhotosPickerRepository(
             else -> "jpg"
         }
         val target = File(directory, "%05d.%s".format(Locale.ROOT, index, extension))
-        val request = Request.Builder()
-            .url(item.baseUrl + "=w3840-h2160")
-            .header("Authorization", "Bearer ${token()}")
-            .build()
         return try {
+            val request = Request.Builder()
+                .url(item.baseUrl + "=w3840-h2160")
+                .header("Authorization", "Bearer ${token()}")
+                .build()
             client.newCall(request).await().use { response ->
                 check(response.isSuccessful) { "Download non riuscito (${response.code})" }
                 val body = response.body ?: error("Foto vuota")
@@ -207,6 +207,26 @@ class GooglePhotosPickerRepository(
     suspend fun deleteSession(token: TokenProvider, sessionId: String) {
         val url = apiBase.newBuilder().addPathSegment("sessions").addPathSegment(sessionId).build()
         runCatching { client.newCall(authorized(url, token()).delete().build()).await().close() }
+    }
+
+    /**
+     * Sposta qui la raccolta conservata da [legacy] (es. la cache delle versioni precedenti) se qui
+     * non ce n'è ancora una, poi ripulisce [legacy].
+     */
+    fun adoptFrom(legacy: GooglePhotosPickerRepository) {
+        val source = legacy.cacheDirectory
+        if (source.isDirectory && !cacheDirectory.exists()) {
+            cacheRoot.mkdirs()
+            source.renameTo(cacheDirectory)
+        }
+        legacy.clearCache()
+    }
+
+    /** Elimina cartelle temporanee rimaste da download interrotti (da chiamare quando non ce ne sono in corso). */
+    fun deleteLeftovers() {
+        cacheRoot.listFiles()
+            ?.filter { it.name.startsWith("$CACHE_DIR.staging-") || it.name.startsWith("$CACHE_DIR.old-") }
+            ?.forEach { it.deleteRecursively() }
     }
 
     fun clearCache() {
