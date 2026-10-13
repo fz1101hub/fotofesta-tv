@@ -1,0 +1,27 @@
+FotoFesta TV turns your television into a digital photo frame for parties, family dinners and evenings with friends.
+
+<b>Where your photos come from</b>
+• Google Photos: scan a QR code with your phone, sign in and choose the photos to show. No passwords to type with the remote, and access only to the photos you select.
+• USB drive or stick: choose a folder, even without internet. Photos stay on the drive and are never copied.
+• Four demo photos to try the app right away.
+
+<b>Slideshow</b>
+• 3 to 20 seconds per photo
+• Fade, slide and gentle zoom transitions
+• Slow pan and zoom (Ken Burns effect)
+• Whole photo or fill screen, shuffle without repeats
+• Clock and background music from a track on your TV
+• Sleep timer after 30, 60 or 120 minutes
+• Screensaver with your photos when the TV is idle
+
+<b>Photo games</b>
+• Memory match: find the pairs
+• Mystery photo: guess the blurred picture
+
+<b>Built for the remote</b>
+Everything works with the remote's arrow keys, with a clearly visible focus, text readable from the couch and an option to reduce motion.
+
+<b>Privacy</b>
+No ads, no analytics and no developer server. Selected Google photos are kept in a private cache on the TV that you can delete at any time from Settings.
+
+Google Photos doesn't let apps read your whole library: you choose the photos from your phone each time.

@@ -7,6 +7,10 @@ build/
 *.iml
 
 # Percorsi e credenziali del proprietario
+fastlane/play-service-account.json
+fastlane/report.xml
+apple/fastlane/*.p8
+apple/FotoFestaTV.xcodeproj/
 local.properties
 .env
 .env.*
