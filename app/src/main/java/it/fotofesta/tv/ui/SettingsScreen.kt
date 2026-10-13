@@ -15,6 +15,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,6 +38,7 @@ fun SettingsScreen(
     onRemoveMusic: () -> Unit,
     onDisconnectGoogle: () -> Unit,
     onPlay: () -> Unit,
+    onOpenScreensaverSettings: () -> Unit,
 ) {
     val settings = state.settings
     Column(
@@ -109,6 +111,9 @@ fun SettingsScreen(
                 listOf(.15f, .35f, .60f).forEach { volume ->
                     TvButton(stringResource(R.string.settings_volume_value, (volume * 100).roundToInt()), { onChange(settings.copy(musicVolume = volume)) }, selected = settings.musicVolume == volume)
                 }
+            }
+            SettingRow(stringResource(R.string.settings_screensaver), stringResource(R.string.settings_screensaver_body)) {
+                TvButton(stringResource(R.string.settings_screensaver_open), onOpenScreensaverSettings, icon = Icons.Rounded.Wallpaper)
             }
             SettingRow(stringResource(R.string.settings_google_data), stringResource(R.string.settings_google_data_body)) {
                 TvButton(stringResource(R.string.settings_google_disconnect), onDisconnectGoogle, icon = Icons.Rounded.DeleteOutline)

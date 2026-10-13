@@ -210,36 +210,7 @@ class GooglePhotosPickerRepository(
     }
 
     /** Foto della cache privata, nell'ordine e con i titoli originali salvati nel manifest. */
-    fun cachedPhotos(): List<PhotoItem> {
-        val directory = cacheDirectory
-        val fromManifest = runCatching {
-            val array = JSONArray(File(directory, MANIFEST).readText())
-            (0 until array.length()).mapNotNull { index ->
-                val entry = array.getJSONObject(index)
-                val file = File(directory, entry.getString("file"))
-                if (!file.isFile || file.length() == 0L || file.parentFile != directory) return@mapNotNull null
-                PhotoItem(
-                    id = entry.optString("id").ifBlank { "google-cache:${file.name}" },
-                    title = entry.optString("title").ifBlank { file.name },
-                    ref = PhotoRef.LocalFile(file.absolutePath),
-                    source = SourceType.GOOGLE_PHOTOS,
-                )
-            }
-        }.getOrNull()
-        if (fromManifest != null) return fromManifest
-        return directory.listFiles()
-            .orEmpty()
-            .filter { it.isFile && it.length() > 0L && it.name != MANIFEST }
-            .sortedBy { it.name.lowercase() }
-            .map { file ->
-                PhotoItem(
-                    id = "google-cache:${file.nameWithoutExtension}",
-                    title = file.name,
-                    ref = PhotoRef.LocalFile(file.absolutePath),
-                    source = SourceType.GOOGLE_PHOTOS,
-                )
-            }
-    }
+    fun cachedPhotos(): List<PhotoItem> = cachedPhotos(cacheRoot)
 
     private fun writeManifest(directory: File, photos: List<PhotoItem>) {
         val array = JSONArray()
@@ -283,5 +254,37 @@ class GooglePhotosPickerRepository(
         const val DEFAULT_MIN_FREE_BYTES = 300L * 1024 * 1024
         val DEFAULT_API_BASE = "https://photospicker.googleapis.com/v1".toHttpUrl()
         private const val DEFAULT_SESSION_TIMEOUT_SECONDS = 900L
+
+        /** Legge la cache senza rete: usata anche dal salvaschermo. */
+        fun cachedPhotos(cacheRoot: File): List<PhotoItem> {
+            val directory = File(cacheRoot, CACHE_DIR)
+            val fromManifest = runCatching {
+                val array = JSONArray(File(directory, MANIFEST).readText())
+                (0 until array.length()).mapNotNull { index ->
+                    val entry = array.getJSONObject(index)
+                    val file = File(directory, entry.getString("file"))
+                    if (!file.isFile || file.length() == 0L || file.parentFile != directory) return@mapNotNull null
+                    PhotoItem(
+                        id = entry.optString("id").ifBlank { "google-cache:${file.name}" },
+                        title = entry.optString("title").ifBlank { file.name },
+                        ref = PhotoRef.LocalFile(file.absolutePath),
+                        source = SourceType.GOOGLE_PHOTOS,
+                    )
+                }
+            }.getOrNull()
+            if (fromManifest != null) return fromManifest
+            return directory.listFiles()
+                .orEmpty()
+                .filter { it.isFile && it.length() > 0L && it.name != MANIFEST }
+                .sortedBy { it.name.lowercase() }
+                .map { file ->
+                    PhotoItem(
+                        id = "google-cache:${file.nameWithoutExtension}",
+                        title = file.name,
+                        ref = PhotoRef.LocalFile(file.absolutePath),
+                        source = SourceType.GOOGLE_PHOTOS,
+                    )
+                }
+        }
     }
 }

@@ -1,10 +1,12 @@
 package it.fotofesta.tv
 
 import android.app.PendingIntent
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
+import android.provider.Settings
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -108,6 +110,7 @@ class MainActivity : ComponentActivity() {
                             onRemoveMusic = viewModel::removeMusic,
                             onDisconnectGoogle = viewModel::disconnectGoogle,
                             onPlay = viewModel::playCurrent,
+                            onOpenScreensaverSettings = ::openScreensaverSettings,
                         )
                         Destination.SLIDESHOW -> SlideshowScreen(
                             state = state,
@@ -147,6 +150,15 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+        }
+    }
+
+    private fun openScreensaverSettings() {
+        try {
+            startActivity(Intent(Settings.ACTION_DREAM_SETTINGS))
+        } catch (_: ActivityNotFoundException) {
+            // Alcune Google TV nascondono la scelta del salvaschermo (vedi README).
+            viewModel.showScreensaverHelp()
         }
     }
 

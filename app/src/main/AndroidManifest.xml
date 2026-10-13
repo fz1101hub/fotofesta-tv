@@ -42,6 +42,19 @@
             </intent-filter>
         </activity>
 
+        <!-- Salvaschermo di sistema con le foto dell'ultima raccolta. -->
+        <service
+            android:name=".dream.PhotoDreamService"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/dream_label"
+            android:permission="android.permission.BIND_DREAM_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.dreams.DreamService" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </service>
+
         <meta-data
             android:name="com.google.android.gms.cast.tv.RECEIVER_OPTIONS_PROVIDER_CLASS_NAME"
             android:value="it.fotofesta.tv.cast.FotoFestaReceiverOptionsProvider" />

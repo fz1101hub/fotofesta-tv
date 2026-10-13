@@ -262,7 +262,7 @@ private fun rememberTimeText(epochMillis: Long): String {
 
 /** Ora corrente nel formato 12/24 h del sistema, aggiornata allo scoccare di ogni minuto. */
 @Composable
-private fun rememberCurrentTime(): String {
+internal fun rememberCurrentTime(): String {
     val context = LocalContext.current
     val format = remember(context) { android.text.format.DateFormat.getTimeFormat(context) }
     var text by remember { mutableStateOf(format.format(Date())) }

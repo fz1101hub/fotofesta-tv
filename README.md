@@ -20,6 +20,7 @@
 | Accessibilità | Focus visibile, D-pad, tasti media, riduzione movimento, contrasto elevato | Pronta |
 | Audio | Brano locale selezionato dall’utente, loop e volume | Pronta |
 | Chromecast | Ricevitore Cast Connect, `MediaSession` e protocollo JSON v1 | Pronta nel codice; registrazione Cast richiesta |
+| Salvaschermo | Foto dell’ultima raccolta quando la TV è inattiva, con dissolvenza, movimento lento e orologio che cambia angolo | Pronta |
 | Giochi | Memory dei ricordi | Pronta |
 | Giochi | Foto misteriosa | Pronta |
 | Privacy | Nessuna pubblicità o analytics; token AES-GCM in Android Keystore | Pronta |
@@ -79,11 +80,18 @@ L’architettura separa modello, repository e protocollo dall’interfaccia. Que
 
 ## Limiti intenzionali della prima versione
 
-Google Foto non espone più l’intera libreria a un’app di terze parti: l’utente deve selezionare i contenuti per ogni nuova raccolta. La cache viene sostituita alla selezione successiva. Il progetto mostra immagini, non video. Il sottofondo musicale è un file locale scelto sulla TV e non viene inviato dal sender Cast. La modalità screensaver di sistema non è inclusa in questa prima build, perché alcuni produttori limitano i salvaschermi di terze parti; lo slideshow può però restare acceso finché è in esecuzione.
+Google Foto non espone più l’intera libreria a un’app di terze parti: l’utente deve selezionare i contenuti per ogni nuova raccolta. La cache viene sostituita alla selezione successiva. Il progetto mostra immagini, non video. Il sottofondo musicale è un file locale scelto sulla TV e non viene inviato dal sender Cast. Il salvaschermo di sistema mostra l’ultima raccolta scelta nell’app (cache Google Foto, cartella USB o foto demo) usando durata, adattamento, movimento lento e orologio delle impostazioni. Alcuni produttori, tra cui le Google TV recenti, nascondono la scelta dei salvaschermi di terze parti; in quel caso si può attivare via `adb`:
+
+```bash
+adb shell settings put secure screensaver_components it.fotofesta.tv/.dream.PhotoDreamService
+adb shell settings put secure screensaver_enabled 1
+```
+
+Per tornare al salvaschermo predefinito basta scegliere un altro salvaschermo dalle impostazioni oppure ripetere il primo comando con il componente originale, letto prima con `adb shell settings get secure screensaver_components`.
 
 ## Verifica effettuata
 
-Ogni push e ogni pull request verso `main` eseguono in GitHub Actions i 24 test unitari (protocollo Cast e validazione URL, ordine di riproduzione, ordinamento dei file, risposte HTTP Google, coerenza delle traduzioni), Android Lint e la build dell’APK debug (`.github/workflows/android.yml`); l’APK e i report sono scaricabili come artefatti. Il rapporto di audit e le correzioni applicate sono descritti in [AUDIT.md](docs/AUDIT.md).
+Ogni push e ogni pull request verso `main` eseguono in GitHub Actions i 46 test unitari (protocollo Cast e validazione URL, ordine di riproduzione, movimento lento, ordinamento dei file, coerenza delle traduzioni e flusso Google Foto completo contro un server finto), Android Lint e la build dell’APK debug (`.github/workflows/android.yml`); l’APK e i report sono scaricabili come artefatti. Il rapporto di audit e le correzioni applicate sono descritti in [AUDIT.md](docs/AUDIT.md).
 
 Risultati della validazione della versione 1.0.0 (vedi [VALIDATION.md](docs/VALIDATION.md)):
 

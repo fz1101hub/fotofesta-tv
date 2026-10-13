@@ -4,13 +4,12 @@ import android.app.Application
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
-import androidx.annotation.DrawableRes
 import androidx.annotation.PluralsRes
-import androidx.annotation.StringRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import it.fotofesta.tv.cast.CastBridge
 import it.fotofesta.tv.cast.CastCommand
+import it.fotofesta.tv.data.DemoPhotos
 import it.fotofesta.tv.data.SettingsRepository
 import it.fotofesta.tv.data.UsbPhotoRepository
 import it.fotofesta.tv.google.GoogleDeviceAuthRepository
@@ -23,7 +22,6 @@ import it.fotofesta.tv.model.AppState
 import it.fotofesta.tv.model.Destination
 import it.fotofesta.tv.model.GoogleConnectState
 import it.fotofesta.tv.model.PhotoItem
-import it.fotofesta.tv.model.PhotoRef
 import it.fotofesta.tv.model.PlaybackOrder
 import it.fotofesta.tv.model.SlideshowSettings
 import it.fotofesta.tv.model.SourceType
@@ -69,12 +67,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private var sleepJobMinutes = 0
     private val savedMusic = settingsRepository.loadMusic()
 
-    private val demoPhotos = listOf(
-        demoPhoto("demo:coast", R.string.demo_coast, R.drawable.demo_coast),
-        demoPhoto("demo:picnic", R.string.demo_picnic, R.drawable.demo_picnic),
-        demoPhoto("demo:mountains", R.string.demo_mountains, R.drawable.demo_mountains),
-        demoPhoto("demo:birthday", R.string.demo_birthday, R.drawable.demo_birthday),
-    )
+    private val demoPhotos = DemoPhotos.load(context)
 
     private val _state = MutableStateFlow(
         AppState(
@@ -291,6 +284,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun clearMessage() = _state.update { it.copy(message = null) }
 
+    fun showScreensaverHelp() = showMessage(context.getString(R.string.message_screensaver_unavailable))
+
     private fun handleCastCommand(command: CastCommand) {
         when (command) {
             CastCommand.Play -> playCurrent()
@@ -361,9 +356,6 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
 
     private fun quantityString(@PluralsRes id: Int, count: Int): String =
         context.resources.getQuantityString(id, count, count)
-
-    private fun demoPhoto(id: String, @StringRes title: Int, @DrawableRes drawable: Int) =
-        PhotoItem(id, context.getString(title), PhotoRef.Resource(drawable), SourceType.DEMO)
 
     override fun onCleared() {
         googleJob?.cancel()

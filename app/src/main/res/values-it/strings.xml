@@ -95,6 +95,10 @@
     <string name="settings_minutes">%1$d min</string>
     <string name="message_sleep_timer">Slideshow in pausa: è scattata la pausa automatica.</string>
     <string name="slideshow_sleep_at">Pausa alle %1$s</string>
+    <string name="settings_screensaver">Salvaschermo</string>
+    <string name="settings_screensaver_body">Mostra le tue foto quando la TV è inattiva. Scegli “Foto di FotoFesta TV” tra i salvaschermi di sistema.</string>
+    <string name="settings_screensaver_open">Apri impostazioni di sistema</string>
+    <string name="message_screensaver_unavailable">Questa TV non rende disponibili le impostazioni del salvaschermo. Consulta la guida di FotoFesta TV per attivarlo.</string>
     <string name="transition_fade">Dissolvenza</string>
     <string name="transition_slide">Scorrimento</string>
     <string name="transition_zoom">Zoom dolce</string>
@@ -133,6 +137,7 @@
     <string name="mystery_wrong">Non è questa. La foto ora è più nitida.</string>
     <string name="mystery_hidden_photo">Foto nascosta</string>
     <string name="cast_status_ready">FotoFesta TV pronta</string>
+    <string name="dream_label">Foto di FotoFesta TV</string>
     <plurals name="games_active_collection">
         <item quantity="one">Raccolta attiva: %1$d foto</item>
         <item quantity="many">Raccolta attiva: %1$d foto</item>

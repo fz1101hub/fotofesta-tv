@@ -71,12 +71,28 @@ I 21 test unitari sono stati compilati ed eseguiti con Kotlin 2.0.21 su JVM 17: 
 - La cache Google viene letta all’avvio fuori dal thread principale.
 - Versione portata a 1.1.0 (`versionCode 2`). Test unitari: 24, tutti superati con kotlinc 2.0.21.
 
+## Terza revisione (versione 1.2.0)
+
+- **Flusso Google Foto testabile**: i repository OAuth e Picker non dipendono più da Android (credenziali, archivio token, endpoint, cartella cache e orologio sono iniettati) e il flusso di importazione è uscito dal ViewModel in `GoogleImportFlow`. 17 test lo verificano contro un server Google finto (MockWebServer):
+  - autorizzazione con `authorization_pending` e `slow_down`;
+  - rinnovo e revoca dei token;
+  - nuovo collegamento dopo un 401;
+  - paginazione e codifica dei parametri;
+  - download parziali e spazio insufficiente;
+  - cache precedente preservata;
+  - manifest con percorsi fuori dalla cache;
+  - sessione Picker eliminata anche in caso di errore.
+- **Movimento lento (Ken Burns)**: zoom e spostamento lenti durante la permanenza di ogni foto, fermi in pausa e disattivati da “Riduci movimento”. Lo spostamento è una quota del margine creato dallo zoom, quindi i bordi della foto non entrano mai nell’inquadratura (verificato su 500 foto).
+- **Pausa automatica** dopo 30, 60 o 120 minuti, con l’orario previsto nella barra dei comandi. Lo schermo resta acceso solo mentre lo slideshow è in riproduzione: in pausa la TV può andare in standby.
+- **Salvaschermo di sistema** (`PhotoDreamService`): mostra l’ultima raccolta con dissolvenza lenta, movimento lento e orologio che cambia angolo ogni minuto per non segnare gli schermi OLED. Dalle impostazioni un pulsante apre la scelta del salvaschermo; il README spiega come attivarlo via `adb` sulle Google TV che nascondono il menu.
+- Protocollo Cast: nuovi campi `kenBurns` e `sleepTimerMinutes`.
+- Test unitari: 46, tutti superati con kotlinc 2.0.21.
+
 ## Raccomandazioni aperte
 
 | Priorità | Raccomandazione |
 | --- | --- |
-| Alta | Eseguire sulla TV i flussi modificati: collegamento Google (incluso annullamento e token revocato), USB con migliaia di foto, Indietro e barra dei comandi nello slideshow, Foto misteriosa su Android 9–11. |
-| Media | Valutare l’introduzione di Hilt o di una factory per iniettare repository e `OkHttpClient` nel ViewModel, così da testare anche i flussi Google con un server finto (es. MockWebServer). |
+| Alta | Eseguire sulla TV i flussi modificati: collegamento Google (incluso annullamento e token revocato), USB con migliaia di foto, Indietro e barra dei comandi nello slideshow, Foto misteriosa su Android 9–11, salvaschermo, movimento lento e pausa automatica. |
 | Bassa | I titoli predefiniti generati per le foto senza nome (“Foto N”) e i messaggi interni di log restano in italiano. |
 | Bassa | Adottare `androidx.tv:tv-material` per componenti con focus e indicazioni TV native. |
 | Bassa | Aggiungere un Web Receiver di fallback per dispositivi Cast senza l’app installata. |

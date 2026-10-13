@@ -96,6 +96,10 @@
     <string name="settings_minutes">%1$d min</string>
     <string name="message_sleep_timer">Slideshow paused by the sleep timer.</string>
     <string name="slideshow_sleep_at">Pauses at %1$s</string>
+    <string name="settings_screensaver">Screensaver</string>
+    <string name="settings_screensaver_body">Shows your photos when the TV is idle. Choose “FotoFesta TV photos” among the system screensavers.</string>
+    <string name="settings_screensaver_open">Open system settings</string>
+    <string name="message_screensaver_unavailable">This TV doesn’t offer screensaver settings to apps. See the FotoFesta TV guide to enable it.</string>
     <string name="transition_fade">Fade</string>
     <string name="transition_slide">Slide</string>
     <string name="transition_zoom">Gentle zoom</string>
@@ -134,6 +138,7 @@
     <string name="mystery_wrong">Not this one. The photo is now sharper.</string>
     <string name="mystery_hidden_photo">Hidden photo</string>
     <string name="cast_status_ready">FotoFesta TV ready</string>
+    <string name="dream_label">FotoFesta TV photos</string>
     <plurals name="games_active_collection">
         <item quantity="one">Active collection: %1$d photo</item>
         <item quantity="other">Active collection: %1$d photos</item>
