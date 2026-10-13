@@ -3,6 +3,8 @@ package it.fotofesta.tv.google
 import it.fotofesta.tv.R
 import it.fotofesta.tv.model.UserFacingException
 import kotlinx.coroutines.test.runTest
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.SocketPolicy
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -50,6 +52,40 @@ class GoogleDeviceAuthRepositoryTest {
         val tokenRequests = server.requestsTo("POST", "/oauth/token")
         assertEquals(3, tokenRequests.size)
         assertTrue(tokenRequests.first().body.readUtf8().contains("device_code=dev-1"))
+    }
+
+    @Test
+    fun `a dropped connection while waiting does not abort the sign in`() = runTest {
+        server.enqueue(
+            "POST", "/oauth/token",
+            MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AFTER_REQUEST),
+            json("""{"access_token":"after-drop","expires_in":3600}"""),
+        )
+        val code = GoogleDeviceAuthRepository.DeviceCode("dev", "CODE", "https://g.co/device", 600, 1)
+
+        assertEquals("after-drop", repository().pollForToken(code).accessToken)
+    }
+
+    @Test
+    fun `disconnect revokes the refresh token at Google`() = runTest {
+        tokens.accessToken = "access"
+        tokens.refreshToken = "refresh-1"
+        server.always("POST", "/oauth/revoke", json("{}"))
+
+        repository().revokeAndDisconnect()
+
+        assertTrue(tokens.cleared)
+        assertEquals("token=refresh-1", server.requestsTo("POST", "/oauth/revoke").single().body.readUtf8())
+    }
+
+    @Test
+    fun `local tokens are cleared even if revocation fails`() = runTest {
+        tokens.refreshToken = "refresh-1"
+        server.always("POST", "/oauth/revoke", json("""{"error":"invalid_token"}""", 400))
+
+        repository().revokeAndDisconnect()
+
+        assertTrue(tokens.cleared)
     }
 
     @Test

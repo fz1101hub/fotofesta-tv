@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -74,8 +75,9 @@ fun MemoryGameScreen(photos: List<PhotoItem>, onBack: () -> Unit) {
             SectionTitle(
                 stringResource(R.string.memory_kicker, moves),
                 if (complete) stringResource(R.string.memory_complete, moves) else stringResource(R.string.memory_find_pairs),
+                modifier = Modifier.weight(1f),
             )
-            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.width(16.dp))
             TvButton(stringResource(R.string.memory_new_game), ::newGame, icon = Icons.Rounded.Refresh)
             Spacer(Modifier.padding(6.dp))
             TvButton(stringResource(R.string.action_back), onBack, icon = Icons.AutoMirrored.Rounded.ArrowBack)
@@ -114,6 +116,7 @@ fun MemoryGameScreen(photos: List<PhotoItem>, onBack: () -> Unit) {
                         }
                     },
                     modifier = Modifier.aspectRatio(1.45f)
+                        .then(if (index == 0) Modifier.initialFocus(round) else Modifier)
                         .onFocusChanged { focused = it.isFocused }
                         .semantics { contentDescription = cardDescription },
                     shape = RoundedCornerShape(18.dp),

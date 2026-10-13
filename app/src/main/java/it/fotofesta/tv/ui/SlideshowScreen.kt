@@ -54,6 +54,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import coil.imageLoader
@@ -137,13 +138,15 @@ fun SlideshowScreen(
             .onKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
                 when (event.nativeKeyEvent.keyCode) {
-                    KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> { onToggle(); true }
+                    // Un tasto tenuto premuto genera ripetizioni: si commuta solo alla prima pressione.
+                    KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> { if (event.nativeKeyEvent.repeatCount == 0) onToggle(); true }
                     KeyEvent.KEYCODE_MEDIA_PLAY -> { if (!state.isPlaying) onToggle(); true }
                     KeyEvent.KEYCODE_MEDIA_PAUSE -> { if (state.isPlaying) onToggle(); true }
                     KeyEvent.KEYCODE_MEDIA_PREVIOUS, KeyEvent.KEYCODE_MEDIA_REWIND -> { onPrevious(); true }
                     KeyEvent.KEYCODE_MEDIA_NEXT, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> { onNext(); true }
                     // Le frecce agiscono sullo slideshow solo quando il focus non è sui pulsanti.
-                    KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> screenFocused.also { if (it) onToggle() }
+                    KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER ->
+                        screenFocused.also { if (it && event.nativeKeyEvent.repeatCount == 0) onToggle() }
                     KeyEvent.KEYCODE_DPAD_LEFT -> screenFocused.also { if (it) onPrevious() }
                     KeyEvent.KEYCODE_DPAD_RIGHT -> screenFocused.also { if (it) onNext() }
                     KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_MENU ->
@@ -216,9 +219,15 @@ fun SlideshowScreen(
                     )
                     Spacer(Modifier.size(12.dp))
                     TvButton(stringResource(R.string.slideshow_next), onNext, icon = Icons.Rounded.SkipNext)
-                    Spacer(Modifier.weight(1f))
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(photo?.title.orEmpty(), style = MaterialTheme.typography.titleLarge, maxLines = 1)
+                    Spacer(Modifier.size(18.dp))
+                    // Il titolo prende solo lo spazio rimasto: i pulsanti non vengono mai schiacciati.
+                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+                        Text(
+                            photo?.title.orEmpty(),
+                            style = MaterialTheme.typography.titleLarge,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                         Text(
                             stringResource(R.string.slideshow_info, state.currentIndex + 1, state.photos.size, state.settings.intervalSeconds, stringResource(state.settings.transition.labelRes)),
                             style = MaterialTheme.typography.bodyMedium,

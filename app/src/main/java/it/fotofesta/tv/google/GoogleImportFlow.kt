@@ -31,19 +31,22 @@ class GoogleImportFlow(
             token = authorize(onState)
             picker.createSession(token)
         }
+        val tokens: TokenProvider = {
+            auth.validAccessToken() ?: throw UserFacingException(R.string.error_google_session_expired)
+        }
         try {
             onState(GoogleConnectState.WaitingForPhotos(session.pickerUri))
-            val completed = picker.awaitSelection(token, session)
-            val picked = picker.listPickedMedia(token, completed.id)
+            val completed = picker.awaitSelection(tokens, session)
+            val picked = picker.listPickedMedia(tokens, completed.id)
             if (picked.isEmpty()) throw UserFacingException(R.string.error_google_nothing_selected)
             onState(GoogleConnectState.Downloading(0, picked.size))
-            val downloaded = picker.downloadToPrivateCache(token, picked) { done, total ->
+            val downloaded = picker.downloadToPrivateCache(tokens, picked) { done, total ->
                 onState(GoogleConnectState.Downloading(done, total))
             }
             if (downloaded.isEmpty()) throw UserFacingException(R.string.error_google_download_failed)
             return Result(downloaded, skipped = picked.size - downloaded.size)
         } finally {
-            withContext(NonCancellable) { picker.deleteSession(token, session.id) }
+            withContext(NonCancellable) { picker.deleteSession(tokens, session.id) }
         }
     }
 

@@ -9,15 +9,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.SportsEsports
 import androidx.compose.material.icons.rounded.Usb
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -61,8 +59,9 @@ fun HomeScreen(
                         stringResource(R.string.home_kicker),
                         stringResource(R.string.home_title),
                         stringResource(R.string.home_subtitle),
+                        modifier = Modifier.weight(1f),
                     )
-                    Spacer(Modifier.weight(1f))
+                    Spacer(Modifier.width(16.dp))
                     TvButton(
                         stringResource(R.string.action_start_slideshow),
                         onPlay,
@@ -99,12 +98,6 @@ fun HomeScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                     TvButton(stringResource(R.string.action_settings), onSettings, icon = Icons.Rounded.Settings)
                     TvButton(stringResource(R.string.home_games), onGames, icon = Icons.Rounded.SportsEsports)
-                }
-                if (state.busy) {
-                    LinearProgressIndicator(Modifier.fillMaxWidth(.5f), color = Amber)
-                }
-                if (state.message != null) {
-                    Text(state.message, style = MaterialTheme.typography.bodyLarge, color = Amber)
                 }
             }
         }

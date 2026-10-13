@@ -11,6 +11,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
+import java.io.IOException
 
 /**
  * OAuth 2.0 per TV e dispositivi a input limitato. Credenziali, archivio dei token, endpoint e
@@ -40,6 +41,7 @@ class GoogleDeviceAuthRepository(
 
     private val deviceCodeUrl = oauthBase.newBuilder().addPathSegments("device/code").build()
     private val tokenUrl = oauthBase.newBuilder().addPathSegment("token").build()
+    private val revokeUrl = oauthBase.newBuilder().addPathSegment("revoke").build()
 
     fun isConfigured(): Boolean = clientId.isNotBlank() && clientSecret.isNotBlank()
 
@@ -85,6 +87,9 @@ class GoogleDeviceAuthRepository(
                     "expired_token" -> throw UserFacingException(R.string.error_google_code_expired)
                     else -> throw failure
                 }
+            } catch (_: IOException) {
+                // Rete instabile durante l'attesa (fino a 30 minuti): si riprova al giro successivo.
+                continue
             }
             return persistToken(json)
         }
@@ -127,6 +132,19 @@ class GoogleDeviceAuthRepository(
     }
 
     fun disconnect() = tokens.clear()
+
+    /**
+     * Revoca l'accesso anche sui server Google (best effort) e cancella i token locali.
+     * Senza revoca il refresh token resterebbe valido finché l'utente non lo rimuove dal suo account.
+     */
+    suspend fun revokeAndDisconnect() {
+        val token = withContext(Dispatchers.IO) { tokens.refreshToken ?: tokens.accessToken }
+        if (token != null) {
+            val body = FormBody.Builder().add("token", token).build()
+            runCatching { client.newCall(Request.Builder().url(revokeUrl).post(body).build()).await().close() }
+        }
+        withContext(Dispatchers.IO) { disconnect() }
+    }
 
     private suspend fun persistToken(json: JSONObject): TokenResult = withContext(Dispatchers.IO) {
         val result = TokenResult(

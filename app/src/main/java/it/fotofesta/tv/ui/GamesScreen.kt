@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.GridView
@@ -30,9 +31,15 @@ fun GamesScreen(photoCount: Int, onBack: () -> Unit, onMemory: () -> Unit, onMys
                 stringResource(R.string.games_kicker),
                 stringResource(R.string.games_title),
                 stringResource(R.string.games_subtitle),
+                modifier = Modifier.weight(1f),
             )
-            Spacer(Modifier.weight(1f))
-            TvButton(stringResource(R.string.action_back), onBack, icon = Icons.AutoMirrored.Rounded.ArrowBack)
+            Spacer(Modifier.width(16.dp))
+            TvButton(
+                stringResource(R.string.action_back),
+                onBack,
+                modifier = if (playable) Modifier else Modifier.initialFocus(),
+                icon = Icons.AutoMirrored.Rounded.ArrowBack,
+            )
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(22.dp)) {
             SourceCard(
@@ -41,7 +48,7 @@ fun GamesScreen(photoCount: Int, onBack: () -> Unit, onMemory: () -> Unit, onMys
                 Icons.Rounded.GridView,
                 Coral,
                 onMemory,
-                Modifier.weight(1f),
+                Modifier.weight(1f).then(if (playable) Modifier.initialFocus() else Modifier),
                 enabled = playable,
             )
             SourceCard(
@@ -70,6 +77,6 @@ fun NotEnoughPhotos(title: String, onBack: () -> Unit) {
             stringResource(R.string.games_more_photos_title),
             stringResource(R.string.games_more_photos_body, MIN_GAME_PHOTOS),
         )
-        TvButton(stringResource(R.string.action_back), onBack, icon = Icons.AutoMirrored.Rounded.ArrowBack)
+        TvButton(stringResource(R.string.action_back), onBack, modifier = Modifier.initialFocus(), icon = Icons.AutoMirrored.Rounded.ArrowBack)
     }
 }

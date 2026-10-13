@@ -7,18 +7,26 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
 import android.provider.Settings
+import android.support.v4.media.MediaMetadataCompat
+import android.support.v4.media.session.MediaSessionCompat
+import android.support.v4.media.session.PlaybackStateCompat
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.DisposableEffect
@@ -30,9 +38,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import android.support.v4.media.MediaMetadataCompat
-import android.support.v4.media.session.MediaSessionCompat
-import android.support.v4.media.session.PlaybackStateCompat
+import androidx.lifecycle.lifecycleScope
 import com.google.android.gms.cast.tv.CastReceiverContext
 import it.fotofesta.tv.model.Destination
 import it.fotofesta.tv.ui.FotoFestaTheme
@@ -44,6 +50,9 @@ import it.fotofesta.tv.ui.MysteryGameScreen
 import it.fotofesta.tv.ui.SettingsScreen
 import it.fotofesta.tv.ui.SlideshowScreen
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private val viewModel: FotoFestaViewModel by viewModels()
@@ -53,6 +62,13 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setupMediaSession()
+        // Lo stato della MediaSession segue il ViewModel anche quando la UI non si ricompone.
+        lifecycleScope.launch {
+            viewModel.state
+                .map { it.isPlaying to it.photos.getOrNull(it.currentIndex)?.title }
+                .distinctUntilChanged()
+                .collect { (playing, title) -> updateMediaSession(playing, title) }
+        }
 
         setContent {
             FotoFestaTheme {
@@ -80,10 +96,6 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                LaunchedEffect(state.isPlaying, state.currentIndex, state.photos) {
-                    updateMediaSession(state.isPlaying, state.photos.getOrNull(state.currentIndex)?.title)
-                }
-
                 LaunchedEffect(state.message) {
                     if (state.message != null) {
                         delay(5_000)
@@ -96,7 +108,7 @@ class MainActivity : ComponentActivity() {
                         Destination.HOME -> HomeScreen(
                             state = state,
                             onGoogle = viewModel::startGoogleConnect,
-                            onUsb = { usbPicker.launch(null) },
+                            onUsb = { launchPicker { usbPicker.launch(null) } },
                             onDemo = viewModel::useDemoAndPlay,
                             onPlay = viewModel::playCurrent,
                             onSettings = { viewModel.navigate(Destination.SETTINGS) },
@@ -106,7 +118,7 @@ class MainActivity : ComponentActivity() {
                             state = state,
                             onBack = { viewModel.navigate(Destination.HOME) },
                             onChange = viewModel::updateSettings,
-                            onPickMusic = { musicPicker.launch(arrayOf("audio/*")) },
+                            onPickMusic = { launchPicker { musicPicker.launch(arrayOf("audio/*")) } },
                             onRemoveMusic = viewModel::removeMusic,
                             onDisconnectGoogle = viewModel::disconnectGoogle,
                             onPlay = viewModel::playCurrent,
@@ -137,19 +149,39 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    state.message?.takeIf { state.destination != Destination.HOME }?.let { message ->
-                        Text(
-                            message,
+                    // Messaggi e avanzamento sempre in sovrimpressione: nella home non c'è spazio libero
+                    // garantito sotto le schede, e lì sarebbero finiti fuori schermo.
+                    if (state.message != null || state.busy) {
+                        Column(
                             modifier = Modifier.align(Alignment.TopCenter)
                                 .padding(top = 20.dp)
+                                .widthIn(max = 760.dp)
                                 .background(Color(0xEE17213A), RoundedCornerShape(14.dp))
                                 .padding(horizontal = 22.dp, vertical = 12.dp),
-                            color = MaterialTheme.colorScheme.tertiary,
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            state.message?.let { message ->
+                                Text(
+                                    message,
+                                    color = MaterialTheme.colorScheme.tertiary,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                )
+                            }
+                            if (state.busy) LinearProgressIndicator(Modifier.width(320.dp), color = MaterialTheme.colorScheme.tertiary)
+                        }
                     }
                 }
             }
+        }
+    }
+
+    /** Alcune TV non hanno un selettore di documenti: senza questo controllo l'app andrebbe in crash. */
+    private fun launchPicker(launch: () -> Unit) {
+        try {
+            launch()
+        } catch (_: ActivityNotFoundException) {
+            viewModel.showPickerUnavailable()
         }
     }
 
@@ -167,7 +199,14 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
     }
 
+    override fun onStart() {
+        super.onStart()
+        mediaSession.isActive = true
+    }
+
     override fun onStop() {
+        // Con l'app in background i tasti multimediali non devono avviare musica senza interfaccia.
+        mediaSession.isActive = false
         if (!isChangingConfigurations) viewModel.pause()
         super.onStop()
     }
@@ -189,7 +228,6 @@ class MainActivity : ComponentActivity() {
                     PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
                 )
             )
-            isActive = true
         }
         // Collega la MediaSession a Cast Connect: i comandi play/pausa/skip dei sender arrivano qui.
         runCatching {

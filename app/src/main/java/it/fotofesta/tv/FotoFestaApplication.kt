@@ -16,12 +16,17 @@ class FotoFestaApplication : Application() {
             CastReceiverContext.initInstance(this)
             CastReceiverContext.getInstance().apply {
                 registerEventCallback(object : CastReceiverContext.EventCallback() {
+                    // Più telefoni possono essere collegati: l'indicatore si spegne solo quando escono tutti.
+                    private val senders = mutableSetOf<String>()
+
                     override fun onSenderConnected(senderInfo: SenderInfo) {
-                        CastBridge.senderConnected(true)
+                        senders += senderInfo.senderId
+                        CastBridge.senderConnected(senders.isNotEmpty())
                     }
 
                     override fun onSenderDisconnected(eventInfo: SenderDisconnectedEventInfo) {
-                        CastBridge.senderConnected(false)
+                        senders -= eventInfo.senderInfo.senderId
+                        CastBridge.senderConnected(senders.isNotEmpty())
                     }
                 })
                 setMessageReceivedListener(BuildConfig.CAST_NAMESPACE) { _, _, message ->

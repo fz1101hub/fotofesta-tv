@@ -30,6 +30,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -58,11 +59,13 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         clientId = BuildConfig.PHOTOS_CLIENT_ID,
         clientSecret = BuildConfig.PHOTOS_CLIENT_SECRET,
     )
-    private val googlePhotos = GooglePhotosPickerRepository(context.cacheDir, http)
+    // noBackupFilesDir e non cacheDir: il sistema non cancella le foto importate per liberare spazio.
+    private val googlePhotos = GooglePhotosPickerRepository(context.noBackupFilesDir, http)
     private val googleImport = GoogleImportFlow(googleAuth, googlePhotos)
     private val playbackOrder = PlaybackOrder()
     private var googleJob: Job? = null
     private var usbJob: Job? = null
+    private var restoreJob: Job? = null
     private var sleepJob: Job? = null
     private var sleepJobMinutes = 0
     private val savedMusic = settingsRepository.loadMusic()
@@ -82,6 +85,15 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
 
     init {
         playbackOrder.reset(demoPhotos.size, _state.value.settings.shuffle)
+        // Prima si ripristina l'ultima sorgente, poi si ascoltano i comandi Cast: un LOAD già in coda
+        // (avvio tramite Cast Connect) annulla il ripristino invece di essere sovrascritto.
+        when (settingsRepository.loadLastSource()) {
+            "GOOGLE" -> restoreJob = viewModelScope.launch {
+                val cached = withContext(Dispatchers.IO) { googlePhotos.cachedPhotos() }
+                if (cached.isNotEmpty()) showPhotos(cached, googleLabel(cached.size))
+            }
+            "USB" -> settingsRepository.loadUsbTree()?.let { stored -> loadUsb(Uri.parse(stored)) }
+        }
         viewModelScope.launch {
             CastBridge.connected.collect { connected ->
                 _state.update { it.copy(castSenderConnected = connected) }
@@ -89,16 +101,6 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         }
         viewModelScope.launch {
             CastBridge.commands.collect(::handleCastCommand)
-        }
-        when (settingsRepository.loadLastSource()) {
-            "GOOGLE" -> viewModelScope.launch {
-                val cached = withContext(Dispatchers.IO) { googlePhotos.cachedPhotos() }
-                // Non sovrascrive una sorgente scelta nel frattempo (es. comando Cast).
-                if (cached.isNotEmpty() && _state.value.photos === demoPhotos) {
-                    showPhotos(cached, googleLabel(cached.size))
-                }
-            }
-            "USB" -> settingsRepository.loadUsbTree()?.let { stored -> loadUsb(Uri.parse(stored)) }
         }
     }
 
@@ -121,6 +123,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun useDemoAndPlay() {
+        cancelPendingSources()
         settingsRepository.saveLastSource("DEMO")
         showPhotos(demoPhotos, context.getString(R.string.source_demo))
         _state.update { it.copy(destination = Destination.SLIDESHOW, isPlaying = true) }
@@ -181,7 +184,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         runCatching {
             context.contentResolver.takePersistableUriPermission(treeUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        usbJob?.cancel()
+        cancelPendingSources()
         usbJob = viewModelScope.launch {
             _state.update { it.copy(busy = true, message = context.getString(R.string.message_usb_indexing)) }
             try {
@@ -233,11 +236,14 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             }
             return
         }
-        googleJob?.cancel()
+        cancelPendingSources()
         googleJob = viewModelScope.launch {
             _state.update { it.copy(destination = Destination.GOOGLE_CONNECT, google = GoogleConnectState.Idle) }
             try {
                 val result = googleImport.run { step -> _state.update { it.copy(google = step) } }
+                // La chiusura della sessione Picker non è annullabile: se nel frattempo l'utente ha
+                // premuto Indietro, il risultato va scartato.
+                ensureActive()
                 settingsRepository.saveLastSource("GOOGLE")
                 showPhotos(result.photos, googleLabel(result.photos.size))
                 _state.update {
@@ -266,9 +272,12 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun disconnectGoogle() {
-        googleJob?.cancel()
-        googleAuth.disconnect()
-        googlePhotos.clearCache()
+        cancelPendingSources()
+        // Revoca su Google e cancellazione dei file (anche migliaia di foto 4K) fuori dal thread principale.
+        viewModelScope.launch {
+            googleAuth.revokeAndDisconnect()
+            withContext(Dispatchers.IO) { googlePhotos.clearCache() }
+        }
         val wasShowingGoogle = _state.value.photos.any { it.source == SourceType.GOOGLE_PHOTOS }
         if (wasShowingGoogle || settingsRepository.loadLastSource() == "GOOGLE") {
             settingsRepository.saveLastSource("DEMO")
@@ -286,6 +295,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun showScreensaverHelp() = showMessage(context.getString(R.string.message_screensaver_unavailable))
 
+    fun showPickerUnavailable() = showMessage(context.getString(R.string.error_picker_unavailable))
+
     private fun handleCastCommand(command: CastCommand) {
         when (command) {
             CastCommand.Play -> playCurrent()
@@ -294,11 +305,26 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             CastCommand.Previous -> previous()
             is CastCommand.ChangeSettings -> updateSettings(command.settings.applyTo(_state.value.settings))
             is CastCommand.Load -> {
+                cancelPendingSources()
+                _state.update { it.copy(google = GoogleConnectState.Idle) }
                 command.settings?.let { updateSettings(it.applyTo(_state.value.settings)) }
                 showPhotos(command.photos, quantityString(R.plurals.source_cast, command.photos.size))
                 _state.update { it.copy(destination = Destination.SLIDESHOW, isPlaying = true) }
                 syncMusic()
             }
+        }
+    }
+
+    /**
+     * Annulla le sorgenti ancora in caricamento (scansione USB, collegamento Google, ripristino
+     * della cache): l'ultima scelta dell'utente o del sender Cast non deve essere sovrascritta.
+     */
+    private fun cancelPendingSources() {
+        restoreJob?.cancel()
+        googleJob?.cancel()
+        if (usbJob?.isActive == true) {
+            usbJob?.cancel()
+            _state.update { it.copy(busy = false, message = null) }
         }
     }
 

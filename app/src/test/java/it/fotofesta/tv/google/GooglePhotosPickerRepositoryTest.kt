@@ -42,7 +42,7 @@ class GooglePhotosPickerRepositoryTest {
         val session = picker.createSession("tok")
         assertEquals("https://photos.google.com/picker/s1", session.pickerUri)
 
-        val done = picker.awaitSelection("tok", session)
+        val done = picker.awaitSelection({ "tok" }, session)
 
         assertTrue(done.mediaItemsSet)
         assertEquals(2, server.requestsTo("GET", "/v1/sessions/s1").size)
@@ -63,7 +63,7 @@ class GooglePhotosPickerRepositoryTest {
             json("""{"mediaItems":[{"id":"b","mediaFile":{"baseUrl":"https://lh3/b","mimeType":"image/png","filename":"Monti.png"}}]}"""),
         )
 
-        val picked = repository().listPickedMedia("tok", "s 1")
+        val picked = repository().listPickedMedia({ "tok" }, "s 1")
 
         assertEquals(listOf("a", "b"), picked.map { it.id })
         assertEquals(listOf("Mare.jpg", "Monti.png"), picked.map { it.filename })
@@ -76,14 +76,14 @@ class GooglePhotosPickerRepositoryTest {
     fun `download replaces the cache and skips unavailable photos`() = runTest {
         val picker = repository()
         server.enqueue("GET", "/media/old=w3840-h2160", image("old"))
-        picker.downloadToPrivateCache("tok", listOf(media("old", "Vecchia.jpg"))) { _, _ -> }
+        picker.downloadToPrivateCache({ "tok" }, listOf(media("old", "Vecchia.jpg"))) { _, _ -> }
 
         server.enqueue("GET", "/media/1=w3840-h2160", image("uno"))
         server.enqueue("GET", "/media/2=w3840-h2160", MockResponse().setResponseCode(500))
         server.enqueue("GET", "/media/3=w3840-h2160", image("tre"))
         val progress = mutableListOf<Int>()
 
-        val photos = picker.downloadToPrivateCache("tok", listOf(media("1", "Uno.jpg"), media("2", "Due.jpg"), media("3", "Tre.png", "image/png"))) { done, total ->
+        val photos = picker.downloadToPrivateCache({ "tok" }, listOf(media("1", "Uno.jpg"), media("2", "Due.jpg"), media("3", "Tre.png", "image/png"))) { done, total ->
             assertEquals(3, total)
             synchronized(progress) { progress += done }
         }
@@ -102,10 +102,10 @@ class GooglePhotosPickerRepositoryTest {
     fun `failed download keeps the previous collection`() = runTest {
         val picker = repository()
         server.enqueue("GET", "/media/keep=w3840-h2160", image("keep"))
-        picker.downloadToPrivateCache("tok", listOf(media("keep", "Tenuta.jpg"))) { _, _ -> }
+        picker.downloadToPrivateCache({ "tok" }, listOf(media("keep", "Tenuta.jpg"))) { _, _ -> }
         server.always("GET", "/media/broken=w3840-h2160", MockResponse().setResponseCode(403))
 
-        val photos = picker.downloadToPrivateCache("tok", listOf(media("broken", "Rotta.jpg"))) { _, _ -> }
+        val photos = picker.downloadToPrivateCache({ "tok" }, listOf(media("broken", "Rotta.jpg"))) { _, _ -> }
 
         assertTrue(photos.isEmpty())
         assertEquals(listOf("Tenuta.jpg"), picker.cachedPhotos().map { it.title })
@@ -115,7 +115,7 @@ class GooglePhotosPickerRepositoryTest {
     @Test
     fun `download stops when free space is too low`() = runTest {
         val photos = repository(minFreeBytes = Long.MAX_VALUE)
-            .downloadToPrivateCache("tok", listOf(media("1", "Uno.jpg"))) { _, _ -> }
+            .downloadToPrivateCache({ "tok" }, listOf(media("1", "Uno.jpg"))) { _, _ -> }
 
         assertTrue(photos.isEmpty())
         assertTrue(server.requests.isEmpty())
@@ -126,7 +126,7 @@ class GooglePhotosPickerRepositoryTest {
     fun `clear cache removes photos and leftovers`() = runTest {
         val picker = repository()
         server.enqueue("GET", "/media/1=w3840-h2160", image("uno"))
-        picker.downloadToPrivateCache("tok", listOf(media("1", "Uno.jpg"))) { _, _ -> }
+        picker.downloadToPrivateCache({ "tok" }, listOf(media("1", "Uno.jpg"))) { _, _ -> }
         File(temp.root, "google_photos.staging-orfana").mkdirs()
         File(temp.root, "altro").mkdirs()
 

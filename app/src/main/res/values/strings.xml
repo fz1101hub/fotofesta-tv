@@ -37,6 +37,8 @@
     <string name="error_google_not_configured">Google Photos Picker credentials are missing. Follow CONFIGURATION.md and rebuild the app.</string>
     <string name="error_google_access_denied">Authorization cancelled on the phone.</string>
     <string name="error_google_code_expired">The Google code has expired. Try again.</string>
+    <string name="error_google_session_expired">Access to Google has expired. Connect again.</string>
+    <string name="error_picker_unavailable">This TV has no file picker. Install a file manager from Google Play and try again.</string>
     <string name="error_google_selection_expired">The Google Photos selection has expired.</string>
     <string name="error_google_nothing_selected">You didn’t select any photos.</string>
     <string name="error_google_download_failed">The selected photos couldn’t be prepared.</string>
@@ -88,7 +90,7 @@
     <string name="settings_google_data">Google Photos data</string>
     <string name="settings_google_data_body">Removes encrypted tokens and the private photo cache from the TV.</string>
     <string name="settings_google_disconnect">Disconnect and delete</string>
-    <string name="settings_privacy">Privacy: FotoFesta TV has no ads or analytics. USB photos are never copied. Photos chosen from Google are automatically downloaded to a temporary private cache so their links don’t expire, and are deleted with “Disconnect and delete” or by the system.</string>
+    <string name="settings_privacy">Privacy: FotoFesta TV has no ads or analytics. USB photos are never copied. Photos chosen from Google are downloaded to private app storage so their links don’t expire, and are deleted with “Disconnect and delete”.</string>
     <string name="settings_ken_burns">Slow pan and zoom</string>
     <string name="settings_ken_burns_body">Gently zooms and pans each photo while it is on screen.</string>
     <string name="settings_sleep_timer">Sleep timer</string>

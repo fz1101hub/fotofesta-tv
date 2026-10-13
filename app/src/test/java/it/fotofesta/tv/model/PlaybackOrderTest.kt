@@ -68,6 +68,18 @@ class PlaybackOrderTest {
     }
 
     @Test
+    fun `previous after a reshuffle returns the photo actually shown before`() {
+        repeat(30) { seed ->
+            val order = PlaybackOrder(Random(seed)).apply { reset(4, shuffle = true, current = 0) }
+            var current = 0
+            repeat(3) { current = order.next(current) }
+            val lastOfCycle = current
+            val firstOfNewCycle = order.next(lastOfCycle)
+            assertEquals(lastOfCycle, order.previous(firstOfNewCycle))
+        }
+    }
+
+    @Test
     fun `peek has no side effects`() {
         val order = PlaybackOrder(Random(5)).apply { reset(6, shuffle = true, current = 1) }
         assertNull(order.peekNext(42))

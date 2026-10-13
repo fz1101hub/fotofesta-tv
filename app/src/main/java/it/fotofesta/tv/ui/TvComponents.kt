@@ -25,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,6 +34,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -152,8 +155,8 @@ fun AppHeader(sourceLabel: String, castConnected: Boolean) {
 }
 
 @Composable
-fun SectionTitle(kicker: String, title: String, subtitle: String? = null) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+fun SectionTitle(kicker: String, title: String, subtitle: String? = null, modifier: Modifier = Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(kicker.uppercase(), color = Coral, style = MaterialTheme.typography.labelLarge)
         Text(title, style = MaterialTheme.typography.headlineLarge)
         if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodyLarge, color = TextSecondary)
@@ -179,3 +182,14 @@ fun SettingRow(title: String, description: String, content: @Composable () -> Un
 @Composable
 fun quantityStringResource(@PluralsRes id: Int, count: Int): String =
     LocalContext.current.resources.getQuantityString(id, count, count)
+
+/**
+ * Dà il focus a questo elemento quando compare, o di nuovo quando cambia [key]. Sulla TV, senza
+ * un elemento a fuoco, la prima pressione del telecomando andrebbe persa.
+ */
+@Composable
+fun Modifier.initialFocus(key: Any? = Unit): Modifier {
+    val requester = remember { FocusRequester() }
+    LaunchedEffect(key) { runCatching { requester.requestFocus() } }
+    return this.focusRequester(requester)
+}

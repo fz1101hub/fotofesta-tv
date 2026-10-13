@@ -19,7 +19,8 @@ class GoogleImportFlowTest {
 
     private val server = FakeGoogleServer()
     private val tokens = MemoryTokenStore()
-    private val now = 1_800_000_000_000L
+    @Volatile
+    private var now = 1_800_000_000_000L
 
     private fun flow() = GoogleImportFlow(
         GoogleDeviceAuthRepository(server.client, tokens, "client", "secret", server.oauthBase) { now },
@@ -78,6 +79,30 @@ class GoogleImportFlowTest {
             assertEquals(R.string.error_google_nothing_selected, expected.messageRes)
         }
         assertEquals(1, server.requestsTo("DELETE", "/v1/sessions/s1").size)
+    }
+
+    @Test
+    fun `token expiring during the selection is refreshed for later requests`() = runTest {
+        tokens.accessToken = "old"
+        tokens.refreshToken = "refresh"
+        tokens.expiresAtEpochSeconds = now / 1_000 + 90
+        server.enqueue("POST", "/v1/sessions", json("""{"id":"s1","pickerUri":"https://photos.google.com/picker/s1","mediaItemsSet":false,"pollingConfig":{"pollInterval":"1s"}}"""))
+        server.enqueue("GET", "/v1/sessions/s1", json("""{"id":"s1","pickerUri":"https://photos.google.com/picker/s1","mediaItemsSet":true}"""))
+        // Mentre l'utente sceglie dal telefono passano dieci minuti: il token iniziale scade.
+        server.onDispatch = { request ->
+            if (request.method == "GET" && request.requestUrl!!.encodedPath == "/v1/sessions/s1") now += 600_000
+        }
+        server.always("DELETE", "/v1/sessions/s1", json("{}"))
+        server.enqueue("POST", "/oauth/token", json("""{"access_token":"new","expires_in":3600}"""))
+        server.enqueue("GET", "/v1/mediaItems", json("""{"mediaItems":[${mediaItem("p1")}]}"""))
+        server.enqueue("GET", "/media/p1=w3840-h2160", MockResponse().setBody("1"))
+
+        val result = flow().run { }
+
+        assertEquals(1, result.photos.size)
+        assertEquals("Bearer old", server.requestsTo("POST", "/v1/sessions").single().getHeader("Authorization"))
+        assertEquals("Bearer new", server.requestsTo("GET", "/v1/mediaItems").single().getHeader("Authorization"))
+        assertEquals("Bearer new", server.requestsTo("GET", "/media/p1=w3840-h2160").single().getHeader("Authorization"))
     }
 
     @Test

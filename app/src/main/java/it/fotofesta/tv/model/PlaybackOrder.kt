@@ -12,9 +12,12 @@ import kotlin.random.Random
 class PlaybackOrder(private val random: Random = Random.Default) {
     private var order: List<Int> = emptyList()
     private var shuffle = false
+    /** Ultima foto del giro precedente: "Precedente" dalla prima foto di un nuovo giro torna lì. */
+    private var lastOfPreviousCycle: Int? = null
 
     fun reset(size: Int, shuffle: Boolean, current: Int = 0) {
         this.shuffle = shuffle
+        lastOfPreviousCycle = null
         order = when {
             size <= 0 -> emptyList()
             !shuffle -> List(size) { it }
@@ -30,14 +33,22 @@ class PlaybackOrder(private val random: Random = Random.Default) {
         val position = positionOf(current)
         if (position == order.lastIndex && shuffle) {
             reshuffleAvoiding(current)
+            lastOfPreviousCycle = current
             return order.first()
         }
+        lastOfPreviousCycle = null
         return order[(position + 1) % order.size]
     }
 
     fun previous(current: Int): Int {
         if (order.size <= 1) return order.firstOrNull() ?: 0
         val position = positionOf(current)
+        lastOfPreviousCycle?.let { previousCycle ->
+            if (position == 0) {
+                lastOfPreviousCycle = null
+                return previousCycle
+            }
+        }
         return order[(position - 1 + order.size) % order.size]
     }
 

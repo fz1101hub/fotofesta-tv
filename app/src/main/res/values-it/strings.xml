@@ -36,6 +36,8 @@
     <string name="error_google_not_configured">Mancano le credenziali Google Photos Picker. Segui CONFIGURATION.md e ricompila l\'app.</string>
     <string name="error_google_access_denied">Autorizzazione annullata sul telefono.</string>
     <string name="error_google_code_expired">Il codice Google è scaduto. Riprova.</string>
+    <string name="error_google_session_expired">L\'accesso a Google è scaduto. Collegati di nuovo.</string>
+    <string name="error_picker_unavailable">Questa TV non ha un selettore di file. Installa un gestore file da Google Play e riprova.</string>
     <string name="error_google_selection_expired">La selezione Google Foto è scaduta.</string>
     <string name="error_google_nothing_selected">Non hai selezionato foto.</string>
     <string name="error_google_download_failed">Non è stato possibile preparare le foto selezionate.</string>
@@ -87,7 +89,7 @@
     <string name="settings_google_data">Dati Google Foto</string>
     <string name="settings_google_data_body">Rimuove token cifrati e cache privata delle foto dalla TV.</string>
     <string name="settings_google_disconnect">Disconnetti e cancella</string>
-    <string name="settings_privacy">Privacy: FotoFesta TV non contiene pubblicità o analytics. Le foto USB non vengono copiate. Le foto scelte da Google sono scaricate automaticamente in una cache privata temporanea per evitare la scadenza degli URL e vengono eliminate con ‘Disconnetti e cancella’ o dal sistema.</string>
+    <string name="settings_privacy">Privacy: FotoFesta TV non contiene pubblicità o analytics. Le foto USB non vengono copiate. Le foto scelte da Google sono scaricate in un archivio privato dell’app per evitare la scadenza degli URL e vengono eliminate con ‘Disconnetti e cancella’.</string>
     <string name="settings_ken_burns">Movimento lento</string>
     <string name="settings_ken_burns_body">Zoom e spostamento lenti su ogni foto mentre è sullo schermo.</string>
     <string name="settings_sleep_timer">Pausa automatica</string>

@@ -34,10 +34,15 @@ class FakeGoogleServer : AutoCloseable {
     private val fallback = mutableMapOf<String, MockResponse>()
     val requests: MutableList<RecordedRequest> = Collections.synchronizedList(mutableListOf())
 
+    /** Eseguito sul thread del server prima di rispondere (es. per far avanzare l'orologio del test). */
+    @Volatile
+    var onDispatch: (RecordedRequest) -> Unit = {}
+
     init {
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse {
                 requests += request
+                onDispatch(request)
                 val key = "${request.method} ${request.requestUrl!!.encodedPath}"
                 synchronized(routes) {
                     routes[key]?.removeFirstOrNull()?.let { return it }

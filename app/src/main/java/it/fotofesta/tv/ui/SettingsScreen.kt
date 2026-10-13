@@ -1,5 +1,6 @@
 package it.fotofesta.tv.ui
 
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,7 +20,10 @@ import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import it.fotofesta.tv.R
@@ -41,6 +45,7 @@ fun SettingsScreen(
     onOpenScreensaverSettings: () -> Unit,
 ) {
     val settings = state.settings
+    val pickMusicFocus = remember { FocusRequester() }
     Column(
         Modifier.fillMaxSize().padding(horizontal = 46.dp, vertical = 30.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
@@ -58,8 +63,14 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             SettingRow(stringResource(R.string.settings_interval), stringResource(R.string.settings_interval_body)) {
-                listOf(3, 5, 8, 12, 20).forEach { seconds ->
-                    TvButton(stringResource(R.string.settings_seconds, seconds), { onChange(settings.copy(intervalSeconds = seconds)) }, selected = settings.intervalSeconds == seconds)
+                val focusedSeconds = settings.intervalSeconds.takeIf { it in INTERVAL_OPTIONS } ?: INTERVAL_OPTIONS.first()
+                INTERVAL_OPTIONS.forEach { seconds ->
+                    TvButton(
+                        stringResource(R.string.settings_seconds, seconds),
+                        { onChange(settings.copy(intervalSeconds = seconds)) },
+                        modifier = if (seconds == focusedSeconds) Modifier.initialFocus() else Modifier,
+                        selected = settings.intervalSeconds == seconds,
+                    )
                 }
             }
             SettingRow(stringResource(R.string.settings_transition), stringResource(R.string.settings_transition_body)) {
@@ -104,8 +115,23 @@ fun SettingsScreen(
                 TvButton(if (settings.showClock) stringResource(R.string.settings_visible) else stringResource(R.string.settings_hidden), { onChange(settings.copy(showClock = !settings.showClock)) }, selected = settings.showClock)
             }
             SettingRow(stringResource(R.string.settings_music), state.musicName ?: stringResource(R.string.settings_music_none)) {
-                TvButton(stringResource(R.string.settings_music_pick), onPickMusic, icon = Icons.Rounded.LibraryMusic)
-                if (state.musicUri != null) TvButton(stringResource(R.string.settings_music_remove), onRemoveMusic, icon = Icons.Rounded.DeleteOutline)
+                TvButton(
+                    stringResource(R.string.settings_music_pick),
+                    onPickMusic,
+                    modifier = Modifier.focusRequester(pickMusicFocus),
+                    icon = Icons.Rounded.LibraryMusic,
+                )
+                if (state.musicUri != null) {
+                    TvButton(
+                        stringResource(R.string.settings_music_remove),
+                        {
+                            // Il pulsante sparisce: il focus passa prima a "Scegli brano".
+                            runCatching { pickMusicFocus.requestFocus() }
+                            onRemoveMusic()
+                        },
+                        icon = Icons.Rounded.DeleteOutline,
+                    )
+                }
             }
             SettingRow(stringResource(R.string.settings_volume), stringResource(R.string.settings_volume_body)) {
                 listOf(.15f, .35f, .60f).forEach { volume ->
@@ -122,10 +148,12 @@ fun SettingsScreen(
                 stringResource(R.string.settings_privacy),
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextSecondary,
-                modifier = Modifier.padding(vertical = 8.dp),
+                // Focalizzabile per poterlo portare sullo schermo scorrendo con il telecomando.
+                modifier = Modifier.padding(vertical = 8.dp).focusable(),
             )
         }
     }
 }
 
+private val INTERVAL_OPTIONS = listOf(3, 5, 8, 12, 20)
 private val SLEEP_TIMER_OPTIONS = listOf(30, 60, 120)

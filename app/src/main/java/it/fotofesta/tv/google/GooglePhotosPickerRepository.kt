@@ -27,6 +27,12 @@ import java.util.Locale
 import java.util.UUID
 
 /**
+ * Fornisce un access token valido a ogni richiesta: durante una selezione lunga o un download
+ * di centinaia di foto il token viene rinnovato invece di scadere a metà.
+ */
+typealias TokenProvider = suspend () -> String
+
+/**
  * Google Photos Picker API e cache privata delle foto scelte. [cacheRoot] è la cartella cache
  * dell'app; endpoint e soglia di spazio libero sono iniettabili per i test.
  */
@@ -65,7 +71,7 @@ class GooglePhotosPickerRepository(
         return parseSession(client.fetchJson(request))
     }
 
-    suspend fun awaitSelection(token: String, initial: PickingSession): PickingSession {
+    suspend fun awaitSelection(token: TokenProvider, initial: PickingSession): PickingSession {
         var current = initial
         var deadline = deadlineFor(current, fallbackSeconds = DEFAULT_SESSION_TIMEOUT_SECONDS)
         while (!current.mediaItemsSet) {
@@ -78,7 +84,7 @@ class GooglePhotosPickerRepository(
         return current
     }
 
-    suspend fun listPickedMedia(token: String, sessionId: String): List<PickedMedia> {
+    suspend fun listPickedMedia(token: TokenProvider, sessionId: String): List<PickedMedia> {
         val output = mutableListOf<PickedMedia>()
         var pageToken: String? = null
         do {
@@ -88,7 +94,7 @@ class GooglePhotosPickerRepository(
                 .addQueryParameter("pageSize", "100")
                 .apply { pageToken?.let { addQueryParameter("pageToken", it) } }
                 .build()
-            val json = client.fetchJson(authorized(url, token).build())
+            val json = client.fetchJson(authorized(url, token()).build())
             val items = json.optJSONArray("mediaItems")
             if (items != null) {
                 for (index in 0 until items.length()) {
@@ -117,7 +123,7 @@ class GooglePhotosPickerRepository(
      * Si ferma prima di esaurire lo spazio del dispositivo.
      */
     suspend fun downloadToPrivateCache(
-        token: String,
+        token: TokenProvider,
         items: List<PickedMedia>,
         onProgress: (Int, Int) -> Unit,
     ): List<PhotoItem> = withContext(Dispatchers.IO) {
@@ -167,7 +173,7 @@ class GooglePhotosPickerRepository(
     }
 
     /** Scarica una foto in [directory] e restituisce il nome del file, oppure `null` se non disponibile. */
-    private suspend fun downloadOne(token: String, item: PickedMedia, index: Int, directory: File): String? {
+    private suspend fun downloadOne(token: TokenProvider, item: PickedMedia, index: Int, directory: File): String? {
         val extension = when (item.mimeType) {
             "image/png" -> "png"
             "image/webp" -> "webp"
@@ -177,7 +183,7 @@ class GooglePhotosPickerRepository(
         val target = File(directory, "%05d.%s".format(Locale.ROOT, index, extension))
         val request = Request.Builder()
             .url(item.baseUrl + "=w3840-h2160")
-            .header("Authorization", "Bearer $token")
+            .header("Authorization", "Bearer ${token()}")
             .build()
         return try {
             client.newCall(request).await().use { response ->
@@ -198,9 +204,9 @@ class GooglePhotosPickerRepository(
     }
 
     /** Elimina la sessione Picker lato Google. Best effort: un errore qui non invalida le foto scaricate. */
-    suspend fun deleteSession(token: String, sessionId: String) {
+    suspend fun deleteSession(token: TokenProvider, sessionId: String) {
         val url = apiBase.newBuilder().addPathSegment("sessions").addPathSegment(sessionId).build()
-        runCatching { client.newCall(authorized(url, token).delete().build()).await().close() }
+        runCatching { client.newCall(authorized(url, token()).delete().build()).await().close() }
     }
 
     fun clearCache() {
@@ -225,9 +231,9 @@ class GooglePhotosPickerRepository(
         File(directory, MANIFEST).writeText(array.toString())
     }
 
-    private suspend fun getSession(token: String, id: String): PickingSession {
+    private suspend fun getSession(token: TokenProvider, id: String): PickingSession {
         val url = apiBase.newBuilder().addPathSegment("sessions").addPathSegment(id).build()
-        return parseSession(client.fetchJson(authorized(url, token).build()))
+        return parseSession(client.fetchJson(authorized(url, token()).build()))
     }
 
     private fun authorized(url: HttpUrl, token: String) =

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -18,6 +19,7 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -27,6 +29,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -57,15 +61,24 @@ fun MysteryGameScreen(photos: List<PhotoItem>, onBack: () -> Unit) {
     var revealed by remember(round, photos) { mutableStateOf(false) }
     var hintLevel by remember(round, photos) { mutableIntStateOf(0) }
     var feedbackRes by remember(round, photos) { mutableIntStateOf(R.string.mystery_prompt) }
+    val newPhotoFocus = remember { FocusRequester() }
+    // Dopo la risposta giusta le scelte si disattivano: il focus passa a "Nuova foto".
+    LaunchedEffect(revealed) { if (revealed) runCatching { newPhotoFocus.requestFocus() } }
 
     Column(Modifier.fillMaxSize().padding(34.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             SectionTitle(
                 stringResource(R.string.games_mystery_title),
                 if (revealed) stringResource(R.string.mystery_solved, answer.title) else stringResource(R.string.mystery_question),
+                modifier = Modifier.weight(1f),
             )
-            Spacer(Modifier.weight(1f))
-            TvButton(stringResource(R.string.mystery_new_photo), { round++ }, icon = Icons.Rounded.Refresh)
+            Spacer(Modifier.width(16.dp))
+            TvButton(
+                stringResource(R.string.mystery_new_photo),
+                { round++ },
+                modifier = Modifier.focusRequester(newPhotoFocus),
+                icon = Icons.Rounded.Refresh,
+            )
             Spacer(Modifier.padding(6.dp))
             TvButton(stringResource(R.string.action_back), onBack, icon = Icons.AutoMirrored.Rounded.ArrowBack)
         }
@@ -101,7 +114,8 @@ fun MysteryGameScreen(photos: List<PhotoItem>, onBack: () -> Unit) {
                                 feedbackRes = R.string.mystery_wrong
                             }
                         },
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)
+                            .then(if (choice == choices.first()) Modifier.initialFocus(answer.id) else Modifier),
                         selected = revealed && choice.id == answer.id,
                         enabled = !revealed,
                     )

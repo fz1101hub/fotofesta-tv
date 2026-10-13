@@ -17,7 +17,7 @@ class ActiveCollection(private val context: Context) {
     suspend fun load(): List<PhotoItem> = withContext(Dispatchers.IO) {
         val settings = SettingsRepository(context)
         val photos = when (settings.loadLastSource()) {
-            "GOOGLE" -> GooglePhotosPickerRepository.cachedPhotos(context.cacheDir)
+            "GOOGLE" -> GooglePhotosPickerRepository.cachedPhotos(context.noBackupFilesDir)
             "USB" -> settings.loadUsbTree()?.let { scanUsb(Uri.parse(it)) }.orEmpty()
             else -> emptyList()
         }
