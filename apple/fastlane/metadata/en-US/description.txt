@@ -1,0 +1,21 @@
+FotoFesta TV turns your Apple TV into a digital photo frame for parties, family dinners and evenings with friends.
+
+WHERE YOUR PHOTOS COME FROM
+• Google Photos: scan a QR code with your phone, sign in and choose the photos to show. No passwords to type with the remote, and access only to the photos you select.
+• Four demo photos to try the app right away.
+
+SLIDESHOW
+• 3 to 20 seconds per photo
+• Fade, slide and gentle zoom transitions
+• Slow pan and zoom (Ken Burns effect)
+• Whole photo or fill screen, shuffle without repeats
+• Clock and sleep timer after 30, 60 or 120 minutes
+
+PHOTO GAMES
+• Memory match: find the pairs
+• Mystery photo: guess the blurred picture
+
+PRIVACY
+No ads, no analytics and no developer server. Selected photos are downloaded only to your Apple TV, and “Disconnect and delete” removes them and revokes access.
+
+Google Photos doesn't let apps read your whole library: you choose the photos from your phone each time.

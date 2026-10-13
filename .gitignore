@@ -29,3 +29,11 @@ dist/
 .DS_Store
 __pycache__/
 *.pyc
+
+# App Apple TV: file generati e segreti
+apple/Config/Secrets.xcconfig
+apple/FotoFestaTV/Info.plist
+apple/build/
+apple/fastlane/report.xml
+apple/FotoFestaCore/.build/
+apple/FotoFestaCore/.swiftpm/

@@ -1,0 +1,2 @@
+The app works without an account: choose "Try it now" on the home screen to see the slideshow, settings and games with bundled demo photos.
+Google Photos is optional and uses Google's OAuth flow for TVs: the TV shows a QR code and a code to enter on a phone. A Google test account authorized on the OAuth consent screen is provided in the demo account fields.

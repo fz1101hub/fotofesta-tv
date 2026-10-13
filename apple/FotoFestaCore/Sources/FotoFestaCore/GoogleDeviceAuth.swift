@@ -9,7 +9,8 @@ public protocol TokenStore: AnyObject {
 }
 
 /// OAuth 2.0 per TV e dispositivi a input limitato (stesso flusso dell'app Android).
-public final class GoogleDeviceAuth {
+/// È un actor: i download paralleli chiedono il token insieme e il rinnovo non deve sovrapporsi.
+public actor GoogleDeviceAuth {
     public static let scope = "https://www.googleapis.com/auth/photospicker.mediaitems.readonly"
 
     public struct DeviceCode: Equatable, Sendable {
@@ -26,8 +27,9 @@ public final class GoogleDeviceAuth {
     private let clientSecret: String
     private let deviceCodeURL: URL
     private let tokenURL: URL
-    private let now: () -> Date
-    private let sleep: (TimeInterval) async throws -> Void
+    private let revokeURL: URL
+    private let now: @Sendable () -> Date
+    private let sleep: @Sendable (TimeInterval) async throws -> Void
 
     public init(
         http: HTTPClient,
@@ -35,8 +37,8 @@ public final class GoogleDeviceAuth {
         clientID: String,
         clientSecret: String,
         oauthBase: URL = URL(string: "https://oauth2.googleapis.com/")!,
-        now: @escaping () -> Date = Date.init,
-        sleep: @escaping (TimeInterval) async throws -> Void = { try await Task.sleep(nanoseconds: UInt64($0 * 1_000_000_000)) }
+        now: @escaping @Sendable () -> Date = { Date() },
+        sleep: @escaping @Sendable (TimeInterval) async throws -> Void = { try await Task.sleep(nanoseconds: UInt64($0 * 1_000_000_000)) }
     ) {
         self.http = http
         self.tokens = tokens
@@ -44,11 +46,12 @@ public final class GoogleDeviceAuth {
         self.clientSecret = clientSecret
         self.deviceCodeURL = oauthBase.appendingPathComponent("device").appendingPathComponent("code")
         self.tokenURL = oauthBase.appendingPathComponent("token")
+        self.revokeURL = oauthBase.appendingPathComponent("revoke")
         self.now = now
         self.sleep = sleep
     }
 
-    public var isConfigured: Bool { !clientID.isEmpty && !clientSecret.isEmpty }
+    public nonisolated var isConfigured: Bool { !clientID.isEmpty && !clientSecret.isEmpty }
 
     public func requestDeviceCode() async throws -> DeviceCode {
         try requireConfigured()
@@ -85,6 +88,9 @@ public final class GoogleDeviceAuth {
                 case "expired_token"?: throw FotoFestaError.codeExpired
                 default: throw failure
                 }
+            } catch let failure as URLError where failure.code != .cancelled {
+                // Rete instabile durante l'attesa (fino a 30 minuti): si riprova al giro successivo.
+                continue
             }
         }
         throw FotoFestaError.codeExpired
@@ -113,6 +119,14 @@ public final class GoogleDeviceAuth {
 
     public func disconnect() {
         tokens.clear()
+    }
+
+    /// Revoca l'accesso anche sui server Google (best effort) e cancella i token locali.
+    public func revokeAndDisconnect() async {
+        if let token = tokens.refreshToken ?? tokens.accessToken {
+            _ = try? await http.send(formRequest(url: revokeURL, fields: [("token", token)]))
+        }
+        disconnect()
     }
 
     private func persist(_ response: TokenResponse) -> String {

@@ -2,7 +2,8 @@
 
 Uso: python3 scripts/make_store_assets.py
 Scrive in fastlane/metadata/android/<lingua>/images/ (icona 512, feature graphic 1024x500,
-banner TV 1280x720) e in apple/FotoFestaTV/Assets (icone e top shelf per Apple TV).
+banner TV 1280x720) e l'asset catalog Apple TV in apple/FotoFestaTV/Resources/Assets.xcassets
+(icona a livelli per la parallasse, immagini Top Shelf).
 """
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
@@ -72,6 +73,78 @@ def hero(size: tuple[int, int], tagline: str) -> Image.Image:
     return canvas
 
 
+def write_json(path: Path, data: dict) -> None:
+    import json
+    path.mkdir(parents=True, exist_ok=True)
+    (path / "Contents.json").write_text(json.dumps(data, indent=2) + "\n")
+
+
+INFO = {"author": "xcode", "version": 1}
+
+
+def icon_layers(size: tuple[int, int]) -> tuple[Image.Image, Image.Image]:
+    """Livello di fondo (foto sfocata, opaco) e livello frontale (icona, trasparente) per la parallasse tvOS."""
+    width, height = size
+    back = cover(Image.open(DESIGN / "demo_coast.png").convert("RGB"), size).filter(ImageFilter.GaussianBlur(radius=max(2, width // 120)))
+    back = Image.blend(back, Image.new("RGB", size, NAVY), 0.45)
+    front = Image.new("RGBA", size, (0, 0, 0, 0))
+    icon_size = int(height * 0.72)
+    icon = rounded_icon(icon_size)
+    front.paste(icon, ((width - icon_size) // 2, (height - icon_size) // 2), icon)
+    return back, front
+
+
+def image_stack(directory: Path, scales: dict[str, tuple[int, int]]) -> None:
+    write_json(directory, {"info": INFO, "layers": [{"filename": "Front.imagestacklayer"}, {"filename": "Back.imagestacklayer"}]})
+    for layer in ("Front", "Back"):
+        layer_dir = directory / f"{layer}.imagestacklayer"
+        write_json(layer_dir, {"info": INFO})
+        images = []
+        content = layer_dir / "Content.imageset"
+        content.mkdir(parents=True, exist_ok=True)
+        for scale, size in scales.items():
+            back, front = icon_layers(size)
+            name = f"{layer.lower()}@{scale}.png"
+            (front if layer == "Front" else back).save(content / name, optimize=True)
+            images.append({"idiom": "tv", "scale": scale, "filename": name})
+        write_json(content, {"images": images, "info": INFO})
+
+
+def image_set(directory: Path, scales: dict[str, tuple[int, int]], tagline: str) -> None:
+    images = []
+    directory.mkdir(parents=True, exist_ok=True)
+    for scale, size in scales.items():
+        name = f"topshelf@{scale}.png"
+        hero(size, tagline).save(directory / name, optimize=True)
+        images.append({"idiom": "tv", "scale": scale, "filename": name})
+    write_json(directory, {"images": images, "info": INFO})
+
+
+def make_tvos_asset_catalog() -> None:
+    """Asset catalog Apple TV: icona a livelli (Home e App Store) e immagini Top Shelf."""
+    catalog = ROOT / "apple/FotoFestaTV/Resources/Assets.xcassets"
+    write_json(catalog, {"info": INFO})
+    brand = catalog / "App Icon & Top Shelf Image.brandassets"
+    write_json(brand, {
+        "assets": [
+            {"filename": "App Icon - App Store.imagestack", "idiom": "tv", "role": "primary-app-icon", "size": "1280x768"},
+            {"filename": "App Icon.imagestack", "idiom": "tv", "role": "primary-app-icon", "size": "400x240"},
+            {"filename": "Top Shelf Image Wide.imageset", "idiom": "tv", "role": "top-shelf-image-wide", "size": "2320x720"},
+            {"filename": "Top Shelf Image.imageset", "idiom": "tv", "role": "top-shelf-image", "size": "1920x720"},
+        ],
+        "info": INFO,
+    })
+    image_stack(brand / "App Icon - App Store.imagestack", {"1x": (1280, 768)})
+    image_stack(brand / "App Icon.imagestack", {"1x": (400, 240), "2x": (800, 480)})
+    tagline = TAGLINES["en-US"]
+    image_set(brand / "Top Shelf Image Wide.imageset", {"1x": (2320, 720), "2x": (4640, 1440)}, tagline)
+    image_set(brand / "Top Shelf Image.imageset", {"1x": (1920, 720), "2x": (3840, 1440)}, tagline)
+    write_json(catalog / "AccentColor.colorset", {
+        "colors": [{"idiom": "universal", "color": {"color-space": "srgb", "components": {"red": "1.000", "green": "0.475", "blue": "0.357", "alpha": "1.000"}}}],
+        "info": INFO,
+    })
+
+
 def main() -> None:
     for locale, tagline in TAGLINES.items():
         images = ROOT / "fastlane/metadata/android" / locale / "images"
@@ -80,12 +153,7 @@ def main() -> None:
         hero((1024, 500), tagline).save(images / "featureGraphic.png", optimize=True)
         hero((1280, 720), tagline).save(images / "tvBanner.png", optimize=True)
 
-    apple = ROOT / "apple/FotoFestaTV/Assets"
-    apple.mkdir(parents=True, exist_ok=True)
-    # tvOS: icona App Store 1280x768 e immagini Top Shelf (senza trasparenza).
-    hero((1280, 768), TAGLINES["en-US"]).save(apple / "AppStoreIcon-1280x768.png", optimize=True)
-    hero((1920, 720), TAGLINES["en-US"]).save(apple / "TopShelf-1920x720.png", optimize=True)
-    hero((2320, 720), TAGLINES["en-US"]).save(apple / "TopShelfWide-2320x720.png", optimize=True)
+    make_tvos_asset_catalog()
     print("Grafica store generata.")
 
 

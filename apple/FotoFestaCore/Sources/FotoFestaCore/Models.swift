@@ -76,6 +76,7 @@ public enum FotoFestaError: Error, Equatable, Sendable {
     case accessDenied
     case codeExpired
     case selectionExpired
+    case sessionExpired
     case nothingSelected
     case downloadFailed
     case cacheWrite

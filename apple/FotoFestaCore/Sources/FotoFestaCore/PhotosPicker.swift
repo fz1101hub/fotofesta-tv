@@ -1,10 +1,13 @@
 import Foundation
 
-/// Google Photos Picker API e cache privata delle foto scelte (stessa logica dell'app Android).
+/// Fornisce un access token valido a ogni richiesta, rinnovandolo se sta per scadere.
+public typealias TokenProvider = @Sendable () async throws -> String
+
+/// Google Photos Picker API e archivio privato delle foto scelte (stessa logica dell'app Android).
 ///
 /// Su tvOS la cartella Caches può essere svuotata dal sistema quando l'app non è in uso:
 /// `cachedPhotos()` restituisce solo i file ancora presenti e l'app propone di importarli di nuovo.
-public final class PhotosPicker {
+public final class PhotosPicker: @unchecked Sendable {
     public struct Session: Equatable, Sendable {
         public let id: String
         public let pickerURI: String
@@ -31,8 +34,8 @@ public final class PhotosPicker {
     private let cacheRoot: URL
     private let apiBase: URL
     private let minimumFreeBytes: Int64
-    private let freeBytes: () -> Int64?
-    private let sleep: (TimeInterval) async throws -> Void
+    private let freeBytes: @Sendable () -> Int64?
+    private let sleep: @Sendable (TimeInterval) async throws -> Void
     private let fileManager = FileManager.default
 
     public init(
@@ -40,8 +43,8 @@ public final class PhotosPicker {
         cacheRoot: URL,
         apiBase: URL = PhotosPicker.defaultAPIBase,
         minimumFreeBytes: Int64 = 300 * 1024 * 1024,
-        freeBytes: (() -> Int64?)? = nil,
-        sleep: @escaping (TimeInterval) async throws -> Void = { try await Task.sleep(nanoseconds: UInt64($0 * 1_000_000_000)) }
+        freeBytes: (@Sendable () -> Int64?)? = nil,
+        sleep: @escaping @Sendable (TimeInterval) async throws -> Void = { try await Task.sleep(nanoseconds: UInt64($0 * 1_000_000_000)) }
     ) {
         self.http = http
         self.cacheRoot = cacheRoot
@@ -68,7 +71,7 @@ public final class PhotosPicker {
         return try await http.json(SessionResponse.self, for: request).session
     }
 
-    public func awaitSelection(token: String, session initial: Session) async throws -> Session {
+    public func awaitSelection(token: TokenProvider, session initial: Session) async throws -> Session {
         var current = initial
         var deadline = Date().addingTimeInterval(max(current.timeout ?? Self.defaultSessionTimeout, 60))
         while !current.mediaItemsSet {
@@ -81,17 +84,19 @@ public final class PhotosPicker {
         return current
     }
 
-    public func listPickedMedia(token: String, sessionID: String) async throws -> [PickedMedia] {
+    public func listPickedMedia(token: TokenProvider, sessionID: String) async throws -> [PickedMedia] {
         var output: [PickedMedia] = []
         var pageToken: String?
         repeat {
             var components = URLComponents(url: apiBase.appendingPathComponent("mediaItems"), resolvingAgainstBaseURL: false)!
-            var query = [URLQueryItem(name: "sessionId", value: sessionID), URLQueryItem(name: "pageSize", value: "100")]
-            if let pageToken { query.append(URLQueryItem(name: "pageToken", value: pageToken)) }
-            components.queryItems = query
-            // URLComponents non codifica "+": Google lo interpreterebbe come spazio.
-            components.percentEncodedQuery = components.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%2B")
-            let page = try await http.json(MediaItemsResponse.self, for: authorized(components.url!, token: token))
+            var query = [("sessionId", sessionID), ("pageSize", "100")]
+            if let pageToken { query.append(("pageToken", pageToken)) }
+            // Codifica rigorosa: URLComponents lascerebbe "+" (letto come spazio) e altri separatori.
+            components.percentEncodedQueryItems = query.map { name, value in
+                URLQueryItem(name: name, value: value.addingPercentEncoding(withAllowedCharacters: .urlStrictValue))
+            }
+            let accessToken = try await token()
+            let page = try await http.json(MediaItemsResponse.self, for: authorized(components.url!, token: accessToken))
             for item in page.mediaItems ?? [] {
                 guard let file = item.mediaFile, let mime = file.mimeType, mime.hasPrefix("image/"),
                       let baseURL = file.baseUrl, !baseURL.isEmpty else { continue }
@@ -108,8 +113,9 @@ public final class PhotosPicker {
     }
 
     /// Elimina la sessione lato Google. Best effort: un errore qui non invalida le foto scaricate.
-    public func deleteSession(token: String, sessionID: String) async {
-        var request = authorized(apiBase.appendingPathComponent("sessions").appendingPathComponent(sessionID), token: token)
+    public func deleteSession(token: TokenProvider, sessionID: String) async {
+        guard let accessToken = try? await token() else { return }
+        var request = authorized(apiBase.appendingPathComponent("sessions").appendingPathComponent(sessionID), token: accessToken)
         request.httpMethod = "DELETE"
         _ = try? await http.send(request)
     }
@@ -119,7 +125,7 @@ public final class PhotosPicker {
     /// Scarica in una cartella temporanea e sostituisce la cache precedente solo a download concluso.
     /// In caso di errore o annullamento la raccolta in uso resta intatta.
     public func download(
-        token: String,
+        token: @escaping TokenProvider,
         items: [PickedMedia],
         progress: @escaping @Sendable (Int, Int) -> Void
     ) async throws -> [Photo] {
@@ -195,7 +201,7 @@ public final class PhotosPicker {
 
     // MARK: - Interni
 
-    private func downloadOne(token: String, item: PickedMedia, index: Int, into directory: URL) async -> String? {
+    private func downloadOne(token: TokenProvider, item: PickedMedia, index: Int, into directory: URL) async -> String? {
         if let free = freeBytes(), free <= minimumFreeBytes { return nil }
         let fileExtension: String
         switch item.mimeType {
@@ -207,7 +213,8 @@ public final class PhotosPicker {
         let fileName = String(format: "%05d.%@", index, fileExtension)
         guard let url = URL(string: item.baseURL + "=w3840-h2160") else { return nil }
         do {
-            let (data, response) = try await http.send(authorized(url, token: token))
+            let accessToken = try await token()
+            let (data, response) = try await http.send(authorized(url, token: accessToken))
             guard (200..<300).contains(response.statusCode), !data.isEmpty else { return nil }
             try data.write(to: directory.appendingPathComponent(fileName), options: .atomic)
             return fileName
@@ -216,9 +223,10 @@ public final class PhotosPicker {
         }
     }
 
-    private func session(token: String, id: String) async throws -> Session {
+    private func session(token: TokenProvider, id: String) async throws -> Session {
         let url = apiBase.appendingPathComponent("sessions").appendingPathComponent(id)
-        return try await http.json(SessionResponse.self, for: authorized(url, token: token)).session
+        let accessToken = try await token()
+        return try await http.json(SessionResponse.self, for: authorized(url, token: accessToken)).session
     }
 
     private func authorized(_ url: URL, token: String) -> URLRequest {
@@ -282,4 +290,13 @@ public final class PhotosPicker {
         let mediaItems: [Item]?
         let nextPageToken: String?
     }
+}
+
+extension CharacterSet {
+    /// Caratteri non riservati RFC 3986: tutto il resto viene codificato.
+    static let urlStrictValue: CharacterSet = {
+        var set = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+        set.insert(charactersIn: "-._~")
+        return set
+    }()
 }

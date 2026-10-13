@@ -1,0 +1,61 @@
+# Progetto Xcode dell'app Apple TV, generato con XcodeGen: `brew install xcodegen && xcodegen generate`.
+name: FotoFestaTV
+options:
+  bundleIdPrefix: it.fotofesta
+  developmentLanguage: en
+  deploymentTarget:
+    tvOS: "17.0"
+packages:
+  FotoFestaCore:
+    path: FotoFestaCore
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+targets:
+  FotoFestaTV:
+    type: application
+    platform: tvOS
+    sources:
+      - path: FotoFestaTV/Sources
+      - path: FotoFestaTV/Resources
+    dependencies:
+      - package: FotoFestaCore
+    configFiles:
+      Debug: Config/App.xcconfig
+      Release: Config/App.xcconfig
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: it.fotofesta.tv
+        PRODUCT_NAME: FotoFesta TV
+        TARGETED_DEVICE_FAMILY: "3"
+        ASSETCATALOG_COMPILER_APPICON_NAME: "App Icon & Top Shelf Image"
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        CODE_SIGN_STYLE: Automatic
+        LOCALIZATION_PREFERS_STRING_CATALOGS: NO
+    info:
+      path: FotoFestaTV/Info.plist
+      properties:
+        CFBundleDisplayName: FotoFesta TV
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleDevelopmentRegion: en
+        CFBundleLocalizations: [en, it]
+        LSApplicationCategoryType: public.app-category.photography
+        UIRequiredDeviceCapabilities: [arm64]
+        UILaunchScreen: {}
+        UIUserInterfaceStyle: Dark
+        ITSAppUsesNonExemptEncryption: false
+        PhotosClientID: $(PHOTOS_CLIENT_ID)
+        PhotosClientSecret: $(PHOTOS_CLIENT_SECRET)
+schemes:
+  FotoFestaTV:
+    build:
+      targets:
+        FotoFestaTV: all
+    run:
+      config: Debug
+    archive:
+      config: Release

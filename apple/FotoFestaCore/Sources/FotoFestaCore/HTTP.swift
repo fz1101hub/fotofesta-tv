@@ -55,8 +55,7 @@ extension HTTPClient {
 
 /// Corpo `application/x-www-form-urlencoded`.
 func formRequest(url: URL, fields: [(String, String)]) -> URLRequest {
-    var allowed = CharacterSet.alphanumerics
-    allowed.insert(charactersIn: "-._~")
+    let allowed = CharacterSet.urlStrictValue
     let body = fields
         .map { key, value in
             let encodedKey = key.addingPercentEncoding(withAllowedCharacters: allowed) ?? key

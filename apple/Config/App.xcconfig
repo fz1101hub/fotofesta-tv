@@ -1,0 +1,7 @@
+// Impostazioni comuni dell'app Apple TV.
+// Le credenziali Google si mettono in Secrets.xcconfig (escluso da Git), copiando Secrets.example.xcconfig.
+PHOTOS_CLIENT_ID =
+PHOTOS_CLIENT_SECRET =
+DEVELOPMENT_TEAM =
+
+#include? "Secrets.xcconfig"
