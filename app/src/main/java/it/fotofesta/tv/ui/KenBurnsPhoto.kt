@@ -33,9 +33,10 @@ fun KenBurnsPhoto(
     val motion = remember(photo.id) { KenBurnsMotion.forPhoto(photo.id) }
     val progress = remember(photo.id) { Animatable(0f) }
     LaunchedEffect(photo.id, playing, durationMillis) {
-        if (!playing) return@LaunchedEffect
-        val remaining = ((1f - progress.value) * durationMillis).toInt()
-        if (remaining > 0) progress.animateTo(1f, tween(remaining, easing = LinearEasing))
+        if (!playing || progress.value >= 1f) return@LaunchedEffect
+        // Alla ripresa il timer della foto riparte da capo: il movimento residuo si distribuisce
+        // sull'intera durata, così la foto non resta ferma nell'ultima parte.
+        progress.animateTo(1f, tween(durationMillis.coerceAtLeast(1), easing = LinearEasing))
     }
     PhotoContent(
         photo,

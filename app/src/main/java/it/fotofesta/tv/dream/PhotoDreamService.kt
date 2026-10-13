@@ -57,12 +57,16 @@ class PhotoDreamService : DreamService(), LifecycleOwner, SavedStateRegistryOwne
     }
 
     override fun onDreamingStopped() {
-        lifecycleRegistry.currentState = Lifecycle.State.CREATED
+        // Se il salvaschermo viene interrotto, la finestra può staccarsi prima di questa chiamata:
+        // non si torna mai indietro da DESTROYED (le versioni recenti di lifecycle lo vietano).
+        if (lifecycleRegistry.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+            lifecycleRegistry.currentState = Lifecycle.State.CREATED
+        }
         super.onDreamingStopped()
     }
 
-    override fun onDetachedFromWindow() {
+    override fun onDestroy() {
         lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
-        super.onDetachedFromWindow()
+        super.onDestroy()
     }
 }
