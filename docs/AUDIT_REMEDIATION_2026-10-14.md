@@ -25,6 +25,7 @@
 ## Test di regressione aggiunti
 
 - Android `GooglePhotosPickerRepositoryTest`: fallimento migrazione, ripristino dopo interruzione, ripristino fallito che conserva il backup, risposta immagine troppo grande.
+- Android `MainActivitySmokeTest` (`androidTest`): avvio con `LEANBACK_LAUNCHER` e presenza della prima schermata. Da eseguire su emulatore/TV con `./gradlew connectedDebugAndroidTest`.
 - tvOS `CoreLogicTests`: tasto Precedente attraverso la frontiera tra due cicli casuali.
 - tvOS `GoogleTests`: ripristino backup, annullamento di download/import in corso, rifiuto di payload oltre il limite del client HTTP.
 
