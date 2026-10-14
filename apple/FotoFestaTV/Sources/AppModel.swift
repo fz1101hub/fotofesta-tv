@@ -40,6 +40,7 @@ final class AppModel {
     private let picker: PhotosPicker
     private let importFlow: GoogleImportFlow
     @ObservationIgnored private var googleTask: Task<Void, Never>?
+    @ObservationIgnored private var disconnectTask: Task<Void, Never>?
     @ObservationIgnored private var sleepTask: Task<Void, Never>?
     @ObservationIgnored private var sleepTaskMinutes = 0
     @ObservationIgnored private var messageTask: Task<Void, Never>?
@@ -158,6 +159,9 @@ final class AppModel {
         googleState = .working(nil)
         googleTask = Task { [weak self, importFlow] in
             do {
+                // Non usare la cache mentre la disconnessione precedente la sta cancellando.
+                if let disconnect = self?.disconnectTask { await disconnect.value }
+                try Task.checkCancellation()
                 let result = try await importFlow.run { step in
                     Task { @MainActor in
                         // Dopo un annullamento lo stato non è più "working" e i passi vengono ignorati.
@@ -193,7 +197,7 @@ final class AppModel {
         if wasShowingGoogle { show(Self.demoPhotos, label: L("source.demo")) }
         googleState = .idle
         showMessage(L("message.google_removed"))
-        Task.detached { [auth, picker] in
+        disconnectTask = Task.detached { [auth, picker] in
             picker.clearCache()
             await auth.revokeAndDisconnect()
         }
