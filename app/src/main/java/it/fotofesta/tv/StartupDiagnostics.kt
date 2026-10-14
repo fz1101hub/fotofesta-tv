@@ -21,17 +21,19 @@ import android.widget.TextView
 internal object StartupDiagnostics {
     private const val PREFS = "fotofesta_startup_diagnostics"
     private const val LAST_CRASH = "last_uncaught_exception"
-    private const val MAX_CHARS = 12_000
+    private const val MAX_FRAMES = 12
 
     fun install(application: Application) {
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, error ->
             try {
-                val report = "${error.javaClass.name}: ${error.message.orEmpty()}\n" +
-                    Log.getStackTraceString(error)
+                // Nessun testo di eccezione: potrebbe contenere URL, token o dati privati.
+                val safeTrace = error.stackTrace.take(MAX_FRAMES)
+                    .joinToString("\n") { "  at ${it.className}.${it.methodName}" }
+                val report = "${error.javaClass.name}\n" + safeTrace
                 // commit sincrono: Android puo terminare il processo immediatamente dopo.
                 application.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                    .edit().putString(LAST_CRASH, report.take(MAX_CHARS)).commit()
+                    .edit().putString(LAST_CRASH, report).commit()
             } catch (_: Throwable) {
                 // La gestione del crash non deve impedire al gestore di sistema di intervenire.
             }
@@ -63,7 +65,7 @@ internal object StartupDiagnostics {
         }
         val hint = TextView(activity).apply {
             text = "L'app si e chiusa per un errore durante il precedente utilizzo. " +
-                "Fotografa il codice qui sotto e condividilo per individuare il problema. " +
+                "Fotografa il tipo di errore e le classi qui sotto per la diagnosi. " +
                 "Premi Riprova per tentare nuovamente l'apertura."
             textSize = 18f
             setTextColor(Color.LTGRAY)
