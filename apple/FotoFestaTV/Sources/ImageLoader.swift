@@ -52,15 +52,17 @@ struct PhotoImage: View {
 
     @State private var image: UIImage?
     @State private var failed = false
+    @State private var loadedFor: String?
 
     var body: some View {
-        ZStack {
-            if let image {
+        let requestKey = "\(photo.id)#\(maxPixelSize)"
+        return ZStack {
+            if let image, loadedFor == requestKey {
                 Image(uiImage: image)
                     .resizable()
                     .aspectRatio(contentMode: fitMode == .crop ? .fill : .fit)
                     .accessibilityLabel(Text(accessibilityLabel ?? photo.title))
-            } else if failed {
+            } else if failed && loadedFor == requestKey {
                 VStack(spacing: 16) {
                     Image(systemName: "photo.badge.exclamationmark")
                         .font(.system(size: 64))
@@ -73,10 +75,14 @@ struct PhotoImage: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipped()
-        .task(id: "\(photo.id)#\(maxPixelSize)") {
+        .task(id: requestKey) {
+            loadedFor = nil
+            image = nil
             failed = false
             let loaded = await ImageLoader.shared.image(for: photo, maxPixelSize: maxPixelSize)
+            guard !Task.isCancelled else { return }
             image = loaded
+            loadedFor = requestKey
             failed = loaded == nil
         }
     }
