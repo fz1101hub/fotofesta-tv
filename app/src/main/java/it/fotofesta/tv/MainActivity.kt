@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
 import android.provider.Settings
+import android.util.Log
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
@@ -56,12 +57,23 @@ import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private val viewModel: FotoFestaViewModel by viewModels()
-    private lateinit var mediaSession: MediaSessionCompat
+    private var mediaSession: MediaSessionCompat? = null
+    private var appUiStarted = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Se l'ultimo avvio si e chiuso per un crash, mostra un report nativo:
+        // non dipende da Compose, Cast o dalle librerie multimediali.
+        StartupDiagnostics.takeLastCrash(this)?.let { report ->
+            StartupDiagnostics.showRecovery(this, report) { recreate() }
+            return
+        }
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        setupMediaSession()
+        // MediaSession e Cast sono accessori: errori del firmware Xiaomi o di Play Services
+        // non devono impedire la visualizzazione delle foto demo.
+        runCatching { setupMediaSession() }
+            .onFailure { Log.w("FotoFestaMain", "MediaSession non disponibile", it) }
+        appUiStarted = true
         // Lo stato della MediaSession segue il ViewModel anche quando la UI non si ricompone.
         lifecycleScope.launch {
             viewModel.state
@@ -201,13 +213,19 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        mediaSession.isActive = true
+        mediaSession?.let { session ->
+            runCatching { session.isActive = true }
+                .onFailure { Log.w("FotoFestaMain", "Attivazione MediaSession fallita", it) }
+        }
     }
 
     override fun onStop() {
         // Con l'app in background i tasti multimediali non devono avviare musica senza interfaccia.
-        mediaSession.isActive = false
-        if (!isChangingConfigurations) viewModel.pause()
+        mediaSession?.let { session ->
+            runCatching { session.isActive = false }
+                .onFailure { Log.w("FotoFestaMain", "Disattivazione MediaSession fallita", it) }
+        }
+        if (appUiStarted && !isChangingConfigurations) viewModel.pause()
         super.onStop()
     }
 
@@ -231,21 +249,25 @@ class MainActivity : ComponentActivity() {
         }
         // Collega la MediaSession a Cast Connect: i comandi play/pausa/skip dei sender arrivano qui.
         runCatching {
-            CastReceiverContext.getInstance().mediaManager.setSessionCompatToken(mediaSession.sessionToken)
-        }
+            mediaSession?.sessionToken?.let { token ->
+                CastReceiverContext.getInstance().mediaManager.setSessionCompatToken(token)
+            }
+        }.onFailure { Log.w("FotoFestaMain", "Collegamento Cast/MediaSession non disponibile", it) }
     }
 
     private fun updateMediaSession(playing: Boolean, title: String?) {
+        val session = mediaSession ?: return
+        runCatching {
         val actions = PlaybackStateCompat.ACTION_PLAY or PlaybackStateCompat.ACTION_PAUSE or
             PlaybackStateCompat.ACTION_PLAY_PAUSE or PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
             PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or PlaybackStateCompat.ACTION_STOP
-        mediaSession.setMetadata(
+        session.setMetadata(
             MediaMetadataCompat.Builder()
                 .putString(MediaMetadataCompat.METADATA_KEY_TITLE, title ?: getString(R.string.app_name))
                 .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, getString(R.string.slideshow_session_subtitle))
                 .build()
         )
-        mediaSession.setPlaybackState(
+        session.setPlaybackState(
             PlaybackStateCompat.Builder()
                 .setActions(actions)
                 .setState(
@@ -255,6 +277,7 @@ class MainActivity : ComponentActivity() {
                 )
                 .build()
         )
+        }.onFailure { Log.w("FotoFestaMain", "Aggiornamento MediaSession fallito", it) }
     }
 
     private fun displayName(uri: Uri): String? = runCatching {
@@ -264,7 +287,10 @@ class MainActivity : ComponentActivity() {
     }.getOrNull()
 
     override fun onDestroy() {
-        mediaSession.release()
+        mediaSession?.let { session ->
+            runCatching { session.release() }
+                .onFailure { Log.w("FotoFestaMain", "Rilascio MediaSession fallito", it) }
+        }
         super.onDestroy()
     }
 }
