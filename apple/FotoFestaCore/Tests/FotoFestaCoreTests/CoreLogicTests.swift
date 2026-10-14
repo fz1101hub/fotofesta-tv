@@ -36,6 +36,15 @@ final class PlaybackOrderTests: XCTestCase {
         }
     }
 
+    func testPreviousReturnsLastPhotoFromPriorShuffleCycle() {
+        let order = PlaybackOrder(shuffler: { Array($0.reversed()) })
+        order.reset(count: 3, shuffle: true, current: 0)
+        let first = order.next(after: 0)
+        let last = order.next(after: first)
+        let nextCycle = order.next(after: last)
+        XCTAssertEqual(order.previous(before: nextCycle), last)
+    }
+
     func testPeekHasNoSideEffects() {
         let order = PlaybackOrder()
         order.reset(count: 6, shuffle: true, current: 1)
