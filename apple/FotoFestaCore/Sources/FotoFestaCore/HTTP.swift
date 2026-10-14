@@ -3,6 +3,18 @@ import Foundation
 /// Trasporto HTTP iniettabile: in produzione URLSession, nei test un server finto in memoria.
 public protocol HTTPClient: Sendable {
     func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse)
+    func download(_ request: URLRequest, to destination: URL, maxBytes: Int64) async throws -> HTTPURLResponse
+}
+
+// I client finti dei test possono utilizzare Data senza dipendere da URLSession.
+public extension HTTPClient {
+    func download(_ request: URLRequest, to destination: URL, maxBytes: Int64) async throws -> HTTPURLResponse {
+        let (data, response) = try await send(request)
+        try Task.checkCancellation()
+        guard Int64(data.count) <= maxBytes else { throw URLError(.dataLengthExceedsMaximum) }
+        try data.write(to: destination, options: .atomic)
+        return response
+    }
 }
 
 public struct URLSessionHTTPClient: HTTPClient {
@@ -16,6 +28,21 @@ public struct URLSessionHTTPClient: HTTPClient {
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
         return (data, http)
+    }
+
+    // URLSession usa un file temporaneo, evitando il caricamento dell'intera foto 4K in RAM.
+    public func download(_ request: URLRequest, to destination: URL, maxBytes: Int64) async throws -> HTTPURLResponse {
+        let (temporary, response) = try await session.download(for: request)
+        guard let http = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
+        try Task.checkCancellation()
+        let attrs = try FileManager.default.attributesOfItem(atPath: temporary.path)
+        let bytes = (attrs[.size] as? NSNumber)?.int64Value ?? 0
+        guard bytes > 0, bytes <= maxBytes else { throw URLError(.dataLengthExceedsMaximum) }
+        if FileManager.default.fileExists(atPath: destination.path) {
+            try FileManager.default.removeItem(at: destination)
+        }
+        try FileManager.default.moveItem(at: temporary, to: destination)
+        return http
     }
 }
 

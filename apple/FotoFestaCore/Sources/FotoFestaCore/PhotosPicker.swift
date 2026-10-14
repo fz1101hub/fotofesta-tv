@@ -28,6 +28,7 @@ public final class PhotosPicker: @unchecked Sendable {
     static let cacheFolder = "google_photos"
     static let manifestName = "index.json"
     private static let parallelDownloads = 4
+    private static let maximumImageBytes: Int64 = 24 * 1024 * 1024
     private static let defaultSessionTimeout: TimeInterval = 900
 
     private let http: HTTPClient
@@ -135,15 +136,19 @@ public final class PhotosPicker: @unchecked Sendable {
         defer { if !committed { try? fileManager.removeItem(at: staging) } }
 
         var fileNames = [Int: String]()
-        await withTaskGroup(of: (Int, String?).self) { group in
+        try await withThrowingTaskGroup(of: (Int, String?).self) { group in
             var pending = items.enumerated().makeIterator()
             func enqueueNext() {
-                guard let (index, item) = pending.next() else { return }
-                group.addTask { (index, await self.downloadOne(token: token, item: item, index: index, into: staging)) }
+                guard !Task.isCancelled, let (index, item) = pending.next() else { return }
+                group.addTask {
+                    try Task.checkCancellation()
+                    return (index, try await self.downloadOne(token: token, item: item, index: index, into: staging))
+                }
             }
             for _ in 0..<Self.parallelDownloads { enqueueNext() }
             var completed = 0
-            while let (index, fileName) = await group.next() {
+            while let (index, fileName) = try await group.next() {
+                try Task.checkCancellation()
                 if let fileName { fileNames[index] = fileName }
                 completed += 1
                 progress(completed, items.count)
@@ -179,6 +184,7 @@ public final class PhotosPicker: @unchecked Sendable {
 
     /// Foto in cache, con titoli e ordine originali. Non usa la rete.
     public func cachedPhotos() -> [Photo] {
+        recoverInterruptedSwap()
         let directory = cacheDirectory
         guard let data = try? Data(contentsOf: directory.appendingPathComponent(Self.manifestName)),
               let entries = try? JSONDecoder().decode([ManifestEntry].self, from: data) else { return [] }
@@ -201,7 +207,42 @@ public final class PhotosPicker: @unchecked Sendable {
 
     // MARK: - Interni
 
-    private func downloadOne(token: TokenProvider, item: PickedMedia, index: Int, into directory: URL) async -> String? {
+    // Un'interruzione fra le due moveItem puo lasciare l'unica copia valida in old-*.
+    private func recoverInterruptedSwap() {
+        let entries = (try? fileManager.contentsOfDirectory(at: cacheRoot, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
+        let backups = entries.filter { $0.lastPathComponent.hasPrefix("\(Self.cacheFolder).old-") }
+            .sorted {
+                let a = (try? $0.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
+                let b = (try? $1.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
+                return a > b
+            }
+        if usableCache(at: cacheDirectory) {
+            for backup in backups { try? fileManager.removeItem(at: backup) }
+            return
+        }
+        guard let previous = backups.first(where: { usableCache(at: $0) }) else { return }
+        let displaced = cacheRoot.appendingPathComponent("\(Self.cacheFolder).corrupt-\(UUID().uuidString)")
+        let hadActive = fileManager.fileExists(atPath: cacheDirectory.path)
+        do {
+            if hadActive { try fileManager.moveItem(at: cacheDirectory, to: displaced) }
+            try fileManager.moveItem(at: previous, to: cacheDirectory)
+            if hadActive { try? fileManager.removeItem(at: displaced) }
+        } catch {
+            if hadActive && !fileManager.fileExists(atPath: cacheDirectory.path) {
+                try? fileManager.moveItem(at: displaced, to: cacheDirectory)
+            }
+        }
+    }
+
+    private func usableCache(at directory: URL) -> Bool {
+        let entries = (try? fileManager.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey])) ?? []
+        return entries.contains {
+            $0.lastPathComponent != Self.manifestName &&
+            ((try? $0.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0) > 0
+        }
+    }
+
+    private func downloadOne(token: TokenProvider, item: PickedMedia, index: Int, into directory: URL) async throws -> String? {
         if let free = freeBytes(), free <= minimumFreeBytes { return nil }
         let fileExtension: String
         switch item.mimeType {
@@ -212,13 +253,26 @@ public final class PhotosPicker: @unchecked Sendable {
         }
         let fileName = String(format: "%05d.%@", index, fileExtension)
         guard let url = URL(string: item.baseURL + "=w3840-h2160") else { return nil }
+        let target = directory.appendingPathComponent(fileName)
         do {
+            try Task.checkCancellation()
             let accessToken = try await token()
-            let (data, response) = try await http.send(authorized(url, token: accessToken))
-            guard (200..<300).contains(response.statusCode), !data.isEmpty else { return nil }
-            try data.write(to: directory.appendingPathComponent(fileName), options: .atomic)
+            let response = try await http.download(authorized(url, token: accessToken),
+                                                   to: target, maxBytes: Self.maximumImageBytes)
+            try Task.checkCancellation()
+            let mime = response.value(forHTTPHeaderField: "Content-Type")?.lowercased()
+            guard (200..<300).contains(response.statusCode),
+                  mime == nil || mime!.hasPrefix("image/"),
+                  ((try? target.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0) > 0 else {
+                try? fileManager.removeItem(at: target)
+                return nil
+            }
             return fileName
+        } catch is CancellationError {
+            try? fileManager.removeItem(at: target)
+            throw CancellationError()
         } catch {
+            try? fileManager.removeItem(at: target)
             return nil
         }
     }

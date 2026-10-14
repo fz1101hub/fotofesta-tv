@@ -11,6 +11,7 @@ public final class PlaybackOrder {
     private let shuffler: Shuffler
     private var order: [Int] = []
     private var shuffle = false
+    private var lastOfPreviousCycle: Int?
 
     public init(shuffler: @escaping Shuffler = { $0.shuffled() }) {
         self.shuffler = shuffler
@@ -18,6 +19,7 @@ public final class PlaybackOrder {
 
     public func reset(count: Int, shuffle: Bool, current: Int = 0) {
         self.shuffle = shuffle
+        lastOfPreviousCycle = nil
         guard count > 0 else {
             order = []
             return
@@ -35,14 +37,20 @@ public final class PlaybackOrder {
         let position = position(of: current)
         if position == order.count - 1 && shuffle {
             reshuffle(avoiding: current)
+            lastOfPreviousCycle = current
             return order[0]
         }
+        lastOfPreviousCycle = nil
         return order[(position + 1) % order.count]
     }
 
     public func previous(before current: Int) -> Int {
         guard order.count > 1 else { return order.first ?? 0 }
         let position = position(of: current)
+        if position == 0, let last = lastOfPreviousCycle {
+            lastOfPreviousCycle = nil
+            return last
+        }
         return order[(position - 1 + order.count) % order.count]
     }
 

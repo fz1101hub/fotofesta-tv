@@ -7,6 +7,8 @@ import it.fotofesta.tv.model.SourceType
 import it.fotofesta.tv.model.UserFacingException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -23,6 +25,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.io.IOException
 import java.util.Locale
 import java.util.UUID
 
@@ -41,6 +44,7 @@ class GooglePhotosPickerRepository(
     private val client: OkHttpClient,
     private val apiBase: HttpUrl = DEFAULT_API_BASE,
     private val minFreeBytes: Long = DEFAULT_MIN_FREE_BYTES,
+    private val renameDirectory: (File, File) -> Boolean = File::renameTo,
 ) {
     data class PickingSession(
         val id: String,
@@ -159,9 +163,10 @@ class GooglePhotosPickerRepository(
             // La cache precedente viene spostata da parte e cancellata solo dopo lo scambio riuscito.
             val previous = File(cacheRoot, "$CACHE_DIR.old-${UUID.randomUUID()}")
             val hadPrevious = cacheDirectory.exists()
-            if (hadPrevious && !cacheDirectory.renameTo(previous)) throw UserFacingException(R.string.error_cache_write)
-            if (!staging.renameTo(cacheDirectory)) {
-                if (hadPrevious) previous.renameTo(cacheDirectory)
+            if (hadPrevious && !renameDirectory(cacheDirectory, previous)) throw UserFacingException(R.string.error_cache_write)
+            if (!renameDirectory(staging, cacheDirectory)) {
+                // Non cancellare il backup se fallisce anche il rollback: sara recuperato al riavvio.
+                if (hadPrevious) renameDirectory(previous, cacheDirectory)
                 throw UserFacingException(R.string.error_cache_write)
             }
             committed = true
@@ -189,7 +194,25 @@ class GooglePhotosPickerRepository(
             client.newCall(request).await().use { response ->
                 check(response.isSuccessful) { "Download non riuscito (${response.code})" }
                 val body = response.body ?: error("Foto vuota")
-                target.outputStream().use { output -> body.byteStream().copyTo(output) }
+                val mime = response.header("Content-Type")?.substringBefore(';')?.trim()
+                if (mime != null && !mime.startsWith("image/")) throw IOException("Formato non valido")
+                if (body.contentLength() > MAX_IMAGE_BYTES) throw IOException("Foto troppo grande")
+                body.byteStream().use { input ->
+                    target.outputStream().use { output ->
+                        val buffer = ByteArray(32 * 1024)
+                        var total = 0L
+                        while (true) {
+                            currentCoroutineContext().ensureActive()
+                            val read = input.read(buffer)
+                            if (read < 0) break
+                            total += read
+                            if (total > MAX_IMAGE_BYTES || directory.usableSpace <= minFreeBytes) {
+                                throw IOException("Dimensione o spazio insufficiente")
+                            }
+                            output.write(buffer, 0, read)
+                        }
+                    }
+                }
             }
             check(target.length() > 0L) { "Foto vuota" }
             target.name
@@ -215,18 +238,46 @@ class GooglePhotosPickerRepository(
      */
     fun adoptFrom(legacy: GooglePhotosPickerRepository) {
         val source = legacy.cacheDirectory
-        if (source.isDirectory && !cacheDirectory.exists()) {
+        if (!source.isDirectory) return
+        if (!cacheDirectory.exists()) {
             cacheRoot.mkdirs()
-            source.renameTo(cacheDirectory)
+            // Se la rinomina fallisce, preserva i file precedenti.
+            if (renameDirectory(source, cacheDirectory) && cacheDirectory.isDirectory) {
+                legacy.clearCache()
+            }
+        } else if (cacheDirectory.isDirectory && cachedPhotos().isNotEmpty()) {
+            legacy.clearCache()
         }
-        legacy.clearCache()
     }
 
-    /** Elimina cartelle temporanee rimaste da download interrotti (da chiamare quando non ce ne sono in corso). */
+    /** Ripristina il backup se un crash ha interrotto lo scambio e pulisce solo copie non necessarie. */
     fun deleteLeftovers() {
-        cacheRoot.listFiles()
-            ?.filter { it.name.startsWith("$CACHE_DIR.staging-") || it.name.startsWith("$CACHE_DIR.old-") }
-            ?.forEach { it.deleteRecursively() }
+        val entries = cacheRoot.listFiles().orEmpty()
+        val backups = entries.filter { it.isDirectory && it.name.startsWith("$CACHE_DIR.old-") }
+            .sortedByDescending { it.lastModified() }
+        var activeValid = cacheDirectory.isDirectory && cachedPhotos().isNotEmpty()
+        if (!activeValid) {
+            val previous = backups.firstOrNull { backup ->
+                File(backup, MANIFEST).isFile &&
+                    backup.listFiles().orEmpty().any { it.isFile && it.name != MANIFEST && it.length() > 0L }
+            }
+            if (previous != null) {
+                val displaced = File(cacheRoot, "$CACHE_DIR.corrupt-${UUID.randomUUID()}")
+                val existed = cacheDirectory.exists()
+                if (!existed || renameDirectory(cacheDirectory, displaced)) {
+                    if (renameDirectory(previous, cacheDirectory) && cachedPhotos().isNotEmpty()) {
+                        activeValid = true
+                        displaced.deleteRecursively()
+                    } else if (existed && !cacheDirectory.exists()) {
+                        renameDirectory(displaced, cacheDirectory)
+                    }
+                }
+            }
+        }
+        entries.filter { it.name.startsWith("$CACHE_DIR.staging-") }
+            .forEach { it.deleteRecursively() }
+        // Mai cancellare l'unica copia valida.
+        if (activeValid) backups.filter { it.exists() }.forEach { it.deleteRecursively() }
     }
 
     fun clearCache() {
@@ -277,6 +328,7 @@ class GooglePhotosPickerRepository(
         private const val CACHE_DIR = "google_photos"
         private const val MANIFEST = "index.json"
         private const val PARALLEL_DOWNLOADS = 4
+        private const val MAX_IMAGE_BYTES = 24L * 1024 * 1024
         const val DEFAULT_MIN_FREE_BYTES = 300L * 1024 * 1024
         val DEFAULT_API_BASE = "https://photospicker.googleapis.com/v1".toHttpUrl()
         private const val DEFAULT_SESSION_TIMEOUT_SECONDS = 900L

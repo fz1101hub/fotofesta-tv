@@ -67,6 +67,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private val googleImport = GoogleImportFlow(googleAuth, googlePhotos)
     private val playbackOrder = PlaybackOrder()
     private var googleJob: Job? = null
+    private var disconnectJob: Job? = null
     private var usbJob: Job? = null
     private var restoreJob: Job? = null
     private var sleepJob: Job? = null
@@ -248,6 +249,9 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         googleJob = viewModelScope.launch {
             _state.update { it.copy(destination = Destination.GOOGLE_CONNECT, google = GoogleConnectState.Idle) }
             try {
+                // Evita che una nuova importazione scriva foto mentre la disconnessione le cancella.
+                disconnectJob?.join()
+                ensureActive()
                 val result = googleImport.run { step -> _state.update { it.copy(google = step) } }
                 // La chiusura della sessione Picker non è annullabile: se nel frattempo l'utente ha
                 // premuto Indietro, il risultato va scartato.
@@ -285,7 +289,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         googleJob?.cancel()
         // Cancellazione dei file (anche migliaia di foto 4K) e revoca fuori dal thread principale,
         // senza interruzioni se nel frattempo l'utente esce dall'app.
-        viewModelScope.launch {
+        disconnectJob = viewModelScope.launch {
             withContext(NonCancellable) {
                 withContext(Dispatchers.IO) {
                     googlePhotos.clearCache()
