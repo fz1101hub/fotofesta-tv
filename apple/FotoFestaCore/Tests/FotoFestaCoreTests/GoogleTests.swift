@@ -187,6 +187,47 @@ final class PhotosPickerTests: XCTestCase {
         XCTAssertTrue(http.requests.isEmpty)
     }
 
+    func testInterruptedCacheSwapRestoresPreviousPhotos() async throws {
+        let picker = makePicker()
+        http.enqueue("GET", "/old=w3840-h2160", .bytes("photo"))
+        _ = try await picker.download(token: token, items: [media("old", "Old.jpg")]) { _, _ in }
+        let active = root.appendingPathComponent("google_photos", isDirectory: true)
+        let backup = root.appendingPathComponent("google_photos.old-interrupted", isDirectory: true)
+        try FileManager.default.moveItem(at: active, to: backup)
+        XCTAssertEqual(picker.cachedPhotos().map(\.title), ["Old.jpg"])
+        XCTAssertTrue(FileManager.default.fileExists(atPath: active.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: backup.path))
+    }
+
+    func testCancelledImportCleansStagingAndKeepsOldPhotos() async throws {
+        let picker = makePicker()
+        http.enqueue("GET", "/old=w3840-h2160", .bytes("photo"))
+        _ = try await picker.download(token: token, items: [media("old", "Old.jpg")]) { _, _ in }
+        let cancelledToken: TokenProvider = { throw CancellationError() }
+        do {
+            _ = try await picker.download(token: cancelledToken, items: [media("new", "New.jpg")]) { _, _ in }
+            XCTFail("The cancellation should propagate")
+        } catch is CancellationError {
+            // Expected.
+        }
+        XCTAssertEqual(picker.cachedPhotos().map(\.title), ["Old.jpg"])
+        let leftovers = try FileManager.default.contentsOfDirectory(atPath: root.path)
+        XCTAssertEqual(leftovers, ["google_photos"])
+    }
+
+    func testHTTPDownloaderRejectsOversizedPayloadBeforeWriting() async throws {
+        let target = root.appendingPathComponent("too-large.jpg")
+        http.enqueue("GET", "/too-large", .bytes("five!"))
+        var request = URLRequest(url: URL(string: "https://lh3.test/too-large")!)
+        request.httpMethod = "GET"
+        do {
+            _ = try await http.download(request, to: target, maxBytes: 3)
+            XCTFail("Expected size error")
+        } catch {
+            XCTAssertFalse(FileManager.default.fileExists(atPath: target.path))
+        }
+    }
+
     func testManifestCannotPointOutsideCache() throws {
         let directory = root.appendingPathComponent("google_photos", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
