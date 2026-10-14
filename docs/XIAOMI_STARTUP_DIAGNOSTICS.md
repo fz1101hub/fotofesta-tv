@@ -22,8 +22,12 @@ non produrre il rapporto; in quel caso servono log Android / bug report.
 Scaricare lo ZIP del ramo `fix/xiaomi-tv-startup-1.2.1`,
 caricarlo nel notebook Colab gia usato, eseguire tutte le celle
 e installare **FotoFesta-TV-debug.apk** sulla Xiaomi.
-Il numero di versione e stato aumentato a **1.2.1** (`versionCode 4`)
-per aggiornare l'app senza conflitti di versione.
+La versione e **1.2.1** (`versionCode 4`). Se la precedente build debug era
+stata generata da un'altra sessione Colab, potrebbe essere firmata con un'altra
+chiave di debug: Android puo rifiutare l'aggiornamento con errore di firma.
+In questo caso **disinstallare prima la vecchia FotoFesta TV dalla Xiaomi**
+(eliminando impostazioni e cache locali), poi installare il nuovo APK.
+Le foto originali su USB o Google Foto non vengono eliminate.
 
 ## Limitazioni della verifica
 
