@@ -157,6 +157,59 @@ class GooglePhotosPickerRepositoryTest {
     }
 
     @Test
+    fun `failed migration does not erase the only cache`() = runTest {
+        val root = temp.newFolder("legacy-failure")
+        val legacy = GooglePhotosPickerRepository(root, server.client, server.apiBase, 0L)
+        server.enqueue("GET", "/media/1=w3840-h2160", image("uno"))
+        legacy.downloadToPrivateCache({ "tok" }, listOf(media("1", "Uno.jpg"))) { _, _ -> }
+        val destination = GooglePhotosPickerRepository(temp.newFolder("dest-failure"),
+            server.client, server.apiBase, 0L, renameDirectory = { _, _ -> false })
+        destination.adoptFrom(legacy)
+        assertEquals(listOf("Uno.jpg"), legacy.cachedPhotos().map { it.title })
+        assertTrue(destination.cachedPhotos().isEmpty())
+    }
+
+    @Test
+    fun `interrupted swap restores previous cache before clearing leftovers`() = runTest {
+        val root = temp.newFolder("restore-old")
+        val picker = GooglePhotosPickerRepository(root, server.client, server.apiBase, 0L)
+        server.enqueue("GET", "/media/1=w3840-h2160", image("uno"))
+        picker.downloadToPrivateCache({ "tok" }, listOf(media("1", "Uno.jpg"))) { _, _ -> }
+        val backup = File(root, "google_photos.old-interrupted")
+        assertTrue(File(root, "google_photos").renameTo(backup))
+        File(root, "google_photos.staging-orphan").mkdirs()
+        picker.deleteLeftovers()
+        assertEquals(listOf("Uno.jpg"), picker.cachedPhotos().map { it.title })
+        assertFalse(backup.exists())
+        assertFalse(File(root, "google_photos.staging-orphan").exists())
+    }
+
+    @Test
+    fun `failed restore keeps backup intact`() {
+        val root = temp.newFolder("restore-error")
+        val backup = File(root, "google_photos.old-keep").apply { mkdirs() }
+        File(backup, "index.json").writeText("[]")
+        File(backup, "00000.jpg").writeText("foto")
+        val picker = GooglePhotosPickerRepository(root, server.client, server.apiBase, 0L,
+            renameDirectory = { _, _ -> false })
+        picker.deleteLeftovers()
+        assertTrue(backup.isDirectory)
+    }
+
+    @Test
+    fun `oversized image is rejected and old cache is preserved`() = runTest {
+        val picker = repository()
+        server.enqueue("GET", "/media/keep=w3840-h2160", image("keep"))
+        picker.downloadToPrivateCache({ "tok" }, listOf(media("keep", "Vecchia.jpg"))) { _, _ -> }
+        server.enqueue("GET", "/media/large=w3840-h2160",
+            MockResponse().setHeader("Content-Type", "image/jpeg")
+                .setHeader("Content-Length", (25L * 1024 * 1024).toString()).setBody("x"))
+        val newPhotos = picker.downloadToPrivateCache({ "tok" }, listOf(media("large", "Grande.jpg"))) { _, _ -> }
+        assertTrue(newPhotos.isEmpty())
+        assertEquals(listOf("Vecchia.jpg"), picker.cachedPhotos().map { it.title })
+    }
+
+    @Test
     fun `manifest entries cannot point outside the cache`() {
         val directory = File(temp.root, "google_photos").apply { mkdirs() }
         File(temp.root, "segreto.jpg").writeText("x")
