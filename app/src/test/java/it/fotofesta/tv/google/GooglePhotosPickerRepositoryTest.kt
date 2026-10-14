@@ -203,7 +203,7 @@ class GooglePhotosPickerRepositoryTest {
         picker.downloadToPrivateCache({ "tok" }, listOf(media("keep", "Vecchia.jpg"))) { _, _ -> }
         server.enqueue("GET", "/media/large=w3840-h2160",
             MockResponse().setHeader("Content-Type", "image/jpeg")
-                .setHeader("Content-Length", (25L * 1024 * 1024).toString()).setBody("x"))
+                .setBody("x").setHeader("Content-Length", (25L * 1024 * 1024).toString()))
         val newPhotos = picker.downloadToPrivateCache({ "tok" }, listOf(media("large", "Grande.jpg"))) { _, _ -> }
         assertTrue(newPhotos.isEmpty())
         assertEquals(listOf("Vecchia.jpg"), picker.cachedPhotos().map { it.title })
