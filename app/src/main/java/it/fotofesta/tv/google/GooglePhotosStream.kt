@@ -49,6 +49,10 @@ class GooglePhotosStream(
     @Volatile
     private var lastToken: String? = null
 
+    /** Ultimo elenco fallito senza che la sessione risultasse persa: si riprova dopo un minuto. */
+    @Volatile
+    private var listFailedAt: Long? = null
+
     private val _gone = MutableStateFlow<Gone?>(null)
 
     /**
@@ -74,6 +78,12 @@ class GooglePhotosStream(
             // Una foto mancante giustifica un nuovo elenco, ma non a ogni richiesta.
             (mediaId !in urls && age >= MIN_REFRESH_INTERVAL_MILLIS)
         if (refresh) {
+            listFailedAt?.let { failedAt ->
+                // Google ha appena rifiutato l'elenco: niente nuove richieste a ogni foto per un minuto.
+                if (failed == null && clock() - failedAt < MIN_REFRESH_INTERVAL_MILLIS) {
+                    throw UserFacingException(R.string.photo_unavailable)
+                }
+            }
             val listed = try {
                 listOrConfirmGone(selection, token)
             } catch (unauthorized: HttpStatusException) {
@@ -82,6 +92,7 @@ class GooglePhotosStream(
                 token = currentToken(selection, forceRefresh = true)
                 listOrConfirmGone(selection, token)
             }
+            listFailedAt = null
             urls = listed.associate { it.id to it.baseUrl }
             urlsSessionId = selection.sessionId
             urlsFetchedAt = clock()
@@ -99,6 +110,7 @@ class GooglePhotosStream(
         urlsSessionId = null
         urlsFetchedAt = 0L
         lastToken = null
+        listFailedAt = null
         _gone.value = null
     }
 
@@ -126,16 +138,28 @@ class GooglePhotosStream(
                 400, 403 -> sessionIsGone(selection, token)
                 else -> false
             }
-            if (!gone) throw failure
+            if (!gone) {
+                listFailedAt = clock()
+                throw failure
+            }
             markGone(selection, GoneReason.SELECTION_EXPIRED)
             throw goneException(GoneReason.SELECTION_EXPIRED)
         }
 
+    /**
+     * Conferma con Google che la sessione è persa. Un 404 basta; un 400/403 anche su questa richiesta
+     * vale solo se la scadenza indicata da Google alla scelta delle foto è passata: un 403 dovuto
+     * ad altro (API disattivata, quota) non deve cancellare una selezione valida.
+     */
     private suspend fun sessionIsGone(selection: GoogleSelection, token: String): Boolean = try {
         val session = picker.getSession({ token }, selection.sessionId)
         !session.mediaItemsSet || (session.expiresAtMillis != null && session.expiresAtMillis <= clock())
     } catch (failure: HttpStatusException) {
-        failure.code == 404 || failure.code == 403
+        when (failure.code) {
+            404 -> true
+            400, 403 -> selection.isExpired(clock())
+            else -> false
+        }
     }
 
     /**

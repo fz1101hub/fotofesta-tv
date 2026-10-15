@@ -17,7 +17,7 @@ Riepilogo dei requisiti di qualità. I passaggi operativi, nell'ordine in cui es
 | 32/64 bit | ARM e x86, 32/64 | Verificare report Play Console |
 | 16 KB | `zipalign -P 16` superato dalla 1.0.0 | Ripetere sull'AAB 1.2.0 e leggere il Rapporto pre-lancio |
 | Android Lint | 0 problemi nella 1.0.0 | Eseguire `./scripts/build.sh` o la CI sulla 1.2.0 prima del caricamento |
-| Test unitari | 54 superati (JVM) | Aggiungere test strumentali su TV reale |
+| Test unitari | 67 superati (JVM) | Aggiungere test strumentali su TV reale |
 
 ## Scheda Store
 

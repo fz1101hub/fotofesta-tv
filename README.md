@@ -94,11 +94,11 @@ Per tornare al salvaschermo predefinito basta scegliere un altro salvaschermo da
 
 ## Verifica effettuata
 
-**Android TV.** I 54 test unitari (protocollo Cast e validazione URL, ordine di riproduzione, movimento lento, ordinamento dei file, coerenza delle traduzioni e flusso Google Foto completo contro un server finto) passano con Kotlin 2.0.21 su JVM 17. In GitHub Actions ogni push su `main` e ogni pull request eseguono test, Android Lint e build dell’APK debug (`.github/workflows/android.yml`). Gli audit e le correzioni sono descritti in [AUDIT.md](docs/AUDIT.md).
+**Android TV.** I 67 test unitari (protocollo Cast e validazione URL, ordine di riproduzione, movimento lento, ordinamento dei file, coerenza delle traduzioni, flusso Google Foto e streaming delle foto contro un server finto) passano con Kotlin 2.0.21 su JVM 17. In GitHub Actions ogni push su `main` e ogni pull request eseguono test, Android Lint e build dell’APK debug (`.github/workflows/android.yml`). Gli audit e le correzioni sono descritti in [AUDIT.md](docs/AUDIT.md).
 
-La versione 1.2.0 è stata sviluppata in un ambiente senza Android SDK, quindi la build Gradle completa e Android Lint vanno eseguiti con `./scripts/build.sh` o con la CI prima del primo caricamento. Serve poi la prova manuale su una TV reale descritta in [VALIDATION.md](docs/VALIDATION.md) e in [PUBLISHING.md](docs/PUBLISHING.md#3-verifiche-finali-prima-di-inviare).
+La versione 1.2.0 compila e supera test e Android Lint in GitHub Actions, che produce anche l’APK debug scaricabile dagli artefatti. Prima del primo caricamento servono la build di release firmata (`release.yml` o `./scripts/build.sh`) e la prova manuale su una TV reale descritta in [VALIDATION.md](docs/VALIDATION.md) e in [PUBLISHING.md](docs/PUBLISHING.md#3-verifiche-finali-prima-di-inviare).
 
-Risultati della validazione della versione 1.0.0, l’ultima compilata con l’SDK:
+Risultati della validazione locale della versione 1.0.0:
 
 | Controllo | Risultato 1.0.0 |
 | --- | --- |

@@ -140,11 +140,32 @@ class GooglePhotosStreamTest {
         )
 
         val transient = runCatching { stream.access("a") }.exceptionOrNull()
+        // Dopo un elenco rifiutato si aspetta un minuto prima di chiederlo di nuovo.
+        val waiting = runCatching { stream.access("a") }.exceptionOrNull()
+        now += 61_000L
+        tokens.expiresAtEpochSeconds = now / 1_000 + 3_600
         val confirmed = runCatching { stream.access("a") }.exceptionOrNull()
 
         assertEquals(403, (transient as HttpStatusException).code)
+        assertEquals(R.string.photo_unavailable, (waiting as UserFacingException).messageRes)
+        assertEquals(2, server.requestsTo("GET", "/v1/mediaItems").size)
         assertEquals(R.string.error_google_selection_gone, (confirmed as UserFacingException).messageRes)
         assertEquals(GooglePhotosStream.GoneReason.SELECTION_EXPIRED, stream.gone.value?.reason)
+    }
+
+    @Test
+    fun `a 403 from both calls is a loss only after the expiry given by Google`() = runTest {
+        select("a", expiresAt = now + 3_600_000L)
+        server.always("GET", "/v1/mediaItems", json("""{"error":{"code":403}}""", 403))
+        server.always("GET", "/v1/sessions/s1", json("""{"error":{"code":403}}""", 403))
+
+        val beforeExpiry = runCatching { stream.access("a") }.exceptionOrNull()
+        now += 2 * 3_600_000L
+        tokens.expiresAtEpochSeconds = now / 1_000 + 3_600
+        val afterExpiry = runCatching { stream.access("a") }.exceptionOrNull()
+
+        assertEquals(403, (beforeExpiry as HttpStatusException).code)
+        assertEquals(R.string.error_google_selection_gone, (afterExpiry as UserFacingException).messageRes)
     }
 
     @Test

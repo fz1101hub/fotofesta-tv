@@ -30,9 +30,15 @@ class GoogleImportFlow(
             picker.createSession(token)
         } catch (unauthorized: HttpStatusException) {
             if (unauthorized.code != 401) throw unauthorized
-            // Token revocato dall'utente: si ripete il collegamento da capo una sola volta.
-            auth.disconnect()
-            token = authorize(onState)
+            // Token rifiutato: prima si prova a rinnovarlo (le foto mostrate restano raggiungibili),
+            // e solo se non si può si ripete il collegamento da capo, una sola volta.
+            val renewed = auth.validAccessToken(forceRefresh = true)
+            if (renewed != null) {
+                token = renewed
+            } else {
+                auth.disconnect()
+                token = authorize(onState)
+            }
             picker.createSession(token)
         }
         // Le richieste chiedono il token in sequenza, ma il rinnovo deve comunque avvenire una volta sola.

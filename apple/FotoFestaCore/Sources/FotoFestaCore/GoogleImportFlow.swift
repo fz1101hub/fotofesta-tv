@@ -31,9 +31,14 @@ public final class GoogleImportFlow: @unchecked Sendable {
         do {
             session = try await picker.createSession(token: firstToken)
         } catch let failure as HTTPStatusError where failure.code == 401 {
-            // Token revocato dall'utente: si ripete il collegamento da capo una sola volta.
-            await auth.disconnect()
-            firstToken = try await authorize(onStep)
+            // Token rifiutato: prima si prova a rinnovarlo (le foto mostrate restano raggiungibili),
+            // e solo se non si può si ripete il collegamento da capo, una sola volta.
+            if let renewed = try await auth.validAccessToken(forceRefresh: true) {
+                firstToken = renewed
+            } else {
+                await auth.disconnect()
+                firstToken = try await authorize(onStep)
+            }
             session = try await picker.createSession(token: firstToken)
         }
         let auth = self.auth

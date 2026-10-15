@@ -122,6 +122,8 @@ class GoogleDeviceAuthRepository(
 
     private suspend fun refreshAccessToken(): String? {
         requireConfigured()
+        // Un "Disconnetti" arrivato durante la richiesta invalida il risultato: il token non va salvato.
+        val generation = this.generation
         val refresh = withContext(Dispatchers.IO) { tokens.refreshToken } ?: return null
         val body = FormBody.Builder()
             .add("client_id", clientId)
@@ -130,10 +132,18 @@ class GoogleDeviceAuthRepository(
             .add("grant_type", "refresh_token")
             .build()
         val json = client.fetchJson(Request.Builder().url(tokenUrl).post(body).build())
+        if (generation != this.generation) return null
         return persistToken(json).accessToken
     }
 
-    fun disconnect() = tokens.clear()
+    /** Cresce a ogni disconnessione: i rinnovi partiti prima non salvano il token ottenuto. */
+    @Volatile
+    private var generation = 0
+
+    fun disconnect() {
+        generation++
+        tokens.clear()
+    }
 
     /**
      * Revoca l'accesso anche sui server Google (best effort) e cancella i token locali.

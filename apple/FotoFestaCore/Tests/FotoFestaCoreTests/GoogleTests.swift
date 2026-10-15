@@ -360,6 +360,16 @@ final class GooglePhotosStreamTests: XCTestCase {
             XCTAssertEqual((error as? HTTPStatusError)?.code, 403)
         }
         XCTAssertNotNil(store.current())
+        // Dopo un elenco rifiutato si aspetta un minuto prima di chiederlo di nuovo.
+        do {
+            _ = try await stream.access(mediaID: "a")
+            XCTFail("expected an error")
+        } catch {
+            XCTAssertEqual(error as? FotoFestaError, .photoUnavailable)
+        }
+        XCTAssertEqual(http.requests("GET", "/v1/mediaItems").count, 1)
+        clock.advance(61)
+        tokens.expiresAt = clock.now.addingTimeInterval(3600)
         do {
             _ = try await stream.access(mediaID: "a")
             XCTFail("expected an error")
@@ -367,6 +377,28 @@ final class GooglePhotosStreamTests: XCTestCase {
             XCTAssertEqual(error as? FotoFestaError, .selectionGone)
         }
         XCTAssertNil(store.current())
+    }
+
+    func test403FromBothCallsIsALossOnlyAfterTheExpiryGivenByGoogle() async {
+        select(["a"], expiresIn: 3600)
+        http.always("GET", "/v1/mediaItems", .json(#"{"error":{"code":403}}"#, status: 403))
+        http.always("GET", "/v1/sessions/s1", .json(#"{"error":{"code":403}}"#, status: 403))
+        let stream = makeStream()
+
+        do {
+            _ = try await stream.access(mediaID: "a")
+            XCTFail("expected an error")
+        } catch {
+            XCTAssertEqual((error as? HTTPStatusError)?.code, 403)
+        }
+        clock.advance(2 * 3600)
+        tokens.expiresAt = clock.now.addingTimeInterval(3600)
+        do {
+            _ = try await stream.access(mediaID: "a")
+            XCTFail("expected an error")
+        } catch {
+            XCTAssertEqual(error as? FotoFestaError, .selectionGone)
+        }
     }
 
     func testRevokedAccessAsksToConnectAgain() async {

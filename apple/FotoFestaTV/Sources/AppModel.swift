@@ -83,6 +83,8 @@ final class AppModel {
             await google.stream.setOnSelectionGone { [weak self] sessionID, reason in
                 Task { @MainActor [weak self] in self?.handleSelectionGone(sessionID: sessionID, reason: reason) }
             }
+            // Una selezione persa prima che il gestore fosse registrato: si allinea subito la schermata.
+            self?.reconcileLostSelection()
         }
     }
 
@@ -245,6 +247,11 @@ final class AppModel {
         if defaults.string(forKey: Self.sourceKey) == "google" { defaults.set("demo", forKey: Self.sourceKey) }
         if showingGooglePhotos { show(Self.demoPhotos, label: L("source.demo")) }
         showMessage(reason == .accessLost ? L("error.google_session_expired") : L("error.google_selection_gone"))
+    }
+
+    private func reconcileLostSelection() {
+        guard google.selections.current() == nil, showingGooglePhotos else { return }
+        handleSelectionGone(sessionID: "", reason: .selectionExpired)
     }
 
     private var showingGooglePhotos: Bool {

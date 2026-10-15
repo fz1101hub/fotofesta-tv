@@ -1,6 +1,6 @@
 FotoFesta TV mostra sul televisore le foto che scegli. Non contiene pubblicità, sistemi di analisi o tracciamento e non invia dati allo sviluppatore.
 
-Google Foto (facoltativo): la Apple TV comunica direttamente con Google tramite connessioni cifrate. L'app chiede l'accesso solo alle foto che scegli dal telefono, non al resto della libreria. Le foto scelte non vengono copiate sulla Apple TV: si caricano da Google mentre vengono mostrate e restano solo in memoria. La Apple TV conserva l'elenco delle foto scelte nelle preferenze dell'app e il token di accesso Google nel Portachiavi.
+Google Foto (facoltativo): la Apple TV comunica direttamente con Google tramite connessioni cifrate. L'app chiede l'accesso solo alle foto che scegli dal telefono, non al resto della libreria. Le foto scelte non vengono copiate sulla Apple TV: si caricano da Google mentre vengono mostrate e restano solo in memoria. La Apple TV conserva l'elenco delle foto scelte nelle preferenze dell'app e i token Google (di accesso e di rinnovo) nel Portachiavi.
 
 Impostazioni › "Disconnetti e cancella" elimina l'elenco delle foto e il token, chiude la selezione presso Google e revoca l'accesso. Puoi revocarlo anche da myaccount.google.com/permissions. L'elenco si cancella anche quando scegli un'altra sorgente o quando Google chiude la selezione.
 

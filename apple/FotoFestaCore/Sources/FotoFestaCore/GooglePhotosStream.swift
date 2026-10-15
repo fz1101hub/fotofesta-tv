@@ -33,6 +33,8 @@ public actor GooglePhotosStream {
     /// Elenco in corso, condiviso dalle richieste della stessa sessione.
     private var refreshing: (sessionID: String, task: Task<[String: String], Error>)?
     private var goneSessionID: String?
+    /// Ultimo elenco fallito senza che la sessione risultasse persa: si riprova dopo un minuto.
+    private var listFailedAt: Date?
     private var onSelectionGone: (@Sendable (String, GoneReason) -> Void)?
 
     public init(picker: PhotosPicker, auth: GoogleDeviceAuth, selections: GoogleSelectionStore, now: @escaping @Sendable () -> Date = { Date() }) {
@@ -63,6 +65,10 @@ public actor GooglePhotosStream {
             // Una foto mancante giustifica un nuovo elenco, ma non a ogni richiesta.
             || (urls[mediaID] == nil && age >= Self.minimumRefreshInterval)
         if needsRefresh {
+            // Google ha appena rifiutato l'elenco: niente nuove richieste a ogni foto per un minuto.
+            if failed == nil, let listFailedAt, now().timeIntervalSince(listFailedAt) < Self.minimumRefreshInterval {
+                throw FotoFestaError.photoUnavailable
+            }
             let listed: [String: String]
             do {
                 listed = try await list(selection, token: token)
@@ -73,6 +79,7 @@ public actor GooglePhotosStream {
             }
             // Una selezione sostituita nel frattempo non deve ricevere l'elenco della precedente.
             guard selections.current()?.sessionID == selection.sessionID else { throw FotoFestaError.photoUnavailable }
+            listFailedAt = nil
             urls = listed
             urlsSessionID = selection.sessionID
             urlsFetchedAt = now()
@@ -89,6 +96,7 @@ public actor GooglePhotosStream {
         lastToken = nil
         refreshing = nil
         goneSessionID = nil
+        listFailedAt = nil
     }
 
     private func currentToken(_ selection: GoogleSelection, forceRefresh: Bool) async throws -> String {
@@ -120,11 +128,19 @@ public actor GooglePhotosStream {
         do {
             return try await task.value
         } catch let failure as HTTPStatusError where [400, 403, 404].contains(failure.code) {
+            // Le richieste concorrenti non devono riusare l'elenco fallito mentre si verifica la sessione.
+            if refreshing?.task == task { refreshing = nil }
             var gone = failure.code == 404
             if !gone { gone = await sessionIsGone(selection, token: token) }
-            guard gone else { throw failure }
+            guard gone else {
+                listFailedAt = now()
+                throw failure
+            }
             markGone(selection, reason: .selectionExpired)
             throw FotoFestaError.selectionGone
+        } catch let failure as HTTPStatusError where failure.code != 401 {
+            listFailedAt = now()
+            throw failure
         }
     }
 
@@ -135,7 +151,13 @@ public actor GooglePhotosStream {
             if let expiresAt = session.expiresAt { return expiresAt <= now() }
             return false
         } catch let failure as HTTPStatusError {
-            return failure.code == 404 || failure.code == 403
+            // Un 404 basta; un 400/403 anche qui vale solo dopo la scadenza indicata da Google alla scelta
+            // delle foto: un 403 dovuto ad altro (API disattivata, quota) non cancella una selezione valida.
+            switch failure.code {
+            case 404: return true
+            case 400, 403: return selection.isExpired(at: now())
+            default: return false
+            }
         } catch {
             return false
         }

@@ -78,19 +78,29 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         // Prima si ripristina l'ultima sorgente, poi si ascoltano i comandi Cast: un LOAD già in coda
         // (avvio tramite Cast Connect) annulla il ripristino invece di essere sovrascritto.
         val lastSource = settingsRepository.loadLastSource()
-        restoreJob = viewModelScope.launch {
-            val selection = withContext(Dispatchers.IO) { googleSelection.current() }
-            when {
-                lastSource != "GOOGLE" -> if (selection != null) discardGoogleSelection()
-                selection != null -> showPhotos(selection.toPhotos(), googleLabel(selection.items.size))
-                else -> {
-                    // Selezione scaduta o salvata dalle versioni che scaricavano le foto: va rifatta.
-                    settingsRepository.saveLastSource("DEMO")
-                    showMessage(context.getString(R.string.error_google_selection_gone))
+        if (lastSource == "GOOGLE") {
+            restoreJob = viewModelScope.launch {
+                val selection = withContext(Dispatchers.IO) { googleSelection.current() }
+                when {
+                    selection != null -> showPhotos(selection.toPhotos(), googleLabel(selection.items.size))
+                    // Già spiegato da onGoogleSelectionGone (es. accesso perso durante il salvaschermo).
+                    googleStream.gone.value != null -> Unit
+                    else -> {
+                        // Selezione scaduta o salvata dalle versioni che scaricavano le foto: va rifatta.
+                        settingsRepository.saveLastSource("DEMO")
+                        showMessage(context.getString(R.string.error_google_selection_gone))
+                    }
                 }
+                // La scadenza indicata da Google si verifica con Google, non con l'orologio della TV,
+                // che all'accensione può essere sbagliato: lo fa GooglePhotosStream al primo caricamento.
             }
-            // La scadenza indicata da Google si verifica con Google, non con l'orologio della TV, che
-            // all'accensione può essere sbagliato: lo fa GooglePhotosStream al primo caricamento.
+        } else {
+            // Selezione rimasta da una sorgente abbandonata: si chiude la sessione. Lavoro separato da
+            // restoreJob, che il ripristino della cartella USB annulla subito.
+            viewModelScope.launch {
+                withContext(Dispatchers.IO) { googleSelection.current() }
+                if (settingsRepository.loadLastSource() != "GOOGLE") discardGoogleSelection()
+            }
         }
         if (lastSource == "USB") settingsRepository.loadUsbTree()?.let { stored -> loadUsb(Uri.parse(stored)) }
         viewModelScope.launch {
@@ -320,6 +330,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
      * Google Foto ne crea sempre una nuova), quindi si cancella e si chiude la sessione presso Google.
      */
     private fun discardGoogleSelection() {
+        // Senza selezione l'ultima sorgente non può restare Google (es. dopo un LOAD da Cast).
+        if (settingsRepository.loadLastSource() == "GOOGLE") settingsRepository.saveLastSource("DEMO")
         val selection = googleSelection.current() ?: return
         googleSelection.clear()
         googleStream.reset()
