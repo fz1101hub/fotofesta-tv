@@ -116,6 +116,8 @@ App Apple TV (nessun errore di compilazione trovato leggendo il codice riga per 
 - **Cache svuotata da tvOS mentre l'app è sospesa**: ora si ricontrolla al ritorno in primo piano e si torna alle foto demo con un messaggio.
 - **Movimento lento dopo una pausa**: alla ripresa il cambio foto aspettava di nuovo l'intervallo intero, con l'immagine ferma. Ora aspetta solo il tempo restante.
 - **Avanzamento del download** che poteva tornare indietro, **disconnessione** che poteva cancellare un'importazione appena avviata, **Indietro durante la chiusura della sessione** con l'elenco non allineato ai file: corretti come su Android.
+- **Passi di un collegamento annullato** ignorati da quello nuovo (ogni collegamento ha un identificativo); la disconnessione aspetta anche un'importazione già annullata con Annulla o Menu.
+- **fastlane** legge correttamente un client Google vuoto e, per l'App Store, si ferma se la build non avrebbe Google Foto mentre la scheda lo descrive.
 - **Numero di build** assegnato da fastlane a ogni caricamento su TestFlight; simbolo di foto non disponibile compatibile con tvOS 17; “Riduci movimento” di sistema rispettato.
 - Al primo avvio dopo una nuova installazione si cancellano i token rimasti nel Portachiavi, che sopravvive alla disinstallazione.
 

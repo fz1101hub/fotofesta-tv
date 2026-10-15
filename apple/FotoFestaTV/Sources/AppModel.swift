@@ -41,6 +41,8 @@ final class AppModel {
     private let importFlow: GoogleImportFlow
     @ObservationIgnored private var googleTask: Task<Void, Never>?
     @ObservationIgnored private var cleanupTask: Task<Void, Never>?
+    /// Identifica il collegamento in corso: i passi di un collegamento annullato vengono ignorati.
+    @ObservationIgnored private var connectionID = UUID()
     @ObservationIgnored private var sleepTask: Task<Void, Never>?
     @ObservationIgnored private var sleepTaskMinutes = 0
     @ObservationIgnored private var messageTask: Task<Void, Never>?
@@ -164,14 +166,17 @@ final class AppModel {
         }
         cancelGoogle()
         googleState = .working(nil)
+        let connection = UUID()
+        connectionID = connection
         // Una cancellazione ancora in corso ("Disconnetti e cancella") deve finire prima del nuovo collegamento.
         let cleanup = cleanupTask
         googleTask = Task { [weak self, importFlow] in
             await cleanup?.value
+            if Task.isCancelled { return }
             do {
-                let result = try await importFlow.run { step in
-                    Task { @MainActor in
-                        self?.applyStep(step)
+                let result = try await importFlow.run { [weak self] step in
+                    Task { @MainActor [weak self] in
+                        self?.applyStep(step, connection: connection)
                     }
                 }
                 guard let self else { return }
@@ -194,9 +199,10 @@ final class AppModel {
         }
     }
 
-    private func applyStep(_ step: ImportStep) {
-        // Dopo un annullamento lo stato non è più "working" e i passi vengono ignorati.
-        guard case let .working(current) = googleState else { return }
+    private func applyStep(_ step: ImportStep, connection: UUID) {
+        // Dopo un annullamento lo stato non è più "working", o appartiene a un nuovo collegamento:
+        // i passi del collegamento annullato vengono ignorati.
+        guard connection == connectionID, case let .working(current) = googleState else { return }
         // I passi arrivano con Task separati, senza ordine garantito: il contatore non torna indietro.
         if case let .downloading(done, _)? = current, case let .downloading(newDone, _) = step, newDone < done { return }
         googleState = .working(step)
@@ -253,9 +259,10 @@ final class AppModel {
         }
     }
 
+    /// Il riferimento resta: "Disconnetti e cancella" aspetta la fine di un'importazione annullata
+    /// (attendere un Task già concluso termina subito).
     private func cancelGoogle() {
         googleTask?.cancel()
-        googleTask = nil
     }
 
     // MARK: - Interni

@@ -6,7 +6,7 @@ Queste risposte descrivono la build attuale (Android 1.2.0, Apple TV 1.0). Vanno
 
 Il codice dell'app non invia nulla allo sviluppatore. Le foto e i token restano sul dispositivo. Le chiamate a Google Foto partono su richiesta dell'utente per leggere il suo stesso account, quindi non contano come raccolta.
 
-L'app per Android TV include però il **Cast SDK** di Google (`play-services-cast-tv`, `play-services-cast`), che serve a ricevere i comandi da un telefono. Google dichiara che questo SDK invia dati anonimi di utilizzo e diagnostica, cifrati in transito, che né lo sviluppatore né l'utente possono disattivare o cancellare. Per questo il modulo va compilato con **Sì, raccoglie dati**.
+L'app per Android TV include però il **Cast SDK** di Google (`play-services-cast-tv`, `play-services-cast`), che serve a ricevere i comandi da un telefono. Google dichiara che questo SDK invia dati di utilizzo e diagnostica, cifrati in transito, che né lo sviluppatore né l'utente possono disattivare o cancellare. Per questo il modulo va compilato con **Sì, raccoglie dati**.
 
 Prima di inviare il modulo, apri la pagina ufficiale [Cast SDK Google Play Data Safety Section](https://developers.google.com/cast/docs/android_sender/data_disclosure) e riporta i tipi di dati elencati per il Cast TV SDK. Qui sotto c'è la compilazione attesa, da confermare con quella pagina, che Google aggiorna a ogni versione dell'SDK.
 
@@ -31,7 +31,7 @@ Foto e token non vanno dichiarati: restano sul dispositivo e non vengono trasmes
 
 ### Altre sezioni di Play Console
 
-- **Accesso all'app**: “Prova subito” mostra tutte le funzioni senza login. Per Google Foto fornisci un account Google di test, aggiunto agli utenti di test della schermata di consenso OAuth, e descrivi la procedura dei due QR.
+- **Accesso all'app**: “Prova subito” mostra tutte le funzioni senza login. Per Google Foto fornisci un account Google di test e descrivi la procedura dei due QR. La schermata di consenso OAuth deve essere **In produzione**: in modalità test l'account andrebbe aggiunto agli utenti di test e i suoi token scadrebbero dopo 7 giorni.
 - **Annunci**: l'app non contiene annunci.
 - **ID pubblicità**: l'app non usa l'ID pubblicità. Rispondi **No** nella dichiarazione. Il manifest rimuove esplicitamente il permesso `com.google.android.gms.permission.AD_ID`, anche se una libreria lo aggiungesse.
 - **Classificazione dei contenuti**: categoria Utilità/Produttività/Altro. Nessun contenuto generato da altri utenti condiviso, nessuna interazione tra utenti.

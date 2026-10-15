@@ -5,3 +5,5 @@ Google Photos (optional): the Apple TV talks directly to Google over encrypted c
 Settings › "Disconnect and delete" removes the downloaded photos and the token and revokes access at Google. You can also revoke access at myaccount.google.com/permissions. tvOS may delete downloaded photos when it needs space.
 
 The full privacy policy is available at the privacy policy URL of this app and as a QR code in the app's Settings.
+
+Data controller: [da completare] · Contact: [da completare]

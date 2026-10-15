@@ -5,3 +5,5 @@ Google Foto (facoltativo): la Apple TV comunica direttamente con Google tramite 
 Impostazioni › "Disconnetti e cancella" elimina le foto scaricate e il token e revoca l'accesso presso Google. Puoi revocarlo anche da myaccount.google.com/permissions. tvOS può eliminare le foto scaricate quando serve spazio.
 
 L'informativa completa è disponibile all'URL dell'informativa privacy di questa app e come codice QR nelle impostazioni dell'app.
+
+Titolare del trattamento: [da completare] · Contatto: [da completare]

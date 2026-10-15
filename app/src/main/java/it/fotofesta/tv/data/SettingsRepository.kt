@@ -84,9 +84,8 @@ class SettingsRepository(context: Context) {
             if (!sources.contains(key)) prefs.getString(key, null)?.let { moved.putString(key, it) }
             removed.remove(key)
         }
-        // Prima si scrivono le sorgenti e solo dopo si cancellano dal vecchio file.
-        moved.commit()
-        removed.apply()
+        // Prima si scrivono le sorgenti e solo se la scrittura riesce si cancellano dal vecchio file.
+        if (moved.commit()) removed.apply()
     }
 
     private inline fun <reified T : Enum<T>> enumValueOrDefault(value: String?, default: T): T =

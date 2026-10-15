@@ -134,7 +134,7 @@ Serve solo se pubblichi anche un'app sender che comanda la TV. Registra il ricev
 
 ### Pubblicare una versione
 
-1. Aggiorna `MARKETING_VERSION` e `CURRENT_PROJECT_VERSION` in `apple/project.yml`.
+1. Aggiorna `MARKETING_VERSION` in `apple/project.yml`. Il numero di build lo assegna fastlane (ultimo su TestFlight + 1). Se invece carichi da Xcode, porta `CURRENT_PROJECT_VERSION` oltre l'ultimo numero caricato.
 2. Carica la build, in uno di due modi:
    - `cd apple && bundle exec fastlane tvos beta`, che esegue i test, compila, firma, assegna un numero di build nuovo e carica su TestFlight;
    - in Xcode: **Product › Archive › Distribute App › App Store Connect**.
@@ -147,7 +147,8 @@ Serve solo se pubblichi anche un'app sender che comanda la TV. Registra il ricev
      export REVIEW_DEMO_PASSWORD="..."
      ```
      È consigliato: "Prova subito" funziona senza login, ma l'account permette ai revisori di provare Google Foto. Se le variabili sono impostate, fastlane aggiunge alle note per i revisori la frase che rimanda all'account; altrimenti le note non lo citano.
-   - con `PHOTOS_CLIENT_ID` vuoto in `Config/Secrets.xcconfig` la build non mostra Google Foto, e l'account non serve.
+   - con `PHOTOS_CLIENT_ID` vuoto in `Config/Secrets.xcconfig` la build non mostra Google Foto e l'account non serve. In quel caso togli Google Foto da `description.txt`, `promotional_text.txt`, `apple_tv_privacy_policy.txt` e dalle note per i revisori, poi esegui `release` con `ALLOW_NO_GOOGLE=1`: senza, fastlane si ferma.
+   - in `apple_tv_privacy_policy.txt` (testo dell'informativa mostrato su Apple TV) completa titolare e contatto.
 5. Carica la scheda:
    - testi: `bundle exec fastlane tvos metadata`, che prende i dati da `apple/fastlane/metadata/` (compresa l'informativa breve mostrata su Apple TV, `apple_tv_privacy_policy.txt`) e si ferma se trova ancora segnaposto (`[da completare]`, `EXAMPLE`, `[Titolare]`);
    - screenshot: 1920×1080 o 3840×2160, catturabili dal simulatore con **File › Save Screen**.

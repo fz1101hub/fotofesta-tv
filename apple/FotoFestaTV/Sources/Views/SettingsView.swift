@@ -4,6 +4,7 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
     @FocusState private var policyFocused: Bool
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
 
     var body: some View {
         let settings = model.settings
@@ -24,8 +25,9 @@ struct SettingsView: View {
                     Text(L("fit.crop")).tag(FitMode.crop)
                 }
                 Toggle(L("settings.shuffle"), isOn: binding(\.shuffle))
+                // Con "Riduci movimento" (dell'app o di sistema) il movimento lento resta spento.
                 Toggle(L("settings.ken_burns"), isOn: binding(\.kenBurns))
-                    .disabled(settings.reducedMotion)
+                    .disabled(settings.reducedMotion || systemReduceMotion)
                 Toggle(L("settings.reduced_motion"), isOn: binding(\.reducedMotion))
                 Toggle(L("settings.clock"), isOn: binding(\.showClock))
                 Picker(L("settings.sleep_timer"), selection: binding(\.sleepTimerMinutes)) {
