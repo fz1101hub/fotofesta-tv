@@ -23,21 +23,29 @@ Gli artefatti vengono copiati in `dist/` e accompagnati da checksum SHA-256.
 
 Dal 31 marzo 2025 un’app di terze parti non può più leggere indiscriminatamente la libreria Google Foto. La soluzione ufficiale è la Picker API, con selezione esplicita dei contenuti da parte dell’utente.[1]
 
-1. Aprire [Google Cloud Console](https://console.cloud.google.com/).
-2. Creare o selezionare un progetto.
-3. In **APIs & Services > Library**, abilitare **Google Photos Picker API**.
-4. Configurare **OAuth consent screen** con nome, email di supporto, privacy policy e utenti di test.
-5. In **Credentials**, creare un client OAuth del tipo **TVs and Limited Input devices**.
-6. Copiare `Client ID` e `Client secret`.
-7. Inserire i valori in `local.properties`, senza aggiungere il file a Git:
+1. Apri [Google Cloud Console](https://console.cloud.google.com/) con il tuo account Google e crea un progetto, ad esempio "FotoFesta TV".
+2. In **API e servizi › Libreria** cerca **Photos Picker API** e premi **Abilita**.
+3. Apri **Google Auth Platform** (la vecchia "Schermata consenso OAuth") e premi **Inizia**:
+   - nome dell'app "FotoFesta TV" ed email di assistenza;
+   - pubblico **Esterno**;
+   - email di contatto dello sviluppatore.
+4. In **Google Auth Platform › Pubblico**, sotto **Utenti di test**, aggiungi gli account Google con cui proverai l'app. Finché l'app è in modalità test possono collegarsi solo questi account, e il collegamento scade dopo 7 giorni.
+5. In **Google Auth Platform › Accesso ai dati** premi **Aggiungi o rimuovi ambiti**, inserisci a mano `https://www.googleapis.com/auth/photospicker.mediaitems.readonly` e salva.
+6. In **Google Auth Platform › Client** premi **Crea client**, scegli il tipo **TV e dispositivi con input limitato**, dai un nome e crea.
+7. Copia **ID client** e **Client secret**.
+8. Inserisci i due valori, a seconda di dove compili:
+   - **GitHub Actions** (APK della CI): nel repository, **Settings › Secrets and variables › Actions › New repository secret**, crea `PHOTOS_CLIENT_ID` e `PHOTOS_CLIENT_SECRET`. Li usano sia la CI sia il workflow di release.
+   - **Computer locale**: in `local.properties`, senza aggiungere il file a Git:
 
 ```properties
 sdk.dir=/home/utente/Android/Sdk
-PHOTOS_CLIENT_ID=000000000000-example.apps.googleusercontent.com
-PHOTOS_CLIENT_SECRET=example-secret
+PHOTOS_CLIENT_ID=123456789012-abc123.apps.googleusercontent.com
+PHOTOS_CLIENT_SECRET=GOCSPX-...
 ```
 
-8. Ricompilare l’app.
+9. Ricompila l’app: rilancia la CI (**Actions › Android CI › Run workflow**) o `./scripts/build.sh`. Se la TV ha già una versione installata con un'altra firma debug, disinstallala prima.
+
+Senza credenziali, le build debug mostrano comunque la scheda Google Foto con un messaggio che spiega cosa manca, mentre le build di release la nascondono. Il workflow di release si ferma se mancano i secret, salvo l'opzione "Build senza Google Foto".
 
 L’app chiede esclusivamente lo scope `https://www.googleapis.com/auth/photospicker.mediaitems.readonly`, che consente di creare sessioni Picker e recuperare solo gli elementi selezionati.[2] Per una pubblicazione fuori dal gruppo di test, Google richiede la verifica OAuth dell’app Photos API.[2]
 

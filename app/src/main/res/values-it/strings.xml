@@ -33,7 +33,7 @@
     <string name="error_generic">Operazione non riuscita. Controlla rete e impostazioni.</string>
     <string name="error_network">Rete non disponibile. Controlla la connessione internet della TV.</string>
     <string name="error_google_http">Servizio Google non disponibile (%1$d).</string>
-    <string name="error_google_not_configured">Mancano le credenziali Google Photos Picker. Segui CONFIGURATION.md e ricompila l\'app.</string>
+    <string name="error_google_not_configured">Questa build non ha le credenziali Google Photos Picker (PHOTOS_CLIENT_ID e PHOTOS_CLIENT_SECRET). Aggiungile come spiegato in docs/CONFIGURATION.md e ricompila l\'app.</string>
     <string name="error_google_access_denied">Autorizzazione annullata sul telefono.</string>
     <string name="error_google_code_expired">Il codice Google è scaduto. Riprova.</string>
     <string name="error_google_session_expired">L\'accesso a Google è scaduto. Collegati di nuovo.</string>

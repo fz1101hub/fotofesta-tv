@@ -234,6 +234,12 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         _state.update { it.copy(musicUri = null, musicName = null) }
     }
 
+    /**
+     * Google Foto compare se la build ha un client OAuth. Nelle build debug compare sempre, così chi
+     * compila senza credenziali vede il messaggio che spiega come aggiungerle.
+     */
+    val showGoogle: Boolean get() = BuildConfig.DEBUG || googleAuth.isConfigured()
+
     fun startGoogleConnect() {
         if (!googleAuth.isConfigured()) {
             _state.update {

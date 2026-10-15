@@ -12,6 +12,10 @@ on:
         description: "Carica su Google Play (traccia interna, bozza)"
         type: boolean
         default: false
+      without_google:
+        description: "Build senza Google Foto (solo se descrizione e scheda non lo citano)"
+        type: boolean
+        default: false
   push:
     tags: ["v*"]
 
@@ -44,6 +48,21 @@ jobs:
           fi
           echo "$RELEASE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/upload.jks"
           echo "RELEASE_STORE_FILE=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
+
+      - name: Credenziali Google Foto
+        env:
+          PHOTOS_CLIENT_ID: ${{ secrets.PHOTOS_CLIENT_ID }}
+          PHOTOS_CLIENT_SECRET: ${{ secrets.PHOTOS_CLIENT_SECRET }}
+          WITHOUT_GOOGLE: ${{ inputs.without_google }}
+        run: |
+          if [ -z "$PHOTOS_CLIENT_ID" ] || [ -z "$PHOTOS_CLIENT_SECRET" ]; then
+            if [ "$WITHOUT_GOOGLE" = "true" ]; then
+              echo "::warning::Build senza Google Foto: la scheda Google non comparira' nell'app"
+            else
+              echo "::error::Secret PHOTOS_CLIENT_ID o PHOTOS_CLIENT_SECRET mancante (vedi docs/CONFIGURATION.md)"
+              exit 1
+            fi
+          fi
 
       - name: Test, lint e AAB firmato
         env:

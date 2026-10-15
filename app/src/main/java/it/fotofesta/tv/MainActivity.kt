@@ -111,6 +111,7 @@ class MainActivity : ComponentActivity() {
                     when (state.destination) {
                         Destination.HOME -> HomeScreen(
                             state = state,
+                            showGoogle = viewModel.showGoogle,
                             onGoogle = viewModel::startGoogleConnect,
                             onUsb = { launchPicker { usbPicker.launch(null) } },
                             onDemo = viewModel::useDemoAndPlay,

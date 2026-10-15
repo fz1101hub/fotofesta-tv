@@ -35,6 +35,7 @@ import it.fotofesta.tv.model.AppState
 @Composable
 fun HomeScreen(
     state: AppState,
+    showGoogle: Boolean,
     onGoogle: () -> Unit,
     onUsb: () -> Unit,
     onDemo: () -> Unit,
@@ -75,14 +76,17 @@ fun HomeScreen(
                     )
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                    SourceCard(
-                        stringResource(R.string.home_google_title),
-                        stringResource(R.string.home_google_body),
-                        Icons.Rounded.Cloud,
-                        Cyan,
-                        onGoogle,
-                        Modifier.weight(1f),
-                    )
+                    // Una build di release senza client OAuth non mostra Google Foto.
+                    if (showGoogle) {
+                        SourceCard(
+                            stringResource(R.string.home_google_title),
+                            stringResource(R.string.home_google_body),
+                            Icons.Rounded.Cloud,
+                            Cyan,
+                            onGoogle,
+                            Modifier.weight(1f),
+                        )
+                    }
                     SourceCard(
                         stringResource(R.string.home_usb_title),
                         stringResource(R.string.home_usb_body),

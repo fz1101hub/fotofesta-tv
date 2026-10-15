@@ -33,8 +33,12 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      # Il runner include l'Android SDK; le credenziali Google non servono per test e build debug.
+      # Il runner include l'Android SDK. Con i secret PHOTOS_CLIENT_ID e PHOTOS_CLIENT_SECRET l'APK
+      # debug include Google Foto; senza, l'app lo segnala quando si sceglie Google Foto.
       - name: Test, lint e build debug
+        env:
+          PHOTOS_CLIENT_ID: ${{ secrets.PHOTOS_CLIENT_ID }}
+          PHOTOS_CLIENT_SECRET: ${{ secrets.PHOTOS_CLIENT_SECRET }}
         run: ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug
 
       - name: Report test e lint
