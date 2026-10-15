@@ -1,6 +1,7 @@
 package it.fotofesta.tv
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
@@ -15,6 +16,8 @@ class FotoFestaApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // Cattura i crash anche se Compose non riesce a mostrare la prima schermata.
+        StartupDiagnostics.install(this)
         runCatching {
             CastReceiverContext.initInstance(this)
             CastReceiverContext.getInstance().apply {
@@ -45,6 +48,9 @@ class FotoFestaApplication : Application() {
                     CastBridge.senderConnected(false)
                 }
             })
+        }.onFailure { failure ->
+            // Cast e opzionale: una TV senza Cast Connect deve comunque aprire FotoFesta.
+            Log.w("FotoFestaApplication", "Cast Connect non disponibile", failure)
         }
     }
 }
