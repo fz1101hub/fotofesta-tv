@@ -88,6 +88,38 @@ I 21 test unitari sono stati compilati ed eseguiti con Kotlin 2.0.21 su JVM 17: 
 - Protocollo Cast: nuovi campi `kenBurns` e `sleepTimerMinutes`.
 - Test unitari: 46, tutti superati con kotlinc 2.0.21.
 
+## Audit finale per la pubblicazione
+
+Tre revisioni indipendenti: app Android, app Apple TV, pubblicazione (CI, fastlane, documenti, conformità alle regole degli store).
+
+App Android:
+- **Barra dei comandi dello slideshow**: in italiano i cinque pulsanti con etichetta lasciavano circa 13 dp al titolo, che andava a capo una lettera per riga e alzava la barra fino all'85% dello schermo. Ora titolo e dettagli stanno su una riga sopra i pulsanti, Precedente e Successiva sono solo icone (con descrizione per TalkBack) e i testi non vanno a capo.
+- **Home a 960×540 dp**: il contenuto superava l'altezza dello schermo, e con il testo grande della TV l'ultima riga di pulsanti spariva. Spaziature ridotte, testi delle schede su due righe al massimo e scorrimento automatico quando serve.
+- **“Disconnetti e cancella”**: la revoca presso Google poteva fallire se l'utente usciva dall'app durante la cancellazione dei file, perché il client HTTP veniva chiuso con il ViewModel. Ora il client è unico per il processo, i token locali si cancellano per primi e i file si eliminano in parallelo, anche se un'importazione annullata stava salvando proprio in quel momento.
+- **Pulizia dell'archivio all'avvio**: con l'ultima sorgente USB veniva annullata prima di partire, quindi le cartelle di download interrotti si accumulavano. Ora è un'operazione separata che importazione e cancellazione aspettano.
+- **Indietro subito dopo il download**: scartava un'importazione già salvata su disco, lasciando l'elenco precedente con file ormai sostituiti. Ora le foto si mostrano appena salvate, senza aspettare la chiusura della sessione Picker, e un annullamento in quell'istante riallinea l'elenco ai file presenti.
+- **Salvaschermo dopo un aggiornamento**: leggeva solo il nuovo archivio, quindi mostrava le foto demo finché non si apriva l'app. Ora legge anche la vecchia cache.
+- **Foto demo**: decodificate a piena risoluzione (2560×1440) sul thread principale. Ora passano da Coil, ridotte alla dimensione mostrata e precaricate come le altre.
+- **Schermo acceso durante il collegamento a Google**, così QR e codice non spariscono mentre si usa il telefono.
+- **HEIC/HEIF e AVIF** sono accettati da USB solo sulle versioni di Android che li sanno aprire (9 e 12).
+- **Area sicura delle TV**: margini laterali di 48 dp in tutte le schermate e fuoco visibile sul testo della privacy.
+- **Backup**: cartella USB, brano e ultima sorgente spostati in un file escluso dal backup, perché i permessi sugli URI non passano a un altro dispositivo.
+- **ID pubblicità**: il manifest rimuove esplicitamente il permesso `AD_ID`.
+
+App Apple TV:
+- Al primo avvio dopo una nuova installazione si cancellano i token rimasti nel Portachiavi, che sopravvive alla disinstallazione.
+
+Pubblicazione:
+- **Pagina di supporto e informativa** spostate in `site/`, con un workflow che pubblica solo quella cartella e si ferma se restano campi da completare. La guida spiega le alternative a GitHub Pages per un repository privato, la home page e la verifica del dominio per Google OAuth.
+- **Sicurezza dei dati**: il Cast SDK di Google invia dati anonimi di utilizzo, quindi la risposta corretta non è “nessun dato”. Aggiornati `DATA_SAFETY.md`, informativa, scheda Play e testo nell'app.
+- **fastlane**: il file `mapping.txt` non veniva mai caricato su Play (percorso relativo sbagliato). Il Fastfile Apple si ferma se trova segnaposto e legge l'account di test da variabili d'ambiente invece che da file nel repository. Versioni di fastlane fissate in `Gemfile.lock`.
+- **CI**: la verifica della firma dell'AAB non falliva mai (`jarsigner -verify` termina con 0 anche su file non firmati). Trigger limitati a `main` e alle pull request. Nuovo workflow macOS per compilare l'app Apple TV.
+- **Requisiti Apple**: Xcode 26 obbligatorio da aprile 2026; parole chiave senza marchi di terzi e senza funzioni assenti su tvOS.
+- **Icona Play** quadrata e opaca, perché Play applica da sé gli angoli arrotondati.
+- Documenti allineati: dimensioni del banner, test, stato di verifica reale. `PRIVACY_POLICY_TEMPLATE.md` eliminato, sostituito da `site/privacy/index.html`.
+
+Test unitari: 54, tutti superati con kotlinc 2.0.21. La build Gradle e Lint della 1.2.0 restano da eseguire con l'Android SDK, e l'app Apple TV da compilare con Xcode.
+
 ## Raccomandazioni aperte
 
 | Priorità | Raccomandazione |

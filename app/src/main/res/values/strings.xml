@@ -90,7 +90,7 @@
     <string name="settings_google_data">Google Photos data</string>
     <string name="settings_google_data_body">Removes encrypted tokens and the private photo cache from the TV.</string>
     <string name="settings_google_disconnect">Disconnect and delete</string>
-    <string name="settings_privacy">Privacy: FotoFesta TV has no ads or analytics. USB photos are never copied. Photos chosen from Google are downloaded to private app storage so their links don’t expire, and are deleted with “Disconnect and delete”.</string>
+    <string name="settings_privacy">Privacy: FotoFesta TV has no ads and sends nothing to the developer. USB photos are never copied. Photos chosen from Google are downloaded to private app storage so their links don’t expire, and are deleted with “Disconnect and delete”.</string>
     <string name="settings_ken_burns">Slow pan and zoom</string>
     <string name="settings_ken_burns_body">Gently zooms and pans each photo while it is on screen.</string>
     <string name="settings_sleep_timer">Sleep timer</string>

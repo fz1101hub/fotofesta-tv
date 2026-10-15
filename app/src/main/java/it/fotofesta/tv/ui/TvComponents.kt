@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import it.fotofesta.tv.R
 
@@ -85,6 +86,33 @@ fun TvButton(
     }
 }
 
+/** Pulsante con la sola icona, per comandi ovvi come precedente e successiva. [label] è letto da TalkBack. */
+@Composable
+fun TvIconButton(
+    label: String,
+    onClick: () -> Unit,
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+) {
+    var focused by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(if (focused) 1.08f else 1f, label = "focus")
+    Button(
+        onClick = onClick,
+        modifier = modifier
+            .scale(scale)
+            .onFocusChanged { focused = it.isFocused },
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(if (focused) 3.dp else 1.dp, if (focused) Amber else Color.Transparent),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (focused) Color(0xFF2B3859) else SurfaceBlue,
+            contentColor = TextPrimary,
+        ),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.dp, vertical = 15.dp),
+    ) {
+        Icon(icon, contentDescription = label, modifier = Modifier.size(26.dp))
+    }
+}
+
 @Composable
 fun SourceCard(
     title: String,
@@ -114,14 +142,14 @@ fun SourceCard(
         Column(
             Modifier.fillMaxWidth().background(
                 Brush.linearGradient(listOf(accent.copy(alpha = .34f), SurfaceBlue, NavySoft))
-            ).padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            ).padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Surface(color = accent.copy(alpha = .18f), shape = RoundedCornerShape(14.dp)) {
                 Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.padding(12.dp).size(34.dp))
             }
-            Text(title, style = MaterialTheme.typography.titleLarge)
-            Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+            Text(title, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = TextSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -129,7 +157,7 @@ fun SourceCard(
 @Composable
 fun AppHeader(sourceLabel: String, castConnected: Boolean) {
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 42.dp, vertical = 22.dp),
+        Modifier.fillMaxWidth().padding(horizontal = 48.dp, vertical = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Surface(shape = RoundedCornerShape(14.dp), color = Coral.copy(alpha = .16f)) {

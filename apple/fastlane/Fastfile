@@ -2,6 +2,8 @@
 # Prerequisiti: Mac con Xcode, XcodeGen, app creata in App Store Connect con bundle it.fotofesta.tv,
 # chiave API App Store Connect (.p8) indicata da ASC_KEY_ID, ASC_ISSUER_ID e ASC_KEY_PATH.
 # Eseguire dalla cartella apple/:  fastlane tvos beta  |  fastlane tvos metadata  |  fastlane tvos release
+# L'account Google di test per la revisione non sta nel repository: si passa con le variabili
+# REVIEW_DEMO_USER e REVIEW_DEMO_PASSWORD (facoltative, l'app funziona anche senza account).
 
 default_platform(:tvos)
 
@@ -12,6 +14,18 @@ platform :tvos do
       issuer_id: ENV.fetch("ASC_ISSUER_ID"),
       key_filepath: ENV.fetch("ASC_KEY_PATH"),
     )
+  end
+
+  # Si ferma prima di caricare testi con segnaposto ("[da completare]", "EXAMPLE", "[Titolare]").
+  def check_metadata
+    pending = Dir.glob("metadata/**/*.txt").select do |path|
+      File.read(path).match?(/\[da completare\]|EXAMPLE|\[Titolare\]/)
+    end
+    UI.user_error!("Completa questi file prima di caricare la scheda: #{pending.join(", ")}") unless pending.empty?
+  end
+
+  def review_information
+    { demo_user: ENV["REVIEW_DEMO_USER"], demo_password: ENV["REVIEW_DEMO_PASSWORD"] }.compact
   end
 
   def build
@@ -41,8 +55,10 @@ platform :tvos do
 
   desc "Aggiorna testi della scheda App Store da fastlane/metadata (gli screenshot vanno aggiunti a parte)"
   lane :metadata do
+    check_metadata
     upload_to_app_store(
       api_key: api_key,
+      app_review_information: review_information,
       platform: "appletvos",
       skip_binary_upload: true,
       skip_screenshots: true,
@@ -53,10 +69,12 @@ platform :tvos do
 
   desc "Carica build e scheda e prepara la versione per la revisione (l'invio resta manuale)"
   lane :release do
+    check_metadata
     test
     build
     upload_to_app_store(
       api_key: api_key,
+      app_review_information: review_information,
       platform: "appletvos",
       submit_for_review: false,
       force: true,

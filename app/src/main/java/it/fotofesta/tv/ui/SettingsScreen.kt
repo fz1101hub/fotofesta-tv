@@ -1,5 +1,6 @@
 package it.fotofesta.tv.ui
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -21,10 +23,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import it.fotofesta.tv.R
@@ -51,7 +58,7 @@ fun SettingsScreen(
     val openingFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { openingFocus.requestFocus() } }
     Column(
-        Modifier.fillMaxSize().padding(horizontal = 46.dp, vertical = 30.dp),
+        Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 30.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         Row(Modifier.fillMaxWidth()) {
@@ -148,12 +155,18 @@ fun SettingsScreen(
             SettingRow(stringResource(R.string.settings_google_data), stringResource(R.string.settings_google_data_body)) {
                 TvButton(stringResource(R.string.settings_google_disconnect), onDisconnectGoogle, icon = Icons.Rounded.DeleteOutline)
             }
+            // Focalizzabile per poterlo portare sullo schermo scorrendo con il telecomando; il bordo
+            // mostra dove si trova il fuoco.
+            var privacyFocused by remember { mutableStateOf(false) }
             Text(
                 stringResource(R.string.settings_privacy),
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextSecondary,
-                // Focalizzabile per poterlo portare sullo schermo scorrendo con il telecomando.
-                modifier = Modifier.padding(vertical = 8.dp).focusable(),
+                modifier = Modifier
+                    .border(2.dp, if (privacyFocused) Amber else Color.Transparent, RoundedCornerShape(12.dp))
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .onFocusChanged { privacyFocused = it.isFocused }
+                    .focusable(),
             )
         }
     }

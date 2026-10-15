@@ -22,6 +22,6 @@ FotoFesta TV turns your television into a digital photo frame for parties, famil
 Everything works with the remote's arrow keys, with a clearly visible focus, text readable from the couch and an option to reduce motion.
 
 <b>Privacy</b>
-No ads, no analytics and no developer server. Selected Google photos are kept in a private cache on the TV that you can delete at any time from Settings.
+No ads, no tracking by the app and no developer server. Selected Google photos are kept in a private cache on the TV that you can delete at any time from Settings.
 
 Google Photos doesn't let apps read your whole library: you choose the photos from your phone each time.

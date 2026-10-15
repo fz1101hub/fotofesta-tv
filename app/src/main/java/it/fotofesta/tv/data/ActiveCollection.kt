@@ -17,7 +17,9 @@ class ActiveCollection(private val context: Context) {
     suspend fun load(): List<PhotoItem> = withContext(Dispatchers.IO) {
         val settings = SettingsRepository(context)
         val photos = when (settings.loadLastSource()) {
+            // Fino all'apertura dell'app dopo un aggiornamento le foto possono essere ancora nella vecchia cache.
             "GOOGLE" -> GooglePhotosPickerRepository.cachedPhotos(context.noBackupFilesDir)
+                .ifEmpty { GooglePhotosPickerRepository.cachedPhotos(context.cacheDir) }
             "USB" -> settings.loadUsbTree()?.let { scanUsb(Uri.parse(it)) }.orEmpty()
             else -> emptyList()
         }

@@ -89,7 +89,7 @@
     <string name="settings_google_data">Dati Google Foto</string>
     <string name="settings_google_data_body">Rimuove token cifrati e cache privata delle foto dalla TV.</string>
     <string name="settings_google_disconnect">Disconnetti e cancella</string>
-    <string name="settings_privacy">Privacy: FotoFesta TV non contiene pubblicità o analytics. Le foto USB non vengono copiate. Le foto scelte da Google sono scaricate in un archivio privato dell’app per evitare la scadenza degli URL e vengono eliminate con ‘Disconnetti e cancella’.</string>
+    <string name="settings_privacy">Privacy: FotoFesta TV non contiene pubblicità e non invia nulla allo sviluppatore. Le foto USB non vengono copiate. Le foto scelte da Google sono scaricate in un archivio privato dell’app per evitare la scadenza degli URL e vengono eliminate con ‘Disconnetti e cancella’.</string>
     <string name="settings_ken_burns">Movimento lento</string>
     <string name="settings_ken_burns_body">Zoom e spostamento lenti su ogni foto mentre è sullo schermo.</string>
     <string name="settings_sleep_timer">Pausa automatica</string>

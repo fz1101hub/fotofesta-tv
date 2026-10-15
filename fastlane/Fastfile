@@ -14,7 +14,8 @@ platform :android do
       track: "internal",
       release_status: "draft",
       aab: AAB,
-      mapping: File.exist?(MAPPING) ? MAPPING : nil,
+      # Le lane girano dentro fastlane/, mentre i percorsi passati a supply partono dalla radice del progetto.
+      mapping: File.exist?(File.join("..", MAPPING)) ? MAPPING : nil,
       skip_upload_metadata: true,
       skip_upload_images: true,
       skip_upload_screenshots: true,

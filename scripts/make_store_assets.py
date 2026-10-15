@@ -48,6 +48,15 @@ def rounded_icon(size: int) -> Image.Image:
     return source
 
 
+def play_icon(size: int) -> Image.Image:
+    """Icona Google Play: quadrata e opaca, perché Play applica da sé la maschera con gli angoli arrotondati.
+    Gli angoli chiari del disegno sorgente vengono coperti con il blu dello sfondo."""
+    background = Image.new("RGB", (size, size), (1, 10, 47))
+    icon = rounded_icon(size)
+    background.paste(icon, (0, 0), icon)
+    return background
+
+
 def hero(size: tuple[int, int], tagline: str) -> Image.Image:
     """Foto demo sfocata a destra, sfumatura scura a sinistra con icona, nome e slogan."""
     width, height = size
@@ -149,7 +158,7 @@ def main() -> None:
     for locale, tagline in TAGLINES.items():
         images = ROOT / "fastlane/metadata/android" / locale / "images"
         images.mkdir(parents=True, exist_ok=True)
-        rounded_icon(512).save(images / "icon.png", optimize=True)
+        play_icon(512).save(images / "icon.png", optimize=True)
         hero((1024, 500), tagline).save(images / "featureGraphic.png", optimize=True)
         hero((1280, 720), tagline).save(images / "tvBanner.png", optimize=True)
 

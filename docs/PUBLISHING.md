@@ -7,21 +7,33 @@ Guida operativa, nell'ordine in cui conviene procedere. Le due app condividono i
 
 ## 0. Prima di tutto (vale per entrambi gli store)
 
-### Informativa privacy pubblica
+### Informativa privacy e pagina di supporto
 
-Entrambi gli store chiedono l'URL di un'informativa privacy.
+Entrambi gli store chiedono l'URL di un'informativa privacy. App Store chiede anche una pagina di supporto con un contatto, e Google la usa come home page nella verifica OAuth. Le due pagine sono pronte nella cartella `site/`:
+- `site/index.html`: pagina di supporto, con descrizione, domande frequenti e contatto;
+- `site/privacy/index.html`: informativa privacy in italiano e inglese.
 
-1. Completa i campi evidenziati in giallo in `docs/privacy/index.html`: titolare, indirizzo, email e data.
-2. Pubblicala con GitHub Pages: nel repository vai su **Settings › Pages**, scegli **Deploy from a branch**, branch `main` e cartella `/docs`.
-3. L'URL sarà `https://<utente>.github.io/fotofesta-tv/privacy/`.
-4. Scrivi lo stesso URL in `apple/fastlane/metadata/*/privacy_url.txt` e `support_url.txt`.
+1. Completa i campi evidenziati in giallo: titolare, indirizzo, email e data.
+2. Pubblica **solo** la cartella `site/`, scegliendo una di queste strade:
+   - **GitHub Pages**: richiede un repository pubblico oppure un piano GitHub a pagamento. In **Settings › Pages** scegli **Source: GitHub Actions**. Il workflow `.github/workflows/pages.yml` pubblica `site/` a ogni modifica su `main` e si ferma se trova campi ancora da completare. L'indirizzo sarà `https://<utente>.github.io/fotofesta-tv/`.
+   - **Un altro hosting statico gratuito**, come Cloudflare Pages o Netlify: carica il contenuto di `site/` così com'è.
+   - **Un tuo dominio**: copia i due file nel sito.
+3. Annota i due URL, ad esempio `https://<sito>/` per il supporto e `https://<sito>/privacy/` per l'informativa.
+4. Scrivili in `apple/fastlane/metadata/*/support_url.txt` e `privacy_url.txt`, al posto di `EXAMPLE`.
+5. In `apple/fastlane/metadata/copyright.txt` sostituisci `[Titolare]` con il tuo nome o quello della tua attività.
 
 ### Client OAuth Google (facoltativo, serve solo per Google Foto)
 
 Le due app funzionano anche senza Google Foto, con le foto demo (e su Android con le cartelle USB).
 
 1. In [Google Cloud Console](https://console.cloud.google.com/) abilita **Google Photos Picker API**.
-2. Configura la **OAuth consent screen**: nome dell'app, email di supporto, URL dell'informativa e utenti di test.
+2. Configura la **OAuth consent screen** (Google Auth Platform › Branding):
+   - nome dell'app ed email di supporto;
+   - **home page**: l'URL della pagina di supporto;
+   - URL dell'informativa privacy;
+   - utenti di test.
+
+   Aggiungi il dominio del sito tra i **domini autorizzati** e verificane la proprietà in [Google Search Console](https://search.google.com/search-console). Per un sito `*.github.io` serve la proprietà con prefisso URL `https://<utente>.github.io/fotofesta-tv/`.
 3. Crea un client OAuth di tipo **TVs and Limited Input devices**. Lo stesso client va bene per Android TV e Apple TV.
 4. Per uscire dalla modalità test (massimo 100 utenti di test), invia la verifica OAuth dell'app a Google. Indica lo scope `photospicker.mediaitems.readonly` e il video dimostrativo richiesto.
 5. Prepara un account Google di test autorizzato, da fornire ai revisori di entrambi gli store.
@@ -38,23 +50,26 @@ Le due app funzionano anche senza Google Foto, con le foto demo (e su Android co
    ```
    Conservala fuori dal repository, con il backup delle password.
 3. **Firma locale**: aggiungi a `local.properties` le chiavi `RELEASE_STORE_FILE`, `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD` e, se usi Google Foto, `PHOTOS_CLIENT_ID` e `PHOTOS_CLIENT_SECRET`.
-4. **Firma in CI**: crea in **Settings › Secrets and variables › Actions** i secret con gli stessi nomi, più `RELEASE_KEYSTORE_BASE64`, ottenuto con `base64 -w0 fotofesta-upload.jks`.
+4. **Firma in CI**: crea in **Settings › Secrets and variables › Actions** i secret con gli stessi nomi, più `RELEASE_KEYSTORE_BASE64`. Quest'ultimo si ottiene con `openssl base64 -A -in fotofesta-upload.jks`, che funziona sia su macOS sia su Linux.
 
 ### Generare l'AAB firmato
 
 Hai due modi:
 - **In locale**: `./scripts/build.sh`. Produce `dist/FotoFesta-TV-release.aab` ed esegue test e lint.
-- **Con GitHub Actions**: avvia **Actions › Android release › Run workflow** e scarica l'artefatto `FotoFesta-TV-release`, che contiene AAB e `mapping.txt`.
+- **Con GitHub Actions**: avvia **Actions › Android release › Run workflow** e scarica l'artefatto `FotoFesta-TV-release`, che contiene AAB e `mapping.txt`. Anche un tag `v*`, ad esempio `v1.2.0`, avvia il workflow, ma produce solo l'artefatto e non carica nulla su Play.
+
+La versione 1.2.0 non è ancora stata compilata con l'Android SDK. Alla prima build controlla che test e Lint passino; in caso di errori, correggili prima di caricare.
 
 ### Creare l'app in Play Console
 
-1. **Crea app**: nome "FotoFesta TV", lingua predefinita, tipo "App", gratuita.
+1. **Crea app**: nome "FotoFesta TV", lingua predefinita, tipo "App", gratuita. Indica l'**email di contatto** pubblica, obbligatoria, e se vuoi il sito della pagina di supporto (**Presenza nello store › Dettagli di contatto**).
 2. **Configura app**: compila le sezioni nell'ordine proposto.
    - **Accesso all'app**: tutte le funzioni sono disponibili senza login tramite "Prova subito". Per Google Foto fornisci l'account di test e la procedura dei due QR.
    - **Annunci**: no.
+   - **ID pubblicità**: no. Il manifest rimuove il permesso `AD_ID`.
    - **Classificazione dei contenuti**: questionario. Nessuna violenza, nessuna interazione tra utenti, nessun contenuto generato condiviso.
    - **Pubblico di destinazione**: 13+ oppure 18+. Scegliendo fasce di età più basse si applicano le norme Families.
-   - **Sicurezza dei dati**: usa le risposte di [DATA_SAFETY.md](DATA_SAFETY.md).
+   - **Sicurezza dei dati**: usa le risposte di [DATA_SAFETY.md](DATA_SAFETY.md). Il Cast SDK di Google raccoglie dati anonimi, quindi la risposta non è "nessun dato".
    - **Informativa privacy**: l'URL del punto 0.
 3. **Scheda dello store principale**:
    - Testi da `fastlane/metadata/android/<lingua>/`.
@@ -94,9 +109,12 @@ Serve solo se pubblichi anche un'app sender che comanda la TV. Registra il ricev
 
 ### Una volta sola
 
+> **Attenzione:** il codice dell'app Apple TV è stato scritto senza Xcode e non è ancora stato compilato. La prima volta servono un Mac e un po' di tempo per correggere eventuali errori di compilazione; vedi [apple/README.md](../apple/README.md#stato-di-verifica). Il workflow `.github/workflows/apple.yml` compila l'app e ne esegue i test su un runner macOS.
+
 1. **Strumenti**:
    - iscrizione all'[Apple Developer Program](https://developer.apple.com/programs/) (abbonamento annuale);
-   - un Mac con Xcode recente, con SDK tvOS 17 o successivo;
+   - un Mac con **Xcode 26 o successivo**: da aprile 2026 App Store Connect accetta solo build fatte con l'SDK tvOS 26;
+   - in Xcode, **Settings › Accounts**: accedi con l'Apple ID del Developer Program. Serve alla firma automatica usata da Xcode e da fastlane (`-allowProvisioningUpdates`);
    - `brew install xcodegen fastlane`.
 2. **Progetto**:
    ```bash
@@ -119,10 +137,17 @@ Serve solo se pubblichi anche un'app sender che comanda la TV. Registra il ricev
    - `cd apple && fastlane tvos beta`, che esegue i test, compila, firma e carica su TestFlight;
    - in Xcode: **Product › Archive › Distribute App › App Store Connect**.
 3. Prova la build con **TestFlight** su una Apple TV reale.
-4. Carica la scheda:
-   - testi: `fastlane tvos metadata`, che prende i dati da `apple/fastlane/metadata/`;
+4. Prepara le **Informazioni per la revisione** prima di caricare la scheda:
+   - in `apple/fastlane/metadata/review_information/` scrivi nome, cognome, telefono ed email di contatto al posto di `[da completare]`;
+   - l'account Google di test non va scritto nel repository. Passalo a fastlane con le variabili d'ambiente:
+     ```bash
+     export REVIEW_DEMO_USER="account-di-test@gmail.com"
+     export REVIEW_DEMO_PASSWORD="..."
+     ```
+     L'account è facoltativo, perché "Prova subito" funziona senza login, ma permette ai revisori di provare Google Foto.
+5. Carica la scheda:
+   - testi: `fastlane tvos metadata`, che prende i dati da `apple/fastlane/metadata/` e si ferma se trova ancora segnaposto (`[da completare]`, `EXAMPLE`, `[Titolare]`);
    - screenshot: 1920×1080 o 3840×2160, catturabili dal simulatore con **File › Save Screen**.
-5. Compila le **Informazioni per la revisione** partendo da `apple/fastlane/metadata/review_information/`. Inserisci l'account Google di test e i tuoi contatti.
 6. Invia per la revisione dalla pagina della versione.
 
 Note per la revisione Apple:

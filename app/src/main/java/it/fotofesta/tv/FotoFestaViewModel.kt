@@ -31,7 +31,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -49,11 +48,6 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private val musicPlayer = BackgroundMusicPlayer(context) {
         showMessage(context.getString(R.string.message_music_error))
     }
-    private val http = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
-        .callTimeout(90, TimeUnit.SECONDS)
-        .build()
     private val googleAuth = GoogleDeviceAuthRepository(
         client = http,
         tokens = SecureTokenStore(context),
@@ -69,6 +63,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private var googleJob: Job? = null
     private var usbJob: Job? = null
     private var restoreJob: Job? = null
+    private var housekeepingJob: Job? = null
     private var sleepJob: Job? = null
     private var sleepJobMinutes = 0
     private val savedMusic = settingsRepository.loadMusic()
@@ -81,7 +76,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             sourceLabel = context.getString(R.string.source_demo),
             settings = settingsRepository.load(),
             musicUri = savedMusic?.uri,
-            musicName = savedMusic?.name,
+            musicName = savedMusic?.let { saved -> saved.name.ifBlank { context.getString(R.string.music_default_name) } },
         )
     )
     val state = _state.asStateFlow()
@@ -91,15 +86,19 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         // Prima si ripristina l'ultima sorgente, poi si ascoltano i comandi Cast: un LOAD già in coda
         // (avvio tramite Cast Connect) annulla il ripristino invece di essere sovrascritto.
         val lastSource = settingsRepository.loadLastSource()
-        restoreJob = viewModelScope.launch {
-            val cached = withContext(Dispatchers.IO) {
-                // Riordino dell'archivio: foto delle versioni precedenti spostate dalla cache,
-                // cartelle temporanee di download interrotti eliminate.
-                googlePhotos.adoptFrom(legacyGooglePhotos)
-                googlePhotos.deleteLeftovers()
-                if (lastSource == "GOOGLE") googlePhotos.cachedPhotos() else emptyList()
+        // Riordino dell'archivio: foto delle versioni precedenti spostate dalla cache, cartelle
+        // temporanee di download interrotti eliminate. Non dipende dalla sorgente scelta, quindi
+        // cancelPendingSources() non lo interrompe; importazione e cancellazione lo aspettano.
+        housekeepingJob = viewModelScope.launch(Dispatchers.IO) {
+            googlePhotos.adoptFrom(legacyGooglePhotos)
+            googlePhotos.deleteLeftovers()
+        }
+        if (lastSource == "GOOGLE") {
+            restoreJob = viewModelScope.launch {
+                housekeepingJob?.join()
+                val cached = withContext(Dispatchers.IO) { googlePhotos.cachedPhotos() }
+                if (cached.isNotEmpty()) showPhotos(cached, googleLabel(cached.size))
             }
-            if (cached.isNotEmpty()) showPhotos(cached, googleLabel(cached.size))
         }
         if (lastSource == "USB") settingsRepository.loadUsbTree()?.let { stored -> loadUsb(Uri.parse(stored)) }
         viewModelScope.launch {
@@ -248,28 +247,47 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         googleJob = viewModelScope.launch {
             _state.update { it.copy(destination = Destination.GOOGLE_CONNECT, google = GoogleConnectState.Idle) }
             try {
-                val result = googleImport.run { step -> _state.update { it.copy(google = step) } }
-                // La chiusura della sessione Picker non è annullabile: se nel frattempo l'utente ha
-                // premuto Indietro, il risultato va scartato.
-                ensureActive()
-                settingsRepository.saveLastSource("GOOGLE")
-                showPhotos(result.photos, googleLabel(result.photos.size))
-                _state.update {
-                    it.copy(
-                        google = GoogleConnectState.Complete(result.photos.size),
-                        message = if (result.skipped > 0) {
-                            quantityString(R.plurals.message_google_skipped, result.skipped)
-                        } else {
-                            context.getString(R.string.message_google_ready)
-                        },
-                    )
-                }
+                housekeepingJob?.join()
+                // Le foto si mostrano appena salvate, senza aspettare la chiusura della sessione Picker:
+                // un Indietro premuto in quel momento non deve scartare un archivio già sostituito.
+                googleImport.run(
+                    onState = { step -> _state.update { it.copy(google = step) } },
+                    onImported = ::applyGoogleImport,
+                )
             } catch (cancelled: CancellationException) {
+                // Annullamento arrivato a scambio dell'archivio appena avvenuto: se sono mostrate foto
+                // Google, l'elenco deve seguire i file presenti su disco.
+                withContext(NonCancellable) { reloadShownGooglePhotos() }
                 throw cancelled
             } catch (failure: Exception) {
                 Log.w(TAG, "Collegamento Google non riuscito", failure)
                 _state.update { it.copy(google = GoogleConnectState.Error(failure.userMessage())) }
             }
+        }
+    }
+
+    private fun applyGoogleImport(result: GoogleImportFlow.Result) {
+        settingsRepository.saveLastSource("GOOGLE")
+        showPhotos(result.photos, googleLabel(result.photos.size))
+        _state.update {
+            it.copy(
+                google = GoogleConnectState.Complete(result.photos.size),
+                message = if (result.skipped > 0) {
+                    quantityString(R.plurals.message_google_skipped, result.skipped)
+                } else {
+                    context.getString(R.string.message_google_ready)
+                },
+            )
+        }
+    }
+
+    private suspend fun reloadShownGooglePhotos() {
+        val shown = _state.value.photos
+        if (shown.none { it.source == SourceType.GOOGLE_PHOTOS }) return
+        val cached = withContext(Dispatchers.IO) { googlePhotos.cachedPhotos() }
+        // Solo se nel frattempo non è cambiato nulla: un LOAD Cast o la scelta USB hanno la precedenza.
+        if (cached.isNotEmpty() && _state.value.photos === shown && cached.map { it.id } != shown.map { it.id }) {
+            showPhotos(cached, googleLabel(cached.size))
         }
     }
 
@@ -282,16 +300,26 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     fun disconnectGoogle() {
         // Solo le operazioni Google: un'eventuale scansione USB in corso non c'entra.
         restoreJob?.cancel()
-        googleJob?.cancel()
-        // Cancellazione dei file (anche migliaia di foto 4K) e revoca fuori dal thread principale,
-        // senza interruzioni se nel frattempo l'utente esce dall'app.
+        val pendingImport = googleJob
+        pendingImport?.cancel()
+        // Revoca e cancellazione dei file (anche migliaia di foto 4K) fuori dal thread principale e
+        // senza interruzioni se nel frattempo l'utente esce dall'app: il client HTTP è di processo.
         viewModelScope.launch {
             withContext(NonCancellable) {
-                withContext(Dispatchers.IO) {
+                // I token locali spariscono per primi, poi la revoca presso Google e, in parallelo, i file.
+                val files = launch(Dispatchers.IO) {
+                    housekeepingJob?.join()
                     googlePhotos.clearCache()
                     legacyGooglePhotos.clearCache()
+                    // Un download annullato a un passo dalla fine può aver appena salvato l'archivio.
+                    pendingImport?.join()
+                    googlePhotos.clearCache()
                 }
                 googleAuth.revokeAndDisconnect()
+                // Un'importazione annullata può aver rinnovato il token mentre si chiudeva: va cancellato.
+                pendingImport?.join()
+                withContext(Dispatchers.IO) { googleAuth.disconnect() }
+                files.join()
             }
         }
         val wasShowingGoogle = _state.value.photos.any { it.source == SourceType.GOOGLE_PHOTOS }
@@ -404,11 +432,18 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         usbJob?.cancel()
         sleepJob?.cancel()
         musicPlayer.release()
-        http.dispatcher.executorService.shutdown()
         super.onCleared()
     }
 
     private companion object {
         const val TAG = "FotoFestaViewModel"
+
+        // Unico per tutto il processo e mai chiuso: la revoca di "Disconnetti e cancella" deve poter
+        // terminare anche dopo la chiusura dell'Activity, e una nuova Activity riusa connessioni e thread.
+        val http: OkHttpClient = OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .callTimeout(90, TimeUnit.SECONDS)
+            .build()
     }
 }

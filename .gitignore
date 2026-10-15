@@ -37,3 +37,10 @@ apple/build/
 apple/fastlane/report.xml
 apple/FotoFestaCore/.build/
 apple/FotoFestaCore/.swiftpm/
+# Account di test per la revisione Apple: si passa con REVIEW_DEMO_USER e REVIEW_DEMO_PASSWORD
+apple/fastlane/metadata/review_information/demo_user.txt
+apple/fastlane/metadata/review_information/demo_password.txt
+
+# Bundler locale
+vendor/bundle/
+.bundle/

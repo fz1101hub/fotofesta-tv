@@ -25,7 +25,7 @@ const val MIN_GAME_PHOTOS = 2
 @Composable
 fun GamesScreen(photoCount: Int, onBack: () -> Unit, onMemory: () -> Unit, onMystery: () -> Unit) {
     val playable = photoCount >= MIN_GAME_PHOTOS
-    Column(Modifier.fillMaxSize().padding(46.dp), verticalArrangement = Arrangement.spacedBy(30.dp)) {
+    Column(Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 40.dp), verticalArrangement = Arrangement.spacedBy(30.dp)) {
         Row(Modifier.fillMaxWidth()) {
             SectionTitle(
                 stringResource(R.string.games_kicker),
@@ -71,7 +71,7 @@ fun GamesScreen(photoCount: Int, onBack: () -> Unit, onMemory: () -> Unit, onMys
 
 @Composable
 fun NotEnoughPhotos(title: String, onBack: () -> Unit) {
-    Column(Modifier.fillMaxSize().padding(46.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
+    Column(Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 40.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
         SectionTitle(
             title,
             stringResource(R.string.games_more_photos_title),

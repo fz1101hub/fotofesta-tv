@@ -1,0 +1,61 @@
+name: Apple TV CI
+
+# Test del nucleo logico e compilazione dell'app tvOS senza firma, su un runner macOS.
+# Con un repository privato i minuti macOS sono a pagamento: in quel caso si può avviare a mano.
+
+on:
+  push:
+    branches: [main]
+    paths: ["apple/**", ".github/workflows/apple.yml"]
+  pull_request:
+    branches: [main]
+    paths: ["apple/**", ".github/workflows/apple.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: apple
+    steps:
+      - uses: actions/checkout@v4
+
+      # App Store Connect accetta solo build fatte con Xcode 26 o successivo.
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Strumenti
+        run: |
+          xcodebuild -version
+          brew install xcodegen
+
+      - name: Testi localizzati aggiornati
+        run: |
+          python3 scripts/strings.py
+          git diff --exit-code -- FotoFestaTV/Resources
+
+      - name: Test del nucleo (FotoFestaCore)
+        working-directory: apple/FotoFestaCore
+        run: swift test
+
+      - name: Progetto Xcode
+        run: xcodegen generate
+
+      - name: Compilazione tvOS senza firma
+        run: |
+          xcodebuild build \
+            -project FotoFestaTV.xcodeproj \
+            -scheme FotoFestaTV \
+            -configuration Release \
+            -destination "generic/platform=tvOS" \
+            CODE_SIGNING_ALLOWED=NO

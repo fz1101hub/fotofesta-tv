@@ -70,7 +70,7 @@ fun MemoryGameScreen(photos: List<PhotoItem>, onBack: () -> Unit) {
         round++
     }
 
-    Column(Modifier.fillMaxSize().padding(34.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+    Column(Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 27.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             SectionTitle(
                 stringResource(R.string.memory_kicker, moves),

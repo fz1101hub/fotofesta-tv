@@ -41,6 +41,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.google.android.gms.cast.tv.CastReceiverContext
 import it.fotofesta.tv.model.Destination
+import it.fotofesta.tv.model.GoogleConnectState
 import it.fotofesta.tv.ui.FotoFestaTheme
 import it.fotofesta.tv.ui.GamesScreen
 import it.fotofesta.tv.ui.GoogleConnectScreen
@@ -83,10 +84,13 @@ class MainActivity : ComponentActivity() {
                 BackHandler(enabled = state.destination != Destination.HOME, onBack = viewModel::back)
 
                 // Lo schermo resta acceso durante slideshow e giochi, ma uno slideshow in pausa
-                // (anche per la pausa automatica) lascia che la TV vada in standby.
+                // (anche per la pausa automatica) lascia che la TV vada in standby. Durante il
+                // collegamento a Google il QR e il codice devono restare visibili mentre si usa il telefono.
                 val keepScreenOn = when (state.destination) {
                     Destination.SLIDESHOW -> state.isPlaying
                     Destination.MEMORY, Destination.MYSTERY -> true
+                    Destination.GOOGLE_CONNECT ->
+                        state.google !is GoogleConnectState.Error && state.google !is GoogleConnectState.Complete
                     else -> false
                 }
                 DisposableEffect(keepScreenOn) {

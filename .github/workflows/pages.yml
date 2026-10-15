@@ -1,0 +1,45 @@
+name: Sito di supporto
+
+# Pubblica su GitHub Pages solo la cartella site/ (pagina di supporto e informativa privacy).
+# Attivazione: Settings > Pages > Source: GitHub Actions. Con un repository privato GitHub Pages
+# richiede un piano a pagamento; in alternativa si carica site/ su un altro hosting (docs/PUBLISHING.md).
+
+on:
+  push:
+    branches: [main]
+    paths: ["site/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Nessun segnaposto da completare
+        run: |
+          if grep -rn 'class="todo"' site/; then
+            echo "::error::Completa i campi evidenziati in site/ prima di pubblicare"
+            exit 1
+          fi
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

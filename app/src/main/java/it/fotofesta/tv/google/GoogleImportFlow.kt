@@ -13,8 +13,10 @@ import kotlinx.coroutines.withContext
  * Flusso completo di importazione da Google Foto: autorizzazione con codice e QR, sessione Picker,
  * attesa della selezione, download nella cache privata e chiusura della sessione.
  *
- * Gli stati intermedi da mostrare sulla TV vengono notificati con `onState`. La sessione Picker
- * viene eliminata anche in caso di errore o annullamento.
+ * Gli stati intermedi da mostrare sulla TV vengono notificati con `onState`. `onImported` riceve il
+ * risultato appena l'archivio è stato sostituito, prima della chiusura della sessione Picker, che può
+ * richiedere qualche secondo; da quel momento un annullamento non deve più scartarlo. La sessione
+ * Picker viene eliminata anche in caso di errore o annullamento.
  */
 class GoogleImportFlow(
     private val auth: GoogleDeviceAuthRepository,
@@ -22,7 +24,10 @@ class GoogleImportFlow(
 ) {
     data class Result(val photos: List<PhotoItem>, val skipped: Int)
 
-    suspend fun run(onState: (GoogleConnectState) -> Unit): Result {
+    suspend fun run(
+        onImported: (Result) -> Unit = {},
+        onState: (GoogleConnectState) -> Unit,
+    ): Result {
         var token = authorize(onState)
         val session = try {
             picker.createSession(token)
@@ -50,7 +55,9 @@ class GoogleImportFlow(
                 onState(GoogleConnectState.Downloading(done, total))
             }
             if (downloaded.isEmpty()) throw UserFacingException(R.string.error_google_download_failed)
-            return Result(downloaded, skipped = picked.size - downloaded.size)
+            val result = Result(downloaded, skipped = picked.size - downloaded.size)
+            onImported(result)
+            return result
         } finally {
             withContext(NonCancellable) { picker.deleteSession(tokens, session.id) }
         }

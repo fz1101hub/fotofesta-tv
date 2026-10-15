@@ -37,7 +37,7 @@ fun GoogleConnectScreen(
     onRetry: () -> Unit,
     onPlay: () -> Unit,
 ) {
-    Column(Modifier.fillMaxSize().padding(46.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
+    Column(Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 40.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             SectionTitle(
                 stringResource(R.string.google_kicker),

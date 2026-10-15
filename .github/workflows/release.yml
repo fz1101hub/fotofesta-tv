@@ -54,8 +54,11 @@ jobs:
           PHOTOS_CLIENT_SECRET: ${{ secrets.PHOTOS_CLIENT_SECRET }}
         run: ./gradlew --no-daemon testReleaseUnitTest lintRelease bundleRelease
 
+      # jarsigner -verify termina con 0 anche su un file non firmato: si controlla il testo.
       - name: Verifica firma
-        run: jarsigner -verify app/build/outputs/bundle/release/app-release.aab
+        run: |
+          jarsigner -verify app/build/outputs/bundle/release/app-release.aab | tee "$RUNNER_TEMP/verify.txt"
+          grep -q "jar verified." "$RUNNER_TEMP/verify.txt"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -64,6 +67,13 @@ jobs:
             app/build/outputs/bundle/release/app-release.aab
             app/build/outputs/mapping/release/mapping.txt
 
+      - uses: ruby/setup-ruby@v1
+        if: ${{ inputs.upload }}
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      # Solo dall'avvio manuale con "Carica su Google Play": i tag v* producono soltanto l'artefatto.
       - name: Upload su Google Play
         if: ${{ inputs.upload }}
         env:
@@ -74,5 +84,4 @@ jobs:
             exit 1
           fi
           printf '%s' "$PLAY_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/play.json"
-          gem install fastlane --no-document
-          PLAY_JSON_KEY_FILE="$RUNNER_TEMP/play.json" fastlane android internal
+          PLAY_JSON_KEY_FILE="$RUNNER_TEMP/play.json" bundle exec fastlane android internal

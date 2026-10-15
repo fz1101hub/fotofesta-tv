@@ -1,6 +1,5 @@
 package it.fotofesta.tv.ui
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,7 +15,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImagePainter
@@ -44,26 +42,20 @@ fun PhotoContent(
     contentDescription: String? = photo.title,
 ) {
     val scale = if (fitMode == FitMode.CROP) ContentScale.Crop else ContentScale.Fit
-    when (val ref = photo.ref) {
-        is PhotoRef.Resource -> Image(
-            painter = painterResource(ref.drawable),
-            contentDescription = contentDescription,
-            contentScale = scale,
-            modifier = modifier,
-        )
-        else -> SubcomposeAsyncImage(
-            model = ref.coilModel(),
-            contentDescription = contentDescription,
-            contentScale = scale,
-            modifier = modifier,
-        ) {
-            when (painter.state) {
-                is AsyncImagePainter.State.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-                is AsyncImagePainter.State.Error -> UnavailablePhoto()
-                else -> SubcomposeAsyncImageContent()
+    // Anche le foto demo passano da Coil: decodifica fuori dal thread principale e ridotta alla
+    // dimensione mostrata (una 2560×1440 intera occuperebbe 15 MB per ogni carta del Memory).
+    SubcomposeAsyncImage(
+        model = photo.ref.coilModel(),
+        contentDescription = contentDescription,
+        contentScale = scale,
+        modifier = modifier,
+    ) {
+        when (painter.state) {
+            is AsyncImagePainter.State.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
             }
+            is AsyncImagePainter.State.Error -> UnavailablePhoto()
+            else -> SubcomposeAsyncImageContent()
         }
     }
 }

@@ -2,6 +2,7 @@ package it.fotofesta.tv.data
 
 import android.content.Context
 import android.net.Uri
+import android.os.Build
 import android.provider.DocumentsContract
 import android.provider.DocumentsContract.Document
 import it.fotofesta.tv.model.PhotoItem
@@ -59,10 +60,14 @@ class UsbPhotoRepository(private val context: Context) {
     private companion object {
         val PROJECTION = arrayOf(Document.COLUMN_DOCUMENT_ID, Document.COLUMN_DISPLAY_NAME, Document.COLUMN_MIME_TYPE)
 
-        /** Formati decodificabili da Android; RAW, TIFF e PSD apparirebbero come foto vuote. */
-        val SUPPORTED_IMAGE_TYPES = setOf(
-            "image/jpeg", "image/jpg", "image/pjpeg", "image/png", "image/webp", "image/gif",
-            "image/bmp", "image/x-ms-bmp", "image/heic", "image/heif", "image/avif",
-        )
+        /**
+         * Formati decodificabili da questa versione di Android; RAW, TIFF e PSD apparirebbero come foto
+         * vuote. HEIC/HEIF si decodificano da Android 9, AVIF da Android 12.
+         */
+        val SUPPORTED_IMAGE_TYPES = buildSet {
+            addAll(listOf("image/jpeg", "image/jpg", "image/pjpeg", "image/png", "image/webp", "image/gif", "image/bmp", "image/x-ms-bmp"))
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) addAll(listOf("image/heic", "image/heif"))
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) add("image/avif")
+        }
     }
 }

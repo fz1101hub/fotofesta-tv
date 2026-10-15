@@ -119,4 +119,20 @@ class GoogleImportFlowTest {
         assertEquals(listOf("ok.jpg"), result.photos.map { it.title })
         assertEquals(1, result.skipped)
     }
+
+    @Test
+    fun `import is delivered before the picker session is closed`() = runTest {
+        tokens.accessToken = "ok"
+        tokens.expiresAtEpochSeconds = now / 1_000 + 3_000
+        pickerSessionReady()
+        server.enqueue("GET", "/v1/mediaItems", json("""{"mediaItems":[${mediaItem("p1")}]}"""))
+        server.enqueue("GET", "/media/p1=w3840-h2160", MockResponse().setBody("1"))
+        var deletionsWhenImported = -1
+
+        val result = flow().run(onImported = { deletionsWhenImported = server.requestsTo("DELETE", "/v1/sessions/s1").size }) { }
+
+        assertEquals(0, deletionsWhenImported)
+        assertEquals(listOf("p1.jpg"), result.photos.map { it.title })
+        assertEquals(1, server.requestsTo("DELETE", "/v1/sessions/s1").size)
+    }
 }

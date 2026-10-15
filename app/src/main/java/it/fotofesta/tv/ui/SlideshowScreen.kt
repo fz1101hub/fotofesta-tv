@@ -65,7 +65,6 @@ import it.fotofesta.tv.R
 import it.fotofesta.tv.model.AppState
 import it.fotofesta.tv.model.FitMode
 import it.fotofesta.tv.model.PhotoItem
-import it.fotofesta.tv.model.PhotoRef
 import it.fotofesta.tv.model.TransitionType
 import java.util.Date
 import kotlinx.coroutines.delay
@@ -200,15 +199,43 @@ fun SlideshowScreen(
             exit = fadeOut(tween(400)),
             modifier = Modifier.align(Alignment.BottomCenter),
         ) {
-            Box(
+            // Titolo e dettagli sopra, pulsanti sotto: anche in italiano, con etichette lunghe, la barra
+            // resta bassa e i testi non vanno mai a capo. Margini dentro l'area sicura delle TV (48 dp).
+            Column(
                 Modifier.fillMaxWidth().background(
                     Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .86f)))
-                ).padding(horizontal = 34.dp, vertical = 24.dp)
+                ).padding(start = 48.dp, end = 48.dp, top = 40.dp, bottom = 28.dp)
             ) {
+                Text(
+                    photo?.title.orEmpty(),
+                    style = MaterialTheme.typography.titleLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        stringResource(R.string.slideshow_info, state.currentIndex + 1, state.photos.size, state.settings.intervalSeconds, stringResource(state.settings.transition.labelRes)),
+                        modifier = Modifier.weight(1f, fill = false),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    state.sleepAtMillis?.let { sleepAt ->
+                        Spacer(Modifier.size(16.dp))
+                        Text(
+                            stringResource(R.string.slideshow_sleep_at, rememberTimeText(sleepAt)),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Amber,
+                            maxLines = 1,
+                        )
+                    }
+                }
+                Spacer(Modifier.size(14.dp))
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     TvButton(stringResource(R.string.action_back), onBack, icon = Icons.AutoMirrored.Rounded.ArrowBack)
                     Spacer(Modifier.size(12.dp))
-                    TvButton(stringResource(R.string.slideshow_previous), onPrevious, icon = Icons.Rounded.SkipPrevious)
+                    TvIconButton(stringResource(R.string.slideshow_previous), onPrevious, Icons.Rounded.SkipPrevious)
                     Spacer(Modifier.size(12.dp))
                     TvButton(
                         if (state.isPlaying) stringResource(R.string.slideshow_pause) else stringResource(R.string.slideshow_resume),
@@ -218,30 +245,8 @@ fun SlideshowScreen(
                         selected = state.isPlaying,
                     )
                     Spacer(Modifier.size(12.dp))
-                    TvButton(stringResource(R.string.slideshow_next), onNext, icon = Icons.Rounded.SkipNext)
-                    Spacer(Modifier.size(18.dp))
-                    // Il titolo prende solo lo spazio rimasto: i pulsanti non vengono mai schiacciati.
-                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-                        Text(
-                            photo?.title.orEmpty(),
-                            style = MaterialTheme.typography.titleLarge,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            stringResource(R.string.slideshow_info, state.currentIndex + 1, state.photos.size, state.settings.intervalSeconds, stringResource(state.settings.transition.labelRes)),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = TextSecondary,
-                        )
-                        state.sleepAtMillis?.let { sleepAt ->
-                            Text(
-                                stringResource(R.string.slideshow_sleep_at, rememberTimeText(sleepAt)),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = Amber,
-                            )
-                        }
-                    }
-                    Spacer(Modifier.size(18.dp))
+                    TvIconButton(stringResource(R.string.slideshow_next), onNext, Icons.Rounded.SkipNext)
+                    Spacer(Modifier.weight(1f))
                     TvButton(stringResource(R.string.action_settings), onSettings, icon = Icons.Rounded.Settings)
                 }
             }
@@ -251,7 +256,7 @@ fun SlideshowScreen(
             Text(
                 rememberCurrentTime(),
                 modifier = Modifier.align(Alignment.TopEnd)
-                    .padding(32.dp)
+                    .padding(horizontal = 48.dp, vertical = 32.dp)
                     .background(Color.Black.copy(alpha = .5f), RoundedCornerShape(12.dp))
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 style = MaterialTheme.typography.titleLarge,
@@ -289,7 +294,7 @@ internal fun rememberCurrentTime(): String {
 private fun PrefetchPhoto(photo: PhotoItem?, fitMode: FitMode, viewport: IntSize) {
     val context = LocalContext.current
     LaunchedEffect(photo?.id, fitMode, viewport) {
-        if (photo == null || photo.ref is PhotoRef.Resource || viewport == IntSize.Zero) return@LaunchedEffect
+        if (photo == null || viewport == IntSize.Zero) return@LaunchedEffect
         context.imageLoader.enqueue(
             ImageRequest.Builder(context)
                 .data(photo.ref.coilModel())

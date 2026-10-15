@@ -2,7 +2,9 @@
 
 **FotoFesta TV** è un’app Android nativa per Android TV e Google TV che mostra fotografie in slideshow direttamente da una cartella USB oppure da una selezione sicura in Google Foto. Include durata regolabile, tre transizioni, adattamento immagine, ordine casuale, musica locale, controlli D-pad, Google Cast Connect e due minigiochi basati sulle fotografie attive.
 
-> **Stato del progetto:** MVP funzionale. L’APK debug (generato da `scripts/build.sh` o scaricabile dagli artefatti della CI GitHub) funziona subito con foto demo, USB, musica e giochi. Per Google Foto occorre inserire un proprio client OAuth; per ricevere sessioni Cast occorre registrare il ricevitore nella Google Cast SDK Developer Console.
+Il repository contiene anche la versione per **Apple TV** (cartella [`apple/`](apple/README.md)), scritta in Swift e SwiftUI, con le stesse funzioni tranne USB, musica, salvaschermo e Cast, che tvOS non consente.
+
+> **Stato del progetto:** versione 1.2.0 per Android TV e 1.0 per Apple TV, pronte per la prima pubblicazione dopo le verifiche indicate in [Verifica effettuata](#verifica-effettuata). L’app funziona subito con foto demo, USB, musica e giochi. Per Google Foto occorre inserire un proprio client OAuth; per ricevere sessioni Cast occorre registrare il ricevitore nella Google Cast SDK Developer Console. La procedura completa per Google Play e App Store è in [PUBLISHING.md](docs/PUBLISHING.md).
 
 ![Architettura di FotoFesta TV](docs/architecture.png)
 
@@ -23,9 +25,10 @@
 | Salvaschermo | Foto dell’ultima raccolta quando la TV è inattiva, con dissolvenza, movimento lento e orologio che cambia angolo | Pronta |
 | Giochi | Memory dei ricordi | Pronta |
 | Giochi | Foto misteriosa | Pronta |
-| Privacy | Nessuna pubblicità o analytics; token AES-GCM in Android Keystore | Pronta |
+| Privacy | Nessuna pubblicità né analisi proprie; token AES-GCM in Android Keystore. Il Cast SDK di Google invia a Google dati anonimi di utilizzo ([DATA_SAFETY.md](docs/DATA_SAFETY.md)) | Pronta |
 | Lingue | Italiano e inglese (predefinito per le altre lingue del televisore) | Pronta |
-| Google Play | Banner 320×180, icona 512×512, Leanback launcher, AAB | Pronta |
+| Google Play | Banner Leanback 320×180 nell’app; per la scheda icona 512×512, grafica 1024×500 e banner TV 1280×720; AAB firmato | Pronta |
+| Apple TV | App tvOS 17+ con icona a livelli, Top Shelf, italiano e inglese | Da compilare e provare su un Mac ([apple/README.md](apple/README.md)) |
 
 ## Scelta dell’approccio
 
@@ -56,11 +59,11 @@ L’APK debug è firmato con certificato di sviluppo. Per una distribuzione real
 ./scripts/build.sh
 ```
 
-La guida [CONFIGURATION.md](docs/CONFIGURATION.md) descrive Google Foto, Cast Connect e firma release. Il protocollo è specificato in [CAST_PROTOCOL.md](docs/CAST_PROTOCOL.md).
+La guida [CONFIGURATION.md](docs/CONFIGURATION.md) descrive Google Foto, Cast Connect e firma release. Il protocollo è specificato in [CAST_PROTOCOL.md](docs/CAST_PROTOCOL.md). Per pubblicare su Google Play e App Store segui [PUBLISHING.md](docs/PUBLISHING.md). L’app Apple TV si compila con Xcode come spiegato in [apple/README.md](apple/README.md).
 
 ## Architettura e flussi dati
 
-La lettura USB usa `ACTION_OPEN_DOCUMENT_TREE`, che concede accesso solo alla cartella scelta e alle sue sottocartelle.[3] Google Foto usa il nuovo Picker, perché dal 31 marzo 2025 la Library API non consente più a un’app di elencare l’intera libreria dell’utente.[1] L’utente seleziona esplicitamente le foto dal telefono; l’app scarica in modo automatico una copia temporanea nella propria cache privata, necessaria perché le `baseUrl` della Picker API scadono dopo circa 60 minuti.[2]
+La lettura USB usa `ACTION_OPEN_DOCUMENT_TREE`, che concede accesso solo alla cartella scelta e alle sue sottocartelle.[3] Google Foto usa il nuovo Picker, perché dal 31 marzo 2025 la Library API non consente più a un’app di elencare l’intera libreria dell’utente.[1] L’utente seleziona esplicitamente le foto dal telefono; l’app ne scarica una copia nel proprio archivio privato (escluso dal backup), necessaria perché le `baseUrl` della Picker API scadono dopo circa 60 minuti.[2]
 
 Il flusso OAuth usa il meccanismo Google per TV e dispositivi a input limitato: la TV mostra URL e codice e l’utente autorizza da un telefono.[8] Il solo scope richiesto è `photospicker.mediaitems.readonly`; una pubblicazione pubblica richiede la verifica OAuth di Google.[9]
 
@@ -68,13 +71,13 @@ Cast Connect segue il modello Sender/Receiver di Google Cast. Il ricevitore Andr
 
 ## Privacy e sicurezza
 
-L’app non integra pubblicità, analytics, crash reporting esterno o un backend proprietario. Gli URI USB rimangono sul televisore. I token Google sono cifrati con una chiave AES-GCM non esportabile conservata da Android Keystore. La cache Google Foto si trova nell’area privata dell’app e può essere cancellata dalla schermata impostazioni. Il traffico HTTP in chiaro è disabilitato e il protocollo Cast accetta soltanto URL HTTPS.
+L’app non integra pubblicità, analytics, crash reporting esterno o un backend proprietario. L’unico componente che invia dati è il Cast SDK di Google, che trasmette a Google dati anonimi di utilizzo e diagnostica: va dichiarato nella scheda Sicurezza dei dati come descritto in [DATA_SAFETY.md](docs/DATA_SAFETY.md). Gli URI USB e del brano musicale rimangono sul televisore e sono esclusi dal backup. I token Google sono cifrati con una chiave AES-GCM non esportabile conservata da Android Keystore. Le foto Google si trovano nell’area privata dell’app e si cancellano, insieme alla revoca dell’accesso, con “Disconnetti e cancella”. Il traffico HTTP in chiaro è disabilitato e il protocollo Cast accetta soltanto URL HTTPS. L’informativa privacy e la pagina di supporto da pubblicare sono in [`site/`](site/).
 
 Queste scelte applicano minimizzazione e privacy by design. Prima di una pubblicazione pubblica devono comunque essere completate l’informativa definitiva, la scheda Data Safety e la verifica OAuth in base al titolare effettivo e ai paesi di distribuzione.[7] [9]
 
 ## Compatibilità e qualità
 
-Il progetto usa `minSdk 26`, `targetSdk 35` e `compileSdk 35`. Il target supera il minimo richiesto per nuove app Android TV nel 2026.[6] Il manifest espone `LEANBACK_LAUNCHER`, dichiara il touchscreen non necessario e include un banner TV. I controlli principali sono utilizzabili con D-pad; nello slideshow i controlli si nascondono dopo 5 secondi, centro alterna play/pausa, sinistra/destra cambiano foto e su/giù mostrano la barra dei comandi, dove le frecce spostano il focus tra i pulsanti. La foto successiva viene precaricata per transizioni senza attese. Il pacchetto include ABI a 32 e 64 bit e ha superato il controllo `zipalign -P 16` per l’allineamento 16 KB.[5] [11]
+Il progetto usa `minSdk 26`, `targetSdk 35` e `compileSdk 35`. Il target supera il minimo richiesto per nuove app Android TV nel 2026.[6] Il manifest espone `LEANBACK_LAUNCHER`, dichiara il touchscreen non necessario e include un banner TV. I controlli principali sono utilizzabili con D-pad; nello slideshow i controlli si nascondono dopo 5 secondi, centro alterna play/pausa, sinistra/destra cambiano foto e su/giù mostrano la barra dei comandi, dove le frecce spostano il focus tra i pulsanti. La foto successiva viene precaricata per transizioni senza attese. Il pacchetto include ABI a 32 e 64 bit; la versione 1.0.0 ha superato il controllo `zipalign -P 16` per l’allineamento 16 KB, da ripetere sull’AAB di ogni release.[5] [11]
 
 L’architettura separa modello, repository e protocollo dall’interfaccia. Questo permette di riutilizzare il protocollo Cast e la logica di dominio per un futuro sender iOS senza compromettere il client Android TV.
 
@@ -91,19 +94,23 @@ Per tornare al salvaschermo predefinito basta scegliere un altro salvaschermo da
 
 ## Verifica effettuata
 
-Ogni push e ogni pull request verso `main` eseguono in GitHub Actions i 46 test unitari (protocollo Cast e validazione URL, ordine di riproduzione, movimento lento, ordinamento dei file, coerenza delle traduzioni e flusso Google Foto completo contro un server finto), Android Lint e la build dell’APK debug (`.github/workflows/android.yml`); l’APK e i report sono scaricabili come artefatti. Il rapporto di audit e le correzioni applicate sono descritti in [AUDIT.md](docs/AUDIT.md).
+**Android TV.** I 54 test unitari (protocollo Cast e validazione URL, ordine di riproduzione, movimento lento, ordinamento dei file, coerenza delle traduzioni e flusso Google Foto completo contro un server finto) passano con Kotlin 2.0.21 su JVM 17. In GitHub Actions ogni push su `main` e ogni pull request eseguono test, Android Lint e build dell’APK debug (`.github/workflows/android.yml`). Gli audit e le correzioni sono descritti in [AUDIT.md](docs/AUDIT.md).
 
-Risultati della validazione della versione 1.0.0 (vedi [VALIDATION.md](docs/VALIDATION.md)):
+La versione 1.2.0 è stata sviluppata in un ambiente senza Android SDK, quindi la build Gradle completa e Android Lint vanno eseguiti con `./scripts/build.sh` o con la CI prima del primo caricamento. Serve poi la prova manuale su una TV reale descritta in [VALIDATION.md](docs/VALIDATION.md) e in [PUBLISHING.md](docs/PUBLISHING.md#3-verifiche-finali-prima-di-inviare).
 
-| Controllo | Risultato |
+Risultati della validazione della versione 1.0.0, l’ultima compilata con l’SDK:
+
+| Controllo | Risultato 1.0.0 |
 | --- | --- |
 | Compilazione APK debug | Superata |
 | Compilazione AAB release con shrinking R8 | Superata |
-| Test unitari protocollo Cast | 5/5 superati |
+| Test unitari | 5/5 superati |
 | Android Lint | 0 problemi |
 | Firma APK debug | Verificata, schema v2 |
 | ABI | `armeabi-v7a`, `arm64-v8a`, `x86`, `x86_64` |
 | Allineamento 16 KB | Superato |
+
+**Apple TV.** Il codice Swift non è ancora stato compilato, perché l’ambiente di sviluppo non aveva Xcode. Il workflow `.github/workflows/apple.yml` esegue i test del nucleo e compila l’app su un runner macOS. In alternativa si seguono i passi di [apple/README.md](apple/README.md) su un Mac.
 
 ## Riferimenti
 

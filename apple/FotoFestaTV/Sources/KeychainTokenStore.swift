@@ -5,6 +5,16 @@ import Security
 /// Token Google nel Portachiavi: cifrati dal sistema e mai inclusi nei backup in chiaro.
 final class KeychainTokenStore: TokenStore {
     private let service = "it.fotofesta.tv.google"
+    private static let installMarker = "keychainOwnedByThisInstall"
+
+    /// Il Portachiavi sopravvive alla disinstallazione dell'app, UserDefaults no: al primo avvio dopo
+    /// una nuova installazione si eliminano i token rimasti da quella precedente.
+    init(defaults: UserDefaults = .standard) {
+        if !defaults.bool(forKey: Self.installMarker) {
+            clear()
+            defaults.set(true, forKey: Self.installMarker)
+        }
+    }
 
     var accessToken: String? {
         get { read("access") }

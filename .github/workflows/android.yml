@@ -1,9 +1,13 @@
 name: Android CI
 
+# Su main e sulle pull request verso main. I tag v* li gestisce release.yml.
 on:
   push:
+    branches: [main]
+    paths-ignore: ["apple/**", "site/**", "docs/**", "**.md"]
   pull_request:
     branches: [main]
+    paths-ignore: ["apple/**", "site/**", "docs/**", "**.md"]
   workflow_dispatch:
 
 permissions:

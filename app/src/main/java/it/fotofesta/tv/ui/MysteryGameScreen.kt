@@ -65,7 +65,7 @@ fun MysteryGameScreen(photos: List<PhotoItem>, onBack: () -> Unit) {
     // Dopo la risposta giusta le scelte si disattivano: il focus passa a "Nuova foto".
     LaunchedEffect(revealed) { if (revealed) runCatching { newPhotoFocus.requestFocus() } }
 
-    Column(Modifier.fillMaxSize().padding(34.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+    Column(Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 27.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             SectionTitle(
                 stringResource(R.string.games_mystery_title),

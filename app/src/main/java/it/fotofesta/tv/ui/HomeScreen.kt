@@ -1,6 +1,8 @@
 package it.fotofesta.tv.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,9 +52,12 @@ fun HomeScreen(
     ) {
         Column(Modifier.fillMaxSize()) {
             AppHeader(state.sourceLabel, state.castSenderConnected)
+            // Scorre solo se il testo della TV è impostato su "grande": il fuoco porta in vista l'ultima riga.
             Column(
-                Modifier.fillMaxSize().padding(horizontal = 46.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(26.dp),
+                Modifier.fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(start = 48.dp, end = 48.dp, top = 8.dp, bottom = 28.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
                 Row(verticalAlignment = Alignment.Bottom) {
                     SectionTitle(

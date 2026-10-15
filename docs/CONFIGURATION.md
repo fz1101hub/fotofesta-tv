@@ -4,7 +4,7 @@ Questa guida porta il progetto dalla build dimostrativa a una versione collegata
 
 ## 1. Prerequisiti locali
 
-Il progetto richiede JDK 17 e Android SDK. Lo script installa Platform 35/36 e i Build Tools necessari nella home dell’utente.
+Il progetto richiede JDK 17 e Android SDK. Lo script installa Platform 35 e i Build Tools necessari nella home dell’utente.
 
 ```bash
 cd /percorso/fotofesta-tv
@@ -106,13 +106,13 @@ Non aggiungere `.jks`, password o `local.properties` al repository. La soluzione
 | --- | --- |
 | Google Foto | Verifica OAuth completata e account di test fornito ai reviewer |
 | Cast | Receiver Application ID pubblicato; dispositivi e sender testati |
-| Privacy | Informativa definitiva su URL pubblico e Data Safety coerente |
+| Privacy | Informativa (`site/privacy/`) su URL pubblico e Data Safety coerente ([DATA_SAFETY.md](DATA_SAFETY.md)) |
 | Sicurezza | Nessun segreto server, token o keystore nel repository |
-| Store | AAB firmato, icona 512×512, banner TV 320×180 e screenshot reali |
+| Store | AAB firmato, icona 512×512, grafica 1024×500, banner TV 1280×720 e screenshot reali |
 | TV | Test D-pad, Back, standby/ripresa, rete assente, USB rimosso |
 | Accessibilità | Test TalkBack, ordine focus, contrasto e riduzione movimento |
 | Prestazioni | Prova con almeno 1.000 foto USB e spazio cache ridotto |
-| Supporto | Email di assistenza e procedura di cancellazione dati |
+| Supporto | Email di assistenza e pagina di supporto (`site/index.html`) pubblicate |
 
 ## Riferimenti
 

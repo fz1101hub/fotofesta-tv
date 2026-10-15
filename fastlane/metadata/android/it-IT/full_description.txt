@@ -22,6 +22,6 @@ FotoFesta TV trasforma il televisore in una cornice digitale per feste, cene in 
 Tutto si usa con le frecce del telecomando, con focus ben visibile, testi leggibili da lontano e un'opzione per ridurre le animazioni.
 
 <b>Privacy</b>
-Nessuna pubblicità, nessun sistema di analisi e nessun server dello sviluppatore. Le foto Google selezionate sono conservate in una cache privata sulla TV, cancellabile in qualsiasi momento dalle impostazioni.
+Nessuna pubblicità, nessun tracciamento da parte dell'app e nessun server dello sviluppatore. Le foto Google selezionate sono conservate in una cache privata sulla TV, cancellabile in qualsiasi momento dalle impostazioni.
 
 Google Foto non consente alle app di leggere tutta la libreria: le foto vanno scelte di volta in volta dal telefono.
