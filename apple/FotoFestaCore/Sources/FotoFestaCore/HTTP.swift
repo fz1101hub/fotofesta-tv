@@ -77,3 +77,17 @@ func parseProtoDuration(_ value: String?) -> TimeInterval? {
     guard let seconds = Double(text), seconds >= 0, seconds.isFinite else { return nil }
     return seconds
 }
+
+/// Istante RFC 3339 di Google (es. `2026-09-30T12:00:00.123456Z`); nil se assente o non valido.
+/// I decimali dei secondi si tolgono prima del parsing: il formattatore non ne accetta più di tre.
+func parseTimestamp(_ value: String?) -> Date? {
+    guard var text = value, !text.isEmpty else { return nil }
+    var fraction: TimeInterval = 0
+    if let dot = text.firstIndex(of: ".") {
+        let end = text[text.index(after: dot)...].firstIndex { !$0.isASCII || !$0.isNumber } ?? text.endIndex
+        fraction = Double("0" + text[dot..<end]) ?? 0
+        text.removeSubrange(dot..<end)
+    }
+    guard let date = ISO8601DateFormatter().date(from: text) else { return nil }
+    return date.addingTimeInterval(fraction)
+}

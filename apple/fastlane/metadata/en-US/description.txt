@@ -16,6 +16,6 @@ PHOTO GAMES
 • Mystery photo: guess the blurred picture
 
 PRIVACY
-No ads, no analytics and no developer server. Selected photos are downloaded only to your Apple TV, and “Disconnect and delete” removes them and revokes access.
+No ads, no analytics and no developer server. Selected photos are shown straight from Google Photos and never copied to your Apple TV, and “Disconnect and delete” revokes access.
 
 Google Photos doesn't let apps read your whole library: you choose the photos from your phone each time.

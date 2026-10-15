@@ -10,7 +10,8 @@ enum GoogleState: Equatable {
     case idle
     case working(ImportStep?)
     case failed(String)
-    case complete(Int)
+    /// `expiresAt`: fino a quando Google rende disponibili le foto scelte, se noto.
+    case complete(Int, expiresAt: Date?)
 }
 
 /// Stato dell'app Apple TV: raccolta attiva, impostazioni, riproduzione e collegamento Google Foto.
@@ -36,9 +37,7 @@ final class AppModel {
 
     private let defaults = UserDefaults.standard
     private let order = PlaybackOrder()
-    private let auth: GoogleDeviceAuth
-    private let picker: PhotosPicker
-    private let importFlow: GoogleImportFlow
+    private let google = GoogleServices.shared
     @ObservationIgnored private var googleTask: Task<Void, Never>?
     @ObservationIgnored private var cleanupTask: Task<Void, Never>?
     /// Identifica il collegamento in corso: i passi di un collegamento annullato vengono ignorati.
@@ -51,38 +50,34 @@ final class AppModel {
     private static let sourceKey = "lastSource"
 
     init() {
-        let http = URLSessionHTTPClient()
-        let info = Bundle.main.infoDictionary ?? [:]
-        auth = GoogleDeviceAuth(
-            http: http,
-            tokens: KeychainTokenStore(),
-            clientID: (info["PhotosClientID"] as? String) ?? "",
-            clientSecret: (info["PhotosClientSecret"] as? String) ?? ""
-        )
-        // Su tvOS la cartella Caches è l'unico spazio locale ampio; il sistema può svuotarla.
-        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-        picker = PhotosPicker(http: http, cacheRoot: caches)
-        importFlow = GoogleImportFlow(auth: auth, picker: picker)
         settings = (UserDefaults.standard.data(forKey: Self.settingsKey))
             .flatMap { try? JSONDecoder().decode(SlideshowSettings.self, from: $0) } ?? SlideshowSettings()
         var initialPhotos = Self.demoPhotos
         var initialLabel = L("source.demo")
         var initialMessage: String?
         if UserDefaults.standard.string(forKey: Self.sourceKey) == "google" {
-            let cached = picker.cachedPhotos()
-            if cached.isEmpty {
-                // tvOS ha liberato spazio cancellando la cache: si torna alle foto demo e lo si spiega.
-                UserDefaults.standard.set("demo", forKey: Self.sourceKey)
-                initialMessage = L("message.google_cache_purged")
+            if let selection = GoogleServices.shared.selections.current(), !selection.isExpired(at: Date()) {
+                initialPhotos = selection.photos
+                initialLabel = L("source.google", selection.items.count)
             } else {
-                initialPhotos = cached
-                initialLabel = L("source.google", cached.count)
+                // Selezione scaduta presso Google, o salvata da una versione che scaricava le foto.
+                UserDefaults.standard.set("demo", forKey: Self.sourceKey)
+                GoogleServices.shared.selections.clear()
+                initialMessage = L("error.google_selection_gone")
             }
         }
         photos = initialPhotos
         sourceLabel = initialLabel
         order.reset(count: initialPhotos.count, shuffle: settings.shuffle)
         if let initialMessage { showMessage(initialMessage) }
+        // Le versioni precedenti scaricavano le foto Google in Caches: ora si caricano da Google.
+        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        Task.detached(priority: .utility) { PhotosPicker.deleteLegacyDownloads(in: caches) }
+        Task { [weak self, google] in
+            await google.stream.setOnSelectionGone { [weak self] sessionID in
+                Task { @MainActor [weak self] in self?.handleSelectionGone(sessionID: sessionID) }
+            }
+        }
     }
 
     /// Modifica e salva le impostazioni, aggiornando ordine e pausa automatica se necessario.
@@ -109,7 +104,7 @@ final class AppModel {
 
     var upcomingPhoto: Photo? { order.peekNext(after: currentIndex).flatMap { photos.indices.contains($0) ? photos[$0] : nil } }
 
-    var isGoogleConfigured: Bool { auth.isConfigured }
+    var isGoogleConfigured: Bool { google.auth.isConfigured }
 
     /// Informativa privacy pubblicata (chiave PrivacyPolicyURL di Info.plist); nil finché resta il segnaposto.
     let privacyPolicyURL: String? = {
@@ -160,7 +155,7 @@ final class AppModel {
 
     func startGoogleConnect() {
         if path.last != .googleConnect { path.append(.googleConnect) }
-        guard auth.isConfigured else {
+        guard google.auth.isConfigured else {
             googleState = .failed(L("error.google_not_configured"))
             return
         }
@@ -170,63 +165,71 @@ final class AppModel {
         connectionID = connection
         // Una cancellazione ancora in corso ("Disconnetti e cancella") deve finire prima del nuovo collegamento.
         let cleanup = cleanupTask
-        googleTask = Task { [weak self, importFlow] in
+        googleTask = Task { [weak self, google] in
             await cleanup?.value
             if Task.isCancelled { return }
             do {
-                let result = try await importFlow.run { [weak self] step in
+                let result = try await google.importFlow.run { [weak self] step in
                     Task { @MainActor [weak self] in
                         self?.applyStep(step, connection: connection)
                     }
                 }
-                guard let self else { return }
-                guard !Task.isCancelled else {
-                    self.reloadShownGooglePhotos()
-                    return
-                }
-                self.defaults.set("google", forKey: Self.sourceKey)
-                self.show(result.photos, label: L("source.google", result.photos.count))
-                self.googleState = .complete(result.photos.count)
-                self.showMessage(result.skipped > 0 ? L("message.google_skipped", result.skipped) : L("message.google_ready"))
+                guard let self, !Task.isCancelled else { return }
+                await self.applyImport(result)
             } catch {
-                guard let self else { return }
-                guard !Task.isCancelled, !(error is CancellationError) else {
-                    self.reloadShownGooglePhotos()
-                    return
-                }
+                guard let self, !Task.isCancelled, !(error is CancellationError) else { return }
                 self.googleState = .failed(Self.describe(error))
             }
         }
     }
 
+    /// Salva la nuova selezione (solo identificativi e nomi) e la mostra; chiude la sessione precedente.
+    private func applyImport(_ result: GoogleImportFlow.Result) async {
+        let previous = google.selections.current()
+        google.selections.save(result.selection)
+        await google.stream.reset()
+        defaults.set("google", forKey: Self.sourceKey)
+        show(result.selection.photos, label: L("source.google", result.selection.items.count))
+        googleState = .complete(result.selection.items.count, expiresAt: result.selection.expiresAt)
+        showMessage(result.skipped > 0 ? L("message.google_skipped", result.skipped) : L("message.google_ready"))
+        if let previous, previous.sessionID != result.selection.sessionID {
+            let google = self.google
+            Task.detached {
+                await google.picker.deleteSession(token: { try await Self.requireToken(google.auth) }, sessionID: previous.sessionID)
+            }
+        }
+    }
+
+    private nonisolated static func requireToken(_ auth: GoogleDeviceAuth) async throws -> String {
+        guard let token = try await auth.validAccessToken() else { throw FotoFestaError.sessionExpired }
+        return token
+    }
+
     private func applyStep(_ step: ImportStep, connection: UUID) {
         // Dopo un annullamento lo stato non è più "working", o appartiene a un nuovo collegamento:
         // i passi del collegamento annullato vengono ignorati.
-        guard connection == connectionID, case let .working(current) = googleState else { return }
-        // I passi arrivano con Task separati, senza ordine garantito: il contatore non torna indietro.
-        if case let .downloading(done, _)? = current, case let .downloading(newDone, _) = step, newDone < done { return }
+        guard connection == connectionID, case .working = googleState else { return }
         googleState = .working(step)
     }
 
-    /// Un annullamento può arrivare quando l'archivio è già stato sostituito su disco: se sono mostrate
-    /// foto Google, l'elenco deve seguire i file presenti.
-    private func reloadShownGooglePhotos() {
-        guard photos.contains(where: { if case .file = $0.source { true } else { false } }) else { return }
-        let cached = picker.cachedPhotos()
-        guard !cached.isEmpty, cached.map(\.id) != photos.map(\.id) else { return }
-        show(cached, label: L("source.google", cached.count))
+    /// La sessione Picker è scaduta o non è più accessibile: le foto vanno scelte di nuovo.
+    private func handleSelectionGone(sessionID: String) {
+        guard google.selections.current()?.sessionID == sessionID else { return }
+        google.selections.clear()
+        if defaults.string(forKey: Self.sourceKey) == "google" { defaults.set("demo", forKey: Self.sourceKey) }
+        if showingGooglePhotos { show(Self.demoPhotos, label: L("source.demo")) }
+        showMessage(L("error.google_selection_gone"))
     }
 
-    /// tvOS può svuotare Caches mentre l'app è sospesa: al ritorno in primo piano si ricontrolla l'archivio.
-    func checkCachedPhotos() {
-        guard defaults.string(forKey: Self.sourceKey) == "google" else { return }
+    /// Al ritorno in primo piano si controlla che la selezione Google non sia scaduta nel frattempo.
+    func checkGoogleSelection() {
+        guard defaults.string(forKey: Self.sourceKey) == "google", let selection = google.selections.current() else { return }
         if case .working = googleState { return }
-        guard picker.cachedPhotos().isEmpty else { return }
-        defaults.set("demo", forKey: Self.sourceKey)
-        if photos.contains(where: { if case .file = $0.source { true } else { false } }) {
-            show(Self.demoPhotos, label: L("source.demo"))
-        }
-        showMessage(L("message.google_cache_purged"))
+        if selection.isExpired(at: Date()) { handleSelectionGone(sessionID: selection.sessionID) }
+    }
+
+    private var showingGooglePhotos: Bool {
+        photos.contains { if case .google = $0.source { true } else { false } }
     }
 
     func cancelGoogleConnect() {
@@ -237,25 +240,30 @@ final class AppModel {
     func disconnectGoogle() {
         let pendingImport = googleTask
         cancelGoogle()
-        let wasShowingGoogle = photos.contains { if case .file = $0.source { true } else { false } }
+        let wasShowingGoogle = showingGooglePhotos
         if wasShowingGoogle || defaults.string(forKey: Self.sourceKey) == "google" {
             defaults.set("demo", forKey: Self.sourceKey)
         }
         if wasShowingGoogle { show(Self.demoPhotos, label: L("source.demo")) }
         googleState = .idle
         showMessage(L("message.google_removed"))
+        // Sul dispositivo restano solo l'elenco delle foto e le immagini in memoria: spariscono subito.
+        let selection = google.selections.current()
+        google.selections.clear()
         let previousCleanup = cleanupTask
-        cleanupTask = Task.detached { [auth, picker] in
+        let google = self.google
+        cleanupTask = Task.detached {
+            await ImageLoader.shared.removeAll()
+            await google.stream.reset()
             await previousCleanup?.value
-            // I token locali spariscono per primi (poi la revoca presso Google); intanto si cancellano i file.
-            async let revoke: Void = auth.revokeAndDisconnect()
-            picker.clearCache()
-            // Un download annullato a un passo dalla fine può aver appena salvato l'archivio.
+            // La sessione si chiude finché il token è valido; subito dopo token cancellati e revocati.
+            if let selection {
+                await google.picker.deleteSession(token: { try await Self.requireToken(google.auth) }, sessionID: selection.sessionID)
+            }
+            await google.auth.revokeAndDisconnect()
+            // Un collegamento annullato può aver rinnovato il token mentre si chiudeva: va cancellato.
             await pendingImport?.value
-            picker.clearCache()
-            await revoke
-            // L'importazione annullata può aver rinnovato il token mentre chiudeva la sessione Picker.
-            await auth.disconnect()
+            await google.auth.disconnect()
         }
     }
 
@@ -307,8 +315,8 @@ final class AppModel {
             case .selectionExpired: return L("error.google_selection_expired")
             case .sessionExpired: return L("error.google_session_expired")
             case .nothingSelected: return L("error.google_nothing_selected")
-            case .downloadFailed: return L("error.google_download_failed")
-            case .cacheWrite: return L("error.cache_write")
+            case .selectionGone: return L("error.google_selection_gone")
+            case .photoUnavailable: return L("photo.unavailable")
             }
         case let error as HTTPStatusError:
             return error.serverMessage ?? L("error.google_http", error.code)

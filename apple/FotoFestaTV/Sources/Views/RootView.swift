@@ -36,7 +36,7 @@ struct RootView: View {
         }
         .animation(.easeInOut(duration: 0.3), value: model.message)
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { model.checkCachedPhotos() }
+            if phase == .active { model.checkGoogleSelection() }
         }
     }
 }

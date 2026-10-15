@@ -4,8 +4,8 @@ import Foundation
 public enum PhotoSource: Codable, Hashable, Sendable {
     /// Risorsa inclusa nell'app (nome del file con estensione nel bundle principale).
     case bundled(fileName: String)
-    /// File nella cache privata dell'app.
-    case file(path: String)
+    /// Foto di Google Foto caricata al momento da Google: sul dispositivo non ne resta una copia.
+    case google(mediaID: String)
 }
 
 public struct Photo: Identifiable, Hashable, Codable, Sendable {
@@ -78,6 +78,8 @@ public enum FotoFestaError: Error, Equatable, Sendable {
     case selectionExpired
     case sessionExpired
     case nothingSelected
-    case downloadFailed
-    case cacheWrite
+    /// La sessione Picker è scaduta o non è più accessibile: le foto vanno scelte di nuovo.
+    case selectionGone
+    /// La foto non è più nella selezione restituita da Google.
+    case photoUnavailable
 }

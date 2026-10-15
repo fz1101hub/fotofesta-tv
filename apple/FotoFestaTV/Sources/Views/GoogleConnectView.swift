@@ -76,15 +76,6 @@ struct GoogleConnectView: View {
                     cancelButton
                 }
             }
-        case let .working(.downloading(completed, total)?):
-            VStack(spacing: 24) {
-                Text(L("google.downloading")).font(.title2.bold())
-                Text(L("google.progress", completed, total)).font(.title3).foregroundStyle(Theme.amber)
-                ProgressView(value: Double(completed), total: Double(max(total, 1)))
-                    .frame(maxWidth: 900)
-                Text(L("google.cache_note")).font(.callout).foregroundStyle(Theme.secondaryText).multilineTextAlignment(.center)
-                cancelButton
-            }
         case let .failed(message):
             VStack(spacing: 24) {
                 Text(L("google.unavailable")).font(.title2.bold())
@@ -94,10 +85,16 @@ struct GoogleConnectView: View {
                     cancelButton
                 }
             }
-        case let .complete(count):
+        case let .complete(count, expiresAt):
             VStack(spacing: 24) {
                 Text(L("google.photos_ready", count)).font(.largeTitle.bold()).foregroundStyle(Theme.cyan)
                 Text(L("google.complete_body")).foregroundStyle(Theme.secondaryText).multilineTextAlignment(.center)
+                Text(L("google.streaming_note")).font(.callout).foregroundStyle(Theme.secondaryText).multilineTextAlignment(.center)
+                if let expiresAt {
+                    Text(L("google.available_until", expiresAt.formatted(date: .abbreviated, time: .shortened)))
+                        .font(.callout)
+                        .foregroundStyle(Theme.amber)
+                }
                 Button {
                     model.play()
                 } label: {

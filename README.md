@@ -34,7 +34,7 @@ Il repository contiene anche la versione per **Apple TV** (cartella [`apple/`](a
 
 | Approach | Tradeoffs | Cost | Setup Complexity |
 | --- | --- | --- | --- |
-| **App Android TV nativa, questo progetto** | Copre USB, D-pad, musica, giochi, cache privata e Cast Connect. Richiede configurazione OAuth e registrazione Cast per le rispettive funzioni. | Nessun costo operativo dell’app. Possono applicarsi i costi degli account sviluppatore Google Play e Cast. | Media |
+| **App Android TV nativa, questo progetto** | Copre USB, D-pad, musica, giochi, Google Foto senza copie sulla TV e Cast Connect. Richiede configurazione OAuth e registrazione Cast per le rispettive funzioni. | Nessun costo operativo dell’app. Possono applicarsi i costi degli account sviluppatore Google Play e Cast. | Media |
 | **Usare solo la Modalità Ambient di Google Foto** | È l’alternativa più leggera e non richiede sviluppo, ma non offre USB, musica personalizzata, transizioni complete, giochi o protocollo Cast dell’app. | Nessun costo dell’app personalizzata. | Bassa |
 | **Sender web/mobile con ricevitore Web Cast** | Funziona anche su Chromecast senza app Android TV installata, ma l’accesso USB locale e l’esperienza TV nativa sono più limitati. | Hosting HTTPS e registrazione Cast. | Medio-alta |
 
@@ -63,7 +63,7 @@ La guida [CONFIGURATION.md](docs/CONFIGURATION.md) descrive Google Foto, Cast Co
 
 ## Architettura e flussi dati
 
-La lettura USB usa `ACTION_OPEN_DOCUMENT_TREE`, che concede accesso solo alla cartella scelta e alle sue sottocartelle.[3] Google Foto usa il nuovo Picker, perché dal 31 marzo 2025 la Library API non consente più a un’app di elencare l’intera libreria dell’utente.[1] L’utente seleziona esplicitamente le foto dal telefono; l’app ne scarica una copia nel proprio archivio privato (escluso dal backup), necessaria perché le `baseUrl` della Picker API scadono dopo circa 60 minuti.[2]
+La lettura USB usa `ACTION_OPEN_DOCUMENT_TREE`, che concede accesso solo alla cartella scelta e alle sue sottocartelle.[3] Google Foto usa il nuovo Picker, perché dal 31 marzo 2025 la Library API non consente più a un’app di elencare l’intera libreria dell’utente.[1] L’utente seleziona esplicitamente le foto dal telefono. L’app non le scarica: conserva solo identificativi e nomi e carica ogni foto da Google alla dimensione dello schermo, tenendola soltanto in memoria. Le `baseUrl` della Picker API scadono dopo circa 60 minuti, quindi l’app le rinnova richiedendo di nuovo l’elenco della sessione, che resta valida circa una settimana.[2]
 
 Il flusso OAuth usa il meccanismo Google per TV e dispositivi a input limitato: la TV mostra URL e codice e l’utente autorizza da un telefono.[8] Il solo scope richiesto è `photospicker.mediaitems.readonly`; una pubblicazione pubblica richiede la verifica OAuth di Google.[9]
 
@@ -71,7 +71,7 @@ Cast Connect segue il modello Sender/Receiver di Google Cast. Il ricevitore Andr
 
 ## Privacy e sicurezza
 
-L’app non integra pubblicità, analytics, crash reporting esterno o un backend proprietario. L’unico componente che invia dati è il Cast SDK di Google, che trasmette a Google dati di utilizzo e diagnostica, compresi identificatori del dispositivo: va dichiarato nella scheda Sicurezza dei dati come descritto in [DATA_SAFETY.md](docs/DATA_SAFETY.md). Gli URI USB e del brano musicale rimangono sul televisore e sono esclusi dal backup. I token Google sono cifrati con una chiave AES-GCM non esportabile conservata da Android Keystore. Le foto Google si trovano nell’area privata dell’app e si cancellano, insieme alla revoca dell’accesso, con “Disconnetti e cancella”. Il traffico HTTP in chiaro è disabilitato e il protocollo Cast accetta soltanto URL HTTPS. L’informativa privacy e la pagina di supporto da pubblicare sono in [`site/`](site/).
+L’app non integra pubblicità, analytics, crash reporting esterno o un backend proprietario. L’unico componente che invia dati è il Cast SDK di Google, che trasmette a Google dati di utilizzo e diagnostica, compresi identificatori del dispositivo: va dichiarato nella scheda Sicurezza dei dati come descritto in [DATA_SAFETY.md](docs/DATA_SAFETY.md). Gli URI USB e del brano musicale rimangono sul televisore e sono esclusi dal backup. I token Google sono cifrati con una chiave AES-GCM non esportabile conservata da Android Keystore. Le foto Google non vengono copiate sulla TV; “Disconnetti e cancella” rimuove l’elenco delle foto scelte, chiude la sessione Picker e revoca l’accesso. Il traffico HTTP in chiaro è disabilitato e il protocollo Cast accetta soltanto URL HTTPS. L’informativa privacy e la pagina di supporto da pubblicare sono in [`site/`](site/).
 
 Queste scelte applicano minimizzazione e privacy by design. Prima di una pubblicazione pubblica devono comunque essere completate l’informativa definitiva, la scheda Data Safety e la verifica OAuth in base al titolare effettivo e ai paesi di distribuzione.[7] [9]
 
@@ -83,7 +83,7 @@ L’architettura separa modello, repository e protocollo dall’interfaccia. Que
 
 ## Limiti intenzionali della prima versione
 
-Google Foto non espone più l’intera libreria a un’app di terze parti: l’utente deve selezionare i contenuti per ogni nuova raccolta. La cache viene sostituita alla selezione successiva. Il progetto mostra immagini, non video. Il sottofondo musicale è un file locale scelto sulla TV e non viene inviato dal sender Cast. Il salvaschermo di sistema mostra l’ultima raccolta scelta nell’app (cache Google Foto, cartella USB o foto demo) usando durata, adattamento, movimento lento e orologio delle impostazioni. Alcuni produttori, tra cui le Google TV recenti, nascondono la scelta dei salvaschermi di terze parti; in quel caso si può attivare via `adb`:
+Google Foto non espone più l’intera libreria a un’app di terze parti: l’utente deve selezionare i contenuti per ogni nuova raccolta, e la selezione vale finché Google tiene aperta la sessione Picker (circa una settimana); poi le foto vanno scelte di nuovo. Per vederle serve la connessione a internet. Il progetto mostra immagini, non video. Il sottofondo musicale è un file locale scelto sulla TV e non viene inviato dal sender Cast. Il salvaschermo di sistema mostra l’ultima raccolta scelta nell’app (Google Foto, cartella USB o foto demo) usando durata, adattamento, movimento lento e orologio delle impostazioni. Alcuni produttori, tra cui le Google TV recenti, nascondono la scelta dei salvaschermi di terze parti; in quel caso si può attivare via `adb`:
 
 ```bash
 adb shell settings put secure screensaver_components it.fotofesta.tv/.dream.PhotoDreamService

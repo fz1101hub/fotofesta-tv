@@ -27,7 +27,7 @@ Tipi di dati attesi, tutti **raccolti, non condivisi, raccolta obbligatoria** (n
 
 Se la pagina di Google indica categorie diverse, vale quella. Se un giorno l'app non avrà più bisogno di Google Cast, togliendo le due dipendenze da `app/build.gradle.kts` (insieme a `cast/` e `CastReceiverOptionsProvider`) si potrà rispondere **No**.
 
-Foto e token non vanno dichiarati: restano sul dispositivo e non vengono trasmessi né allo sviluppatore né a terzi. Se il revisore chiede comunque di dichiarare le foto scaricate da Google Foto, la risposta coerente è: *Foto e video › Foto — raccolta, non condivisa, raccolta facoltativa, scopo Funzionalità dell'app*.
+Foto e token non vanno dichiarati: le foto passano da Google al dispositivo solo per essere mostrate, senza essere salvate, e nulla viene trasmesso allo sviluppatore o a terzi. Se il revisore chiede comunque di dichiarare le foto di Google Foto, la risposta coerente è: *Foto e video › Foto — raccolta, non condivisa, raccolta facoltativa, scopo Funzionalità dell'app*.
 
 ### Altre sezioni di Play Console
 
@@ -44,7 +44,7 @@ Foto e token non vanno dichiarati: restano sul dispositivo e non vengono trasmes
 | --- | --- |
 | Raccogli dati da questa app? | **No, non raccogliamo dati** |
 
-L'app per Apple TV non include Google Cast né SDK di terze parti. Apple considera raccolta la trasmissione di dati fuori dal dispositivo quando lo sviluppatore o i suoi partner possono accedervi più a lungo del tempo necessario a gestire la richiesta. Le foto scelte in Google Foto passano direttamente da Google al dispositivo e restano lì.
+L'app per Apple TV non include Google Cast né SDK di terze parti. Apple considera raccolta la trasmissione di dati fuori dal dispositivo quando lo sviluppatore o i suoi partner possono accedervi più a lungo del tempo necessario a gestire la richiesta. Le foto scelte in Google Foto passano direttamente da Google al dispositivo solo per essere mostrate, senza essere salvate.
 
 ## Informativa privacy
 

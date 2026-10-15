@@ -4,42 +4,84 @@ import SwiftUI
 import UIKit
 
 /// Decodifica le foto ridimensionate alla risoluzione dello schermo, fuori dal thread principale,
-/// con una piccola cache in memoria per la foto corrente e la successiva.
+/// con una piccola cache in memoria per la foto corrente e le successive. Le foto di Google Foto
+/// arrivano da Google già ridotte e non vengono mai salvate su disco (sessione di rete effimera).
 actor ImageLoader {
     static let shared = ImageLoader()
 
     private let cache = NSCache<NSString, UIImage>()
+    private let network: URLSession = {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.urlCache = nil
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        return URLSession(configuration: configuration)
+    }()
 
     init() {
-        cache.countLimit = 6
+        cache.countLimit = 8
+        cache.totalCostLimit = 160 * 1024 * 1024
     }
 
-    func image(for photo: Photo, maxPixelSize: Int) -> UIImage? {
+    func image(for photo: Photo, maxPixelSize: Int) async -> UIImage? {
         let key = "\(photo.id)#\(maxPixelSize)" as NSString
         if let cached = cache.object(forKey: key) { return cached }
-        guard let url = Self.url(for: photo.source),
-              let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+        let decoded: CGImage?
+        switch photo.source {
+        case let .bundled(fileName):
+            let name = (fileName as NSString).deletingPathExtension
+            let ext = (fileName as NSString).pathExtension
+            guard let url = Bundle.main.url(forResource: name, withExtension: ext),
+                  let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+            decoded = Self.thumbnail(source, maxPixelSize: maxPixelSize)
+        case let .google(mediaID):
+            guard let data = await googleData(mediaID: mediaID, maxPixelSize: maxPixelSize),
+                  let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+            decoded = Self.thumbnail(source, maxPixelSize: maxPixelSize)
+        }
+        guard let decoded else { return nil }
+        let image = UIImage(cgImage: decoded)
+        cache.setObject(image, forKey: key, cost: decoded.bytesPerRow * decoded.height)
+        return image
+    }
+
+    /// Svuota la cache in memoria (ad esempio dopo "Disconnetti e cancella").
+    func removeAll() {
+        cache.removeAllObjects()
+    }
+
+    /// Byte della foto ridotta da Google al lato massimo richiesto. Dopo un 401/403 rinnova una volta
+    /// indirizzo e token. Errori e selezione scaduta restituiscono nil (la scadenza la gestisce il modello).
+    private func googleData(mediaID: String, maxPixelSize: Int) async -> Data? {
+        let stream = GoogleServices.shared.stream
+        do {
+            var (data, status) = try await download(try await stream.access(mediaID: mediaID), maxPixelSize: maxPixelSize)
+            if status == 401 || status == 403 {
+                (data, status) = try await download(try await stream.access(mediaID: mediaID, stale: true), maxPixelSize: maxPixelSize)
+            }
+            return (200..<300).contains(status) && !data.isEmpty ? data : nil
+        } catch {
+            return nil
+        }
+    }
+
+    private func download(_ access: GooglePhotosStream.Access, maxPixelSize: Int) async throws -> (Data, Int) {
+        guard let url = PhotosPicker.sizedURL(base: access.baseURL, width: maxPixelSize, height: maxPixelSize, crop: false) else {
+            throw URLError(.badURL)
+        }
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(access.accessToken)", forHTTPHeaderField: "Authorization")
+        let (data, response) = try await network.data(for: request)
+        return (data, (response as? HTTPURLResponse)?.statusCode ?? 0)
+    }
+
+    private static func thumbnail(_ source: CGImageSource, maxPixelSize: Int) -> CGImage? {
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceCreateThumbnailWithTransform: true,
             kCGImageSourceShouldCacheImmediately: true,
             kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
         ]
-        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
-        let image = UIImage(cgImage: cgImage)
-        cache.setObject(image, forKey: key)
-        return image
-    }
-
-    private static func url(for source: PhotoSource) -> URL? {
-        switch source {
-        case let .bundled(fileName):
-            let name = (fileName as NSString).deletingPathExtension
-            let ext = (fileName as NSString).pathExtension
-            return Bundle.main.url(forResource: name, withExtension: ext)
-        case let .file(path):
-            return URL(fileURLWithPath: path)
-        }
+        return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
     }
 }
 

@@ -101,23 +101,9 @@ final class GoogleDeviceAuthTests: XCTestCase {
 
 final class PhotosPickerTests: XCTestCase {
     private let http = FakeHTTPClient()
-    private var root: URL!
 
-    override func setUpWithError() throws {
-        root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-    }
-
-    override func tearDownWithError() throws {
-        try? FileManager.default.removeItem(at: root)
-    }
-
-    private func makePicker(freeBytes: Int64? = nil) -> PhotosPicker {
-        PhotosPicker(http: http, cacheRoot: root, apiBase: apiBase, minimumFreeBytes: 100, freeBytes: { freeBytes }, sleep: { _ in })
-    }
-
-    private func media(_ id: String, _ name: String, mime: String = "image/jpeg") -> PhotosPicker.PickedMedia {
-        PhotosPicker.PickedMedia(id: id, filename: name, baseURL: "https://lh3.test/\(id)", mimeType: mime)
+    private func makePicker() -> PhotosPicker {
+        PhotosPicker(http: http, apiBase: apiBase, sleep: { _ in })
     }
 
     private let token: TokenProvider = { "tok" }
@@ -127,72 +113,54 @@ final class PhotosPickerTests: XCTestCase {
         http.enqueue(
             "GET", "/v1/sessions/s1",
             .json(#"{"id":"s1","pickerUri":"https://photos.google.com/picker/s1","mediaItemsSet":false}"#),
-            .json(#"{"id":"s1","pickerUri":"https://photos.google.com/picker/s1","mediaItemsSet":true}"#)
+            .json(#"{"id":"s1","pickerUri":"https://photos.google.com/picker/s1","mediaItemsSet":true,"expireTime":"2026-10-22T18:30:00.123456Z"}"#)
         )
         let picker = makePicker()
         let session = try await picker.createSession(token: "tok")
+        XCTAssertNil(session.expiresAt)
         let done = try await picker.awaitSelection(token: token, session: session)
         XCTAssertTrue(done.mediaItemsSet)
+        let expected = ISO8601DateFormatter().date(from: "2026-10-22T18:30:00Z")!.addingTimeInterval(0.123456)
+        XCTAssertEqual(done.expiresAt!.timeIntervalSince1970, expected.timeIntervalSince1970, accuracy: 0.001)
         XCTAssertEqual(http.requests("GET", "/v1/sessions/s1").count, 2)
         XCTAssertEqual(http.requests("POST", "/v1/sessions").first?.value(forHTTPHeaderField: "Authorization"), "Bearer tok")
     }
 
-    func testMediaListFollowsPagesEncodesTokensAndKeepsImages() async throws {
+    func testMediaListFollowsPagesEncodesTokensAndMarksPhotos() async throws {
         http.enqueue(
             "GET", "/v1/mediaItems",
             .json(#"{"mediaItems":[{"id":"a","mediaFile":{"baseUrl":"https://lh3/a","mimeType":"image/jpeg","filename":"Mare.jpg"}},{"id":"v","mediaFile":{"baseUrl":"https://lh3/v","mimeType":"video/mp4","filename":"V.mp4"}},{"id":"x","mediaFile":{"mimeType":"image/png","filename":"NoUrl.png"}}],"nextPageToken":"p+2/=&x"}"#),
             .json(#"{"mediaItems":[{"id":"b","mediaFile":{"baseUrl":"https://lh3/b","mimeType":"image/png","filename":"Monti.png"}}]}"#)
         )
         let picked = try await makePicker().listPickedMedia(token: token, sessionID: "s 1")
-        XCTAssertEqual(picked.map(\.id), ["a", "b"])
+        XCTAssertEqual(picked.map(\.id), ["a", "v", "b"])
+        XCTAssertEqual(picked.map(\.isPhoto), [true, false, true])
         let pages = http.requests("GET", "/v1/mediaItems")
         let second = URLComponents(url: pages[1].url!, resolvingAgainstBaseURL: false)!
         XCTAssertEqual(second.queryItems?.first { $0.name == "pageToken" }?.value, "p+2/=&x")
         XCTAssertTrue(second.percentEncodedQuery?.contains("p%2B2") ?? false)
     }
 
-    func testDownloadReplacesCacheAndSkipsUnavailablePhotos() async throws {
-        let picker = makePicker()
-        http.enqueue("GET", "/old=w3840-h2160", .bytes("old"))
-        _ = try await picker.download(token: token, items: [media("old", "Vecchia.jpg")]) { _, _ in }
+    func testSizedURLAsksGoogleToFitOrFill() {
+        XCTAssertEqual(PhotosPicker.sizedURL(base: "https://lh3/a", width: 1920, height: 1080, crop: false)?.absoluteString, "https://lh3/a=w1920-h1080")
+        XCTAssertEqual(PhotosPicker.sizedURL(base: "https://lh3/a", width: 400, height: 400, crop: true)?.absoluteString, "https://lh3/a=w400-h400-c")
+    }
 
-        http.enqueue("GET", "/1=w3840-h2160", .bytes("uno"))
-        http.enqueue("GET", "/2=w3840-h2160", .bytes("", status: 500))
-        http.enqueue("GET", "/3=w3840-h2160", .bytes("tre"))
-        let photos = try await picker.download(token: token, items: [media("1", "Uno.jpg"), media("2", "Due.jpg"), media("3", "Tre.png", mime: "image/png")]) { _, total in
-            XCTAssertEqual(total, 3)
+    func testPhotosDownloadedByOlderVersionsAreDeleted() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        for name in ["google_photos", "google_photos.staging-1", "google_photos.old-2", "other"] {
+            try FileManager.default.createDirectory(at: root.appendingPathComponent(name), withIntermediateDirectories: true)
         }
-
-        XCTAssertEqual(photos.map(\.title), ["Uno.jpg", "Tre.png"])
-        XCTAssertEqual(picker.cachedPhotos().map(\.title), ["Uno.jpg", "Tre.png"])
-        let contents = try FileManager.default.contentsOfDirectory(atPath: root.path)
-        XCTAssertEqual(contents, ["google_photos"])
+        PhotosPicker.deleteLegacyDownloads(in: root)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: root.path), ["other"])
     }
 
-    func testFailedDownloadKeepsPreviousCollection() async throws {
-        let picker = makePicker()
-        http.enqueue("GET", "/keep=w3840-h2160", .bytes("keep"))
-        _ = try await picker.download(token: token, items: [media("keep", "Tenuta.jpg")]) { _, _ in }
-        http.always("GET", "/broken=w3840-h2160", .bytes("", status: 403))
-
-        let photos = try await picker.download(token: token, items: [media("broken", "Rotta.jpg")]) { _, _ in }
-
-        XCTAssertTrue(photos.isEmpty)
-        XCTAssertEqual(picker.cachedPhotos().map(\.title), ["Tenuta.jpg"])
-    }
-
-    func testLowSpaceStopsDownloads() async throws {
-        let photos = try await makePicker(freeBytes: 10).download(token: token, items: [media("1", "Uno.jpg")]) { _, _ in }
-        XCTAssertTrue(photos.isEmpty)
-        XCTAssertTrue(http.requests.isEmpty)
-    }
-
-    func testManifestCannotPointOutsideCache() throws {
-        let directory = root.appendingPathComponent("google_photos", isDirectory: true)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        try Data("x".utf8).write(to: root.appendingPathComponent("secret.jpg"))
-        try Data(#"[{"id":"a","title":"Out","file":"../secret.jpg"}]"#.utf8).write(to: directory.appendingPathComponent("index.json"))
-        XCTAssertTrue(makePicker().cachedPhotos().isEmpty)
+    func testTimestampsFromGoogleAreParsed() {
+        XCTAssertEqual(parseTimestamp("1970-01-01T00:00:00Z"), Date(timeIntervalSince1970: 0))
+        XCTAssertEqual(parseTimestamp("1970-01-01T01:00:01+01:00"), Date(timeIntervalSince1970: 1))
+        XCTAssertNil(parseTimestamp(""))
+        XCTAssertNil(parseTimestamp("domani"))
     }
 }
 
@@ -200,50 +168,43 @@ final class GoogleImportFlowTests: XCTestCase {
     private let http = FakeHTTPClient()
     private let tokens = MemoryTokenStore()
     private let clock = TestClock()
-    private var root: URL!
-
-    override func setUpWithError() throws {
-        root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-    }
-
-    override func tearDownWithError() throws {
-        try? FileManager.default.removeItem(at: root)
-    }
 
     private func flow() -> GoogleImportFlow {
         let clock = self.clock
         let auth = GoogleDeviceAuth(http: http, tokens: tokens, clientID: "client", clientSecret: "secret", oauthBase: oauthBase, now: { clock.now }, sleep: { _ in })
-        let picker = PhotosPicker(http: http, cacheRoot: root, apiBase: apiBase, minimumFreeBytes: 0, freeBytes: { nil }, sleep: { _ in })
+        let picker = PhotosPicker(http: http, apiBase: apiBase, sleep: { _ in })
         return GoogleImportFlow(auth: auth, picker: picker)
     }
 
-    private func mediaItem(_ id: String) -> String {
-        #"{"id":"\#(id)","mediaFile":{"baseUrl":"https://lh3.test/\#(id)","mimeType":"image/jpeg","filename":"\#(id).jpg"}}"#
+    private func mediaItem(_ id: String, mime: String = "image/jpeg") -> String {
+        #"{"id":"\#(id)","mediaFile":{"baseUrl":"https://lh3.test/\#(id)","mimeType":"\#(mime)","filename":"\#(id).jpg"}}"#
     }
 
-    func testRevokedTokenRestartsAuthorizationAndImports() async throws {
+    func testRevokedTokenRestartsAuthorizationAndKeepsTheSession() async throws {
         tokens.accessToken = "revoked"
         tokens.expiresAt = clock.now.addingTimeInterval(3000)
         http.enqueue("POST", "/v1/sessions", .json(#"{"error":{"code":401,"message":"Invalid"}}"#, status: 401))
         http.enqueue("POST", "/device/code", .json(#"{"device_code":"d","user_code":"WXYZ","verification_url":"https://www.google.com/device","expires_in":600,"interval":1}"#))
         http.enqueue("POST", "/token", .json(#"{"access_token":"fresh","refresh_token":"r","expires_in":3600}"#))
-        http.enqueue("POST", "/v1/sessions", .json(#"{"id":"s1","pickerUri":"https://photos.google.com/picker/s1","mediaItemsSet":true}"#))
+        http.enqueue("POST", "/v1/sessions", .json(#"{"id":"s1","pickerUri":"https://photos.google.com/picker/s1","mediaItemsSet":true,"expireTime":"2027-01-15T08:00:00Z"}"#))
         http.always("DELETE", "/v1/sessions/s1", .json("{}"))
         http.enqueue("GET", "/v1/mediaItems", .json(#"{"mediaItems":[\#(mediaItem("p1")),\#(mediaItem("p2"))]}"#))
-        http.enqueue("GET", "/p1=w3840-h2160", .bytes("1"))
-        http.enqueue("GET", "/p2=w3840-h2160", .bytes("2"))
         let steps = StepRecorder()
 
         let result = try await flow().run { steps.append($0) }
 
-        XCTAssertEqual(result.photos.map(\.title), ["p1.jpg", "p2.jpg"])
+        XCTAssertEqual(result.selection.photos.map(\.title), ["p1.jpg", "p2.jpg"])
+        XCTAssertEqual(result.selection.photos.first?.source, .google(mediaID: "p1"))
+        XCTAssertEqual(result.selection.sessionID, "s1")
+        XCTAssertEqual(result.selection.expiresAt, ISO8601DateFormatter().date(from: "2027-01-15T08:00:00Z"))
         XCTAssertEqual(result.skipped, 0)
         XCTAssertTrue(tokens.cleared)
         XCTAssertEqual(steps.all.first, .waitingForAuthorization(verificationURL: "https://www.google.com/device", userCode: "WXYZ", expiresIn: 600))
-        XCTAssertTrue(steps.all.contains(.waitingForPhotos(pickerURI: "https://photos.google.com/picker/s1")))
+        XCTAssertEqual(steps.all.last, .waitingForPhotos(pickerURI: "https://photos.google.com/picker/s1"))
         XCTAssertEqual(http.requests("POST", "/v1/sessions").map { $0.value(forHTTPHeaderField: "Authorization") }, ["Bearer revoked", "Bearer fresh"])
-        XCTAssertEqual(http.requests("DELETE", "/v1/sessions/s1").count, 1)
+        // La sessione resta aperta per lo streaming e nessuna foto viene scaricata.
+        XCTAssertTrue(http.requests("DELETE", "/v1/sessions/s1").isEmpty)
+        XCTAssertTrue(http.requests("GET", "/p1").isEmpty)
     }
 
     func testTokenExpiringDuringSelectionIsRefreshed() async throws {
@@ -255,7 +216,6 @@ final class GoogleImportFlowTests: XCTestCase {
         http.always("DELETE", "/v1/sessions/s1", .json("{}"))
         http.enqueue("POST", "/token", .json(#"{"access_token":"new","expires_in":3600}"#))
         http.enqueue("GET", "/v1/mediaItems", .json(#"{"mediaItems":[\#(mediaItem("p1"))]}"#))
-        http.enqueue("GET", "/p1=w3840-h2160", .bytes("1"))
         let clock = self.clock
         // Mentre l'utente sceglie dal telefono passano dieci minuti: il token iniziale scade.
         http.onRequest = { request in
@@ -264,9 +224,21 @@ final class GoogleImportFlowTests: XCTestCase {
 
         let result = try await flow().run { _ in }
 
-        XCTAssertEqual(result.photos.count, 1)
+        XCTAssertEqual(result.selection.items.count, 1)
         XCTAssertEqual(http.requests("POST", "/v1/sessions").first?.value(forHTTPHeaderField: "Authorization"), "Bearer old")
         XCTAssertEqual(http.requests("GET", "/v1/mediaItems").first?.value(forHTTPHeaderField: "Authorization"), "Bearer new")
+    }
+
+    func testVideosAreSkippedAndCounted() async throws {
+        tokens.accessToken = "ok"
+        tokens.expiresAt = clock.now.addingTimeInterval(3000)
+        http.enqueue("POST", "/v1/sessions", .json(#"{"id":"s1","pickerUri":"https://p/s1","mediaItemsSet":true}"#))
+        http.enqueue("GET", "/v1/mediaItems", .json(#"{"mediaItems":[\#(mediaItem("ok")),\#(mediaItem("film", mime: "video/mp4"))]}"#))
+
+        let result = try await flow().run { _ in }
+
+        XCTAssertEqual(result.selection.items.map(\.id), ["ok"])
+        XCTAssertEqual(result.skipped, 1)
     }
 
     func testEmptySelectionIsReportedAndSessionDeleted() async {
@@ -274,7 +246,7 @@ final class GoogleImportFlowTests: XCTestCase {
         tokens.expiresAt = clock.now.addingTimeInterval(3000)
         http.enqueue("POST", "/v1/sessions", .json(#"{"id":"s1","pickerUri":"https://p/s1","mediaItemsSet":true}"#))
         http.always("DELETE", "/v1/sessions/s1", .json("{}"))
-        http.enqueue("GET", "/v1/mediaItems", .json(#"{"mediaItems":[]}"#))
+        http.enqueue("GET", "/v1/mediaItems", .json(#"{"mediaItems":[\#(mediaItem("film", mime: "video/mp4"))]}"#))
         do {
             _ = try await flow().run { _ in }
             XCTFail("expected an error")
@@ -282,6 +254,108 @@ final class GoogleImportFlowTests: XCTestCase {
             XCTAssertEqual(error as? FotoFestaError, .nothingSelected)
         }
         XCTAssertEqual(http.requests("DELETE", "/v1/sessions/s1").count, 1)
+    }
+}
+
+final class GooglePhotosStreamTests: XCTestCase {
+    private let http = FakeHTTPClient()
+    private let tokens = MemoryTokenStore()
+    private let clock = TestClock()
+    private var defaults: UserDefaults!
+    private var store: GoogleSelectionStore!
+
+    override func setUp() {
+        defaults = UserDefaults(suiteName: "stream-\(UUID().uuidString)")
+        store = GoogleSelectionStore(defaults: defaults)
+        tokens.accessToken = "tok"
+        tokens.refreshToken = "refresh"
+    }
+
+    private func makeStream() -> GooglePhotosStream {
+        let clock = self.clock
+        let auth = GoogleDeviceAuth(http: http, tokens: tokens, clientID: "client", clientSecret: "secret", oauthBase: oauthBase, now: { clock.now }, sleep: { _ in })
+        let picker = PhotosPicker(http: http, apiBase: apiBase, sleep: { _ in })
+        return GooglePhotosStream(picker: picker, auth: auth, selections: store, now: { clock.now })
+    }
+
+    private func select(_ ids: [String], expiresIn: TimeInterval? = 7 * 24 * 3600) {
+        tokens.expiresAt = clock.now.addingTimeInterval(3600)
+        store.save(GoogleSelection(sessionID: "s1", expiresAt: expiresIn.map { clock.now.addingTimeInterval($0) }, items: ids.map { .init(id: $0, filename: "\($0).jpg") }))
+    }
+
+    private func listing(_ suffix: String, _ ids: [String]) -> FakeHTTPClient.Reply {
+        let items = ids.map { #"{"id":"\#($0)","mediaFile":{"baseUrl":"https://lh3.test/\#($0)-\#(suffix)","mimeType":"image/jpeg","filename":"\#($0).jpg"}}"# }
+        return .json(#"{"mediaItems":[\#(items.joined(separator: ","))]}"#)
+    }
+
+    func testAddressesComeFromTheSessionAndAreReusedForFiftyMinutes() async throws {
+        select(["a", "b"])
+        http.enqueue("GET", "/v1/mediaItems", listing("1", ["a", "b"]), listing("2", ["a", "b"]))
+        let stream = makeStream()
+
+        let first = try await stream.access(mediaID: "a")
+        let second = try await stream.access(mediaID: "b")
+        clock.advance(49 * 60)
+        tokens.expiresAt = clock.now.addingTimeInterval(3600)
+        let stillCached = try await stream.access(mediaID: "a")
+        clock.advance(2 * 60)
+        tokens.expiresAt = clock.now.addingTimeInterval(3600)
+        let renewed = try await stream.access(mediaID: "a")
+
+        XCTAssertEqual(first, GooglePhotosStream.Access(baseURL: "https://lh3.test/a-1", accessToken: "tok"))
+        XCTAssertEqual(second.baseURL, "https://lh3.test/b-1")
+        XCTAssertEqual(stillCached.baseURL, "https://lh3.test/a-1")
+        XCTAssertEqual(renewed.baseURL, "https://lh3.test/a-2")
+        XCTAssertEqual(http.requests("GET", "/v1/mediaItems").count, 2)
+    }
+
+    func testStaleAddressRenewsTokenAndListing() async throws {
+        select(["a"])
+        http.enqueue("GET", "/v1/mediaItems", listing("1", ["a"]), listing("2", ["a"]))
+        http.enqueue("POST", "/token", .json(#"{"access_token":"tok2","expires_in":3600}"#))
+        let stream = makeStream()
+
+        _ = try await stream.access(mediaID: "a")
+        let renewed = try await stream.access(mediaID: "a", stale: true)
+
+        XCTAssertEqual(renewed, GooglePhotosStream.Access(baseURL: "https://lh3.test/a-2", accessToken: "tok2"))
+    }
+
+    func testExpiredSessionAsksToChooseAgain() async {
+        select(["a"])
+        http.enqueue("GET", "/v1/mediaItems", .json(#"{"error":{"code":404,"message":"Session not found"}}"#, status: 404))
+        let stream = makeStream()
+        let gone = StepRecorder()
+        await stream.setOnSelectionGone { _ in gone.append(.waitingForPhotos(pickerURI: "gone")) }
+
+        do {
+            _ = try await stream.access(mediaID: "a")
+            XCTFail("expected an error")
+        } catch {
+            XCTAssertEqual(error as? FotoFestaError, .selectionGone)
+        }
+        XCTAssertEqual(gone.all.count, 1)
+    }
+
+    func testSelectionPastItsExpiryIsNotRequested() async {
+        select(["a"], expiresIn: -1)
+        let stream = makeStream()
+        do {
+            _ = try await stream.access(mediaID: "a")
+            XCTFail("expected an error")
+        } catch {
+            XCTAssertEqual(error as? FotoFestaError, .selectionGone)
+        }
+        XCTAssertTrue(http.requests("GET", "/v1/mediaItems").isEmpty)
+    }
+
+    func testSelectionStoreRoundTripAndClear() {
+        let selection = GoogleSelection(sessionID: "s1", expiresAt: Date(timeIntervalSince1970: 1_234), items: [.init(id: "a", filename: "Mare.jpg")])
+        store.save(selection)
+        XCTAssertEqual(GoogleSelectionStore(defaults: defaults).current(), selection)
+        store.clear()
+        XCTAssertNil(GoogleSelectionStore(defaults: defaults).current())
+        XCTAssertNil(store.current())
     }
 }
 

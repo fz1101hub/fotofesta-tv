@@ -98,8 +98,9 @@ public actor GoogleDeviceAuth {
 
     /// Token valido, rinnovato se necessario. Con refresh token revocato cancella tutto e restituisce nil.
     /// Le chiamate concorrenti durante un rinnovo attendono lo stesso rinnovo (l'actor è rientrante).
-    public func validAccessToken() async throws -> String? {
-        if let token = tokens.accessToken, let expiresAt = tokens.expiresAt, expiresAt > now().addingTimeInterval(60) {
+    /// Con `forceRefresh` il token viene rinnovato anche se non è scaduto (ad esempio dopo un 401).
+    public func validAccessToken(forceRefresh: Bool = false) async throws -> String? {
+        if !forceRefresh, let token = tokens.accessToken, let expiresAt = tokens.expiresAt, expiresAt > now().addingTimeInterval(60) {
             return token
         }
         if let refreshing { return try await refreshing.value }

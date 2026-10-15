@@ -1,6 +1,6 @@
 # FotoFesta TV per Apple TV
 
-Versione tvOS dell'app, scritta in Swift e SwiftUI, pensata per l'App Store. Condivide con l'app Android il comportamento, il flusso Google Foto e il formato della cache.
+Versione tvOS dell'app, scritta in Swift e SwiftUI, pensata per l'App Store. Condivide con l'app Android il comportamento e il flusso Google Foto.
 
 ## Funzioni
 
@@ -17,7 +17,7 @@ Versione tvOS dell'app, scritta in Swift e SwiftUI, pensata per l'App Store. Con
 | Memory e Foto misteriosa | Sì | |
 | Italiano e inglese | Sì | `apple/scripts/strings.py` genera i file `.strings` |
 
-Su tvOS lo spazio locale ampio disponibile è la cartella **Caches**, che il sistema può svuotare quando l'app non è in uso. In quel caso l'app torna alle foto demo e invita a importare di nuovo le foto da Google Foto. I token restano nel Portachiavi. Il Portachiavi sopravvive alla disinstallazione: al primo avvio dopo una nuova installazione l'app cancella i token rimasti.
+Le foto di Google Foto non vengono copiate sulla Apple TV: si caricano da Google alla risoluzione richiesta, con una sessione di rete senza cache su disco, e restano solo in memoria. In UserDefaults resta un piccolo elenco con la sessione Picker e gli identificativi delle foto; quando Google fa scadere la sessione (circa una settimana) l'app torna alle foto demo e chiede di sceglierle di nuovo. I token restano nel Portachiavi, che sopravvive alla disinstallazione: al primo avvio dopo una nuova installazione l'app cancella i token rimasti.
 
 ## Struttura
 

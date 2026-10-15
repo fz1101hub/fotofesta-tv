@@ -133,6 +133,21 @@ Pubblicazione:
 
 Test unitari: 54, tutti superati con kotlinc 2.0.21. La build Gradle e Lint della 1.2.0 restano da eseguire con l'Android SDK, e l'app Apple TV da compilare con Xcode.
 
+## Google Foto in streaming
+
+Su richiesta, le foto di Google Foto non vengono più scaricate: le smart TV hanno poca memoria.
+
+- Sul dispositivo resta solo un piccolo elenco: sessione Picker, sua scadenza, identificativi e nomi delle foto. Su Android è un file JSON in `no_backup`, su Apple TV sta in UserDefaults.
+- Ogni foto si carica da Google già ridotta alla dimensione mostrata e resta solo nella cache in RAM. Su Android passa da un Fetcher Coil dedicato, su Apple TV da una sessione di rete effimera, senza cache su disco.
+- Gli indirizzi della Picker API valgono circa 60 minuti. L'app li rinnova richiedendo di nuovo l'elenco della sessione ogni 50 minuti, o subito dopo un 401/403. Le richieste parallele condividono un solo rinnovo.
+- La sessione resta aperta finché Google la tiene valida (`expireTime`, circa una settimana). Alla scadenza l'app torna alle foto demo e chiede di scegliere di nuovo le foto. La scadenza della sessione appena sostituita non tocca la selezione nuova.
+- “Disconnetti e cancella” cancella l'elenco, svuota la cache in RAM, chiude la sessione presso Google e revoca l'accesso.
+- All'avvio si eliminano le foto scaricate dalle versioni precedenti.
+- Il salvaschermo usa la stessa selezione, quindi richiede la connessione.
+- Su Android la cache su disco di Coil è limitata a 32 MB e contiene solo le foto inviate con Google Cast.
+
+Test JVM: 63, tutti superati, e la CI Android (build, test, Lint, APK) è verde. I test XCTest equivalenti sono stati aggiornati, ma vanno eseguiti su un Mac.
+
 ## Raccomandazioni aperte
 
 | Priorità | Raccomandazione |

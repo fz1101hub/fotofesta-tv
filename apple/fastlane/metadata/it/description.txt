@@ -16,6 +16,6 @@ GIOCHI CON LE FOTO
 • Foto misteriosa: indovina la foto sfocata
 
 PRIVACY
-Nessuna pubblicità, nessun sistema di analisi e nessun server dello sviluppatore. Le foto scelte sono scaricate solo sulla tua Apple TV e “Disconnetti e cancella” le elimina e revoca l'accesso.
+Nessuna pubblicità, nessun sistema di analisi e nessun server dello sviluppatore. Le foto scelte si vedono direttamente da Google Foto senza essere copiate sulla tua Apple TV, e “Disconnetti e cancella” revoca l'accesso.
 
 Google Foto non consente alle app di leggere tutta la libreria: le foto vanno scelte di volta in volta dal telefono.

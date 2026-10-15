@@ -3,18 +3,19 @@ import Foundation
 /// Fornisce un access token valido a ogni richiesta, rinnovandolo se sta per scadere.
 public typealias TokenProvider = @Sendable () async throws -> String
 
-/// Google Photos Picker API e archivio privato delle foto scelte (stessa logica dell'app Android).
-///
-/// Su tvOS la cartella Caches può essere svuotata dal sistema quando l'app non è in uso:
-/// `cachedPhotos()` restituisce solo i file ancora presenti e l'app propone di importarli di nuovo.
+/// Google Photos Picker API: sessioni di selezione ed elenco delle foto scelte (stessa logica
+/// dell'app Android). Le foto non vengono mai scaricate su disco: l'elenco fornisce indirizzi
+/// validi circa 60 minuti, che si rinnovano chiedendo di nuovo l'elenco finché la sessione è valida.
 public final class PhotosPicker: @unchecked Sendable {
     public struct Session: Equatable, Sendable {
         public let id: String
         public let pickerURI: String
         public let mediaItemsSet: Bool
         public let pollInterval: TimeInterval
-        /// Tempo residuo indicato da Google nell'ultima risposta.
+        /// Tempo residuo per scegliere le foto, indicato da Google nell'ultima risposta.
         public let timeout: TimeInterval?
+        /// Istante dopo il quale la sessione e le sue foto non sono più accessibili.
+        public let expiresAt: Date?
     }
 
     public struct PickedMedia: Equatable, Sendable {
@@ -22,42 +23,28 @@ public final class PhotosPicker: @unchecked Sendable {
         public let filename: String
         public let baseURL: String
         public let mimeType: String
+
+        public var isPhoto: Bool { mimeType.hasPrefix("image/") }
     }
 
     public static let defaultAPIBase = URL(string: "https://photospicker.googleapis.com/v1/")!
-    static let cacheFolder = "google_photos"
-    static let manifestName = "index.json"
-    private static let parallelDownloads = 4
+    /// Cartelle delle foto scaricate dalle versioni precedenti, che copiavano le immagini sul dispositivo.
+    static let legacyDownloadFolder = "google_photos"
     private static let defaultSessionTimeout: TimeInterval = 900
 
     private let http: HTTPClient
-    private let cacheRoot: URL
     private let apiBase: URL
-    private let minimumFreeBytes: Int64
-    private let freeBytes: @Sendable () -> Int64?
     private let sleep: @Sendable (TimeInterval) async throws -> Void
-    private let fileManager = FileManager.default
 
     public init(
         http: HTTPClient,
-        cacheRoot: URL,
         apiBase: URL = PhotosPicker.defaultAPIBase,
-        minimumFreeBytes: Int64 = 300 * 1024 * 1024,
-        freeBytes: (@Sendable () -> Int64?)? = nil,
         sleep: @escaping @Sendable (TimeInterval) async throws -> Void = { try await Task.sleep(nanoseconds: UInt64($0 * 1_000_000_000)) }
     ) {
         self.http = http
-        self.cacheRoot = cacheRoot
         self.apiBase = apiBase
-        self.minimumFreeBytes = minimumFreeBytes
-        self.freeBytes = freeBytes ?? {
-            let values = try? cacheRoot.resourceValues(forKeys: [.volumeAvailableCapacityKey])
-            return values?.volumeAvailableCapacity.map(Int64.init)
-        }
         self.sleep = sleep
     }
-
-    private var cacheDirectory: URL { cacheRoot.appendingPathComponent(Self.cacheFolder, isDirectory: true) }
 
     // MARK: - Sessione Picker
 
@@ -84,6 +71,7 @@ public final class PhotosPicker: @unchecked Sendable {
         return current
     }
 
+    /// Tutti gli elementi scelti (foto e video), con indirizzi validi circa 60 minuti.
     public func listPickedMedia(token: TokenProvider, sessionID: String) async throws -> [PickedMedia] {
         var output: [PickedMedia] = []
         var pageToken: String?
@@ -98,13 +86,13 @@ public final class PhotosPicker: @unchecked Sendable {
             let accessToken = try await token()
             let page = try await http.json(MediaItemsResponse.self, for: authorized(components.url!, token: accessToken))
             for item in page.mediaItems ?? [] {
-                guard let file = item.mediaFile, let mime = file.mimeType, mime.hasPrefix("image/"),
+                guard let id = item.id, !id.isEmpty, let file = item.mediaFile,
                       let baseURL = file.baseUrl, !baseURL.isEmpty else { continue }
                 output.append(PickedMedia(
-                    id: item.id.flatMap { $0.isEmpty ? nil : $0 } ?? "photo-\(output.count)",
+                    id: id,
                     filename: file.filename.flatMap { $0.isEmpty ? nil : $0 } ?? "Photo \(output.count + 1)",
                     baseURL: baseURL,
-                    mimeType: mime
+                    mimeType: file.mimeType ?? ""
                 ))
             }
             pageToken = page.nextPageToken.flatMap { $0.isEmpty ? nil : $0 }
@@ -112,7 +100,7 @@ public final class PhotosPicker: @unchecked Sendable {
         return output
     }
 
-    /// Elimina la sessione lato Google. Best effort: un errore qui non invalida le foto scaricate.
+    /// Elimina la sessione lato Google. Best effort: la sessione scade comunque da sola.
     public func deleteSession(token: TokenProvider, sessionID: String) async {
         guard let accessToken = try? await token() else { return }
         var request = authorized(apiBase.appendingPathComponent("sessions").appendingPathComponent(sessionID), token: accessToken)
@@ -120,108 +108,21 @@ public final class PhotosPicker: @unchecked Sendable {
         _ = try? await http.send(request)
     }
 
-    // MARK: - Download e cache
-
-    /// Scarica in una cartella temporanea e sostituisce la cache precedente solo a download concluso.
-    /// In caso di errore o annullamento la raccolta in uso resta intatta.
-    public func download(
-        token: @escaping TokenProvider,
-        items: [PickedMedia],
-        progress: @escaping @Sendable (Int, Int) -> Void
-    ) async throws -> [Photo] {
-        let staging = cacheRoot.appendingPathComponent("\(Self.cacheFolder).staging-\(UUID().uuidString)", isDirectory: true)
-        try fileManager.createDirectory(at: staging, withIntermediateDirectories: true)
-        var committed = false
-        defer { if !committed { try? fileManager.removeItem(at: staging) } }
-
-        var fileNames = [Int: String]()
-        await withTaskGroup(of: (Int, String?).self) { group in
-            var pending = items.enumerated().makeIterator()
-            func enqueueNext() {
-                guard let (index, item) = pending.next() else { return }
-                group.addTask { (index, await self.downloadOne(token: token, item: item, index: index, into: staging)) }
-            }
-            for _ in 0..<Self.parallelDownloads { enqueueNext() }
-            var completed = 0
-            while let (index, fileName) = await group.next() {
-                if let fileName { fileNames[index] = fileName }
-                completed += 1
-                progress(completed, items.count)
-                enqueueNext()
-            }
-        }
-        try Task.checkCancellation()
-
-        let downloaded = items.indices.compactMap { index in fileNames[index].map { (items[index], $0) } }
-        guard !downloaded.isEmpty else { return [] }
-        let photos = downloaded.map { item, fileName in
-            Photo(id: "google:\(item.id)", title: item.filename, source: .file(path: cacheDirectory.appendingPathComponent(fileName).path))
-        }
-        try writeManifest(photos, in: staging)
-
-        let previous = cacheRoot.appendingPathComponent("\(Self.cacheFolder).old-\(UUID().uuidString)", isDirectory: true)
-        let hadPrevious = fileManager.fileExists(atPath: cacheDirectory.path)
-        do {
-            if hadPrevious { try fileManager.moveItem(at: cacheDirectory, to: previous) }
-        } catch {
-            throw FotoFestaError.cacheWrite
-        }
-        do {
-            try fileManager.moveItem(at: staging, to: cacheDirectory)
-        } catch {
-            if hadPrevious { try? fileManager.moveItem(at: previous, to: cacheDirectory) }
-            throw FotoFestaError.cacheWrite
-        }
-        committed = true
-        try? fileManager.removeItem(at: previous)
-        return photos
+    /// Indirizzo dei byte della foto ridotta da Google a `width`×`height`. Con `crop` l'immagine
+    /// riempie esattamente il riquadro; senza, ci sta dentro mantenendo le proporzioni.
+    public static func sizedURL(base: String, width: Int, height: Int, crop: Bool) -> URL? {
+        URL(string: "\(base)=w\(width)-h\(height)" + (crop ? "-c" : ""))
     }
 
-    /// Foto in cache, con titoli e ordine originali. Non usa la rete.
-    public func cachedPhotos() -> [Photo] {
-        let directory = cacheDirectory
-        guard let data = try? Data(contentsOf: directory.appendingPathComponent(Self.manifestName)),
-              let entries = try? JSONDecoder().decode([ManifestEntry].self, from: data) else { return [] }
-        return entries.compactMap { entry in
-            // Il nome deve restare dentro la cache: niente percorsi relativi o assoluti.
-            guard !entry.file.contains("/"), entry.file != "..", entry.file != "." else { return nil }
-            let url = directory.appendingPathComponent(entry.file)
-            let size = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0
-            guard size > 0 else { return nil }
-            return Photo(id: entry.id, title: entry.title, source: .file(path: url.path))
-        }
-    }
-
-    public func clearCache() {
-        let contents = (try? fileManager.contentsOfDirectory(at: cacheRoot, includingPropertiesForKeys: nil)) ?? []
-        for url in contents where url.lastPathComponent == Self.cacheFolder || url.lastPathComponent.hasPrefix("\(Self.cacheFolder).") {
+    /// Elimina le copie delle foto Google lasciate dalle versioni precedenti, che le scaricavano.
+    public static func deleteLegacyDownloads(in root: URL, fileManager: FileManager = .default) {
+        let contents = (try? fileManager.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? []
+        for url in contents where url.lastPathComponent == legacyDownloadFolder || url.lastPathComponent.hasPrefix("\(legacyDownloadFolder).") {
             try? fileManager.removeItem(at: url)
         }
     }
 
     // MARK: - Interni
-
-    private func downloadOne(token: TokenProvider, item: PickedMedia, index: Int, into directory: URL) async -> String? {
-        if let free = freeBytes(), free <= minimumFreeBytes { return nil }
-        let fileExtension: String
-        switch item.mimeType {
-        case "image/png": fileExtension = "png"
-        case "image/webp": fileExtension = "webp"
-        case "image/gif": fileExtension = "gif"
-        default: fileExtension = "jpg"
-        }
-        let fileName = String(format: "%05d.%@", index, fileExtension)
-        guard let url = URL(string: item.baseURL + "=w3840-h2160") else { return nil }
-        do {
-            let accessToken = try await token()
-            let (data, response) = try await http.send(authorized(url, token: accessToken))
-            guard (200..<300).contains(response.statusCode), !data.isEmpty else { return nil }
-            try data.write(to: directory.appendingPathComponent(fileName), options: .atomic)
-            return fileName
-        } catch {
-            return nil
-        }
-    }
 
     private func session(token: TokenProvider, id: String) async throws -> Session {
         let url = apiBase.appendingPathComponent("sessions").appendingPathComponent(id)
@@ -235,24 +136,6 @@ public final class PhotosPicker: @unchecked Sendable {
         return request
     }
 
-    private func writeManifest(_ photos: [Photo], in directory: URL) throws {
-        let entries = photos.map { photo -> ManifestEntry in
-            guard case let .file(path) = photo.source else { fatalError("Solo foto su file") }
-            return ManifestEntry(id: photo.id, title: photo.title, file: URL(fileURLWithPath: path).lastPathComponent)
-        }
-        do {
-            try JSONEncoder().encode(entries).write(to: directory.appendingPathComponent(Self.manifestName), options: .atomic)
-        } catch {
-            throw FotoFestaError.cacheWrite
-        }
-    }
-
-    private struct ManifestEntry: Codable {
-        let id: String
-        let title: String
-        let file: String
-    }
-
     private struct SessionResponse: Decodable {
         struct PollingConfig: Decodable {
             let pollInterval: String?
@@ -263,6 +146,7 @@ public final class PhotosPicker: @unchecked Sendable {
         let pickerUri: String
         let mediaItemsSet: Bool?
         let pollingConfig: PollingConfig?
+        let expireTime: String?
 
         var session: Session {
             Session(
@@ -270,7 +154,8 @@ public final class PhotosPicker: @unchecked Sendable {
                 pickerURI: pickerUri,
                 mediaItemsSet: mediaItemsSet ?? false,
                 pollInterval: parseProtoDuration(pollingConfig?.pollInterval) ?? 5,
-                timeout: parseProtoDuration(pollingConfig?.timeoutIn)
+                timeout: parseProtoDuration(pollingConfig?.timeoutIn),
+                expiresAt: parseTimestamp(expireTime)
             )
         }
     }

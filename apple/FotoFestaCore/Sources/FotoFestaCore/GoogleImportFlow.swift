@@ -4,13 +4,16 @@ import Foundation
 public enum ImportStep: Equatable, Sendable {
     case waitingForAuthorization(verificationURL: String, userCode: String, expiresIn: Int)
     case waitingForPhotos(pickerURI: String)
-    case downloading(completed: Int, total: Int)
 }
 
-/// Flusso completo: autorizzazione, sessione Picker, selezione, download, chiusura della sessione.
+/// Flusso completo di collegamento: autorizzazione, sessione Picker, selezione ed elenco delle foto
+/// scelte. Le foto non vengono scaricate: il risultato contiene solo identificativi e nomi, e la
+/// sessione resta aperta perché serve a ottenere gli indirizzi aggiornati durante lo slideshow.
+/// Se il flusso non arriva in fondo (errore, nessuna foto, annullamento) la sessione viene eliminata.
 public final class GoogleImportFlow: @unchecked Sendable {
     public struct Result: Equatable, Sendable {
-        public let photos: [Photo]
+        public let selection: GoogleSelection
+        /// Elementi scelti che non sono foto (ad esempio i video).
         public let skipped: Int
     }
 
@@ -42,14 +45,14 @@ public final class GoogleImportFlow: @unchecked Sendable {
             onStep(.waitingForPhotos(pickerURI: session.pickerURI))
             let completed = try await picker.awaitSelection(token: tokens, session: session)
             let picked = try await picker.listPickedMedia(token: tokens, sessionID: completed.id)
-            guard !picked.isEmpty else { throw FotoFestaError.nothingSelected }
-            onStep(.downloading(completed: 0, total: picked.count))
-            let photos = try await picker.download(token: tokens, items: picked) { done, total in
-                onStep(.downloading(completed: done, total: total))
-            }
-            guard !photos.isEmpty else { throw FotoFestaError.downloadFailed }
-            await picker.deleteSession(token: tokens, sessionID: session.id)
-            return Result(photos: photos, skipped: picked.count - photos.count)
+            let photos = picked.filter(\.isPhoto)
+            guard !photos.isEmpty else { throw FotoFestaError.nothingSelected }
+            let selection = GoogleSelection(
+                sessionID: completed.id,
+                expiresAt: completed.expiresAt ?? session.expiresAt,
+                items: photos.map { GoogleSelection.Item(id: $0.id, filename: $0.filename) }
+            )
+            return Result(selection: selection, skipped: picked.count - photos.count)
         } catch {
             // Anche se l'attività è stata annullata la sessione va chiusa: si usa un Task non legato.
             let picker = self.picker

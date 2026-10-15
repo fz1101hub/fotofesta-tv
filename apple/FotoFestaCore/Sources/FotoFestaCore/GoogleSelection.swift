@@ -1,0 +1,75 @@
+import Foundation
+
+/// Foto scelte in Google Foto: sul dispositivo restano solo la sessione Picker, gli identificativi e
+/// i nomi, mai le immagini. Le foto si caricano da Google quando servono e solo finché la sessione è valida.
+public struct GoogleSelection: Codable, Equatable, Sendable {
+    public struct Item: Codable, Equatable, Sendable {
+        public let id: String
+        public let filename: String
+
+        public init(id: String, filename: String) {
+            self.id = id
+            self.filename = filename
+        }
+    }
+
+    public let sessionID: String
+    /// Scadenza della sessione indicata da Google, se nota.
+    public let expiresAt: Date?
+    public let items: [Item]
+
+    public init(sessionID: String, expiresAt: Date?, items: [Item]) {
+        self.sessionID = sessionID
+        self.expiresAt = expiresAt
+        self.items = items
+    }
+
+    public func isExpired(at date: Date) -> Bool {
+        guard let expiresAt else { return false }
+        return date >= expiresAt
+    }
+
+    public var photos: [Photo] {
+        items.map { Photo(id: "google:\($0.id)", title: $0.filename, source: .google(mediaID: $0.id)) }
+    }
+}
+
+/// Selezione salvata in UserDefaults (su tvOS l'unico spazio persistente garantito: pochi KB anche
+/// con centinaia di foto), con una copia in memoria condivisa da app e caricamento delle immagini.
+public final class GoogleSelectionStore: @unchecked Sendable {
+    private let defaults: UserDefaults
+    private let key: String
+    private let lock = NSLock()
+    private var loaded = false
+    private var cached: GoogleSelection?
+
+    public init(defaults: UserDefaults = .standard, key: String = "googleSelection") {
+        self.defaults = defaults
+        self.key = key
+    }
+
+    public func current() -> GoogleSelection? {
+        lock.lock(); defer { lock.unlock() }
+        if !loaded {
+            cached = defaults.data(forKey: key)
+                .flatMap { try? JSONDecoder().decode(GoogleSelection.self, from: $0) }
+                .flatMap { $0.items.isEmpty || $0.sessionID.isEmpty ? nil : $0 }
+            loaded = true
+        }
+        return cached
+    }
+
+    public func save(_ selection: GoogleSelection) {
+        lock.lock(); defer { lock.unlock() }
+        if let data = try? JSONEncoder().encode(selection) { defaults.set(data, forKey: key) }
+        cached = selection
+        loaded = true
+    }
+
+    public func clear() {
+        lock.lock(); defer { lock.unlock() }
+        defaults.removeObject(forKey: key)
+        cached = nil
+        loaded = true
+    }
+}
