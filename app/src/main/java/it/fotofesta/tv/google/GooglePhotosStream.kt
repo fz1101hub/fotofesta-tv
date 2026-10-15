@@ -11,7 +11,7 @@ import kotlinx.coroutines.sync.withLock
 /**
  * Indirizzi aggiornati delle foto scelte in Google Foto. Gli indirizzi restituiti dalla Picker API
  * valgono circa 60 minuti: si rinnovano chiedendo di nuovo l'elenco della sessione, che resta
- * valida fino alla scadenza indicata da Google. Nessuna immagine viene salvata sulla TV.
+ * valida fino alla scadenza decisa da Google. Nessuna immagine viene salvata sulla TV.
  */
 class GooglePhotosStream(
     private val picker: GooglePhotosPickerRepository,
@@ -21,6 +21,17 @@ class GooglePhotosStream(
 ) {
     /** Indirizzo da cui scaricare i byte della foto e token da mettere nell'intestazione Authorization. */
     data class Access(val baseUrl: String, val accessToken: String)
+
+    /** Perché le foto di una selezione non sono più raggiungibili. */
+    enum class GoneReason {
+        /** La sessione Picker è scaduta o è stata eliminata: le foto vanno scelte di nuovo. */
+        SELECTION_EXPIRED,
+
+        /** L'accesso a Google è stato revocato o è scaduto: serve un nuovo collegamento. */
+        ACCESS_LOST,
+    }
+
+    data class Gone(val sessionId: String, val reason: GoneReason)
 
     private val lock = Mutex()
 
@@ -35,39 +46,41 @@ class GooglePhotosStream(
     @Volatile
     private var urlsFetchedAt = 0L
 
-    private val _selectionGone = MutableStateFlow(false)
+    @Volatile
+    private var lastToken: String? = null
 
-    /** Diventa `true` quando la sessione non è più accessibile: le foto vanno scelte di nuovo. */
-    val selectionGone: StateFlow<Boolean> = _selectionGone.asStateFlow()
+    private val _gone = MutableStateFlow<Gone?>(null)
 
     /**
-     * Indirizzo valido per [mediaId]. Con [stale] (dopo un 401/403 sul download) rinnova token ed
-     * elenco anche se non sono ancora scaduti. Le chiamate concorrenti condividono un solo rinnovo.
+     * Selezione non più raggiungibile, con la sessione a cui si riferisce. La selezione viene già
+     * tolta dall'archivio qui: app e salvaschermo devono solo aggiornare quello che mostrano.
      */
-    suspend fun access(mediaId: String, stale: Boolean = false): Access = lock.withLock {
+    val gone: StateFlow<Gone?> = _gone.asStateFlow()
+
+    /**
+     * Indirizzo valido per [mediaId]. Con [failed] (l'accesso che ha appena ricevuto 401/403 sul
+     * download) rinnova token ed elenco, ma solo se nel frattempo nessun'altra richiesta l'ha già
+     * fatto: le foto caricate in parallelo condividono un solo rinnovo.
+     */
+    suspend fun access(mediaId: String, failed: Access? = null): Access = lock.withLock {
         val selection = selections.current() ?: throw UserFacingException(R.string.error_google_selection_gone)
-        if (selection.isExpired(clock())) {
-            markGone(selection)
-            throw UserFacingException(R.string.error_google_selection_gone)
-        }
-        val token = auth.validAccessToken(forceRefresh = stale)
-            ?: throw UserFacingException(R.string.error_google_session_expired)
+        _gone.value?.takeIf { it.sessionId == selection.sessionId }?.let { throw goneException(it.reason) }
+
+        var token = currentToken(selection, forceRefresh = failed != null && failed.accessToken == lastToken)
         val age = clock() - urlsFetchedAt
-        val refresh = stale ||
-            urlsSessionId != selection.sessionId ||
+        val refresh = urlsSessionId != selection.sessionId ||
             age >= URL_LIFETIME_MILLIS ||
+            (failed != null && urls[mediaId] == failed.baseUrl) ||
             // Una foto mancante giustifica un nuovo elenco, ma non a ogni richiesta.
             (mediaId !in urls && age >= MIN_REFRESH_INTERVAL_MILLIS)
         if (refresh) {
             val listed = try {
-                picker.listPickedMedia({ token }, selection.sessionId)
-            } catch (failure: HttpStatusException) {
-                // Sessione scaduta o eliminata: Google risponde 400, 403 o 404.
-                if (failure.code in SESSION_GONE_CODES) {
-                    markGone(selection)
-                    throw UserFacingException(R.string.error_google_selection_gone)
-                }
-                throw failure
+                listOrConfirmGone(selection, token)
+            } catch (unauthorized: HttpStatusException) {
+                if (unauthorized.code != 401) throw unauthorized
+                // Token rifiutato prima della scadenza prevista: si rinnova una volta.
+                token = currentToken(selection, forceRefresh = true)
+                listOrConfirmGone(selection, token)
             }
             urls = listed.associate { it.id to it.baseUrl }
             urlsSessionId = selection.sessionId
@@ -77,28 +90,71 @@ class GooglePhotosStream(
         Access(baseUrl, token)
     }
 
-    /**
-     * Segnala la scadenza solo se riguarda ancora la selezione corrente: la sessione di una
-     * selezione appena sostituita viene eliminata, e le sue foto ancora in caricamento non devono
-     * far scartare quella nuova.
-     */
-    private fun markGone(selection: GoogleSelection) {
-        if (selections.current()?.sessionId == selection.sessionId) _selectionGone.value = true
-    }
+    /** Aspetta che finiscano le richieste in corso (e gli eventuali rinnovi del token). */
+    suspend fun drain() = lock.withLock { }
 
     /** Dimentica indirizzi e stato: da chiamare quando la selezione cambia o viene cancellata. */
     fun reset() {
         urls = emptyMap()
         urlsSessionId = null
         urlsFetchedAt = 0L
-        _selectionGone.value = false
+        lastToken = null
+        _gone.value = null
     }
+
+    private suspend fun currentToken(selection: GoogleSelection, forceRefresh: Boolean): String {
+        val token = auth.validAccessToken(forceRefresh)
+        if (token == null) {
+            // Refresh token revocato o scaduto: senza un nuovo collegamento nessuna foto è raggiungibile.
+            markGone(selection, GoneReason.ACCESS_LOST)
+            throw goneException(GoneReason.ACCESS_LOST)
+        }
+        lastToken = token
+        return token
+    }
+
+    /**
+     * Elenco aggiornato della sessione. 404 indica una sessione che non esiste più; 400 e 403 possono
+     * avere anche altre cause, quindi si chiede lo stato della sessione prima di considerarla persa.
+     */
+    private suspend fun listOrConfirmGone(selection: GoogleSelection, token: String): List<GooglePhotosPickerRepository.PickedMedia> =
+        try {
+            picker.listPickedMedia({ token }, selection.sessionId)
+        } catch (failure: HttpStatusException) {
+            val gone = when (failure.code) {
+                404 -> true
+                400, 403 -> sessionIsGone(selection, token)
+                else -> false
+            }
+            if (!gone) throw failure
+            markGone(selection, GoneReason.SELECTION_EXPIRED)
+            throw goneException(GoneReason.SELECTION_EXPIRED)
+        }
+
+    private suspend fun sessionIsGone(selection: GoogleSelection, token: String): Boolean = try {
+        val session = picker.getSession({ token }, selection.sessionId)
+        !session.mediaItemsSet || (session.expiresAtMillis != null && session.expiresAtMillis <= clock())
+    } catch (failure: HttpStatusException) {
+        failure.code == 404 || failure.code == 403
+    }
+
+    /**
+     * Segna la selezione come persa e la toglie dall'archivio, ma solo se è ancora quella corrente:
+     * la sessione di una selezione appena sostituita viene eliminata, e le sue foto ancora in
+     * caricamento non devono far scartare quella nuova.
+     */
+    private fun markGone(selection: GoogleSelection, reason: GoneReason) {
+        if (selections.clearIfCurrent(selection.sessionId)) _gone.value = Gone(selection.sessionId, reason)
+    }
+
+    private fun goneException(reason: GoneReason) = UserFacingException(
+        if (reason == GoneReason.ACCESS_LOST) R.string.error_google_session_expired else R.string.error_google_selection_gone
+    )
 
     companion object {
         /** Margine rispetto ai 60 minuti di validità degli indirizzi Google. */
         const val URL_LIFETIME_MILLIS = 50L * 60 * 1_000
         const val MIN_REFRESH_INTERVAL_MILLIS = 60L * 1_000
-        private val SESSION_GONE_CODES = setOf(400, 403, 404)
 
         /**
          * Indirizzo dei byte della foto ridotta da Google a [width]×[height]. Con [crop] l'immagine

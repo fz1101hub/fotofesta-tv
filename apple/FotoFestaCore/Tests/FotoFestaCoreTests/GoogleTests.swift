@@ -309,24 +309,29 @@ final class GooglePhotosStreamTests: XCTestCase {
         XCTAssertEqual(http.requests("GET", "/v1/mediaItems").count, 2)
     }
 
-    func testStaleAddressRenewsTokenAndListing() async throws {
-        select(["a"])
-        http.enqueue("GET", "/v1/mediaItems", listing("1", ["a"]), listing("2", ["a"]))
+    func testRejectedAddressesShareOneRenewal() async throws {
+        select(["a", "b"])
+        http.enqueue("GET", "/v1/mediaItems", listing("1", ["a", "b"]), listing("2", ["a", "b"]))
         http.enqueue("POST", "/token", .json(#"{"access_token":"tok2","expires_in":3600}"#))
         let stream = makeStream()
 
-        _ = try await stream.access(mediaID: "a")
-        let renewed = try await stream.access(mediaID: "a", stale: true)
+        let firstA = try await stream.access(mediaID: "a")
+        let firstB = try await stream.access(mediaID: "b")
+        let renewedA = try await stream.access(mediaID: "a", failed: firstA)
+        let renewedB = try await stream.access(mediaID: "b", failed: firstB)
 
-        XCTAssertEqual(renewed, GooglePhotosStream.Access(baseURL: "https://lh3.test/a-2", accessToken: "tok2"))
+        XCTAssertEqual(renewedA, GooglePhotosStream.Access(baseURL: "https://lh3.test/a-2", accessToken: "tok2"))
+        XCTAssertEqual(renewedB, GooglePhotosStream.Access(baseURL: "https://lh3.test/b-2", accessToken: "tok2"))
+        XCTAssertEqual(http.requests("POST", "/token").count, 1)
+        XCTAssertEqual(http.requests("GET", "/v1/mediaItems").count, 2)
     }
 
-    func testExpiredSessionAsksToChooseAgain() async {
+    func testDeletedSessionAsksToChooseAgain() async {
         select(["a"])
         http.enqueue("GET", "/v1/mediaItems", .json(#"{"error":{"code":404,"message":"Session not found"}}"#, status: 404))
         let stream = makeStream()
-        let gone = StepRecorder()
-        await stream.setOnSelectionGone { _ in gone.append(.waitingForPhotos(pickerURI: "gone")) }
+        let gone = GoneRecorder()
+        await stream.setOnSelectionGone { gone.append($0, $1) }
 
         do {
             _ = try await stream.access(mediaID: "a")
@@ -334,19 +339,72 @@ final class GooglePhotosStreamTests: XCTestCase {
         } catch {
             XCTAssertEqual(error as? FotoFestaError, .selectionGone)
         }
-        XCTAssertEqual(gone.all.count, 1)
+        XCTAssertEqual(gone.all.map { $0.1 }, [.selectionExpired])
+        XCTAssertNil(store.current())
     }
 
-    func testSelectionPastItsExpiryIsNotRequested() async {
-        select(["a"], expiresIn: -1)
+    func test403RemovesTheSelectionOnlyIfGoogleConfirms() async {
+        select(["a"])
+        http.enqueue("GET", "/v1/mediaItems", .json(#"{"error":{"code":403}}"#, status: 403), .json(#"{"error":{"code":403}}"#, status: 403))
+        http.enqueue(
+            "GET", "/v1/sessions/s1",
+            .json(#"{"id":"s1","pickerUri":"https://p/s1","mediaItemsSet":true}"#),
+            .json(#"{"error":{"code":404}}"#, status: 404)
+        )
         let stream = makeStream()
+
+        do {
+            _ = try await stream.access(mediaID: "a")
+            XCTFail("expected an error")
+        } catch {
+            XCTAssertEqual((error as? HTTPStatusError)?.code, 403)
+        }
+        XCTAssertNotNil(store.current())
         do {
             _ = try await stream.access(mediaID: "a")
             XCTFail("expected an error")
         } catch {
             XCTAssertEqual(error as? FotoFestaError, .selectionGone)
         }
+        XCTAssertNil(store.current())
+    }
+
+    func testRevokedAccessAsksToConnectAgain() async {
+        select(["a"])
+        tokens.expiresAt = clock.now.addingTimeInterval(-10)
+        http.enqueue("POST", "/token", .json(#"{"error":"invalid_grant"}"#, status: 400))
+        let stream = makeStream()
+        let gone = GoneRecorder()
+        await stream.setOnSelectionGone { gone.append($0, $1) }
+
+        do {
+            _ = try await stream.access(mediaID: "a")
+            XCTFail("expected an error")
+        } catch {
+            XCTAssertEqual(error as? FotoFestaError, .sessionExpired)
+        }
+        XCTAssertEqual(gone.all.map { $0.1 }, [.accessLost])
         XCTAssertTrue(http.requests("GET", "/v1/mediaItems").isEmpty)
+    }
+
+    func test401OnTheListingRenewsTheTokenOnce() async throws {
+        select(["a"])
+        http.enqueue("GET", "/v1/mediaItems", .json(#"{"error":{"code":401}}"#, status: 401), listing("1", ["a"]))
+        http.enqueue("POST", "/token", .json(#"{"access_token":"tok2","expires_in":3600}"#))
+
+        let access = try await makeStream().access(mediaID: "a")
+
+        XCTAssertEqual(access, GooglePhotosStream.Access(baseURL: "https://lh3.test/a-1", accessToken: "tok2"))
+    }
+
+    func testDeviceClockAloneDoesNotDiscardTheSelection() async throws {
+        select(["a"], expiresIn: -1)
+        http.enqueue("GET", "/v1/mediaItems", listing("1", ["a"]))
+
+        let access = try await makeStream().access(mediaID: "a")
+
+        XCTAssertEqual(access.baseURL, "https://lh3.test/a-1")
+        XCTAssertNotNil(store.current())
     }
 
     func testSelectionStoreRoundTripAndClear() {
@@ -372,5 +430,21 @@ final class StepRecorder: @unchecked Sendable {
     var all: [ImportStep] {
         lock.lock(); defer { lock.unlock() }
         return steps
+    }
+}
+
+/// Raccoglie le selezioni perse segnalate dallo stream.
+final class GoneRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var events: [(String, GooglePhotosStream.GoneReason)] = []
+
+    func append(_ sessionID: String, _ reason: GooglePhotosStream.GoneReason) {
+        lock.lock(); defer { lock.unlock() }
+        events.append((sessionID, reason))
+    }
+
+    var all: [(String, GooglePhotosStream.GoneReason)] {
+        lock.lock(); defer { lock.unlock() }
+        return events
     }
 }

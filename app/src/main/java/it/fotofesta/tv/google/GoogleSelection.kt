@@ -32,7 +32,7 @@ data class GoogleSelection(
 }
 
 /**
- * Salva la selezione in un piccolo file JSON (pochi KB anche con centinaia di foto) e ne tiene una
+ * Salva la selezione in un piccolo file JSON (alcune centinaia di byte per ogni foto) e ne tiene una
  * copia in memoria, letta da app, salvaschermo e caricamento delle immagini.
  */
 class GoogleSelectionStore(private val file: File) {
@@ -69,6 +69,14 @@ class GoogleSelectionStore(private val file: File) {
         }
         cached = selection
         loaded = true
+    }
+
+    /** Cancella la selezione solo se appartiene ancora a [sessionId]; restituisce `true` se l'ha cancellata. */
+    @Synchronized
+    fun clearIfCurrent(sessionId: String): Boolean {
+        if (current()?.sessionId != sessionId) return false
+        clear()
+        return true
     }
 
     @Synchronized

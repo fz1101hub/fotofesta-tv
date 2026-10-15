@@ -115,6 +115,8 @@ public actor GoogleDeviceAuth {
     private func refreshAccessToken() async throws -> String? {
         guard let refresh = tokens.refreshToken else { return nil }
         try requireConfigured()
+        // Un "Disconnetti" arrivato durante la richiesta invalida il risultato: il token non va salvato.
+        let generation = self.generation
         let request = formRequest(url: tokenURL, fields: [
             ("client_id", clientID),
             ("client_secret", clientSecret),
@@ -122,7 +124,9 @@ public actor GoogleDeviceAuth {
             ("grant_type", "refresh_token"),
         ])
         do {
-            return persist(try await http.json(TokenResponse.self, for: request))
+            let response = try await http.json(TokenResponse.self, for: request)
+            guard generation == self.generation else { return nil }
+            return persist(response)
         } catch let failure as HTTPStatusError where failure.oauthError == "invalid_grant" || failure.code == 401 {
             disconnect()
             return nil
@@ -130,8 +134,12 @@ public actor GoogleDeviceAuth {
     }
 
     public func disconnect() {
+        generation += 1
         tokens.clear()
     }
+
+    /// Cresce a ogni disconnessione: i rinnovi partiti prima non salvano il token ottenuto.
+    private var generation = 0
 
     /// Revoca l'accesso anche sui server Google (best effort) e cancella i token locali.
     public func revokeAndDisconnect() async {

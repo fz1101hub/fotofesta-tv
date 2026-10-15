@@ -31,14 +31,14 @@ class GooglePhotoFetcher(
     private val client: OkHttpClient,
 ) : Fetcher {
     override suspend fun fetch(): FetchResult {
-        val width = (options.size.width as? Dimension.Pixels)?.px?.coerceIn(MIN_SIDE, MAX_WIDTH) ?: DEFAULT_WIDTH
-        val height = (options.size.height as? Dimension.Pixels)?.px?.coerceIn(MIN_SIDE, MAX_HEIGHT) ?: DEFAULT_HEIGHT
-        val crop = options.scale == Scale.FILL
-        var response = download(stream.access(photo.mediaId), width, height, crop)
+        val (width, height, crop) = requestedSize(options)
+        val first = stream.access(photo.mediaId)
+        var response = download(first, width, height, crop)
         if (response.code == 401 || response.code == 403) {
-            // Indirizzo o token scaduti prima del previsto: si rinnovano una volta.
+            // Indirizzo o token scaduti prima del previsto: si rinnovano una volta, insieme alle
+            // altre foto in caricamento che hanno ricevuto lo stesso errore.
             response.close()
-            response = download(stream.access(photo.mediaId, stale = true), width, height, crop)
+            response = download(stream.access(photo.mediaId, failed = first), width, height, crop)
         }
         if (!response.isSuccessful) {
             val code = response.code
@@ -72,11 +72,19 @@ class GooglePhotoFetcher(
             GooglePhotoFetcher(data, options, stream, client)
     }
 
-    /** Chiave della cache in RAM: stabile anche quando Google cambia l'indirizzo della foto. */
+    /**
+     * Chiave della cache in RAM: stabile anche quando Google cambia l'indirizzo della foto, e diversa
+     * per ogni dimensione. Google invia l'immagine già ridotta, quindi Coil non la considera
+     * "campionata" e riuserebbe una miniatura del Memory anche a tutto schermo.
+     */
     class Key : Keyer<PhotoRef.GooglePhoto> {
-        override fun key(data: PhotoRef.GooglePhoto, options: Options): String =
-            "google:${data.mediaId}:${options.scale}"
+        override fun key(data: PhotoRef.GooglePhoto, options: Options): String {
+            val (width, height, crop) = requestedSize(options)
+            return "google:${data.mediaId}:${width}x$height" + if (crop) ":crop" else ""
+        }
     }
+
+    private data class RequestedSize(val width: Int, val height: Int, val crop: Boolean)
 
     private companion object {
         const val MIN_SIDE = 64
@@ -84,5 +92,16 @@ class GooglePhotoFetcher(
         const val MAX_HEIGHT = 2160
         const val DEFAULT_WIDTH = 1920
         const val DEFAULT_HEIGHT = 1080
+
+        /**
+         * Dimensione da chiedere a Google. Il ritaglio (`-c`) serve solo per riempire un riquadro di
+         * cui si conoscono entrambi i lati.
+         */
+        fun requestedSize(options: Options): RequestedSize {
+            val width = (options.size.width as? Dimension.Pixels)?.px?.coerceIn(MIN_SIDE, MAX_WIDTH)
+            val height = (options.size.height as? Dimension.Pixels)?.px?.coerceIn(MIN_SIDE, MAX_HEIGHT)
+            val crop = options.scale == Scale.FILL && width != null && height != null
+            return RequestedSize(width ?: DEFAULT_WIDTH, height ?: DEFAULT_HEIGHT, crop)
+        }
     }
 }

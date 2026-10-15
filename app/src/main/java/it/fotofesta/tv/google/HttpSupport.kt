@@ -59,7 +59,6 @@ internal fun httpError(code: Int, body: String): HttpStatusException {
     return HttpStatusException(code, oauthError, message)
 }
 
-/** Converte una durata protobuf JSON (es. `"5s"`, `"1.5s"`) in secondi interi. */
 /** Istante RFC 3339 di Google (es. `2026-09-30T12:00:00.123456Z`) in epoch ms; `null` se assente o non valido. */
 internal fun parseTimestampMillis(value: String?): Long? {
     if (value.isNullOrBlank()) return null
@@ -69,5 +68,6 @@ internal fun parseTimestampMillis(value: String?): Long? {
         ?.toEpochMilli()
 }
 
+/** Converte una durata protobuf JSON (es. `"5s"`, `"1.5s"`) in secondi interi. */
 internal fun parseProtoDurationSeconds(value: String?): Long? =
     value?.trim()?.removeSuffix("s")?.toDoubleOrNull()?.takeIf { it >= 0 && it.isFinite() }?.toLong()

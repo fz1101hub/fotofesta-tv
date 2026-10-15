@@ -31,6 +31,8 @@ public final class PhotosPicker: @unchecked Sendable {
     /// Cartelle delle foto scaricate dalle versioni precedenti, che copiavano le immagini sul dispositivo.
     static let legacyDownloadFolder = "google_photos"
     private static let defaultSessionTimeout: TimeInterval = 900
+    /// Massimo di foto per selezione (Google ne permette fino a 2000).
+    public static let maxItemCount = 1000
 
     private let http: HTTPClient
     private let apiBase: URL
@@ -54,7 +56,8 @@ public final class PhotosPicker: @unchecked Sendable {
         var request = authorized(components.url!, token: token)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = Data("{}".utf8)
+        // Limite di foto per selezione: l'elenco salvato in UserDefaults deve restare piccolo su tvOS.
+        request.httpBody = Data(#"{"pickingConfig":{"maxItemCount":"\#(Self.maxItemCount)"}}"#.utf8)
         return try await http.json(SessionResponse.self, for: request).session
     }
 
@@ -124,7 +127,8 @@ public final class PhotosPicker: @unchecked Sendable {
 
     // MARK: - Interni
 
-    private func session(token: TokenProvider, id: String) async throws -> Session {
+    /// Stato attuale della sessione Picker.
+    public func session(token: TokenProvider, id: String) async throws -> Session {
         let url = apiBase.appendingPathComponent("sessions").appendingPathComponent(id)
         let accessToken = try await token()
         return try await http.json(SessionResponse.self, for: authorized(url, token: accessToken)).session

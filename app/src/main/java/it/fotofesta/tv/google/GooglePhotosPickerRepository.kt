@@ -112,7 +112,8 @@ class GooglePhotosPickerRepository(
         runCatching { client.newCall(authorized(url, token()).delete().build()).await().close() }
     }
 
-    private suspend fun getSession(token: TokenProvider, id: String): PickingSession {
+    /** Stato attuale della sessione Picker. */
+    suspend fun getSession(token: TokenProvider, id: String): PickingSession {
         val url = apiBase.newBuilder().addPathSegment("sessions").addPathSegment(id).build()
         return parseSession(client.fetchJson(authorized(url, token()).build()))
     }

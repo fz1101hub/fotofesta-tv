@@ -54,9 +54,11 @@ actor ImageLoader {
     private func googleData(mediaID: String, maxPixelSize: Int) async -> Data? {
         let stream = GoogleServices.shared.stream
         do {
-            var (data, status) = try await download(try await stream.access(mediaID: mediaID), maxPixelSize: maxPixelSize)
+            let first = try await stream.access(mediaID: mediaID)
+            var (data, status) = try await download(first, maxPixelSize: maxPixelSize)
             if status == 401 || status == 403 {
-                (data, status) = try await download(try await stream.access(mediaID: mediaID, stale: true), maxPixelSize: maxPixelSize)
+                // Rinnovo condiviso con le altre foto in caricamento che hanno ricevuto lo stesso errore.
+                (data, status) = try await download(try await stream.access(mediaID: mediaID, failed: first), maxPixelSize: maxPixelSize)
             }
             return (200..<300).contains(status) && !data.isEmpty ? data : nil
         } catch {

@@ -63,7 +63,7 @@ La guida [CONFIGURATION.md](docs/CONFIGURATION.md) descrive Google Foto, Cast Co
 
 ## Architettura e flussi dati
 
-La lettura USB usa `ACTION_OPEN_DOCUMENT_TREE`, che concede accesso solo alla cartella scelta e alle sue sottocartelle.[3] Google Foto usa il nuovo Picker, perché dal 31 marzo 2025 la Library API non consente più a un’app di elencare l’intera libreria dell’utente.[1] L’utente seleziona esplicitamente le foto dal telefono. L’app non le scarica: conserva solo identificativi e nomi e carica ogni foto da Google alla dimensione dello schermo, tenendola soltanto in memoria. Le `baseUrl` della Picker API scadono dopo circa 60 minuti, quindi l’app le rinnova richiedendo di nuovo l’elenco della sessione, che resta valida circa una settimana.[2]
+La lettura USB usa `ACTION_OPEN_DOCUMENT_TREE`, che concede accesso solo alla cartella scelta e alle sue sottocartelle.[3] Google Foto usa il nuovo Picker, perché dal 31 marzo 2025 la Library API non consente più a un’app di elencare l’intera libreria dell’utente.[1] L’utente seleziona esplicitamente le foto dal telefono. L’app non le scarica: conserva solo identificativi e nomi e carica ogni foto da Google alla dimensione dello schermo, tenendola soltanto in memoria. Le `baseUrl` della Picker API scadono dopo circa 60 minuti, quindi l’app le rinnova richiedendo di nuovo l’elenco della sessione, finché Google la tiene aperta.[2]
 
 Il flusso OAuth usa il meccanismo Google per TV e dispositivi a input limitato: la TV mostra URL e codice e l’utente autorizza da un telefono.[8] Il solo scope richiesto è `photospicker.mediaitems.readonly`; una pubblicazione pubblica richiede la verifica OAuth di Google.[9]
 
@@ -83,7 +83,7 @@ L’architettura separa modello, repository e protocollo dall’interfaccia. Que
 
 ## Limiti intenzionali della prima versione
 
-Google Foto non espone più l’intera libreria a un’app di terze parti: l’utente deve selezionare i contenuti per ogni nuova raccolta, e la selezione vale finché Google tiene aperta la sessione Picker (circa una settimana); poi le foto vanno scelte di nuovo. Per vederle serve la connessione a internet. Il progetto mostra immagini, non video. Il sottofondo musicale è un file locale scelto sulla TV e non viene inviato dal sender Cast. Il salvaschermo di sistema mostra l’ultima raccolta scelta nell’app (Google Foto, cartella USB o foto demo) usando durata, adattamento, movimento lento e orologio delle impostazioni. Alcuni produttori, tra cui le Google TV recenti, nascondono la scelta dei salvaschermi di terze parti; in quel caso si può attivare via `adb`:
+Google Foto non espone più l’intera libreria a un’app di terze parti: l’utente deve selezionare i contenuti per ogni nuova raccolta, e la selezione vale finché Google tiene aperta la sessione Picker (la data è mostrata a fine collegamento); poi le foto vanno scelte di nuovo. Per vederle serve la connessione a internet. Il progetto mostra immagini, non video. Il sottofondo musicale è un file locale scelto sulla TV e non viene inviato dal sender Cast. Il salvaschermo di sistema mostra l’ultima raccolta scelta nell’app (Google Foto, cartella USB o foto demo) usando durata, adattamento, movimento lento e orologio delle impostazioni. Alcuni produttori, tra cui le Google TV recenti, nascondono la scelta dei salvaschermi di terze parti; in quel caso si può attivare via `adb`:
 
 ```bash
 adb shell settings put secure screensaver_components it.fotofesta.tv/.dream.PhotoDreamService

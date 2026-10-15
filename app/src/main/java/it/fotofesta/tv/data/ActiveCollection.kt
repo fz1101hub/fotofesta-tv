@@ -18,10 +18,8 @@ class ActiveCollection(private val context: Context) {
         val settings = SettingsRepository(context)
         val photos = when (settings.loadLastSource()) {
             // Le foto Google si caricano da Google durante il salvaschermo: serve la connessione.
-            "GOOGLE" -> context.appServices.googleSelection.current()
-                ?.takeUnless { it.isExpired(System.currentTimeMillis()) }
-                ?.toPhotos()
-                .orEmpty()
+            // Una selezione scaduta presso Google viene tolta dall'archivio al primo caricamento fallito.
+            "GOOGLE" -> context.appServices.googleSelection.current()?.toPhotos().orEmpty()
             "USB" -> settings.loadUsbTree()?.let { scanUsb(Uri.parse(it)) }.orEmpty()
             else -> emptyList()
         }

@@ -55,14 +55,16 @@ final class AppModel {
         var initialPhotos = Self.demoPhotos
         var initialLabel = L("source.demo")
         var initialMessage: String?
+        let savedSelection = GoogleServices.shared.selections.current()
         if UserDefaults.standard.string(forKey: Self.sourceKey) == "google" {
-            if let selection = GoogleServices.shared.selections.current(), !selection.isExpired(at: Date()) {
-                initialPhotos = selection.photos
-                initialLabel = L("source.google", selection.items.count)
+            // La scadenza la verifica Google al primo caricamento: l'orologio del dispositivo può
+            // essere sbagliato all'accensione.
+            if let savedSelection {
+                initialPhotos = savedSelection.photos
+                initialLabel = L("source.google", savedSelection.items.count)
             } else {
-                // Selezione scaduta presso Google, o salvata da una versione che scaricava le foto.
+                // Selezione persa, o salvata da una versione che scaricava le foto.
                 UserDefaults.standard.set("demo", forKey: Self.sourceKey)
-                GoogleServices.shared.selections.clear()
                 initialMessage = L("error.google_selection_gone")
             }
         }
@@ -70,12 +72,16 @@ final class AppModel {
         sourceLabel = initialLabel
         order.reset(count: initialPhotos.count, shuffle: settings.shuffle)
         if let initialMessage { showMessage(initialMessage) }
+        // Selezione rimasta da una sorgente abbandonata: non verrà più usata.
+        if savedSelection != nil, UserDefaults.standard.string(forKey: Self.sourceKey) != "google" {
+            discardGoogleSelection()
+        }
         // Le versioni precedenti scaricavano le foto Google in Caches: ora si caricano da Google.
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
         Task.detached(priority: .utility) { PhotosPicker.deleteLegacyDownloads(in: caches) }
         Task { [weak self, google] in
-            await google.stream.setOnSelectionGone { [weak self] sessionID in
-                Task { @MainActor [weak self] in self?.handleSelectionGone(sessionID: sessionID) }
+            await google.stream.setOnSelectionGone { [weak self] sessionID, reason in
+                Task { @MainActor [weak self] in self?.handleSelectionGone(sessionID: sessionID, reason: reason) }
             }
         }
     }
@@ -119,6 +125,7 @@ final class AppModel {
         cancelGoogle()
         defaults.set("demo", forKey: Self.sourceKey)
         show(Self.demoPhotos, label: L("source.demo"))
+        discardGoogleSelection()
         play()
     }
 
@@ -174,8 +181,13 @@ final class AppModel {
                         self?.applyStep(step, connection: connection)
                     }
                 }
-                guard let self, !Task.isCancelled else { return }
-                await self.applyImport(result)
+                guard let self else { return }
+                guard !Task.isCancelled else {
+                    // Annullato a selezione appena fatta: la sessione non verrà usata.
+                    Self.deleteSession(result.selection.sessionID, google: google)
+                    return
+                }
+                self.applyImport(result)
             } catch {
                 guard let self, !Task.isCancelled, !(error is CancellationError) else { return }
                 self.googleState = .failed(Self.describe(error))
@@ -184,20 +196,33 @@ final class AppModel {
     }
 
     /// Salva la nuova selezione (solo identificativi e nomi) e la mostra; chiude la sessione precedente.
-    private func applyImport(_ result: GoogleImportFlow.Result) async {
+    /// Nessuna sospensione: "Disconnetti e cancella" non può inserirsi a metà. Lo stream si accorge da
+    /// solo del cambio di sessione.
+    private func applyImport(_ result: GoogleImportFlow.Result) {
         let previous = google.selections.current()
         google.selections.save(result.selection)
-        await google.stream.reset()
         defaults.set("google", forKey: Self.sourceKey)
         show(result.selection.photos, label: L("source.google", result.selection.items.count))
         googleState = .complete(result.selection.items.count, expiresAt: result.selection.expiresAt)
         showMessage(result.skipped > 0 ? L("message.google_skipped", result.skipped) : L("message.google_ready"))
         if let previous, previous.sessionID != result.selection.sessionID {
-            let google = self.google
-            Task.detached {
-                await google.picker.deleteSession(token: { try await Self.requireToken(google.auth) }, sessionID: previous.sessionID)
-            }
+            Self.deleteSession(previous.sessionID, google: google)
         }
+    }
+
+    /// Chiude una sessione Picker presso Google, in background e senza attendere l'esito.
+    private nonisolated static func deleteSession(_ sessionID: String, google: GoogleServices) {
+        Task.detached {
+            await google.picker.deleteSession(token: { try await AppModel.requireToken(google.auth) }, sessionID: sessionID)
+        }
+    }
+
+    /// L'utente è passato a un'altra sorgente: la selezione Google non verrà più usata (il pulsante
+    /// Google Foto ne crea sempre una nuova), quindi si cancella e si chiude la sessione presso Google.
+    private func discardGoogleSelection() {
+        guard let selection = google.selections.current() else { return }
+        google.selections.clear()
+        Self.deleteSession(selection.sessionID, google: google)
     }
 
     private nonisolated static func requireToken(_ auth: GoogleDeviceAuth) async throws -> String {
@@ -212,20 +237,14 @@ final class AppModel {
         googleState = .working(step)
     }
 
-    /// La sessione Picker è scaduta o non è più accessibile: le foto vanno scelte di nuovo.
-    private func handleSelectionGone(sessionID: String) {
-        guard google.selections.current()?.sessionID == sessionID else { return }
-        google.selections.clear()
+    /// La selezione non è più raggiungibile (sessione scaduta o accesso revocato) ed è già stata tolta
+    /// dall'archivio: si torna alle foto demo e si spiega cosa fare.
+    private func handleSelectionGone(sessionID: String, reason: GooglePhotosStream.GoneReason) {
+        // Nel frattempo è arrivata una selezione nuova: quella persa non è più mostrata.
+        guard google.selections.current() == nil else { return }
         if defaults.string(forKey: Self.sourceKey) == "google" { defaults.set("demo", forKey: Self.sourceKey) }
         if showingGooglePhotos { show(Self.demoPhotos, label: L("source.demo")) }
-        showMessage(L("error.google_selection_gone"))
-    }
-
-    /// Al ritorno in primo piano si controlla che la selezione Google non sia scaduta nel frattempo.
-    func checkGoogleSelection() {
-        guard defaults.string(forKey: Self.sourceKey) == "google", let selection = google.selections.current() else { return }
-        if case .working = googleState { return }
-        if selection.isExpired(at: Date()) { handleSelectionGone(sessionID: selection.sessionID) }
+        showMessage(reason == .accessLost ? L("error.google_session_expired") : L("error.google_selection_gone"))
     }
 
     private var showingGooglePhotos: Bool {
@@ -248,17 +267,17 @@ final class AppModel {
         googleState = .idle
         showMessage(L("message.google_removed"))
         // Sul dispositivo restano solo l'elenco delle foto e le immagini in memoria: spariscono subito.
+        let google = self.google
         let selection = google.selections.current()
         google.selections.clear()
         let previousCleanup = cleanupTask
-        let google = self.google
         cleanupTask = Task.detached {
             await ImageLoader.shared.removeAll()
             await google.stream.reset()
             await previousCleanup?.value
             // La sessione si chiude finché il token è valido; subito dopo token cancellati e revocati.
             if let selection {
-                await google.picker.deleteSession(token: { try await Self.requireToken(google.auth) }, sessionID: selection.sessionID)
+                await google.picker.deleteSession(token: { try await AppModel.requireToken(google.auth) }, sessionID: selection.sessionID)
             }
             await google.auth.revokeAndDisconnect()
             // Un collegamento annullato può aver rinnovato il token mentre si chiudeva: va cancellato.

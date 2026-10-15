@@ -139,8 +139,10 @@ Su richiesta, le foto di Google Foto non vengono più scaricate: le smart TV han
 
 - Sul dispositivo resta solo un piccolo elenco: sessione Picker, sua scadenza, identificativi e nomi delle foto. Su Android è un file JSON in `no_backup`, su Apple TV sta in UserDefaults.
 - Ogni foto si carica da Google già ridotta alla dimensione mostrata e resta solo nella cache in RAM. Su Android passa da un Fetcher Coil dedicato, su Apple TV da una sessione di rete effimera, senza cache su disco.
-- Gli indirizzi della Picker API valgono circa 60 minuti. L'app li rinnova richiedendo di nuovo l'elenco della sessione ogni 50 minuti, o subito dopo un 401/403. Le richieste parallele condividono un solo rinnovo.
-- La sessione resta aperta finché Google la tiene valida (`expireTime`, circa una settimana). Alla scadenza l'app torna alle foto demo e chiede di scegliere di nuovo le foto. La scadenza della sessione appena sostituita non tocca la selezione nuova.
+- Gli indirizzi della Picker API valgono circa 60 minuti. L'app li rinnova richiedendo di nuovo l'elenco della sessione ogni 50 minuti, o subito dopo un 401/403; le foto che ricevono lo stesso errore in parallelo condividono un solo rinnovo di token ed elenco. La cache in RAM distingue le dimensioni, così una miniatura del Memory non viene riusata a tutto schermo.
+- Su Apple TV una selezione è limitata a 1000 foto, perché l'elenco sta nelle preferenze, che su tvOS hanno spazio ridotto.
+- La sessione resta aperta finché Google la tiene valida (`expireTime`, la data è mostrata a fine collegamento). Quando Google conferma che non esiste più, l'app torna alle foto demo e chiede di scegliere di nuovo le foto; se l'accesso è stato revocato chiede un nuovo collegamento. La scadenza della sessione appena sostituita non tocca la selezione nuova, e l'orologio della TV da solo non cancella nulla.
+- Passando a un'altra sorgente (demo, USB, Cast) la selezione si cancella e la sessione si chiude presso Google.
 - “Disconnetti e cancella” cancella l'elenco, svuota la cache in RAM, chiude la sessione presso Google e revoca l'accesso.
 - All'avvio si eliminano le foto scaricate dalle versioni precedenti.
 - Il salvaschermo usa la stessa selezione, quindi richiede la connessione.

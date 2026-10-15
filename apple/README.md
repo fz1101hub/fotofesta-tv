@@ -17,7 +17,7 @@ Versione tvOS dell'app, scritta in Swift e SwiftUI, pensata per l'App Store. Con
 | Memory e Foto misteriosa | Sì | |
 | Italiano e inglese | Sì | `apple/scripts/strings.py` genera i file `.strings` |
 
-Le foto di Google Foto non vengono copiate sulla Apple TV: si caricano da Google alla risoluzione richiesta, con una sessione di rete senza cache su disco, e restano solo in memoria. In UserDefaults resta un piccolo elenco con la sessione Picker e gli identificativi delle foto; quando Google fa scadere la sessione (circa una settimana) l'app torna alle foto demo e chiede di sceglierle di nuovo. I token restano nel Portachiavi, che sopravvive alla disinstallazione: al primo avvio dopo una nuova installazione l'app cancella i token rimasti.
+Le foto di Google Foto non vengono copiate sulla Apple TV: si caricano da Google alla risoluzione richiesta, con una sessione di rete senza cache su disco, e restano solo in memoria. In UserDefaults resta un piccolo elenco con la sessione Picker e gli identificativi delle foto; quando Google chiude la sessione (la data è mostrata a fine collegamento) l'app torna alle foto demo e chiede di sceglierle di nuovo. Una selezione è limitata a 1000 foto, perché su tvOS le preferenze hanno spazio ridotto. I token restano nel Portachiavi, che sopravvive alla disinstallazione: al primo avvio dopo una nuova installazione l'app cancella i token rimasti.
 
 ## Struttura
 

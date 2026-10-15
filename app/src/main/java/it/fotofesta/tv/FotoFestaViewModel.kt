@@ -14,6 +14,7 @@ import it.fotofesta.tv.data.DemoPhotos
 import it.fotofesta.tv.data.SettingsRepository
 import it.fotofesta.tv.data.UsbPhotoRepository
 import it.fotofesta.tv.google.GoogleImportFlow
+import it.fotofesta.tv.google.GooglePhotosStream
 import it.fotofesta.tv.google.HttpStatusException
 import it.fotofesta.tv.media.BackgroundMusicPlayer
 import it.fotofesta.tv.model.AppState
@@ -77,16 +78,19 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         // Prima si ripristina l'ultima sorgente, poi si ascoltano i comandi Cast: un LOAD già in coda
         // (avvio tramite Cast Connect) annulla il ripristino invece di essere sovrascritto.
         val lastSource = settingsRepository.loadLastSource()
-        if (lastSource == "GOOGLE") {
-            restoreJob = viewModelScope.launch {
-                val selection = withContext(Dispatchers.IO) { googleSelection.current() }
-                when {
-                    // Selezione delle versioni che scaricavano le foto: non c'è più nulla da mostrare.
-                    selection == null -> settingsRepository.saveLastSource("DEMO")
-                    selection.isExpired(System.currentTimeMillis()) -> onGoogleSelectionGone()
-                    else -> showPhotos(selection.toPhotos(), googleLabel(selection.items.size))
+        restoreJob = viewModelScope.launch {
+            val selection = withContext(Dispatchers.IO) { googleSelection.current() }
+            when {
+                lastSource != "GOOGLE" -> if (selection != null) discardGoogleSelection()
+                selection != null -> showPhotos(selection.toPhotos(), googleLabel(selection.items.size))
+                else -> {
+                    // Selezione scaduta o salvata dalle versioni che scaricavano le foto: va rifatta.
+                    settingsRepository.saveLastSource("DEMO")
+                    showMessage(context.getString(R.string.error_google_selection_gone))
                 }
             }
+            // La scadenza indicata da Google si verifica con Google, non con l'orologio della TV, che
+            // all'accensione può essere sbagliato: lo fa GooglePhotosStream al primo caricamento.
         }
         if (lastSource == "USB") settingsRepository.loadUsbTree()?.let { stored -> loadUsb(Uri.parse(stored)) }
         viewModelScope.launch {
@@ -98,7 +102,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             CastBridge.commands.collect(::handleCastCommand)
         }
         viewModelScope.launch {
-            googleStream.selectionGone.collect { gone -> if (gone) onGoogleSelectionGone() }
+            googleStream.gone.collect { gone -> if (gone != null) onGoogleSelectionGone(gone) }
         }
     }
 
@@ -124,6 +128,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         cancelPendingSources()
         settingsRepository.saveLastSource("DEMO")
         showPhotos(demoPhotos, context.getString(R.string.source_demo))
+        discardGoogleSelection()
         _state.update { it.copy(destination = Destination.SLIDESHOW, isPlaying = true) }
         syncMusic()
     }
@@ -192,6 +197,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                 } else {
                     settingsRepository.saveUsbTree(treeUri.toString())
                     showPhotos(photos, quantityString(R.plurals.source_usb, photos.size))
+                    discardGoogleSelection()
                     _state.update { it.copy(busy = false, message = quantityString(R.plurals.message_usb_ready, photos.size)) }
                 }
             } catch (cancelled: CancellationException) {
@@ -289,15 +295,37 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private suspend fun requireAccessToken(): String =
         googleAuth.validAccessToken() ?: throw UserFacingException(R.string.error_google_session_expired)
 
-    /** La sessione Picker è scaduta o non è più accessibile: le foto vanno scelte di nuovo. */
-    private fun onGoogleSelectionGone() {
-        googleSelection.clear()
+    /**
+     * La selezione non è più raggiungibile (sessione scaduta o accesso revocato) ed è già stata tolta
+     * dall'archivio: si torna alle foto demo e si spiega cosa fare.
+     */
+    private fun onGoogleSelectionGone(gone: GooglePhotosStream.Gone) {
         googleStream.reset()
+        // Nel frattempo è arrivata una selezione nuova: quella persa non è più mostrata.
+        if (googleSelection.current() != null) return
         if (settingsRepository.loadLastSource() == "GOOGLE") settingsRepository.saveLastSource("DEMO")
         if (_state.value.photos.any { it.source == SourceType.GOOGLE_PHOTOS }) {
             showPhotos(demoPhotos, context.getString(R.string.source_demo))
         }
-        showMessage(context.getString(R.string.error_google_selection_gone))
+        showMessage(
+            context.getString(
+                if (gone.reason == GooglePhotosStream.GoneReason.ACCESS_LOST) R.string.error_google_session_expired
+                else R.string.error_google_selection_gone
+            )
+        )
+    }
+
+    /**
+     * L'utente è passato a un'altra sorgente: la selezione Google non viene più usata (il pulsante
+     * Google Foto ne crea sempre una nuova), quindi si cancella e si chiude la sessione presso Google.
+     */
+    private fun discardGoogleSelection() {
+        val selection = googleSelection.current() ?: return
+        googleSelection.clear()
+        googleStream.reset()
+        viewModelScope.launch(NonCancellable) {
+            googlePicker.deleteSession(::requireAccessToken, selection.sessionId)
+        }
     }
 
     fun cancelGoogleConnect() {
@@ -325,8 +353,10 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                 // La sessione si chiude finché il token è valido; subito dopo token cancellati e revocati.
                 selection?.let { googlePicker.deleteSession(::requireAccessToken, it.sessionId) }
                 googleAuth.revokeAndDisconnect()
-                // Un collegamento annullato può aver rinnovato il token mentre si chiudeva: va cancellato.
+                // Un collegamento annullato o una foto in caricamento possono aver rinnovato il token
+                // mentre si chiudeva tutto: si aspetta che finiscano e lo si cancella.
                 pendingImport?.join()
+                googleStream.drain()
                 withContext(Dispatchers.IO) { googleAuth.disconnect() }
             }
         }
@@ -361,6 +391,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                 _state.update { it.copy(google = GoogleConnectState.Idle) }
                 command.settings?.let { updateSettings(it.applyTo(_state.value.settings)) }
                 showPhotos(command.photos, quantityString(R.plurals.source_cast, command.photos.size))
+                discardGoogleSelection()
                 _state.update { it.copy(destination = Destination.SLIDESHOW, isPlaying = true) }
                 syncMusic()
             }

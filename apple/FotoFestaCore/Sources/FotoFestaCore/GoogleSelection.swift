@@ -34,8 +34,9 @@ public struct GoogleSelection: Codable, Equatable, Sendable {
     }
 }
 
-/// Selezione salvata in UserDefaults (su tvOS l'unico spazio persistente garantito: pochi KB anche
-/// con centinaia di foto), con una copia in memoria condivisa da app e caricamento delle immagini.
+/// Selezione salvata in UserDefaults, su tvOS l'unico spazio persistente garantito: circa 150 byte per
+/// foto, con al massimo `PhotosPicker.maxItemCount` foto per selezione. Una copia in memoria è
+/// condivisa da app e caricamento delle immagini.
 public final class GoogleSelectionStore: @unchecked Sendable {
     private let defaults: UserDefaults
     private let key: String
@@ -50,13 +51,7 @@ public final class GoogleSelectionStore: @unchecked Sendable {
 
     public func current() -> GoogleSelection? {
         lock.lock(); defer { lock.unlock() }
-        if !loaded {
-            cached = defaults.data(forKey: key)
-                .flatMap { try? JSONDecoder().decode(GoogleSelection.self, from: $0) }
-                .flatMap { $0.items.isEmpty || $0.sessionID.isEmpty ? nil : $0 }
-            loaded = true
-        }
-        return cached
+        return currentLocked()
     }
 
     public func save(_ selection: GoogleSelection) {
@@ -66,8 +61,31 @@ public final class GoogleSelectionStore: @unchecked Sendable {
         loaded = true
     }
 
+    /// Cancella la selezione solo se appartiene ancora a `sessionID`; restituisce true se l'ha cancellata.
+    @discardableResult
+    public func clearIfCurrent(sessionID: String) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        guard currentLocked()?.sessionID == sessionID else { return false }
+        clearLocked()
+        return true
+    }
+
     public func clear() {
         lock.lock(); defer { lock.unlock() }
+        clearLocked()
+    }
+
+    private func currentLocked() -> GoogleSelection? {
+        if !loaded {
+            cached = defaults.data(forKey: key)
+                .flatMap { try? JSONDecoder().decode(GoogleSelection.self, from: $0) }
+                .flatMap { $0.items.isEmpty || $0.sessionID.isEmpty ? nil : $0 }
+            loaded = true
+        }
+        return cached
+    }
+
+    private func clearLocked() {
         defaults.removeObject(forKey: key)
         cached = nil
         loaded = true

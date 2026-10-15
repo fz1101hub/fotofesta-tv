@@ -82,16 +82,21 @@ class GooglePhotosStreamTest {
     }
 
     @Test
-    fun `a stale address renews token and listing`() = runTest {
-        select("a")
-        server.enqueue("GET", "/v1/mediaItems", listing("1", "a"), listing("2", "a"))
+    fun `a rejected address renews token and listing once for parallel failures`() = runTest {
+        select("a", "b")
+        server.enqueue("GET", "/v1/mediaItems", listing("1", "a", "b"), listing("2", "a", "b"))
         server.enqueue("POST", "/oauth/token", json("""{"access_token":"tok2","expires_in":3600}"""))
 
-        stream.access("a")
-        val renewed = stream.access("a", stale = true)
+        val firstA = stream.access("a")
+        val firstB = stream.access("b")
+        val renewed = listOf("a" to firstA, "b" to firstB)
+            .map { (id, failed) -> async { stream.access(id, failed = failed) } }
+            .awaitAll()
 
-        assertEquals(GooglePhotosStream.Access("https://lh3.example/a-2", "tok2"), renewed)
+        assertEquals(GooglePhotosStream.Access("https://lh3.example/a-2", "tok2"), renewed[0])
+        assertEquals(GooglePhotosStream.Access("https://lh3.example/b-2", "tok2"), renewed[1])
         assertEquals(1, server.requestsTo("POST", "/oauth/token").size)
+        assertEquals(2, server.requestsTo("GET", "/v1/mediaItems").size)
     }
 
     @Test
@@ -102,6 +107,7 @@ class GooglePhotosStreamTest {
         stream.access("a")
         val first = runCatching { stream.access("gone") }.exceptionOrNull()
         now += 61_000L
+        tokens.expiresAtEpochSeconds = now / 1_000 + 3_600
         val second = runCatching { stream.access("gone") }.exceptionOrNull()
 
         assertEquals(R.string.photo_unavailable, (first as UserFacingException).messageRes)
@@ -110,31 +116,69 @@ class GooglePhotosStreamTest {
     }
 
     @Test
-    fun `an expired session asks to choose the photos again`() = runTest {
+    fun `a deleted session asks to choose the photos again`() = runTest {
         select("a")
         server.enqueue("GET", "/v1/mediaItems", json("""{"error":{"code":404,"message":"Session not found"}}""", 404))
-
-        try {
-            stream.access("a")
-            fail("expected UserFacingException")
-        } catch (expected: UserFacingException) {
-            assertEquals(R.string.error_google_selection_gone, expected.messageRes)
-        }
-        assertTrue(stream.selectionGone.value)
-
-        stream.reset()
-        assertFalse(stream.selectionGone.value)
-    }
-
-    @Test
-    fun `a selection past its expiry is not requested from Google`() = runTest {
-        select("a", expiresAt = now - 1)
 
         val failure = runCatching { stream.access("a") }.exceptionOrNull()
 
         assertEquals(R.string.error_google_selection_gone, (failure as UserFacingException).messageRes)
-        assertTrue(stream.selectionGone.value)
+        assertEquals(GooglePhotosStream.Gone("s1", GooglePhotosStream.GoneReason.SELECTION_EXPIRED), stream.gone.value)
+        assertEquals(null, store.current())
+        stream.reset()
+        assertEquals(null, stream.gone.value)
+    }
+
+    @Test
+    fun `a 403 removes the selection only if Google confirms the session is gone`() = runTest {
+        select("a")
+        server.enqueue("GET", "/v1/mediaItems", json("""{"error":{"code":403}}""", 403), json("""{"error":{"code":403}}""", 403))
+        server.enqueue(
+            "GET", "/v1/sessions/s1",
+            json("""{"id":"s1","pickerUri":"https://photos.google.com/picker/s1","mediaItemsSet":true}"""),
+            json("""{"error":{"code":404}}""", 404),
+        )
+
+        val transient = runCatching { stream.access("a") }.exceptionOrNull()
+        val confirmed = runCatching { stream.access("a") }.exceptionOrNull()
+
+        assertEquals(403, (transient as HttpStatusException).code)
+        assertEquals(R.string.error_google_selection_gone, (confirmed as UserFacingException).messageRes)
+        assertEquals(GooglePhotosStream.GoneReason.SELECTION_EXPIRED, stream.gone.value?.reason)
+    }
+
+    @Test
+    fun `a revoked access asks to connect again`() = runTest {
+        select("a")
+        tokens.expiresAtEpochSeconds = 0L
+        server.enqueue("POST", "/oauth/token", oauthError("invalid_grant"))
+
+        val failure = runCatching { stream.access("a") }.exceptionOrNull()
+
+        assertEquals(R.string.error_google_session_expired, (failure as UserFacingException).messageRes)
+        assertEquals(GooglePhotosStream.Gone("s1", GooglePhotosStream.GoneReason.ACCESS_LOST), stream.gone.value)
         assertTrue(server.requestsTo("GET", "/v1/mediaItems").isEmpty())
+    }
+
+    @Test
+    fun `a 401 on the listing renews the token once`() = runTest {
+        select("a")
+        server.enqueue("GET", "/v1/mediaItems", json("""{"error":{"code":401}}""", 401), listing("1", "a"))
+        server.enqueue("POST", "/oauth/token", json("""{"access_token":"tok2","expires_in":3600}"""))
+
+        val access = stream.access("a")
+
+        assertEquals(GooglePhotosStream.Access("https://lh3.example/a-1", "tok2"), access)
+        assertEquals(listOf("Bearer tok", "Bearer tok2"), server.requestsTo("GET", "/v1/mediaItems").map { it.getHeader("Authorization") })
+    }
+
+    @Test
+    fun `the device clock alone does not discard a selection`() = runTest {
+        select("a", expiresAt = now - 1)
+        server.enqueue("GET", "/v1/mediaItems", listing("1", "a"))
+
+        assertEquals("https://lh3.example/a-1", stream.access("a").baseUrl)
+        assertEquals(null, stream.gone.value)
     }
 
     @Test
@@ -150,7 +194,8 @@ class GooglePhotosStreamTest {
 
         runCatching { stream.access("a") }
 
-        assertFalse(stream.selectionGone.value)
+        assertEquals(null, stream.gone.value)
+        assertEquals("s2", store.current()?.sessionId)
     }
 
     @Test
