@@ -3,9 +3,11 @@
 # chiave API App Store Connect (.p8) indicata da ASC_KEY_ID, ASC_ISSUER_ID e ASC_KEY_PATH.
 # Eseguire dalla cartella apple/:  fastlane tvos beta  |  fastlane tvos metadata  |  fastlane tvos release
 # L'account Google di test per la revisione non sta nel repository: si passa con le variabili
-# REVIEW_DEMO_USER e REVIEW_DEMO_PASSWORD (facoltative, l'app funziona anche senza account).
+# REVIEW_DEMO_USER e REVIEW_DEMO_PASSWORD. Senza, le note per i revisori non lo citano.
 
 default_platform(:tvos)
+
+DEMO_ACCOUNT_NOTE = "A Google test account authorized on the OAuth consent screen is provided in the demo account fields."
 
 platform :tvos do
   def api_key
@@ -25,10 +27,36 @@ platform :tvos do
   end
 
   def review_information
-    { demo_user: ENV["REVIEW_DEMO_USER"], demo_password: ENV["REVIEW_DEMO_PASSWORD"] }.compact
+    notes = File.read("metadata/review_information/notes.txt").strip
+    user = ENV["REVIEW_DEMO_USER"].to_s
+    password = ENV["REVIEW_DEMO_PASSWORD"].to_s
+    if user.empty? || password.empty?
+      UI.important("REVIEW_DEMO_USER e REVIEW_DEMO_PASSWORD non impostati: i revisori proveranno Google Foto con un proprio account")
+      return { notes: notes }
+    end
+    { notes: "#{notes}\n#{DEMO_ACCOUNT_NOTE}", demo_user: user, demo_password: password }
   end
 
-  def build
+  # Per l'App Store l'informativa deve essere raggiungibile anche dall'app (QR nelle impostazioni).
+  def check_privacy_url
+    UI.user_error!("Scrivi l'URL dell'informativa in PrivacyPolicyURL di apple/project.yml") if File.read("../project.yml").include?("EXAMPLE")
+  end
+
+  # Si ferma se la build porterebbe un client Google di esempio.
+  def check_build_settings
+    secrets = File.exist?("../Config/Secrets.xcconfig") ? File.read("../Config/Secrets.xcconfig") : ""
+    client_id = secrets[/^\s*PHOTOS_CLIENT_ID\s*=\s*(\S*)/, 1].to_s
+    UI.user_error!("PHOTOS_CLIENT_ID in Config/Secrets.xcconfig è un valore di esempio") if client_id.downcase.include?("example")
+    UI.important("PHOTOS_CLIENT_ID vuoto: la build non mostrerà Google Foto") if client_id.empty?
+  end
+
+  # Ogni build caricata su App Store Connect deve avere un numero nuovo.
+  def next_build_number
+    latest_testflight_build_number(api_key: api_key, platform: "appletvos", initial_build_number: 0) + 1
+  end
+
+  def build(build_number)
+    check_build_settings
     sh("cd .. && xcodegen generate")
     build_app(
       project: "FotoFestaTV.xcodeproj",
@@ -37,7 +65,7 @@ platform :tvos do
       export_method: "app-store",
       destination: "generic/platform=tvOS",
       output_directory: "build",
-      xcargs: "-allowProvisioningUpdates",
+      xcargs: "-allowProvisioningUpdates CURRENT_PROJECT_VERSION=#{build_number}",
     )
   end
 
@@ -49,7 +77,7 @@ platform :tvos do
   desc "Compila, firma e carica una build su TestFlight"
   lane :beta do
     test
-    build
+    build(next_build_number)
     upload_to_testflight(api_key: api_key, skip_waiting_for_build_processing: true)
   end
 
@@ -70,8 +98,9 @@ platform :tvos do
   desc "Carica build e scheda e prepara la versione per la revisione (l'invio resta manuale)"
   lane :release do
     check_metadata
+    check_privacy_url
     test
-    build
+    build(next_build_number)
     upload_to_app_store(
       api_key: api_key,
       app_review_information: review_information,

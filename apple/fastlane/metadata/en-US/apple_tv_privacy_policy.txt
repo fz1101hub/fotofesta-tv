@@ -1,0 +1,7 @@
+FotoFesta TV shows on your TV the photos you choose. It contains no ads, analytics or tracking and sends no data to the developer.
+
+Google Photos (optional): the Apple TV talks directly to Google over encrypted connections. The app only requests access to the photos you pick on your phone, not to the rest of your library. Picked photos are downloaded to this Apple TV only. The Google access token is stored in the Apple TV Keychain.
+
+Settings › "Disconnect and delete" removes the downloaded photos and the token and revokes access at Google. You can also revoke access at myaccount.google.com/permissions. tvOS may delete downloaded photos when it needs space.
+
+The full privacy policy is available at the privacy policy URL of this app and as a QR code in the app's Settings.

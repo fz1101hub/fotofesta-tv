@@ -64,6 +64,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private var usbJob: Job? = null
     private var restoreJob: Job? = null
     private var housekeepingJob: Job? = null
+    private var disconnectJob: Job? = null
     private var sleepJob: Job? = null
     private var sleepJobMinutes = 0
     private val savedMusic = settingsRepository.loadMusic()
@@ -248,6 +249,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             _state.update { it.copy(destination = Destination.GOOGLE_CONNECT, google = GoogleConnectState.Idle) }
             try {
                 housekeepingJob?.join()
+                // Una cancellazione ancora in corso cancellerebbe i nuovi token e la cartella del download.
+                disconnectJob?.join()
                 // Le foto si mostrano appena salvate, senza aspettare la chiusura della sessione Picker:
                 // un Indietro premuto in quel momento non deve scartare un archivio già sostituito.
                 googleImport.run(
@@ -292,8 +295,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun cancelGoogleConnect() {
+        // Il riferimento resta: "Disconnetti e cancella" deve poter aspettare la fine del job annullato.
         googleJob?.cancel()
-        googleJob = null
         _state.update { it.copy(google = GoogleConnectState.Idle, destination = Destination.HOME) }
     }
 
@@ -302,10 +305,13 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         restoreJob?.cancel()
         val pendingImport = googleJob
         pendingImport?.cancel()
+        val previousDisconnect = disconnectJob
         // Revoca e cancellazione dei file (anche migliaia di foto 4K) fuori dal thread principale e
         // senza interruzioni se nel frattempo l'utente esce dall'app: il client HTTP è di processo.
-        viewModelScope.launch {
+        // Un nuovo collegamento aspetta la fine di questo job.
+        disconnectJob = viewModelScope.launch {
             withContext(NonCancellable) {
+                previousDisconnect?.join()
                 // I token locali spariscono per primi, poi la revoca presso Google e, in parallelo, i file.
                 val files = launch(Dispatchers.IO) {
                     housekeepingJob?.join()

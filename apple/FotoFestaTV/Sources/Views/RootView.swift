@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RootView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         @Bindable var model = model
@@ -34,5 +35,8 @@ struct RootView: View {
             }
         }
         .animation(.easeInOut(duration: 0.3), value: model.message)
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { model.checkCachedPhotos() }
+        }
     }
 }

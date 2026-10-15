@@ -7,11 +7,17 @@ import UIKit
 struct SlideshowView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @State private var infoVisible = true
     @State private var interactions = 0
+    // Tempo già trascorso sulla foto corrente prima di una pausa: alla ripresa il cambio foto
+    // avviene dopo il tempo restante, in sincronia con il movimento lento.
+    @State private var shownSeconds: TimeInterval = 0
+    @State private var shownPhotoID: String?
 
     var body: some View {
-        let settings = model.settings
+        // "Riduci movimento" vale sia dalle impostazioni dell'app sia da quelle di sistema.
+        let settings = effectiveSettings
         Button {
             model.togglePlayback()
             showInfo()
@@ -55,9 +61,21 @@ struct SlideshowView: View {
         }
         // Cambio foto automatico; si riavvia a ogni foto, pausa o cambio di durata.
         .task(id: TimerKey(index: model.currentIndex, playing: model.isPlaying, interval: settings.intervalSeconds, count: model.photos.count)) {
+            let photoID = model.currentPhoto?.id
+            if photoID != shownPhotoID {
+                shownPhotoID = photoID
+                shownSeconds = 0
+            }
             guard model.isPlaying, model.photos.count > 1 else { return }
-            try? await Task.sleep(nanoseconds: UInt64(settings.intervalSeconds) * 1_000_000_000)
-            guard !Task.isCancelled else { return }
+            let startedAt = Date()
+            let remaining = max(Double(settings.intervalSeconds) - shownSeconds, 0)
+            do {
+                try await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
+            } catch {
+                // Pausa o cambio di durata: si conserva il tempo già mostrato per questa foto.
+                if shownPhotoID == photoID { shownSeconds += Date().timeIntervalSince(startedAt) }
+                return
+            }
             model.next()
         }
         // Le informazioni si nascondono dopo qualche secondo di inattività.
@@ -74,6 +92,12 @@ struct SlideshowView: View {
         .onAppear { UIApplication.shared.isIdleTimerDisabled = model.isPlaying }
         .onChange(of: model.isPlaying) { _, playing in UIApplication.shared.isIdleTimerDisabled = playing }
         .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
+    }
+
+    private var effectiveSettings: SlideshowSettings {
+        var settings = model.settings
+        if systemReduceMotion { settings.reducedMotion = true }
+        return settings
     }
 
     private func showInfo() {

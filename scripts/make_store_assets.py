@@ -51,9 +51,10 @@ def rounded_icon(size: int) -> Image.Image:
 def play_icon(size: int) -> Image.Image:
     """Icona Google Play: quadrata e opaca, perché Play applica da sé la maschera con gli angoli arrotondati.
     Gli angoli chiari del disegno sorgente vengono coperti con il blu dello sfondo."""
-    background = Image.new("RGB", (size, size), (1, 10, 47))
+    background = Image.new("RGBA", (size, size), (1, 10, 47, 255))
     icon = rounded_icon(size)
-    background.paste(icon, (0, 0), icon)
+    background.alpha_composite(icon)
+    # Play chiede un PNG a 32 bit: canale alfa presente, ma tutto opaco.
     return background
 
 

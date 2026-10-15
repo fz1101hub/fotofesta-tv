@@ -7,6 +7,7 @@ import UIKit
 struct QRCodeView: View {
     let text: String
     let accessibilityLabel: String
+    var size: CGFloat = 360
 
     var body: some View {
         Group {
@@ -21,7 +22,7 @@ struct QRCodeView: View {
         }
         .padding(18)
         .background(Color.white)
-        .frame(width: 360, height: 360)
+        .frame(width: size, height: size)
         .accessibilityLabel(Text(accessibilityLabel))
     }
 

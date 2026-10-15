@@ -3,6 +3,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
+    @FocusState private var policyFocused: Bool
 
     var body: some View {
         let settings = model.settings
@@ -43,6 +44,24 @@ struct SettingsView: View {
                 Text(L("settings.google_data"))
             } footer: {
                 Text(L("settings.privacy"))
+            }
+
+            if let url = model.privacyPolicyURL {
+                Section(L("settings.privacy_policy")) {
+                    // Su tvOS non si aprono link: l'informativa si legge sul telefono. La riga è
+                    // focalizzabile perché il Form scorra fin qui con il telecomando.
+                    HStack(spacing: 40) {
+                        QRCodeView(text: url, accessibilityLabel: L("settings.privacy_policy"), size: 260)
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text(L("settings.privacy_policy_hint"))
+                            Text(url).font(.callout).foregroundStyle(Theme.secondaryText)
+                        }
+                    }
+                    .padding(16)
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(policyFocused ? Theme.amber : .clear, lineWidth: 4))
+                    .focusable()
+                    .focused($policyFocused)
+                }
             }
         }
         .navigationTitle(L("settings.title"))

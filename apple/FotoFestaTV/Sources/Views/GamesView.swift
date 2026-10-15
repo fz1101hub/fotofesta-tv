@@ -51,6 +51,7 @@ struct MemoryGameView: View {
     @State private var cards: [Card] = []
     @State private var moves = 0
     @State private var checking = false
+    @State private var gameID = UUID()
 
     struct Card: Identifiable {
         let id: Int
@@ -106,6 +107,7 @@ struct MemoryGameView: View {
         cards = (chosen + chosen).shuffled().enumerated().map { Card(id: $0.offset, photo: $0.element) }
         moves = 0
         checking = false
+        gameID = UUID()
     }
 
     private func reveal(_ index: Int) {
@@ -116,11 +118,11 @@ struct MemoryGameView: View {
         moves += 1
         checking = true
         let same = cards[open[0]].photo.id == cards[open[1]].photo.id
-        let deck = cards.map(\.id)
+        let game = gameID
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: same ? 450_000_000 : 900_000_000)
-            // Una nuova partita nel frattempo invalida il controllo.
-            guard cards.map(\.id) == deck else { return }
+            // Una nuova partita nel frattempo invalida il controllo (gli id delle carte sono solo posizioni).
+            guard gameID == game else { return }
             for position in open {
                 if same { cards[position].matched = true } else { cards[position].revealed = false }
             }

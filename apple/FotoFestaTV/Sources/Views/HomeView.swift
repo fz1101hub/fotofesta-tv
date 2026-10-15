@@ -28,8 +28,11 @@ struct HomeView: View {
                 }
 
                 HStack(spacing: 48) {
-                    SourceCard(title: L("home.google_title"), subtitle: L("home.google_body"), systemImage: "icloud", tint: Theme.cyan) {
-                        model.startGoogleConnect()
+                    // Senza client OAuth nella build la scheda non compare: l'app resta usabile con le foto demo.
+                    if model.isGoogleConfigured {
+                        SourceCard(title: L("home.google_title"), subtitle: L("home.google_body"), systemImage: "photo.on.rectangle.angled", tint: Theme.cyan) {
+                            model.startGoogleConnect()
+                        }
                     }
                     SourceCard(title: L("home.demo_title"), subtitle: L("home.demo_body"), systemImage: "sparkles", tint: Theme.coral) {
                         model.startDemo()

@@ -25,7 +25,7 @@ Il repository contiene anche la versione per **Apple TV** (cartella [`apple/`](a
 | Salvaschermo | Foto dell’ultima raccolta quando la TV è inattiva, con dissolvenza, movimento lento e orologio che cambia angolo | Pronta |
 | Giochi | Memory dei ricordi | Pronta |
 | Giochi | Foto misteriosa | Pronta |
-| Privacy | Nessuna pubblicità né analisi proprie; token AES-GCM in Android Keystore. Il Cast SDK di Google invia a Google dati anonimi di utilizzo ([DATA_SAFETY.md](docs/DATA_SAFETY.md)) | Pronta |
+| Privacy | Nessuna pubblicità né analisi proprie; token AES-GCM in Android Keystore. Il Cast SDK di Google invia a Google dati di utilizzo e diagnostica ([DATA_SAFETY.md](docs/DATA_SAFETY.md)) | Pronta |
 | Lingue | Italiano e inglese (predefinito per le altre lingue del televisore) | Pronta |
 | Google Play | Banner Leanback 320×180 nell’app; per la scheda icona 512×512, grafica 1024×500 e banner TV 1280×720; AAB firmato | Pronta |
 | Apple TV | App tvOS 17+ con icona a livelli, Top Shelf, italiano e inglese | Da compilare e provare su un Mac ([apple/README.md](apple/README.md)) |
@@ -71,7 +71,7 @@ Cast Connect segue il modello Sender/Receiver di Google Cast. Il ricevitore Andr
 
 ## Privacy e sicurezza
 
-L’app non integra pubblicità, analytics, crash reporting esterno o un backend proprietario. L’unico componente che invia dati è il Cast SDK di Google, che trasmette a Google dati anonimi di utilizzo e diagnostica: va dichiarato nella scheda Sicurezza dei dati come descritto in [DATA_SAFETY.md](docs/DATA_SAFETY.md). Gli URI USB e del brano musicale rimangono sul televisore e sono esclusi dal backup. I token Google sono cifrati con una chiave AES-GCM non esportabile conservata da Android Keystore. Le foto Google si trovano nell’area privata dell’app e si cancellano, insieme alla revoca dell’accesso, con “Disconnetti e cancella”. Il traffico HTTP in chiaro è disabilitato e il protocollo Cast accetta soltanto URL HTTPS. L’informativa privacy e la pagina di supporto da pubblicare sono in [`site/`](site/).
+L’app non integra pubblicità, analytics, crash reporting esterno o un backend proprietario. L’unico componente che invia dati è il Cast SDK di Google, che trasmette a Google dati di utilizzo e diagnostica, compresi identificatori del dispositivo: va dichiarato nella scheda Sicurezza dei dati come descritto in [DATA_SAFETY.md](docs/DATA_SAFETY.md). Gli URI USB e del brano musicale rimangono sul televisore e sono esclusi dal backup. I token Google sono cifrati con una chiave AES-GCM non esportabile conservata da Android Keystore. Le foto Google si trovano nell’area privata dell’app e si cancellano, insieme alla revoca dell’accesso, con “Disconnetti e cancella”. Il traffico HTTP in chiaro è disabilitato e il protocollo Cast accetta soltanto URL HTTPS. L’informativa privacy e la pagina di supporto da pubblicare sono in [`site/`](site/).
 
 Queste scelte applicano minimizzazione e privacy by design. Prima di una pubblicazione pubblica devono comunque essere completate l’informativa definitiva, la scheda Data Safety e la verifica OAuth in base al titolare effettivo e ai paesi di distribuzione.[7] [9]
 

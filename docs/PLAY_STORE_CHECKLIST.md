@@ -33,7 +33,7 @@ La Google Photos API richiede una verifica OAuth separata.[3] La Cast Console ri
 
 ## Data Safety
 
-La versione corrente non invia dati al server dello sviluppatore e non contiene annunci. Il Cast SDK di Google invia però a Google dati anonimi di utilizzo e diagnostica, che vanno dichiarati. Le risposte da dare sono in [DATA_SAFETY.md](DATA_SAFETY.md). L’informativa pubblica (`site/privacy/index.html`) deve restare coerente con il modulo.
+La versione corrente non invia dati al server dello sviluppatore e non contiene annunci. Il Cast SDK di Google invia però a Google dati di utilizzo e diagnostica, che vanno dichiarati. Le risposte da dare sono in [DATA_SAFETY.md](DATA_SAFETY.md). L’informativa pubblica (`site/privacy/index.html`) deve restare coerente con il modulo.
 
 ## Accessibilità europea
 

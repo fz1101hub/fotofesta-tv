@@ -14,7 +14,7 @@ Prima di inviare il modulo, apri la pagina ufficiale [Cast SDK Google Play Data 
 | --- | --- |
 | L'app raccoglie o condivide uno dei tipi di dati richiesti? | **Sì** (solo tramite il Cast SDK) |
 | Tutti i dati raccolti sono criptati in transito? | Sì |
-| Gli utenti possono richiedere l'eliminazione dei dati? | No: i dati del Cast SDK sono anonimi e Google non ne consente l'eliminazione. Le foto e i token si cancellano dall'app con “Disconnetti e cancella” |
+| Gli utenti possono richiedere l'eliminazione dei dati? | No: Google non consente di eliminare i dati raccolti dal Cast SDK. Le foto e i token si cancellano dall'app con “Disconnetti e cancella” |
 | Metodi di creazione account | **Nessun account**: l'app non crea account, e il login Google serve solo ad accedere a Google Foto |
 
 Tipi di dati attesi, tutti **raccolti, non condivisi, raccolta obbligatoria** (non disattivabile), elaborazione non temporanea, scopo **Analisi**:

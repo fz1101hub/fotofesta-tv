@@ -21,10 +21,22 @@ struct GoogleConnectView: View {
             }
             .padding(80)
         }
-        .onExitCommand {
-            model.cancelGoogleConnect()
-            dismiss()
+        .onExitCommand { cancel() }
+        // Se la schermata si chiude in altro modo (Menu senza elementi a fuoco), il collegamento non
+        // deve proseguire in background e sostituire più tardi le foto.
+        .onDisappear {
+            if case .working = model.googleState { model.cancelGoogleConnect() }
         }
+    }
+
+    private func cancel() {
+        model.cancelGoogleConnect()
+        dismiss()
+    }
+
+    /// Pulsante a fuoco durante l'attesa: senza un elemento focalizzabile il tasto Menu non arriva qui.
+    private var cancelButton: some View {
+        Button(L("action.cancel")) { cancel() }
     }
 
     @ViewBuilder
@@ -34,6 +46,7 @@ struct GoogleConnectView: View {
             VStack(spacing: 24) {
                 ProgressView()
                 Text(L("google.preparing")).font(.title3)
+                cancelButton
             }
         case let .working(.waitingForAuthorization(url, code, _)?):
             HStack(spacing: 64) {
@@ -49,6 +62,7 @@ struct GoogleConnectView: View {
                         .background(Theme.navy, in: RoundedRectangle(cornerRadius: 18))
                         .accessibilityLabel(Text(code.map(String.init).joined(separator: " ")))
                     Text(L("google.scope_note")).font(.callout).foregroundStyle(Theme.secondaryText)
+                    cancelButton
                 }
             }
         case let .working(.waitingForPhotos(pickerURI)?):
@@ -59,6 +73,7 @@ struct GoogleConnectView: View {
                     Text(L("google.pick_instructions"))
                     Text(L("google.pick_hint")).font(.callout).foregroundStyle(Theme.secondaryText)
                     ProgressView()
+                    cancelButton
                 }
             }
         case let .working(.downloading(completed, total)?):
@@ -68,12 +83,16 @@ struct GoogleConnectView: View {
                 ProgressView(value: Double(completed), total: Double(max(total, 1)))
                     .frame(maxWidth: 900)
                 Text(L("google.cache_note")).font(.callout).foregroundStyle(Theme.secondaryText).multilineTextAlignment(.center)
+                cancelButton
             }
         case let .failed(message):
             VStack(spacing: 24) {
                 Text(L("google.unavailable")).font(.title2.bold())
                 Text(message).foregroundStyle(Theme.secondaryText).multilineTextAlignment(.center)
-                Button(L("action.retry")) { model.startGoogleConnect() }
+                HStack(spacing: 32) {
+                    Button(L("action.retry")) { model.startGoogleConnect() }
+                    cancelButton
+                }
             }
         case let .complete(count):
             VStack(spacing: 24) {

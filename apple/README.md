@@ -42,7 +42,7 @@ Serve un Mac con **Xcode 26 o successivo**, l'unica versione accettata da App St
 ```bash
 brew install xcodegen
 cd apple
-cp Config/Secrets.example.xcconfig Config/Secrets.xcconfig   # Team ID ed eventuale client Google
+cp Config/Secrets.example.xcconfig Config/Secrets.xcconfig   # Team ID ed eventuale client Google (vuoto = niente Google Foto)
 xcodegen generate
 (cd FotoFestaCore && swift test)
 open FotoFestaTV.xcodeproj                                    # schema FotoFestaTV, destinazione Apple TV

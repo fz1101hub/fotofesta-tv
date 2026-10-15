@@ -19,7 +19,9 @@ Entrambi gli store chiedono l'URL di un'informativa privacy. App Store chiede an
    - **Un altro hosting statico gratuito**, come Cloudflare Pages o Netlify: carica il contenuto di `site/` così com'è.
    - **Un tuo dominio**: copia i due file nel sito.
 3. Annota i due URL, ad esempio `https://<sito>/` per il supporto e `https://<sito>/privacy/` per l'informativa.
-4. Scrivili in `apple/fastlane/metadata/*/support_url.txt` e `privacy_url.txt`, al posto di `EXAMPLE`.
+4. Scrivili al posto di `EXAMPLE`:
+   - in `apple/fastlane/metadata/*/support_url.txt` e `privacy_url.txt`;
+   - in `PrivacyPolicyURL` di `apple/project.yml`: l'app Apple TV mostra l'informativa come QR nelle impostazioni, perché tvOS non apre i link.
 5. In `apple/fastlane/metadata/copyright.txt` sostituisci `[Titolare]` con il tuo nome o quello della tua attività.
 
 ### Client OAuth Google (facoltativo, serve solo per Google Foto)
@@ -35,7 +37,7 @@ Le due app funzionano anche senza Google Foto, con le foto demo (e su Android co
 
    Aggiungi il dominio del sito tra i **domini autorizzati** e verificane la proprietà in [Google Search Console](https://search.google.com/search-console). Per un sito `*.github.io` serve la proprietà con prefisso URL `https://<utente>.github.io/fotofesta-tv/`.
 3. Crea un client OAuth di tipo **TVs and Limited Input devices**. Lo stesso client va bene per Android TV e Apple TV.
-4. Per uscire dalla modalità test (massimo 100 utenti di test), invia la verifica OAuth dell'app a Google. Indica lo scope `photospicker.mediaitems.readonly` e il video dimostrativo richiesto.
+4. Prima di inviare le app in revisione, porta lo stato di pubblicazione dell'app OAuth su **In produzione** e invia la verifica a Google, indicando lo scope `photospicker.mediaitems.readonly` e il video dimostrativo richiesto. In modalità test possono collegarsi solo gli utenti di test (massimo 100), e i loro token scadono dopo 7 giorni: i revisori degli store non riuscirebbero ad accedere con un proprio account.
 5. Prepara un account Google di test autorizzato, da fornire ai revisori di entrambi gli store.
 
 ## 1. Google Play (Android TV)
@@ -69,7 +71,7 @@ La versione 1.2.0 non è ancora stata compilata con l'Android SDK. Alla prima bu
    - **ID pubblicità**: no. Il manifest rimuove il permesso `AD_ID`.
    - **Classificazione dei contenuti**: questionario. Nessuna violenza, nessuna interazione tra utenti, nessun contenuto generato condiviso.
    - **Pubblico di destinazione**: 13+ oppure 18+. Scegliendo fasce di età più basse si applicano le norme Families.
-   - **Sicurezza dei dati**: usa le risposte di [DATA_SAFETY.md](DATA_SAFETY.md). Il Cast SDK di Google raccoglie dati anonimi, quindi la risposta non è "nessun dato".
+   - **Sicurezza dei dati**: usa le risposte di [DATA_SAFETY.md](DATA_SAFETY.md). Il Cast SDK di Google raccoglie dati di utilizzo e diagnostica, quindi la risposta non è "nessun dato".
    - **Informativa privacy**: l'URL del punto 0.
 3. **Scheda dello store principale**:
    - Testi da `fastlane/metadata/android/<lingua>/`.
@@ -99,7 +101,7 @@ Questi passaggi funzionano solo dopo il primo caricamento manuale.
    2. aggiungi le note in `fastlane/metadata/android/<lingua>/changelogs/<versionCode>.txt`;
    3. avvia **Android release** con **Carica su Google Play** attivo.
 
-   L'AAB arriva come bozza nel test interno; da lì si promuove con `fastlane android promote_production` o dalla console.
+   L'AAB arriva come bozza nel test interno; da lì si promuove con `bundle exec fastlane android promote_production` o dalla console.
 
 ### Cast Connect (facoltativo)
 
@@ -115,11 +117,11 @@ Serve solo se pubblichi anche un'app sender che comanda la TV. Registra il ricev
    - iscrizione all'[Apple Developer Program](https://developer.apple.com/programs/) (abbonamento annuale);
    - un Mac con **Xcode 26 o successivo**: da aprile 2026 App Store Connect accetta solo build fatte con l'SDK tvOS 26;
    - in Xcode, **Settings › Accounts**: accedi con l'Apple ID del Developer Program. Serve alla firma automatica usata da Xcode e da fastlane (`-allowProvisioningUpdates`);
-   - `brew install xcodegen fastlane`.
+   - `brew install xcodegen` e, per fastlane, Ruby con Bundler: dalla radice del repository `bundle install` installa le versioni fissate in `Gemfile.lock`.
 2. **Progetto**:
    ```bash
    cd apple
-   cp Config/Secrets.example.xcconfig Config/Secrets.xcconfig   # inserisci Team ID e, se vuoi, il client Google
+   cp Config/Secrets.example.xcconfig Config/Secrets.xcconfig   # inserisci Team ID e, se usi Google Foto, il client
    xcodegen generate
    (cd FotoFestaCore && swift test)                               # test del nucleo logico
    open FotoFestaTV.xcodeproj
@@ -134,7 +136,7 @@ Serve solo se pubblichi anche un'app sender che comanda la TV. Registra il ricev
 
 1. Aggiorna `MARKETING_VERSION` e `CURRENT_PROJECT_VERSION` in `apple/project.yml`.
 2. Carica la build, in uno di due modi:
-   - `cd apple && fastlane tvos beta`, che esegue i test, compila, firma e carica su TestFlight;
+   - `cd apple && bundle exec fastlane tvos beta`, che esegue i test, compila, firma, assegna un numero di build nuovo e carica su TestFlight;
    - in Xcode: **Product › Archive › Distribute App › App Store Connect**.
 3. Prova la build con **TestFlight** su una Apple TV reale.
 4. Prepara le **Informazioni per la revisione** prima di caricare la scheda:
@@ -144,9 +146,10 @@ Serve solo se pubblichi anche un'app sender che comanda la TV. Registra il ricev
      export REVIEW_DEMO_USER="account-di-test@gmail.com"
      export REVIEW_DEMO_PASSWORD="..."
      ```
-     L'account è facoltativo, perché "Prova subito" funziona senza login, ma permette ai revisori di provare Google Foto.
+     È consigliato: "Prova subito" funziona senza login, ma l'account permette ai revisori di provare Google Foto. Se le variabili sono impostate, fastlane aggiunge alle note per i revisori la frase che rimanda all'account; altrimenti le note non lo citano.
+   - con `PHOTOS_CLIENT_ID` vuoto in `Config/Secrets.xcconfig` la build non mostra Google Foto, e l'account non serve.
 5. Carica la scheda:
-   - testi: `fastlane tvos metadata`, che prende i dati da `apple/fastlane/metadata/` e si ferma se trova ancora segnaposto (`[da completare]`, `EXAMPLE`, `[Titolare]`);
+   - testi: `bundle exec fastlane tvos metadata`, che prende i dati da `apple/fastlane/metadata/` (compresa l'informativa breve mostrata su Apple TV, `apple_tv_privacy_policy.txt`) e si ferma se trova ancora segnaposto (`[da completare]`, `EXAMPLE`, `[Titolare]`);
    - screenshot: 1920×1080 o 3840×2160, catturabili dal simulatore con **File › Save Screen**.
 6. Invia per la revisione dalla pagina della versione.
 

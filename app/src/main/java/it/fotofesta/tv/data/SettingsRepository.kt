@@ -1,5 +1,6 @@
 package it.fotofesta.tv.data
 
+import android.annotation.SuppressLint
 import android.content.Context
 import it.fotofesta.tv.model.FitMode
 import it.fotofesta.tv.model.SlideshowSettings
@@ -72,7 +73,8 @@ class SettingsRepository(context: Context) {
 
     fun loadLastSource(): String = sources.getString("last_source", "DEMO") ?: "DEMO"
 
-    /** Le versioni fino alla 1.2.0 salvavano le sorgenti nel file incluso nel backup: le sposta una volta. */
+    /** Le versioni precedenti salvavano le sorgenti nel file incluso nel backup: le sposta una volta. */
+    @SuppressLint("ApplySharedPref") // commit sincrono voluto: le chiavi si tolgono dal vecchio file solo dopo
     private fun migrateSourcesOutOfBackup() {
         val keys = listOf("music_uri", "music_name", "usb_tree_uri", "last_source").filter(prefs::contains)
         if (keys.isEmpty()) return

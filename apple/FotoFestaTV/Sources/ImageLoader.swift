@@ -62,7 +62,7 @@ struct PhotoImage: View {
                     .accessibilityLabel(Text(accessibilityLabel ?? photo.title))
             } else if failed {
                 VStack(spacing: 16) {
-                    Image(systemName: "photo.badge.exclamationmark")
+                    Image(systemName: "exclamationmark.triangle")
                         .font(.system(size: 64))
                     Text(L("photo.unavailable"))
                 }

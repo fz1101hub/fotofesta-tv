@@ -13,7 +13,7 @@
 "message.google_ready" = "Foto Google pronte per lo slideshow.";
 "message.google_removed" = "Accesso a Google Foto e foto scaricate rimossi da questa Apple TV.";
 "message.sleep_timer" = "Slideshow in pausa: è scattata la pausa automatica.";
-"error.google_not_configured" = "Mancano le credenziali Google Photos Picker. Segui apple/README.md e ricompila l'app.";
+"error.google_not_configured" = "Google Foto non è disponibile in questa versione dell'app. Puoi comunque usare le foto dimostrative.";
 "error.google_access_denied" = "Autorizzazione annullata sul telefono.";
 "error.google_code_expired" = "Il codice Google è scaduto. Riprova.";
 "error.google_selection_expired" = "La selezione Google Foto è scaduta.";
@@ -29,6 +29,7 @@
 "action.start_slideshow" = "Avvia slideshow";
 "action.settings" = "Impostazioni";
 "action.retry" = "Riprova";
+"action.cancel" = "Annulla";
 "home.google_title" = "Google Foto";
 "home.google_body" = "Scegli le foto dal telefono con un QR. Nessuna password da digitare con il telecomando.";
 "home.demo_title" = "Prova subito";
@@ -59,6 +60,8 @@
 "settings.minutes" = "%ld min";
 "settings.google_data" = "Dati Google Foto";
 "settings.google_disconnect" = "Disconnetti e cancella";
+"settings.privacy_policy" = "Informativa privacy";
+"settings.privacy_policy_hint" = "Inquadra il QR con il telefono per leggere l'informativa privacy completa.";
 "settings.privacy" = "FotoFesta TV non contiene pubblicità né analytics. Le foto scelte in Google Foto sono scaricate solo su questa Apple TV, e “Disconnetti e cancella” le elimina e revoca l'accesso.";
 "google.kicker" = "Collegamento sicuro";
 "google.title" = "Google Foto";

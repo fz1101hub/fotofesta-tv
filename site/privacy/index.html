@@ -32,7 +32,7 @@
     <p><strong>Titolare:</strong> <span class="todo">[nome e indirizzo]</span> · <strong>Contatto:</strong> <span class="todo">[email]</span></p>
 
     <h3>In breve</h3>
-    <p>FotoFesta TV mostra sul televisore le foto che scegli. Quando scolleghi Google Foto, l'app revoca anche l'accesso presso Google. Non contiene pubblicità né sistemi di analisi o di segnalazione degli arresti anomali scelti dal titolare, e non invia dati a server del titolare. Su Android TV il componente Google Cast dei Google Play services invia a Google dati anonimi di utilizzo (vedi sotto). Le funzioni con foto locali o USB non richiedono alcun account.</p>
+    <p>FotoFesta TV mostra sul televisore le foto che scegli. Quando scolleghi Google Foto, l'app revoca anche l'accesso presso Google. Non contiene pubblicità né sistemi di analisi o di segnalazione degli arresti anomali scelti dal titolare, e non invia dati a server del titolare. Su Android TV il componente Google Cast dei Google Play services invia a Google dati di utilizzo e diagnostica (vedi sotto). Le funzioni con foto locali o USB non richiedono alcun account.</p>
 
     <h3>Dati trattati</h3>
     <table>
@@ -42,14 +42,15 @@
       <tr><td>Token di accesso Google</td><td>Accesso alle sole foto che selezioni</td><td>Sul dispositivo, cifrati (Android Keystore / Portachiavi Apple) fino alla disconnessione</td></tr>
       <tr><td>Brano musicale scelto da te (solo Android TV)</td><td>Musica di sottofondo</td><td>Solo sul dispositivo, escluso dal backup</td></tr>
       <tr><td>Impostazioni dello slideshow</td><td>Personalizzazione</td><td>Sul dispositivo; su Android anche nel backup del sistema, se attivo</td></tr>
-      <tr><td>Comandi Google Cast (solo Android TV)</td><td>Controllo dello slideshow da un altro dispositivo</td><td>Elaborati in memoria, non conservati</td></tr>
+      <tr><td>Comandi Google Cast (solo Android TV)</td><td>Controllo dello slideshow da un altro dispositivo</td><td>Elaborati in memoria; le impostazioni inviate vengono salvate come le altre impostazioni</td></tr>
+      <tr><td>Foto inviate con Google Cast (solo Android TV)</td><td>Slideshow</td><td>Scaricate dagli indirizzi indicati dal telefono e conservate temporaneamente nella cache dell'app, che il sistema può svuotare; si cancellano anche cancellando la cache dell'app</td></tr>
     </table>
 
     <h3>Google Foto</h3>
     <p>Con Google Foto il dispositivo comunica direttamente con Google tramite connessioni cifrate. L'app chiede soltanto l'autorizzazione <code>photospicker.mediaitems.readonly</code>, che dà accesso alle sole foto che scegli dal telefono, e non può leggere il resto della libreria. Puoi revocare l'accesso in qualsiasi momento da <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>. L'uso e il trasferimento delle informazioni ricevute dalle API Google rispettano le <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, compresi i requisiti di uso limitato.</p>
 
     <h3>Google Cast (solo Android TV)</h3>
-    <p>Per ricevere comandi da altri dispositivi, l'app per Android TV include il Cast SDK di Google. Questo componente, fornito con i Google Play services, invia a Google in forma cifrata dati anonimi sull'uso di Cast e dati diagnostici, che servono a Google per migliorare il servizio. Il titolare non riceve questi dati e non può disattivarne l'invio o cancellarli. Il trattamento è regolato dall'<a href="https://policies.google.com/privacy">informativa privacy di Google</a>. L'app per Apple TV non include Google Cast.</p>
+    <p>Per ricevere comandi da altri dispositivi, l'app per Android TV include il Cast SDK di Google. Questo componente, fornito con i Google Play services, invia a Google in forma cifrata dati sull'uso di Cast e dati diagnostici, compresi identificatori del dispositivo, che servono a Google per migliorare il servizio. Il titolare non riceve questi dati e non può disattivarne l'invio o cancellarli. Il trattamento è regolato dall'<a href="https://policies.google.com/privacy">informativa privacy di Google</a>. L'app per Apple TV non include Google Cast.</p>
 
     <h3>Conservazione e cancellazione</h3>
     <p>Foto scaricate e token restano finché non usi “Disconnetti e cancella”, non cancelli i dati dell'app o non la disinstalli. Su Apple TV il sistema può inoltre eliminare le foto scaricate quando serve spazio. Se disinstalli l'app per Apple TV senza disconnetterti, tvOS conserva il token nel Portachiavi: l'app lo cancella al primo avvio dopo una nuova installazione, e puoi revocarlo subito da <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</p>
@@ -70,7 +71,7 @@
     <p><strong>Controller:</strong> <span class="todo">[name and address]</span> · <strong>Contact:</strong> <span class="todo">[email]</span></p>
 
     <h3>Summary</h3>
-    <p>FotoFesta TV shows the photos you choose on your TV. When you disconnect Google Photos, the app also revokes its access at Google. It contains no ads and no analytics or crash reporting chosen by the controller, and sends no data to servers of the controller. On Android TV the Google Cast component of Google Play services sends anonymous usage data to Google (see below). Local and USB photos work without any account.</p>
+    <p>FotoFesta TV shows the photos you choose on your TV. When you disconnect Google Photos, the app also revokes its access at Google. It contains no ads and no analytics or crash reporting chosen by the controller, and sends no data to servers of the controller. On Android TV the Google Cast component of Google Play services sends usage and diagnostic data to Google (see below). Local and USB photos work without any account.</p>
 
     <h3>Data processed</h3>
     <table>
@@ -80,14 +81,15 @@
       <tr><td>Google access tokens</td><td>Access to the photos you select only</td><td>On the device, encrypted (Android Keystore / Apple Keychain) until you disconnect</td></tr>
       <tr><td>A music track you choose (Android TV only)</td><td>Background music</td><td>Only on the device, excluded from backup</td></tr>
       <tr><td>Slideshow settings</td><td>Personalization</td><td>On the device; on Android also in the system backup, if enabled</td></tr>
-      <tr><td>Google Cast commands (Android TV only)</td><td>Controlling the slideshow from another device</td><td>Processed in memory, not stored</td></tr>
+      <tr><td>Google Cast commands (Android TV only)</td><td>Controlling the slideshow from another device</td><td>Processed in memory; settings sent this way are saved like the other settings</td></tr>
+      <tr><td>Photos sent with Google Cast (Android TV only)</td><td>Slideshow</td><td>Downloaded from the addresses sent by the phone and kept temporarily in the app cache, which the system can clear; also removed by clearing the app's cache</td></tr>
     </table>
 
     <h3>Google Photos</h3>
     <p>With Google Photos the device talks directly to Google over encrypted connections. The app only requests the <code>photospicker.mediaitems.readonly</code> scope, which gives access to the photos you pick on your phone and not to the rest of your library. You can revoke access at any time at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>. FotoFesta TV's use and transfer of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
 
     <h3>Google Cast (Android TV only)</h3>
-    <p>To receive commands from other devices, the Android TV app includes Google's Cast SDK. This component, provided with Google Play services, sends Google encrypted anonymous data about Cast usage and diagnostics, which Google uses to improve the service. The controller does not receive this data and cannot turn it off or delete it. It is governed by <a href="https://policies.google.com/privacy">Google's privacy policy</a>. The Apple TV app does not include Google Cast.</p>
+    <p>To receive commands from other devices, the Android TV app includes Google's Cast SDK. This component, provided with Google Play services, sends Google encrypted data about Cast usage and diagnostics, including device identifiers, which Google uses to improve the service. The controller does not receive this data and cannot turn it off or delete it. It is governed by <a href="https://policies.google.com/privacy">Google's privacy policy</a>. The Apple TV app does not include Google Cast.</p>
 
     <h3>Retention and deletion</h3>
     <p>Downloaded photos and tokens remain until you use “Disconnect and delete”, clear the app's data or uninstall it. On Apple TV the system may also remove downloaded photos when it needs space. If you uninstall the Apple TV app without disconnecting, tvOS keeps the token in the Keychain: the app deletes it on first launch after a reinstall, and you can revoke it right away at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</p>

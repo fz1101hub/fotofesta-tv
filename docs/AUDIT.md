@@ -95,7 +95,7 @@ Tre revisioni indipendenti: app Android, app Apple TV, pubblicazione (CI, fastla
 App Android:
 - **Barra dei comandi dello slideshow**: in italiano i cinque pulsanti con etichetta lasciavano circa 13 dp al titolo, che andava a capo una lettera per riga e alzava la barra fino all'85% dello schermo. Ora titolo e dettagli stanno su una riga sopra i pulsanti, Precedente e Successiva sono solo icone (con descrizione per TalkBack) e i testi non vanno a capo.
 - **Home a 960×540 dp**: il contenuto superava l'altezza dello schermo, e con il testo grande della TV l'ultima riga di pulsanti spariva. Spaziature ridotte, testi delle schede su due righe al massimo e scorrimento automatico quando serve.
-- **“Disconnetti e cancella”**: la revoca presso Google poteva fallire se l'utente usciva dall'app durante la cancellazione dei file, perché il client HTTP veniva chiuso con il ViewModel. Ora il client è unico per il processo, i token locali si cancellano per primi e i file si eliminano in parallelo, anche se un'importazione annullata stava salvando proprio in quel momento.
+- **“Disconnetti e cancella”**: la revoca presso Google poteva fallire se l'utente usciva dall'app durante la cancellazione dei file, perché il client HTTP veniva chiuso con il ViewModel. Ora il client è unico per il processo, i token locali si cancellano per primi e i file si eliminano in parallelo, anche se un'importazione annullata stava salvando proprio in quel momento. Un nuovo collegamento aspetta la fine della cancellazione, che altrimenti potrebbe eliminare i nuovi token o la cartella del download.
 - **Pulizia dell'archivio all'avvio**: con l'ultima sorgente USB veniva annullata prima di partire, quindi le cartelle di download interrotti si accumulavano. Ora è un'operazione separata che importazione e cancellazione aspettano.
 - **Indietro subito dopo il download**: scartava un'importazione già salvata su disco, lasciando l'elenco precedente con file ormai sostituiti. Ora le foto si mostrano appena salvate, senza aspettare la chiusura della sessione Picker, e un annullamento in quell'istante riallinea l'elenco ai file presenti.
 - **Salvaschermo dopo un aggiornamento**: leggeva solo il nuovo archivio, quindi mostrava le foto demo finché non si apriva l'app. Ora legge anche la vecchia cache.
@@ -106,16 +106,27 @@ App Android:
 - **Backup**: cartella USB, brano e ultima sorgente spostati in un file escluso dal backup, perché i permessi sugli URI non passano a un altro dispositivo.
 - **ID pubblicità**: il manifest rimuove esplicitamente il permesso `AD_ID`.
 
-App Apple TV:
+App Apple TV (nessun errore di compilazione trovato leggendo il codice riga per riga):
+- **Menu durante il collegamento a Google**: nelle schermate di attesa non c'era nulla a fuoco, quindi Menu chiudeva la schermata senza annullare il collegamento, che continuava in background e poteva sostituire le foto più tardi. Ora c'è un pulsante Annulla e l'uscita dalla schermata annulla comunque il collegamento.
+- **Build senza client Google**: il file di esempio conteneva valori finti, quindi l'app mostrava Google Foto e falliva con un errore di Google. Ora i valori di esempio sono vuoti, senza client la scheda Google non compare, il messaggio è comprensibile per l'utente e fastlane rifiuta un client di esempio.
+- **Simbolo iCloud** usato per Google Foto: Apple riserva quei simboli a iCloud. Sostituito.
+- **Note per i revisori**: citavano un account di test anche quando non veniva inviato. Ora la frase si aggiunge solo se l'account è fornito.
+- **Memory**: una nuova partita durante il controllo di una coppia rovinava il nuovo tavolo. Ora il controllo è legato alla partita.
+- **Informativa nell'app**: tvOS non apre link, quindi le impostazioni mostrano l'informativa come QR. Aggiunto anche il testo breve dell'informativa per Apple TV nei metadati.
+- **Cache svuotata da tvOS mentre l'app è sospesa**: ora si ricontrolla al ritorno in primo piano e si torna alle foto demo con un messaggio.
+- **Movimento lento dopo una pausa**: alla ripresa il cambio foto aspettava di nuovo l'intervallo intero, con l'immagine ferma. Ora aspetta solo il tempo restante.
+- **Avanzamento del download** che poteva tornare indietro, **disconnessione** che poteva cancellare un'importazione appena avviata, **Indietro durante la chiusura della sessione** con l'elenco non allineato ai file: corretti come su Android.
+- **Numero di build** assegnato da fastlane a ogni caricamento su TestFlight; simbolo di foto non disponibile compatibile con tvOS 17; “Riduci movimento” di sistema rispettato.
 - Al primo avvio dopo una nuova installazione si cancellano i token rimasti nel Portachiavi, che sopravvive alla disinstallazione.
 
 Pubblicazione:
 - **Pagina di supporto e informativa** spostate in `site/`, con un workflow che pubblica solo quella cartella e si ferma se restano campi da completare. La guida spiega le alternative a GitHub Pages per un repository privato, la home page e la verifica del dominio per Google OAuth.
-- **Sicurezza dei dati**: il Cast SDK di Google invia dati anonimi di utilizzo, quindi la risposta corretta non è “nessun dato”. Aggiornati `DATA_SAFETY.md`, informativa, scheda Play e testo nell'app.
+- **Sicurezza dei dati**: il Cast SDK di Google invia dati di utilizzo e diagnostica, quindi la risposta corretta non è “nessun dato”. Aggiornati `DATA_SAFETY.md`, informativa, scheda Play e testo nell'app.
 - **fastlane**: il file `mapping.txt` non veniva mai caricato su Play (percorso relativo sbagliato). Il Fastfile Apple si ferma se trova segnaposto e legge l'account di test da variabili d'ambiente invece che da file nel repository. Versioni di fastlane fissate in `Gemfile.lock`.
 - **CI**: la verifica della firma dell'AAB non falliva mai (`jarsigner -verify` termina con 0 anche su file non firmati). Trigger limitati a `main` e alle pull request. Nuovo workflow macOS per compilare l'app Apple TV.
 - **Requisiti Apple**: Xcode 26 obbligatorio da aprile 2026; parole chiave senza marchi di terzi e senza funzioni assenti su tvOS.
-- **Icona Play** quadrata e opaca, perché Play applica da sé gli angoli arrotondati.
+- **Icona Play** quadrata e opaca (PNG a 32 bit), perché Play applica da sé gli angoli arrotondati.
+- **Informativa**: aggiunte le foto ricevute con Google Cast, che restano temporaneamente nella cache dell'app, e precisato che i dati del Cast SDK comprendono identificatori del dispositivo.
 - Documenti allineati: dimensioni del banner, test, stato di verifica reale. `PRIVACY_POLICY_TEMPLATE.md` eliminato, sostituito da `site/privacy/index.html`.
 
 Test unitari: 54, tutti superati con kotlinc 2.0.21. La build Gradle e Lint della 1.2.0 restano da eseguire con l'Android SDK, e l'app Apple TV da compilare con Xcode.

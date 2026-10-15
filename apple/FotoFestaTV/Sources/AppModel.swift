@@ -40,6 +40,7 @@ final class AppModel {
     private let picker: PhotosPicker
     private let importFlow: GoogleImportFlow
     @ObservationIgnored private var googleTask: Task<Void, Never>?
+    @ObservationIgnored private var cleanupTask: Task<Void, Never>?
     @ObservationIgnored private var sleepTask: Task<Void, Never>?
     @ObservationIgnored private var sleepTaskMinutes = 0
     @ObservationIgnored private var messageTask: Task<Void, Never>?
@@ -108,6 +109,13 @@ final class AppModel {
 
     var isGoogleConfigured: Bool { auth.isConfigured }
 
+    /// Informativa privacy pubblicata (chiave PrivacyPolicyURL di Info.plist); nil finché resta il segnaposto.
+    let privacyPolicyURL: String? = {
+        guard let url = Bundle.main.object(forInfoDictionaryKey: "PrivacyPolicyURL") as? String,
+              url.hasPrefix("https://"), !url.contains("EXAMPLE") else { return nil }
+        return url
+    }()
+
     // MARK: - Riproduzione
 
     func startDemo() {
@@ -156,27 +164,63 @@ final class AppModel {
         }
         cancelGoogle()
         googleState = .working(nil)
+        // Una cancellazione ancora in corso ("Disconnetti e cancella") deve finire prima del nuovo collegamento.
+        let cleanup = cleanupTask
         googleTask = Task { [weak self, importFlow] in
+            await cleanup?.value
             do {
                 let result = try await importFlow.run { step in
                     Task { @MainActor in
-                        // Dopo un annullamento lo stato non è più "working" e i passi vengono ignorati.
-                        guard let self, case .working = self.googleState else { return }
-                        self.googleState = .working(step)
+                        self?.applyStep(step)
                     }
                 }
-                guard let self, !Task.isCancelled else { return }
+                guard let self else { return }
+                guard !Task.isCancelled else {
+                    self.reloadShownGooglePhotos()
+                    return
+                }
                 self.defaults.set("google", forKey: Self.sourceKey)
                 self.show(result.photos, label: L("source.google", result.photos.count))
                 self.googleState = .complete(result.photos.count)
                 self.showMessage(result.skipped > 0 ? L("message.google_skipped", result.skipped) : L("message.google_ready"))
-            } catch is CancellationError {
-                return
             } catch {
-                guard let self, !Task.isCancelled else { return }
+                guard let self else { return }
+                guard !Task.isCancelled, !(error is CancellationError) else {
+                    self.reloadShownGooglePhotos()
+                    return
+                }
                 self.googleState = .failed(Self.describe(error))
             }
         }
+    }
+
+    private func applyStep(_ step: ImportStep) {
+        // Dopo un annullamento lo stato non è più "working" e i passi vengono ignorati.
+        guard case let .working(current) = googleState else { return }
+        // I passi arrivano con Task separati, senza ordine garantito: il contatore non torna indietro.
+        if case let .downloading(done, _)? = current, case let .downloading(newDone, _) = step, newDone < done { return }
+        googleState = .working(step)
+    }
+
+    /// Un annullamento può arrivare quando l'archivio è già stato sostituito su disco: se sono mostrate
+    /// foto Google, l'elenco deve seguire i file presenti.
+    private func reloadShownGooglePhotos() {
+        guard photos.contains(where: { if case .file = $0.source { true } else { false } }) else { return }
+        let cached = picker.cachedPhotos()
+        guard !cached.isEmpty, cached.map(\.id) != photos.map(\.id) else { return }
+        show(cached, label: L("source.google", cached.count))
+    }
+
+    /// tvOS può svuotare Caches mentre l'app è sospesa: al ritorno in primo piano si ricontrolla l'archivio.
+    func checkCachedPhotos() {
+        guard defaults.string(forKey: Self.sourceKey) == "google" else { return }
+        if case .working = googleState { return }
+        guard picker.cachedPhotos().isEmpty else { return }
+        defaults.set("demo", forKey: Self.sourceKey)
+        if photos.contains(where: { if case .file = $0.source { true } else { false } }) {
+            show(Self.demoPhotos, label: L("source.demo"))
+        }
+        showMessage(L("message.google_cache_purged"))
     }
 
     func cancelGoogleConnect() {
@@ -185,6 +229,7 @@ final class AppModel {
     }
 
     func disconnectGoogle() {
+        let pendingImport = googleTask
         cancelGoogle()
         let wasShowingGoogle = photos.contains { if case .file = $0.source { true } else { false } }
         if wasShowingGoogle || defaults.string(forKey: Self.sourceKey) == "google" {
@@ -193,9 +238,18 @@ final class AppModel {
         if wasShowingGoogle { show(Self.demoPhotos, label: L("source.demo")) }
         googleState = .idle
         showMessage(L("message.google_removed"))
-        Task.detached { [auth, picker] in
+        let previousCleanup = cleanupTask
+        cleanupTask = Task.detached { [auth, picker] in
+            await previousCleanup?.value
+            // I token locali spariscono per primi (poi la revoca presso Google); intanto si cancellano i file.
+            async let revoke: Void = auth.revokeAndDisconnect()
             picker.clearCache()
-            await auth.revokeAndDisconnect()
+            // Un download annullato a un passo dalla fine può aver appena salvato l'archivio.
+            await pendingImport?.value
+            picker.clearCache()
+            await revoke
+            // L'importazione annullata può aver rinnovato il token mentre chiudeva la sessione Picker.
+            await auth.disconnect()
         }
     }
 

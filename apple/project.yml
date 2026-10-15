@@ -50,6 +50,8 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         PhotosClientID: $(PHOTOS_CLIENT_ID)
         PhotosClientSecret: $(PHOTOS_CLIENT_SECRET)
+        # Indirizzo pubblico di site/privacy/ (vedi docs/PUBLISHING.md): l'app lo mostra come QR nelle impostazioni.
+        PrivacyPolicyURL: "https://EXAMPLE.github.io/fotofesta-tv/privacy/"
 schemes:
   FotoFestaTV:
     build:

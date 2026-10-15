@@ -13,7 +13,7 @@
 "message.google_ready" = "Google photos ready for the slideshow.";
 "message.google_removed" = "Google Photos access and downloaded photos removed from this Apple TV.";
 "message.sleep_timer" = "Slideshow paused by the sleep timer.";
-"error.google_not_configured" = "Google Photos Picker credentials are missing. Follow apple/README.md and rebuild the app.";
+"error.google_not_configured" = "Google Photos isn't available in this version of the app. You can still use the demo photos.";
 "error.google_access_denied" = "Authorization cancelled on the phone.";
 "error.google_code_expired" = "The Google code has expired. Try again.";
 "error.google_selection_expired" = "The Google Photos selection has expired.";
@@ -29,6 +29,7 @@
 "action.start_slideshow" = "Start slideshow";
 "action.settings" = "Settings";
 "action.retry" = "Try again";
+"action.cancel" = "Cancel";
 "home.google_title" = "Google Photos";
 "home.google_body" = "Pick photos on your phone with a QR code. No passwords to type with the remote.";
 "home.demo_title" = "Try it now";
@@ -59,6 +60,8 @@
 "settings.minutes" = "%ld min";
 "settings.google_data" = "Google Photos data";
 "settings.google_disconnect" = "Disconnect and delete";
+"settings.privacy_policy" = "Privacy policy";
+"settings.privacy_policy_hint" = "Scan the QR code with your phone to read the full privacy policy.";
 "settings.privacy" = "FotoFesta TV has no ads or analytics. Photos you pick in Google Photos are downloaded to this Apple TV only, and “Disconnect and delete” removes them and revokes access.";
 "google.kicker" = "Secure connection";
 "google.title" = "Google Photos";
