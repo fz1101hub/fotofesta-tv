@@ -1,6 +1,9 @@
 package it.fotofesta.tv
 
 import android.app.Application
+import coil.ImageLoader
+import coil.ImageLoaderFactory
+import coil.disk.DiskCache
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
@@ -8,13 +11,22 @@ import com.google.android.gms.cast.tv.CastReceiverContext
 import com.google.android.gms.cast.tv.SenderDisconnectedEventInfo
 import com.google.android.gms.cast.tv.SenderInfo
 import it.fotofesta.tv.cast.CastBridge
+import it.fotofesta.tv.google.GooglePhotosPickerRepository
+import it.fotofesta.tv.ui.GooglePhotoFetcher
+import kotlin.concurrent.thread
 
-class FotoFestaApplication : Application() {
+class FotoFestaApplication : Application(), ImageLoaderFactory {
+    val services: AppServices by lazy { AppServices(this) }
+
     // Più telefoni possono essere collegati: l'indicatore si spegne solo quando escono tutti.
     private val castSenders = mutableSetOf<String>()
 
     override fun onCreate() {
         super.onCreate()
+        // Le versioni fino alla 1.2.0 scaricavano le foto Google sulla TV: ora si caricano da Google.
+        thread(name = "legacy-cleanup") {
+            GooglePhotosPickerRepository.deleteLegacyDownloads(noBackupFilesDir, cacheDir)
+        }
         runCatching {
             CastReceiverContext.initInstance(this)
             CastReceiverContext.getInstance().apply {
@@ -46,5 +58,25 @@ class FotoFestaApplication : Application() {
                 }
             })
         }
+    }
+
+    override fun newImageLoader(): ImageLoader = ImageLoader.Builder(this)
+        .okHttpClient(services.http)
+        .components {
+            add(GooglePhotoFetcher.Factory(services.googleStream, services.http))
+            add(GooglePhotoFetcher.Key())
+        }
+        // Le foto Google non passano mai da qui; ci finiscono solo quelle inviate con Cast. Cache
+        // piccola e nella cartella che il sistema può svuotare quando serve spazio.
+        .diskCache {
+            DiskCache.Builder()
+                .directory(cacheDir.resolve("image_cache"))
+                .maxSizeBytes(IMAGE_DISK_CACHE_BYTES)
+                .build()
+        }
+        .build()
+
+    private companion object {
+        const val IMAGE_DISK_CACHE_BYTES = 32L * 1024 * 1024
     }
 }

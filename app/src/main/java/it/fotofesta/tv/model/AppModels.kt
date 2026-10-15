@@ -27,6 +27,9 @@ sealed interface PhotoRef {
     data class LocalUri(val value: String) : PhotoRef
     data class LocalFile(val path: String) : PhotoRef
     data class Remote(val url: String) : PhotoRef
+
+    /** Foto di Google Foto caricata al momento da Google: sulla TV non ne resta una copia. */
+    data class GooglePhoto(val mediaId: String) : PhotoRef
 }
 
 data class PhotoItem(
@@ -83,9 +86,10 @@ sealed interface GoogleConnectState {
         val expiresInSeconds: Int,
     ) : GoogleConnectState
     data class WaitingForPhotos(val pickerUri: String) : GoogleConnectState
-    data class Downloading(val completed: Int, val total: Int) : GoogleConnectState
     data class Error(val message: String) : GoogleConnectState
-    data class Complete(val count: Int) : GoogleConnectState
+
+    /** [expiresAtMillis]: fino a quando Google rende disponibili le foto scelte, se noto. */
+    data class Complete(val count: Int, val expiresAtMillis: Long? = null) : GoogleConnectState
 }
 
 data class MemoryCard(

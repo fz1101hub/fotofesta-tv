@@ -17,12 +17,13 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -88,16 +89,6 @@ fun GoogleConnectScreen(
                         CircularProgressIndicator(color = Cyan)
                     }
                 }
-                is GoogleConnectState.Downloading -> Column(
-                    Modifier.fillMaxWidth(.72f),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(18.dp),
-                ) {
-                    Text(stringResource(R.string.google_downloading), style = MaterialTheme.typography.headlineMedium)
-                    Text(stringResource(R.string.google_progress, state.completed, state.total), style = MaterialTheme.typography.titleLarge, color = Amber)
-                    LinearProgressIndicator(progress = { state.completed.toFloat() / state.total.coerceAtLeast(1) }, modifier = Modifier.fillMaxWidth())
-                    Text(stringResource(R.string.google_cache_note), style = MaterialTheme.typography.bodyMedium, color = TextSecondary, textAlign = TextAlign.Center)
-                }
                 is GoogleConnectState.Error -> Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
                     Text(stringResource(R.string.google_unavailable), style = MaterialTheme.typography.headlineMedium)
                     Text(state.message, style = MaterialTheme.typography.bodyLarge, color = TextSecondary, textAlign = TextAlign.Center)
@@ -106,9 +97,30 @@ fun GoogleConnectScreen(
                 is GoogleConnectState.Complete -> Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
                     Text(quantityStringResource(R.plurals.google_photos_ready, state.count), style = MaterialTheme.typography.headlineLarge, color = Cyan)
                     Text(stringResource(R.string.google_complete_body), style = MaterialTheme.typography.bodyLarge, color = TextSecondary, textAlign = TextAlign.Center)
+                    Text(stringResource(R.string.google_streaming_note), style = MaterialTheme.typography.bodyMedium, color = TextSecondary, textAlign = TextAlign.Center)
+                    state.expiresAtMillis?.let { expiresAt ->
+                        Text(
+                            stringResource(R.string.google_available_until, rememberDateText(expiresAt)),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Amber,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
                     TvButton(stringResource(R.string.action_start_slideshow), onPlay, modifier = Modifier.initialFocus(), icon = Icons.Rounded.PlayArrow)
                 }
             }
         }
+    }
+}
+
+/** Data e ora di [epochMillis] nel formato del sistema (es. "22 ott, 18:30"). */
+@Composable
+private fun rememberDateText(epochMillis: Long): String {
+    val context = LocalContext.current
+    return remember(context, epochMillis) {
+        val date = java.util.Date(epochMillis)
+        val day = android.text.format.DateFormat.getMediumDateFormat(context).format(date)
+        val time = android.text.format.DateFormat.getTimeFormat(context).format(date)
+        "$day, $time"
     }
 }

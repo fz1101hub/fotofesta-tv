@@ -7,16 +7,14 @@ import android.util.Log
 import androidx.annotation.PluralsRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import coil.imageLoader
 import it.fotofesta.tv.cast.CastBridge
 import it.fotofesta.tv.cast.CastCommand
 import it.fotofesta.tv.data.DemoPhotos
 import it.fotofesta.tv.data.SettingsRepository
 import it.fotofesta.tv.data.UsbPhotoRepository
-import it.fotofesta.tv.google.GoogleDeviceAuthRepository
 import it.fotofesta.tv.google.GoogleImportFlow
-import it.fotofesta.tv.google.GooglePhotosPickerRepository
 import it.fotofesta.tv.google.HttpStatusException
-import it.fotofesta.tv.google.SecureTokenStore
 import it.fotofesta.tv.media.BackgroundMusicPlayer
 import it.fotofesta.tv.model.AppState
 import it.fotofesta.tv.model.Destination
@@ -36,9 +34,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
 import java.io.IOException
-import java.util.concurrent.TimeUnit
 
 class FotoFestaViewModel(application: Application) : AndroidViewModel(application) {
     private val context: android.content.Context
@@ -48,22 +44,16 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private val musicPlayer = BackgroundMusicPlayer(context) {
         showMessage(context.getString(R.string.message_music_error))
     }
-    private val googleAuth = GoogleDeviceAuthRepository(
-        client = http,
-        tokens = SecureTokenStore(context),
-        clientId = BuildConfig.PHOTOS_CLIENT_ID,
-        clientSecret = BuildConfig.PHOTOS_CLIENT_SECRET,
-    )
-    // noBackupFilesDir e non cacheDir: il sistema non cancella le foto importate per liberare spazio.
-    private val googlePhotos = GooglePhotosPickerRepository(context.noBackupFilesDir, http)
-    // Le versioni precedenti scaricavano le foto nella cache: va ripulita anche quella.
-    private val legacyGooglePhotos = GooglePhotosPickerRepository(context.cacheDir, http)
-    private val googleImport = GoogleImportFlow(googleAuth, googlePhotos)
+    private val services = context.appServices
+    private val googleAuth = services.googleAuth
+    private val googlePicker = services.googlePicker
+    private val googleSelection = services.googleSelection
+    private val googleStream = services.googleStream
+    private val googleImport = GoogleImportFlow(googleAuth, googlePicker)
     private val playbackOrder = PlaybackOrder()
     private var googleJob: Job? = null
     private var usbJob: Job? = null
     private var restoreJob: Job? = null
-    private var housekeepingJob: Job? = null
     private var disconnectJob: Job? = null
     private var sleepJob: Job? = null
     private var sleepJobMinutes = 0
@@ -87,18 +77,15 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         // Prima si ripristina l'ultima sorgente, poi si ascoltano i comandi Cast: un LOAD già in coda
         // (avvio tramite Cast Connect) annulla il ripristino invece di essere sovrascritto.
         val lastSource = settingsRepository.loadLastSource()
-        // Riordino dell'archivio: foto delle versioni precedenti spostate dalla cache, cartelle
-        // temporanee di download interrotti eliminate. Non dipende dalla sorgente scelta, quindi
-        // cancelPendingSources() non lo interrompe; importazione e cancellazione lo aspettano.
-        housekeepingJob = viewModelScope.launch(Dispatchers.IO) {
-            googlePhotos.adoptFrom(legacyGooglePhotos)
-            googlePhotos.deleteLeftovers()
-        }
         if (lastSource == "GOOGLE") {
             restoreJob = viewModelScope.launch {
-                housekeepingJob?.join()
-                val cached = withContext(Dispatchers.IO) { googlePhotos.cachedPhotos() }
-                if (cached.isNotEmpty()) showPhotos(cached, googleLabel(cached.size))
+                val selection = withContext(Dispatchers.IO) { googleSelection.current() }
+                when {
+                    // Selezione delle versioni che scaricavano le foto: non c'è più nulla da mostrare.
+                    selection == null -> settingsRepository.saveLastSource("DEMO")
+                    selection.isExpired(System.currentTimeMillis()) -> onGoogleSelectionGone()
+                    else -> showPhotos(selection.toPhotos(), googleLabel(selection.items.size))
+                }
             }
         }
         if (lastSource == "USB") settingsRepository.loadUsbTree()?.let { stored -> loadUsb(Uri.parse(stored)) }
@@ -109,6 +96,9 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         }
         viewModelScope.launch {
             CastBridge.commands.collect(::handleCastCommand)
+        }
+        viewModelScope.launch {
+            googleStream.selectionGone.collect { gone -> if (gone) onGoogleSelectionGone() }
         }
     }
 
@@ -254,19 +244,11 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         googleJob = viewModelScope.launch {
             _state.update { it.copy(destination = Destination.GOOGLE_CONNECT, google = GoogleConnectState.Idle) }
             try {
-                housekeepingJob?.join()
-                // Una cancellazione ancora in corso cancellerebbe i nuovi token e la cartella del download.
+                // Una cancellazione ancora in corso cancellerebbe i nuovi token.
                 disconnectJob?.join()
-                // Le foto si mostrano appena salvate, senza aspettare la chiusura della sessione Picker:
-                // un Indietro premuto in quel momento non deve scartare un archivio già sostituito.
-                googleImport.run(
-                    onState = { step -> _state.update { it.copy(google = step) } },
-                    onImported = ::applyGoogleImport,
-                )
+                val result = googleImport.run { step -> _state.update { it.copy(google = step) } }
+                applyGoogleImport(result)
             } catch (cancelled: CancellationException) {
-                // Annullamento arrivato a scambio dell'archivio appena avvenuto: se sono mostrate foto
-                // Google, l'elenco deve seguire i file presenti su disco.
-                withContext(NonCancellable) { reloadShownGooglePhotos() }
                 throw cancelled
             } catch (failure: Exception) {
                 Log.w(TAG, "Collegamento Google non riuscito", failure)
@@ -275,12 +257,26 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    /**
+     * Salva la nuova selezione (un piccolo file di identificativi) e la mostra. Nessuna sospensione:
+     * "Disconnetti e cancella" non può inserirsi a metà.
+     */
     private fun applyGoogleImport(result: GoogleImportFlow.Result) {
+        val previous = googleSelection.current()
+        val selection = result.selection
+        googleSelection.save(selection)
+        googleStream.reset()
         settingsRepository.saveLastSource("GOOGLE")
-        showPhotos(result.photos, googleLabel(result.photos.size))
+        showPhotos(selection.toPhotos(), googleLabel(selection.items.size))
+        if (previous != null && previous.sessionId != selection.sessionId) {
+            // La sessione della selezione precedente non serve più.
+            viewModelScope.launch(NonCancellable) {
+                googlePicker.deleteSession(::requireAccessToken, previous.sessionId)
+            }
+        }
         _state.update {
             it.copy(
-                google = GoogleConnectState.Complete(result.photos.size),
+                google = GoogleConnectState.Complete(selection.items.size, selection.expiresAtMillis),
                 message = if (result.skipped > 0) {
                     quantityString(R.plurals.message_google_skipped, result.skipped)
                 } else {
@@ -290,14 +286,18 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    private suspend fun reloadShownGooglePhotos() {
-        val shown = _state.value.photos
-        if (shown.none { it.source == SourceType.GOOGLE_PHOTOS }) return
-        val cached = withContext(Dispatchers.IO) { googlePhotos.cachedPhotos() }
-        // Solo se nel frattempo non è cambiato nulla: un LOAD Cast o la scelta USB hanno la precedenza.
-        if (cached.isNotEmpty() && _state.value.photos === shown && cached.map { it.id } != shown.map { it.id }) {
-            showPhotos(cached, googleLabel(cached.size))
+    private suspend fun requireAccessToken(): String =
+        googleAuth.validAccessToken() ?: throw UserFacingException(R.string.error_google_session_expired)
+
+    /** La sessione Picker è scaduta o non è più accessibile: le foto vanno scelte di nuovo. */
+    private fun onGoogleSelectionGone() {
+        googleSelection.clear()
+        googleStream.reset()
+        if (settingsRepository.loadLastSource() == "GOOGLE") settingsRepository.saveLastSource("DEMO")
+        if (_state.value.photos.any { it.source == SourceType.GOOGLE_PHOTOS }) {
+            showPhotos(demoPhotos, context.getString(R.string.source_demo))
         }
+        showMessage(context.getString(R.string.error_google_selection_gone))
     }
 
     fun cancelGoogleConnect() {
@@ -312,26 +312,22 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         val pendingImport = googleJob
         pendingImport?.cancel()
         val previousDisconnect = disconnectJob
-        // Revoca e cancellazione dei file (anche migliaia di foto 4K) fuori dal thread principale e
-        // senza interruzioni se nel frattempo l'utente esce dall'app: il client HTTP è di processo.
-        // Un nuovo collegamento aspetta la fine di questo job.
+        // Sulla TV restano solo l'elenco delle foto e le immagini nella cache in RAM: spariscono subito.
+        val selection = googleSelection.current()
+        googleSelection.clear()
+        googleStream.reset()
+        context.imageLoader.memoryCache?.clear()
+        // Chiusura della sessione Picker e revoca presso Google senza interruzioni se nel frattempo
+        // l'utente esce dall'app: il client HTTP è di processo. Un nuovo collegamento aspetta la fine.
         disconnectJob = viewModelScope.launch {
             withContext(NonCancellable) {
                 previousDisconnect?.join()
-                // I token locali spariscono per primi, poi la revoca presso Google e, in parallelo, i file.
-                val files = launch(Dispatchers.IO) {
-                    housekeepingJob?.join()
-                    googlePhotos.clearCache()
-                    legacyGooglePhotos.clearCache()
-                    // Un download annullato a un passo dalla fine può aver appena salvato l'archivio.
-                    pendingImport?.join()
-                    googlePhotos.clearCache()
-                }
+                // La sessione si chiude finché il token è valido; subito dopo token cancellati e revocati.
+                selection?.let { googlePicker.deleteSession(::requireAccessToken, it.sessionId) }
                 googleAuth.revokeAndDisconnect()
-                // Un'importazione annullata può aver rinnovato il token mentre si chiudeva: va cancellato.
+                // Un collegamento annullato può aver rinnovato il token mentre si chiudeva: va cancellato.
                 pendingImport?.join()
                 withContext(Dispatchers.IO) { googleAuth.disconnect() }
-                files.join()
             }
         }
         val wasShowingGoogle = _state.value.photos.any { it.source == SourceType.GOOGLE_PHOTOS }
@@ -449,13 +445,5 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
 
     private companion object {
         const val TAG = "FotoFestaViewModel"
-
-        // Unico per tutto il processo e mai chiuso: la revoca di "Disconnetti e cancella" deve poter
-        // terminare anche dopo la chiusura dell'Activity, e una nuova Activity riusa connessioni e thread.
-        val http: OkHttpClient = OkHttpClient.Builder()
-            .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(60, TimeUnit.SECONDS)
-            .callTimeout(90, TimeUnit.SECONDS)
-            .build()
     }
 }

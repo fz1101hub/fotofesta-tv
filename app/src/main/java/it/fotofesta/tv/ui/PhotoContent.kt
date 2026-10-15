@@ -32,6 +32,8 @@ fun PhotoRef.coilModel(): Any = when (this) {
     is PhotoRef.LocalUri -> value
     is PhotoRef.LocalFile -> File(path)
     is PhotoRef.Remote -> url
+    // Caricata da GooglePhotoFetcher, registrato nell'ImageLoader dell'app.
+    is PhotoRef.GooglePhoto -> this
 }
 
 @Composable

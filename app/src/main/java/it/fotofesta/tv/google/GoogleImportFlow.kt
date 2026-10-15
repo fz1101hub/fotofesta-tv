@@ -2,7 +2,6 @@ package it.fotofesta.tv.google
 
 import it.fotofesta.tv.R
 import it.fotofesta.tv.model.GoogleConnectState
-import it.fotofesta.tv.model.PhotoItem
 import it.fotofesta.tv.model.UserFacingException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
@@ -10,24 +9,22 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
- * Flusso completo di importazione da Google Foto: autorizzazione con codice e QR, sessione Picker,
- * attesa della selezione, download nella cache privata e chiusura della sessione.
+ * Flusso completo di collegamento a Google Foto: autorizzazione con codice e QR, sessione Picker,
+ * attesa della selezione ed elenco delle foto scelte. Le foto non vengono scaricate: il risultato
+ * contiene solo identificativi e nomi, e la sessione resta aperta perché serve a ottenere gli
+ * indirizzi aggiornati durante lo slideshow.
  *
- * Gli stati intermedi da mostrare sulla TV vengono notificati con `onState`. `onImported` riceve il
- * risultato appena l'archivio è stato sostituito, prima della chiusura della sessione Picker, che può
- * richiedere qualche secondo; da quel momento un annullamento non deve più scartarlo. La sessione
- * Picker viene eliminata anche in caso di errore o annullamento.
+ * Gli stati intermedi da mostrare sulla TV vengono notificati con `onState`. Se il flusso non
+ * arriva in fondo (errore, nessuna foto, annullamento) la sessione Picker viene eliminata.
  */
 class GoogleImportFlow(
     private val auth: GoogleDeviceAuthRepository,
     private val picker: GooglePhotosPickerRepository,
 ) {
-    data class Result(val photos: List<PhotoItem>, val skipped: Int)
+    /** [skipped] conta gli elementi scelti che non sono foto (ad esempio i video). */
+    data class Result(val selection: GoogleSelection, val skipped: Int)
 
-    suspend fun run(
-        onImported: (Result) -> Unit = {},
-        onState: (GoogleConnectState) -> Unit,
-    ): Result {
+    suspend fun run(onState: (GoogleConnectState) -> Unit): Result {
         var token = authorize(onState)
         val session = try {
             picker.createSession(token)
@@ -38,7 +35,7 @@ class GoogleImportFlow(
             token = authorize(onState)
             picker.createSession(token)
         }
-        // I quattro download paralleli chiedono il token insieme: il rinnovo avviene una volta sola.
+        // Le richieste chiedono il token in sequenza, ma il rinnovo deve comunque avvenire una volta sola.
         val refreshLock = Mutex()
         val tokens: TokenProvider = {
             refreshLock.withLock {
@@ -49,17 +46,17 @@ class GoogleImportFlow(
             onState(GoogleConnectState.WaitingForPhotos(session.pickerUri))
             val completed = picker.awaitSelection(tokens, session)
             val picked = picker.listPickedMedia(tokens, completed.id)
-            if (picked.isEmpty()) throw UserFacingException(R.string.error_google_nothing_selected)
-            onState(GoogleConnectState.Downloading(0, picked.size))
-            val downloaded = picker.downloadToPrivateCache(tokens, picked) { done, total ->
-                onState(GoogleConnectState.Downloading(done, total))
-            }
-            if (downloaded.isEmpty()) throw UserFacingException(R.string.error_google_download_failed)
-            val result = Result(downloaded, skipped = picked.size - downloaded.size)
-            onImported(result)
-            return result
-        } finally {
+            val photos = picked.filter { it.isPhoto }
+            if (photos.isEmpty()) throw UserFacingException(R.string.error_google_nothing_selected)
+            val selection = GoogleSelection(
+                sessionId = completed.id,
+                expiresAtMillis = completed.expiresAtMillis ?: session.expiresAtMillis,
+                items = photos.map { GoogleSelection.Item(it.id, it.filename) },
+            )
+            return Result(selection, skipped = picked.size - photos.size)
+        } catch (failure: Throwable) {
             withContext(NonCancellable) { picker.deleteSession(tokens, session.id) }
+            throw failure
         }
     }
 

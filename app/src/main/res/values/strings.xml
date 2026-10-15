@@ -30,7 +30,7 @@
     <string name="message_usb_unavailable">Folder not available: reconnect the USB drive or choose another folder.</string>
     <string name="message_music_error">The selected track can’t be played. Choose another one in Settings.</string>
     <string name="message_google_ready">Google photos ready for the slideshow.</string>
-    <string name="message_google_removed">Google Photos account and cache removed from this TV.</string>
+    <string name="message_google_removed">Google Photos disconnected: access and the list of photos were removed from this TV.</string>
     <string name="error_generic">Something went wrong. Check the network and settings.</string>
     <string name="error_network">Network unavailable. Check the TV’s internet connection.</string>
     <string name="error_google_http">Google service unavailable (%1$d).</string>
@@ -40,9 +40,8 @@
     <string name="error_google_session_expired">Access to Google has expired. Connect again.</string>
     <string name="error_picker_unavailable">This TV has no file picker. Install a file manager from Google Play and try again.</string>
     <string name="error_google_selection_expired">The Google Photos selection has expired.</string>
+    <string name="error_google_selection_gone">Your Google Photos selection has expired. Choose the photos again from your phone.</string>
     <string name="error_google_nothing_selected">You didn’t select any photos.</string>
-    <string name="error_google_download_failed">The selected photos couldn’t be prepared.</string>
-    <string name="error_cache_write">The photos couldn’t be saved to the cache.</string>
     <string name="google_kicker">Secure connection</string>
     <string name="google_title">Google Photos</string>
     <string name="google_subtitle">Use your phone: no need to type passwords with the remote.</string>
@@ -55,11 +54,10 @@
     <string name="google_step_pick">2. Choose your photos</string>
     <string name="google_pick_instructions">Scan the QR code, select the pictures in Google Photos and tap Done.</string>
     <string name="google_pick_hint">You can search by date, place or album name. The TV detects automatically when you’re done.</string>
-    <string name="google_downloading">Preparing 4K photos</string>
-    <string name="google_progress">%1$d of %2$d</string>
-    <string name="google_cache_note">The private cache avoids interruptions during the slideshow. Nothing is added to the TV’s gallery.</string>
     <string name="google_unavailable">Connection not available</string>
     <string name="google_complete_body">Start the slideshow now or go back to change music and transitions.</string>
+    <string name="google_streaming_note">Photos stay in Google Photos and load during the slideshow: the TV keeps no copies.</string>
+    <string name="google_available_until">Available until %1$s. After that, choose them again from your phone.</string>
     <string name="settings_kicker">Customize</string>
     <string name="settings_title">Slideshow settings</string>
     <string name="settings_subtitle">Changes are saved on this TV only.</string>
@@ -88,9 +86,9 @@
     <string name="settings_volume_body">Adjust the background music without changing the TV volume.</string>
     <string name="settings_volume_value">%1$d%%</string>
     <string name="settings_google_data">Google Photos data</string>
-    <string name="settings_google_data_body">Removes encrypted tokens and the private photo cache from the TV.</string>
+    <string name="settings_google_data_body">Removes Google Photos access and the list of chosen photos from the TV.</string>
     <string name="settings_google_disconnect">Disconnect and delete</string>
-    <string name="settings_privacy">Privacy: FotoFesta TV has no ads and sends nothing to the developer. USB photos are never copied. Photos chosen from Google are downloaded to private app storage so their links don’t expire, and are deleted with “Disconnect and delete”.</string>
+    <string name="settings_privacy">Privacy: FotoFesta TV has no ads and sends nothing to the developer. USB photos are never copied. Photos chosen from Google are not copied to the TV: they load from Google during the slideshow, and “Disconnect and delete” revokes access.</string>
     <string name="settings_ken_burns">Slow pan and zoom</string>
     <string name="settings_ken_burns_body">Gently zooms and pans each photo while it is on screen.</string>
     <string name="settings_sleep_timer">Sleep timer</string>
@@ -154,8 +152,8 @@
         <item quantity="other">USB or local folder · %1$d photos</item>
     </plurals>
     <plurals name="source_google">
-        <item quantity="one">Google Photos · %1$d photo in private cache</item>
-        <item quantity="other">Google Photos · %1$d photos in private cache</item>
+        <item quantity="one">Google Photos · %1$d photo</item>
+        <item quantity="other">Google Photos · %1$d photos</item>
     </plurals>
     <plurals name="source_cast">
         <item quantity="one">Chromecast · %1$d photo</item>
@@ -166,7 +164,7 @@
         <item quantity="other">%1$d photos ready.</item>
     </plurals>
     <plurals name="message_google_skipped">
-        <item quantity="one">%1$d photo not downloaded (not enough space or file unavailable).</item>
-        <item quantity="other">%1$d photos not downloaded (not enough space or files unavailable).</item>
+        <item quantity="one">%1$d item skipped: only photos are shown, not videos.</item>
+        <item quantity="other">%1$d items skipped: only photos are shown, not videos.</item>
     </plurals>
 </resources>

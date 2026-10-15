@@ -100,11 +100,12 @@ class GoogleDeviceAuthRepository(
     /**
      * Restituisce un access token valido, rinnovandolo se necessario. Se il refresh token è stato
      * revocato o è scaduto, cancella i token salvati e restituisce `null` per avviare un nuovo collegamento.
+     * Con [forceRefresh] il token viene rinnovato anche se non è scaduto (ad esempio dopo un 401).
      */
-    suspend fun validAccessToken(): String? {
+    suspend fun validAccessToken(forceRefresh: Boolean = false): String? {
         val now = clock() / 1_000L
         val cached = withContext(Dispatchers.IO) {
-            tokens.accessToken?.takeIf { tokens.expiresAtEpochSeconds > now + 60 }
+            tokens.accessToken?.takeIf { !forceRefresh && tokens.expiresAtEpochSeconds > now + 60 }
         }
         if (cached != null) return cached
         return try {

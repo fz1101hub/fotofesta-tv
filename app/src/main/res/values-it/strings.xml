@@ -29,7 +29,7 @@
     <string name="message_usb_unavailable">Cartella non disponibile: collega di nuovo il disco USB o scegli un\'altra cartella.</string>
     <string name="message_music_error">Impossibile riprodurre il brano scelto. Selezionane un altro dalle impostazioni.</string>
     <string name="message_google_ready">Foto Google pronte per lo slideshow.</string>
-    <string name="message_google_removed">Account e cache Google Foto rimossi da questa TV.</string>
+    <string name="message_google_removed">Google Foto scollegato: accesso ed elenco delle foto rimossi da questa TV.</string>
     <string name="error_generic">Operazione non riuscita. Controlla rete e impostazioni.</string>
     <string name="error_network">Rete non disponibile. Controlla la connessione internet della TV.</string>
     <string name="error_google_http">Servizio Google non disponibile (%1$d).</string>
@@ -39,9 +39,8 @@
     <string name="error_google_session_expired">L\'accesso a Google è scaduto. Collegati di nuovo.</string>
     <string name="error_picker_unavailable">Questa TV non ha un selettore di file. Installa un gestore file da Google Play e riprova.</string>
     <string name="error_google_selection_expired">La selezione Google Foto è scaduta.</string>
+    <string name="error_google_selection_gone">La selezione di Google Foto è scaduta. Scegli di nuovo le foto dal telefono.</string>
     <string name="error_google_nothing_selected">Non hai selezionato foto.</string>
-    <string name="error_google_download_failed">Non è stato possibile preparare le foto selezionate.</string>
-    <string name="error_cache_write">Impossibile salvare le foto nella cache.</string>
     <string name="google_kicker">Collegamento sicuro</string>
     <string name="google_title">Google Foto</string>
     <string name="google_subtitle">Usa il telefono: non dovrai digitare password con il telecomando.</string>
@@ -54,11 +53,10 @@
     <string name="google_step_pick">2. Scegli le foto</string>
     <string name="google_pick_instructions">Scansiona il QR, seleziona le immagini in Google Foto e premi Fine.</string>
     <string name="google_pick_hint">Puoi cercare per data, luogo o nome dell’album. La TV rileverà automaticamente quando hai finito.</string>
-    <string name="google_downloading">Preparazione foto in 4K</string>
-    <string name="google_progress">%1$d di %2$d</string>
-    <string name="google_cache_note">La cache privata evita interruzioni durante lo slideshow. Non viene aggiunto nulla alla galleria della TV.</string>
     <string name="google_unavailable">Collegamento non disponibile</string>
     <string name="google_complete_body">Puoi avviare subito lo slideshow o tornare indietro per cambiare musica e transizioni.</string>
+    <string name="google_streaming_note">Le foto restano su Google Foto e si caricano durante lo slideshow: la TV non ne conserva copie.</string>
+    <string name="google_available_until">Disponibili fino al %1$s. Poi andranno scelte di nuovo dal telefono.</string>
     <string name="settings_kicker">Personalizza</string>
     <string name="settings_title">Impostazioni slideshow</string>
     <string name="settings_subtitle">Le modifiche vengono salvate solo su questa TV.</string>
@@ -87,9 +85,9 @@
     <string name="settings_volume_body">Regola il sottofondo senza modificare il volume generale della TV.</string>
     <string name="settings_volume_value">%1$d%%</string>
     <string name="settings_google_data">Dati Google Foto</string>
-    <string name="settings_google_data_body">Rimuove token cifrati e cache privata delle foto dalla TV.</string>
+    <string name="settings_google_data_body">Rimuove dalla TV l’accesso a Google Foto e l’elenco delle foto scelte.</string>
     <string name="settings_google_disconnect">Disconnetti e cancella</string>
-    <string name="settings_privacy">Privacy: FotoFesta TV non contiene pubblicità e non invia nulla allo sviluppatore. Le foto USB non vengono copiate. Le foto scelte da Google sono scaricate in un archivio privato dell’app per evitare la scadenza degli URL e vengono eliminate con ‘Disconnetti e cancella’.</string>
+    <string name="settings_privacy">Privacy: FotoFesta TV non contiene pubblicità e non invia nulla allo sviluppatore. Le foto USB non vengono copiate. Le foto scelte da Google non vengono copiate sulla TV: si caricano da Google durante lo slideshow e ‘Disconnetti e cancella’ revoca l’accesso.</string>
     <string name="settings_ken_burns">Movimento lento</string>
     <string name="settings_ken_burns_body">Zoom e spostamento lenti su ogni foto mentre è sullo schermo.</string>
     <string name="settings_sleep_timer">Pausa automatica</string>
@@ -156,9 +154,9 @@
         <item quantity="other">USB o cartella locale · %1$d foto</item>
     </plurals>
     <plurals name="source_google">
-        <item quantity="one">Google Foto · %1$d foto in cache privata</item>
-        <item quantity="many">Google Foto · %1$d foto in cache privata</item>
-        <item quantity="other">Google Foto · %1$d foto in cache privata</item>
+        <item quantity="one">Google Foto · %1$d foto</item>
+        <item quantity="many">Google Foto · %1$d foto</item>
+        <item quantity="other">Google Foto · %1$d foto</item>
     </plurals>
     <plurals name="source_cast">
         <item quantity="one">Chromecast · %1$d foto</item>
@@ -171,8 +169,8 @@
         <item quantity="other">%1$d foto pronte.</item>
     </plurals>
     <plurals name="message_google_skipped">
-        <item quantity="one">%1$d foto non scaricata (spazio insufficiente o file non disponibile).</item>
-        <item quantity="many">%1$d foto non scaricate (spazio insufficiente o file non disponibili).</item>
-        <item quantity="other">%1$d foto non scaricate (spazio insufficiente o file non disponibili).</item>
+        <item quantity="one">%1$d elemento ignorato: vengono mostrate solo le foto, non i video.</item>
+        <item quantity="many">%1$d elementi ignorati: vengono mostrate solo le foto, non i video.</item>
+        <item quantity="other">%1$d elementi ignorati: vengono mostrate solo le foto, non i video.</item>
     </plurals>
 </resources>
