@@ -41,6 +41,11 @@ jobs:
           PHOTOS_CLIENT_SECRET: ${{ secrets.PHOTOS_CLIENT_SECRET }}
         run: ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug
 
+      # La release passa da R8, che toglie e rinomina il codice: deve compilare anche lei, con le
+      # regole per le librerie SMB. Senza chiave di firma l'APK resta non firmato e non si pubblica.
+      - name: Build release con R8
+        run: ./gradlew --no-daemon assembleRelease
+
       - name: Report test e lint
         if: always()
         uses: actions/upload-artifact@v4
@@ -49,6 +54,7 @@ jobs:
           path: |
             app/build/reports/tests/
             app/build/reports/lint-results-debug.html
+            app/build/outputs/mapping/release/missing_rules.txt
           if-no-files-found: ignore
 
       - name: APK debug

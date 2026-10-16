@@ -381,7 +381,7 @@
     </plurals>
     <string name="home_folders_title">Dossiers</string>
     <string name="home_network_title">Réseau local</string>
-    <string name="browser_roots_hint_photos">Disques branchés au téléviseur, serveurs du réseau local et albums partagés iCloud.</string>
+    <string name="browser_roots_hint_photos">Disques branchés à la TV, serveurs et dossiers partagés du réseau domestique, albums partagés iCloud.</string>
     <string name="browser_section_drives">Disques</string>
     <string name="browser_section_network">Réseau local (DLNA)</string>
     <string name="browser_no_usb">Aucune clé ni disque USB branché.</string>
@@ -435,4 +435,29 @@
         <item quantity="many">%1$d vidéos</item>
         <item quantity="other">%1$d vidéos</item>
     </plurals>
+    <string name="smb_kicker">Dossiers partagés</string>
+    <string name="smb_title">Ordinateur ou NAS</string>
+    <string name="smb_subtitle">Ouvrez les dossiers partagés d’un PC, d’un Mac ou d’un NAS sur le même réseau que la TV.</string>
+    <string name="smb_address">Adresse</string>
+    <string name="smb_address_hint">192.168.1.20, nas.local ou \\\\NAS\\Photos</string>
+    <string name="smb_user">Nom d’utilisateur (vide pour l’accès invité)</string>
+    <string name="smb_password">Mot de passe</string>
+    <string name="smb_show_password">Afficher</string>
+    <string name="smb_hide_password">Masquer</string>
+    <string name="smb_share_explain">Cet ordinateur n’affiche pas la liste de ses dossiers partagés : saisissez le nom de celui qui contient les photos, tel qu’il apparaît sur le PC ou le NAS.</string>
+    <string name="smb_share">Dossier partagé</string>
+    <string name="smb_share_hint">Par exemple Photos ou Photos/2024</string>
+    <string name="smb_connect">Se connecter</string>
+    <string name="smb_connecting">Connexion…</string>
+    <string name="smb_note">Le mot de passe reste uniquement sur cette TV, chiffré, et sert seulement à lire les photos et les vidéos. Sur un PC Windows, utilisez le nom d’utilisateur et le mot de passe du compte du PC (ou l’adresse e-mail du compte Microsoft) ; sur un NAS, un utilisateur qui peut ouvrir le dossier.</string>
+    <string name="smb_error_address">Adresse non valide. Saisissez par exemple 192.168.1.20, nas.local ou \\\\NAS\\Photos.</string>
+    <string name="smb_error_unreachable">L’ordinateur ne répond pas : vérifiez qu’il est allumé, sur le même réseau que la TV, avec le partage de fichiers activé.</string>
+    <string name="smb_error_login">Nom d’utilisateur ou mot de passe refusé.</string>
+    <string name="smb_error_guest">Cet ordinateur n’autorise pas l’accès invité : saisissez un nom d’utilisateur et un mot de passe.</string>
+    <string name="smb_error_denied">Cet utilisateur ne peut pas ouvrir le dossier.</string>
+    <string name="smb_error_not_found">Dossier partagé introuvable : vérifiez le nom.</string>
+    <string name="browser_section_smb">Dossiers partagés (PC, Mac, NAS)</string>
+    <string name="browser_smb_saved">Utilisé · %1$s</string>
+    <string name="browser_smb_add">Ajouter un ordinateur ou un NAS</string>
+    <string name="browser_smb_add_hint">Avec son adresse, par exemple 192.168.1.20 ou \\\\NAS\\Photos. Les PC Windows s’ajoutent ainsi.</string>
 </resources>

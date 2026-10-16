@@ -4,7 +4,7 @@ import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import it.fotofesta.tv.R
 
-enum class Destination { HOME, SETTINGS, SLIDESHOW, GAMES, MEMORY, MYSTERY, PUZZLE, WHO_TOOK_IT, GOOGLE_CONNECT, GUESTS, GUEST_REVIEW, AWARDS, GUEST_WIFI, FILE_BROWSER, ICLOUD_LINK }
+enum class Destination { HOME, SETTINGS, SLIDESHOW, GAMES, MEMORY, MYSTERY, PUZZLE, WHO_TOOK_IT, GOOGLE_CONNECT, GUESTS, GUEST_REVIEW, AWARDS, GUEST_WIFI, FILE_BROWSER, ICLOUD_LINK, SMB_LOGIN }
 
 enum class TransitionType(@StringRes val labelRes: Int) {
     FADE(R.string.transition_fade),
@@ -62,6 +62,9 @@ sealed interface PhotoRef {
 
     /** Foto o video di un album condiviso di iCloud, caricato al momento (ICloudPhotoFetcher). */
     data class ICloudPhoto(val guid: String) : PhotoRef
+
+    /** Foto o video di una cartella condivisa (SMB) di un computer o NAS, letto al momento (SmbPhotoFetcher). */
+    data class SmbPhoto(val path: String) : PhotoRef
 }
 
 data class PhotoItem(
@@ -147,8 +150,11 @@ data class BrowserRoot(val path: String, val label: String, val removable: Boole
 /** Cartella o file mostrato nel browser. */
 data class BrowserEntry(val name: String, val path: String)
 
-/** Server multimediale (DLNA) della rete di casa; [path] apre la sua cartella principale. */
-data class BrowserServer(val name: String, val path: String)
+/**
+ * Server multimediale (DLNA) o computer con cartelle condivise (SMB) della rete di casa; [path] apre
+ * la sua cartella principale o l'elenco delle sue condivisioni.
+ */
+data class BrowserServer(val name: String, val path: String, val detail: String? = null)
 
 /**
  * Browser di cartelle interno, usato al posto del selettore di documenti di Android, che molte TV
@@ -171,6 +177,25 @@ data class BrowserState(
     val searchingNetwork: Boolean = false,
     /** Su un server di rete: le cartelle aperte, dalla principale a quella mostrata. */
     val trail: List<BrowserEntry> = emptyList(),
+    /** Computer e NAS con cartelle condivise (SMB) trovati nella rete di casa. */
+    val smbHosts: List<BrowserServer> = emptyList(),
+    /** Cartella condivisa già scelta, per riaprirla. */
+    val smbSaved: BrowserServer? = null,
+    /** "Usa questa cartella" ha senso: non sull'elenco delle condivisioni di un computer. */
+    val canUse: Boolean = true,
+)
+
+/** Accesso a un computer o NAS con le cartelle condivise (SMB). */
+data class SmbLoginState(
+    /** Indirizzo scritto o del computer scelto: "192.168.1.20", "nas.local", "\\NAS\Foto". */
+    val address: String = "",
+    /** Nome del computer trovato in rete, se scelto dall'elenco. */
+    val name: String? = null,
+    val user: String = "",
+    val loading: Boolean = false,
+    @StringRes val errorRes: Int? = null,
+    /** Il computer non sa elencare le condivisioni: se ne scrive il nome. */
+    val askShare: Boolean = false,
 )
 
 /** Collegamento di un album condiviso di iCloud: QR per il telefono, ricerca e anteprima dell'album. */
@@ -214,6 +239,7 @@ data class AppState(
     val guests: GuestsUiState = GuestsUiState(),
     val browser: BrowserState = BrowserState(),
     val icloud: ICloudLinkState = ICloudLinkState(),
+    val smb: SmbLoginState = SmbLoginState(),
     /**
      * Cresce a ogni cambio di foto voluto (successiva, precedente, nuova raccolta). Il cambio
      * automatico si basa su questo e non sull'indice, che si sposta quando arrivano o spariscono

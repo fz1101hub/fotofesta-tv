@@ -9,6 +9,8 @@ import it.fotofesta.tv.model.SlideshowLayout
 import it.fotofesta.tv.model.SlideshowSettings
 import it.fotofesta.tv.model.TransitionType
 import it.fotofesta.tv.network.NetworkFolder
+import it.fotofesta.tv.smb.SmbFolder
+import it.fotofesta.tv.smb.SmbLocation
 
 /**
  * Preferenze dell'app, divise in due file:
@@ -114,6 +116,39 @@ class SettingsRepository(context: Context) {
     fun loadICloudToken(): String? = sources.getString("icloud_token", null)
 
     fun loadICloudName(): String? = sources.getString("icloud_name", null)
+
+    /** Password delle cartelle condivise: cifrata con una chiave del Keystore che non lascia la TV. */
+    private val secrets by lazy { KeystoreStrings(sources, "fotofesta_smb_v1") }
+
+    /** Cartella condivisa (SMB) di un computer o NAS, con l'accesso usato per aprirla. */
+    fun saveSmbFolder(folder: SmbFolder, password: String) {
+        sources.edit()
+            .putString("smb_host", folder.location.host)
+            .putInt("smb_port", folder.location.port)
+            .putString("smb_share", folder.location.share)
+            .putString("smb_path", folder.location.path)
+            .putString("smb_title", folder.title)
+            .putString("smb_user", folder.user)
+            .putString("smb_domain", folder.domain)
+            .putString("last_source", "SMB")
+            .apply()
+        // Se il Keystore non funziona la password non si salva: al prossimo avvio si richiede.
+        runCatching { secrets.put("smb_password", password.ifEmpty { null }) }
+    }
+
+    fun loadSmbFolder(): SmbFolder? {
+        val host = sources.getString("smb_host", null) ?: return null
+        val share = sources.getString("smb_share", null)?.takeIf { it.isNotEmpty() } ?: return null
+        val location = SmbLocation(host, sources.getInt("smb_port", SmbLocation.DEFAULT_PORT), share, sources.getString("smb_path", null).orEmpty())
+        return SmbFolder(
+            location,
+            sources.getString("smb_title", null).orEmpty().ifBlank { location.name },
+            sources.getString("smb_user", null).orEmpty(),
+            sources.getString("smb_domain", null).orEmpty(),
+        )
+    }
+
+    fun loadSmbPassword(): String = runCatching { secrets.get("smb_password") }.getOrNull().orEmpty()
 
     fun loadNetworkFolder(): NetworkFolder? {
         val udn = sources.getString("network_udn", null) ?: return null

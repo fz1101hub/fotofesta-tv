@@ -11,6 +11,8 @@ import it.fotofesta.tv.guests.toPhotoItem
 import it.fotofesta.tv.model.PhotoItem
 import it.fotofesta.tv.model.combineWithGuests
 import it.fotofesta.tv.network.NetworkFolder
+import it.fotofesta.tv.smb.SmbFolder
+import it.fotofesta.tv.smb.SmbLogin
 import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -19,9 +21,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * Raccolta attiva dell'ultima sorgente scelta (Google Foto, cartella USB o di rete, foto demo), con
- * le foto approvate degli invitati se la festa è in corso. La usa il salvaschermo, che gira senza
- * l'interfaccia dell'app.
+ * Raccolta attiva dell'ultima sorgente scelta (Google Foto, cartella USB, di rete o condivisa, album
+ * iCloud, foto demo), con le foto approvate degli invitati se la festa è in corso. La usa il
+ * salvaschermo, che gira senza l'interfaccia dell'app.
  */
 class ActiveCollection(private val context: Context) {
     suspend fun load(): List<PhotoItem> = withContext(Dispatchers.IO) {
@@ -34,6 +36,8 @@ class ActiveCollection(private val context: Context) {
                 ?: settings.loadUsbTree()?.let { scanUsb(Uri.parse(it)) }.orEmpty()
             // Le foto in rete si caricano dal server di casa: serve che sia acceso.
             "NETWORK" -> settings.loadNetworkFolder()?.let(::scanNetwork).orEmpty()
+            // Le cartelle condivise si leggono dal computer o dal NAS: serve che sia acceso.
+            "SMB" -> settings.loadSmbFolder()?.let { scanSmb(it, settings.loadSmbPassword()) }.orEmpty()
             // Le foto di iCloud si caricano da Apple durante il salvaschermo: serve la connessione.
             "ICLOUD" -> settings.loadICloudToken()?.let { loadICloud(it) }.orEmpty()
             else -> emptyList()
@@ -65,6 +69,13 @@ class ActiveCollection(private val context: Context) {
         val server = media.find(folder.udn, folder.location) ?: return@runCatching emptyList()
         media.scanPhotos(server, folder.containerId)
     }.onFailure { Log.w("ActiveCollection", "Cartella di rete non disponibile", it) }.getOrDefault(emptyList())
+
+    /** Cartella condivisa (SMB); vuota se il computer è spento o l'accesso non vale più. */
+    private fun scanSmb(folder: SmbFolder, password: String): List<PhotoItem> = runCatching {
+        val shares = context.appServices.smbShares
+        shares.remember(folder.location, SmbLogin(folder.user, password, folder.domain))
+        shares.scanPhotos(folder.location)
+    }.onFailure { Log.w("ActiveCollection", "Cartella condivisa non disponibile", it) }.getOrDefault(emptyList())
 
     /** Album condiviso di iCloud; vuoto se non si legge (link non più pubblico, niente rete). */
     private suspend fun loadICloud(token: String): List<PhotoItem> = try {

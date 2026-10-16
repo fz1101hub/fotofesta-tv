@@ -70,6 +70,7 @@ import it.fotofesta.tv.ui.Outline
 import it.fotofesta.tv.ui.PuzzleGameScreen
 import it.fotofesta.tv.ui.SettingsScreen
 import it.fotofesta.tv.ui.SlideshowScreen
+import it.fotofesta.tv.ui.SmbLoginScreen
 import it.fotofesta.tv.ui.SurfaceRaised
 import it.fotofesta.tv.ui.TextPrimary
 import it.fotofesta.tv.ui.WhoTookItScreen
@@ -285,6 +286,7 @@ class MainActivity : ComponentActivity() {
                             },
                             onSearchNetwork = viewModel::browserSearchNetwork,
                             onICloud = viewModel::openICloudLink,
+                            onSmbAdd = { viewModel.openSmbLogin() },
                             onBack = viewModel::closeBrowser,
                             icloudAlbum = state.icloud.savedName,
                         )
@@ -293,6 +295,11 @@ class MainActivity : ComponentActivity() {
                             onSubmit = viewModel::previewICloudAlbum,
                             onUse = viewModel::useICloudAlbum,
                             onBack = viewModel::closeICloudLink,
+                        )
+                        Destination.SMB_LOGIN -> SmbLoginScreen(
+                            state = state.smb,
+                            onConnect = viewModel::smbConnect,
+                            onBack = viewModel::closeSmbLogin,
                         )
                         Destination.GUEST_WIFI -> GuestWifiScreen(
                             initialName = state.guests.wifiName,

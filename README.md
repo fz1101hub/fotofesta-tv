@@ -152,3 +152,5 @@ Risultati della validazione locale della versione 1.0.0:
 ## Licenze di terze parti
 
 Il carattere [Figtree](https://github.com/erikdkennedy/figtree), usato dall'app Android, è distribuito con la SIL Open Font License 1.1; il testo della licenza è incluso nell'app (`app/src/main/assets/licenses/Figtree-OFL.txt`). L'app Apple TV usa il carattere di sistema.
+
+Le librerie dell'app Android (AndroidX, Media3, Coil, OkHttp, ZXing e, per le cartelle condivise, smbj, dcerpc, Bouncy Castle, MBassador, SLF4J, Guava e Apache Commons) hanno licenze Apache 2.0, BSD 3-Clause o MIT; l'elenco con i testi completi e gli avvisi richiesti è incluso nell'app (`app/src/main/assets/licenses/THIRD_PARTY_NOTICES.txt`).

@@ -12,6 +12,7 @@ import it.fotofesta.tv.ui.GooglePhotoFetcher
 import it.fotofesta.tv.ui.GuestPhotoFetcher
 import it.fotofesta.tv.ui.ICloudPhotoFetcher
 import it.fotofesta.tv.ui.NetworkPhotoFetcher
+import it.fotofesta.tv.ui.SmbPhotoFetcher
 import kotlin.concurrent.thread
 
 class FotoFestaApplication : Application(), ImageLoaderFactory {
@@ -54,6 +55,8 @@ class FotoFestaApplication : Application(), ImageLoaderFactory {
             add(NetworkPhotoFetcher.Key())
             add(ICloudPhotoFetcher.Factory(services.icloudStream, services.http))
             add(ICloudPhotoFetcher.Key())
+            add(SmbPhotoFetcher.Factory(services.smbShares))
+            add(SmbPhotoFetcher.Key())
         }
         .build()
 }

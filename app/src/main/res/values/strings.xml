@@ -359,7 +359,7 @@
     </plurals>
     <string name="home_folders_title">Folders</string>
     <string name="home_network_title">Home network</string>
-    <string name="browser_roots_hint_photos">Drives connected to the TV, home network servers and iCloud shared albums.</string>
+    <string name="browser_roots_hint_photos">Drives connected to the TV, home network servers and shared folders, iCloud shared albums.</string>
     <string name="browser_section_drives">Drives</string>
     <string name="browser_section_network">Home network (DLNA)</string>
     <string name="browser_no_usb">No USB drive connected.</string>
@@ -409,4 +409,29 @@
         <item quantity="one">%1$d video</item>
         <item quantity="other">%1$d videos</item>
     </plurals>
+    <string name="smb_kicker">Shared folders</string>
+    <string name="smb_title">Computer or NAS</string>
+    <string name="smb_subtitle">Open the shared folders of a PC, Mac or NAS on the same network as the TV.</string>
+    <string name="smb_address">Address</string>
+    <string name="smb_address_hint">192.168.1.20, nas.local or \\\\NAS\\Photos</string>
+    <string name="smb_user">User name (empty for guest access)</string>
+    <string name="smb_password">Password</string>
+    <string name="smb_show_password">Show</string>
+    <string name="smb_hide_password">Hide</string>
+    <string name="smb_share_explain">This computer doesn’t list its shared folders: type the name of the one with the photos, as it appears on the PC or NAS.</string>
+    <string name="smb_share">Shared folder</string>
+    <string name="smb_share_hint">For example Photos or Photos/2024</string>
+    <string name="smb_connect">Connect</string>
+    <string name="smb_connecting">Connecting…</string>
+    <string name="smb_note">The password stays only on this TV, encrypted, and is used only to read photos and videos. On a Windows PC use the PC account’s user name and password (or the Microsoft account email address); on a NAS, a user who can open the folder.</string>
+    <string name="smb_error_address">Invalid address. Type for example 192.168.1.20, nas.local or \\\\NAS\\Photos.</string>
+    <string name="smb_error_unreachable">The computer isn’t responding: check that it’s on, on the same network as the TV, with file sharing turned on.</string>
+    <string name="smb_error_login">User name or password not accepted.</string>
+    <string name="smb_error_guest">This computer doesn’t allow guest access: enter a user name and password.</string>
+    <string name="smb_error_denied">This user can’t open the folder.</string>
+    <string name="smb_error_not_found">Shared folder not found: check the name.</string>
+    <string name="browser_section_smb">Shared folders (PC, Mac, NAS)</string>
+    <string name="browser_smb_saved">In use · %1$s</string>
+    <string name="browser_smb_add">Add a computer or NAS</string>
+    <string name="browser_smb_add_hint">With its address, e.g. 192.168.1.20 or \\\\NAS\\Photos. Windows PCs are added this way.</string>
 </resources>

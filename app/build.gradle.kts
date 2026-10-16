@@ -52,7 +52,18 @@ android {
     sourceSets.getByName("main").assets.srcDir("../shared/assets")
 
     packaging {
-        resources.excludes += setOf("META-INF/AL2.0", "META-INF/LGPL2.1")
+        resources.excludes += setOf(
+            "META-INF/AL2.0",
+            "META-INF/LGPL2.1",
+            // Doppioni delle librerie SMB; le licenze sono in assets/licenses.
+            "META-INF/LICENSE.txt",
+            "META-INF/NOTICE.txt",
+            "META-INF/DEPENDENCIES",
+            "META-INF/versions/9/module-info.class",
+            // Classi per Java 9+ di BouncyCastle: Android usa quelle normali.
+            "META-INF/versions/9/org/bouncycastle/**",
+            "META-INF/versions/11/**",
+        )
     }
 
     // Firma release opzionale: se RELEASE_STORE_FILE non è configurato l'AAB resta non firmato.
@@ -122,6 +133,9 @@ dependencies {
     implementation("androidx.media3:media3-ui:1.5.1")
     implementation("androidx.media3:media3-datasource-okhttp:1.5.1")
     implementation("com.google.zxing:core:3.5.3")
+    // Cartelle condivise (SMB 2/3) di PC e NAS, ed elenco delle condivisioni (DCE/RPC).
+    implementation("com.hierynomus:smbj:0.14.0")
+    implementation("com.rapid7.client:dcerpc:0.12.13")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20250517")

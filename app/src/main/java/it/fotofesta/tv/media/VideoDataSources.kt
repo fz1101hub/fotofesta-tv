@@ -19,6 +19,10 @@ import it.fotofesta.tv.icloud.ICloudAlbumStream
 import it.fotofesta.tv.model.PhotoRef
 import it.fotofesta.tv.network.LanHttp
 import it.fotofesta.tv.network.LanResponse
+import it.fotofesta.tv.smb.SmbException
+import it.fotofesta.tv.smb.SmbFile
+import it.fotofesta.tv.smb.SmbLocation
+import it.fotofesta.tv.smb.SmbShares
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import java.io.File
@@ -26,6 +30,7 @@ import java.io.IOException
 
 private const val GOOGLE_SCHEME = "fotofesta-google"
 private const val ICLOUD_SCHEME = "fotofesta-icloud"
+private const val SMB_SCHEME = "fotofesta-smb"
 
 /** Indirizzo da dare al lettore video per un elemento della raccolta. */
 fun PhotoRef.videoUri(): Uri = when (this) {
@@ -34,14 +39,17 @@ fun PhotoRef.videoUri(): Uri = when (this) {
     is PhotoRef.NetworkPhoto -> Uri.parse(url)
     is PhotoRef.GooglePhoto -> Uri.Builder().scheme(GOOGLE_SCHEME).authority("media").appendPath(mediaId).build()
     is PhotoRef.ICloudPhoto -> Uri.Builder().scheme(ICLOUD_SCHEME).authority("media").appendPath(guid).build()
+    // Il percorso della cartella condivisa viaggia intero in un parametro: nomi con spazi, "#" o "%" compresi.
+    is PhotoRef.SmbPhoto -> Uri.Builder().scheme(SMB_SCHEME).authority("media").appendQueryParameter("path", path).build()
     is PhotoRef.Resource, is PhotoRef.GuestPhoto -> throw IllegalArgumentException("Non è un video: $this")
 }
 
 /**
  * Da dove il lettore video legge i byte: file e documenti dalla TV o dal disco USB, video della rete
  * di casa con [LanHttp] (l'unico HTTP in chiaro ammesso), video di Google Foto con il token
- * dell'utente, chiesto di nuovo a ogni apertura perché scade, e video degli album condivisi di
- * iCloud dall'indirizzo che dà Apple, anch'esso rinnovato quando scade.
+ * dell'utente, chiesto di nuovo a ogni apertura perché scade, video degli album condivisi di
+ * iCloud dall'indirizzo che dà Apple, anch'esso rinnovato quando scade, e video delle cartelle
+ * condivise (SMB) di computer e NAS.
  */
 @OptIn(UnstableApi::class)
 class VideoDataSources(
@@ -50,6 +58,7 @@ class VideoDataSources(
     googleStream: GooglePhotosStream,
     icloudStream: ICloudAlbumStream,
     http: OkHttpClient,
+    private val smb: SmbShares,
 ) : DataSource.Factory {
     private val local = DefaultDataSource.Factory(context)
 
@@ -86,6 +95,7 @@ class VideoDataSources(
             "http" -> LanDataSource(lan)
             GOOGLE_SCHEME -> google.createDataSource()
             ICLOUD_SCHEME -> icloud.createDataSource()
+            SMB_SCHEME -> SmbDataSource(smb)
             else -> local.createDataSource()
         }
     }
@@ -215,5 +225,97 @@ private class LanDataSource(private val http: LanHttp) : BaseDataSource(/* isNet
                 transferEnded()
             }
         }
+    }
+}
+
+/**
+ * Video di una cartella condivisa (SMB): si legge da qualunque punto, come un file locale. Le letture
+ * passano da un blocco di 256 KB, perché ogni richiesta al computer è un viaggio in rete e il lettore
+ * chiede spesso pochi byte alla volta.
+ */
+@OptIn(UnstableApi::class)
+private class SmbDataSource(private val shares: SmbShares) : BaseDataSource(/* isNetwork = */ true) {
+    private var file: SmbFile? = null
+    private var uri: Uri? = null
+    private var position = 0L
+    private var remaining = 0L
+    private var opened = false
+    private val block = ByteArray(BLOCK_BYTES)
+    private var blockStart = 0L
+    private var blockLength = 0
+
+    override fun open(dataSpec: DataSpec): Long {
+        uri = dataSpec.uri
+        transferInitializing(dataSpec)
+        val location = dataSpec.uri.getQueryParameter("path")?.let(SmbLocation::parse)
+            ?: throw DataSourceException(PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND)
+        val opening = try {
+            shares.open(location)
+        } catch (failure: SmbException) {
+            val code = when (failure.reason) {
+                SmbException.Reason.NOT_FOUND -> PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND
+                SmbException.Reason.LOGIN, SmbException.Reason.DENIED -> PlaybackException.ERROR_CODE_IO_NO_PERMISSION
+                SmbException.Reason.UNREACHABLE -> PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED
+            }
+            throw DataSourceException(failure, code)
+        }
+        if (dataSpec.position > opening.size) {
+            opening.close()
+            throw DataSourceException(PlaybackException.ERROR_CODE_IO_READ_POSITION_OUT_OF_RANGE)
+        }
+        file = opening
+        position = dataSpec.position
+        blockLength = 0
+        remaining = if (dataSpec.length != C.LENGTH_UNSET.toLong()) {
+            minOf(dataSpec.length, opening.size - position)
+        } else {
+            opening.size - position
+        }
+        opened = true
+        transferStarted(dataSpec)
+        return remaining
+    }
+
+    override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+        if (length == 0) return 0
+        if (remaining == 0L) return C.RESULT_END_OF_INPUT
+        val current = file ?: return C.RESULT_END_OF_INPUT
+        if (position < blockStart || position >= blockStart + blockLength) {
+            val read = try {
+                current.read(position, block, 0, minOf(BLOCK_BYTES.toLong(), current.size - position).toInt())
+            } catch (failure: IOException) {
+                throw DataSourceException(failure, PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED)
+            }
+            if (read <= 0) return C.RESULT_END_OF_INPUT
+            blockStart = position
+            blockLength = read
+        }
+        val inBlock = (position - blockStart).toInt()
+        val count = minOf(length.toLong(), remaining, (blockLength - inBlock).toLong()).toInt()
+        System.arraycopy(block, inBlock, buffer, offset, count)
+        position += count
+        remaining -= count
+        bytesTransferred(count)
+        return count
+    }
+
+    override fun getUri(): Uri? = uri
+
+    override fun close() {
+        uri = null
+        try {
+            file?.close()
+        } finally {
+            file = null
+            blockLength = 0
+            if (opened) {
+                opened = false
+                transferEnded()
+            }
+        }
+    }
+
+    private companion object {
+        const val BLOCK_BYTES = 256 * 1024
     }
 }

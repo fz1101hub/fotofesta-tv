@@ -381,7 +381,7 @@
     </plurals>
     <string name="home_folders_title">Carpetas</string>
     <string name="home_network_title">Red local</string>
-    <string name="browser_roots_hint_photos">Unidades conectadas a la TV, servidores de la red local y álbumes compartidos de iCloud.</string>
+    <string name="browser_roots_hint_photos">Discos conectados a la TV, servidores y carpetas compartidas de la red de casa, álbumes compartidos de iCloud.</string>
     <string name="browser_section_drives">Unidades</string>
     <string name="browser_section_network">Red local (DLNA)</string>
     <string name="browser_no_usb">No hay ninguna unidad USB conectada.</string>
@@ -435,4 +435,29 @@
         <item quantity="many">%1$d vídeos</item>
         <item quantity="other">%1$d vídeos</item>
     </plurals>
+    <string name="smb_kicker">Carpetas compartidas</string>
+    <string name="smb_title">Ordenador o NAS</string>
+    <string name="smb_subtitle">Abre las carpetas compartidas de un PC, un Mac o un NAS en la misma red que la TV.</string>
+    <string name="smb_address">Dirección</string>
+    <string name="smb_address_hint">192.168.1.20, nas.local o \\\\NAS\\Fotos</string>
+    <string name="smb_user">Nombre de usuario (vacío para acceso de invitado)</string>
+    <string name="smb_password">Contraseña</string>
+    <string name="smb_show_password">Mostrar</string>
+    <string name="smb_hide_password">Ocultar</string>
+    <string name="smb_share_explain">Este ordenador no muestra la lista de sus carpetas compartidas: escribe el nombre de la que tiene las fotos, tal como aparece en el PC o el NAS.</string>
+    <string name="smb_share">Carpeta compartida</string>
+    <string name="smb_share_hint">Por ejemplo Fotos o Fotos/2024</string>
+    <string name="smb_connect">Conectar</string>
+    <string name="smb_connecting">Conectando…</string>
+    <string name="smb_note">La contraseña se queda solo en esta TV, cifrada, y solo sirve para leer fotos y vídeos. En un PC con Windows usa el nombre de usuario y la contraseña de la cuenta del PC (o el correo de la cuenta Microsoft); en un NAS, un usuario que pueda abrir la carpeta.</string>
+    <string name="smb_error_address">Dirección no válida. Escribe por ejemplo 192.168.1.20, nas.local o \\\\NAS\\Fotos.</string>
+    <string name="smb_error_unreachable">El ordenador no responde: comprueba que esté encendido, en la misma red que la TV y con el uso compartido de archivos activado.</string>
+    <string name="smb_error_login">Nombre de usuario o contraseña no aceptados.</string>
+    <string name="smb_error_guest">Este ordenador no permite el acceso de invitado: escribe un nombre de usuario y una contraseña.</string>
+    <string name="smb_error_denied">Este usuario no puede abrir la carpeta.</string>
+    <string name="smb_error_not_found">Carpeta compartida no encontrada: comprueba el nombre.</string>
+    <string name="browser_section_smb">Carpetas compartidas (PC, Mac, NAS)</string>
+    <string name="browser_smb_saved">En uso · %1$s</string>
+    <string name="browser_smb_add">Añadir un ordenador o un NAS</string>
+    <string name="browser_smb_add_hint">Con su dirección, por ejemplo 192.168.1.20 o \\\\NAS\\Fotos. Los PC con Windows se añaden así.</string>
 </resources>

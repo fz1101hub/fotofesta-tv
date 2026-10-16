@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Build
 import android.util.Log
 import androidx.annotation.PluralsRes
+import androidx.annotation.StringRes
 import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -41,6 +42,7 @@ import it.fotofesta.tv.model.PhotoItem
 import it.fotofesta.tv.model.PlaybackOrder
 import it.fotofesta.tv.model.SettingsCategory
 import it.fotofesta.tv.model.SlideshowSettings
+import it.fotofesta.tv.model.SmbLoginState
 import it.fotofesta.tv.model.SourceType
 import it.fotofesta.tv.model.UserFacingException
 import it.fotofesta.tv.model.combineWithGuests
@@ -54,11 +56,18 @@ import it.fotofesta.tv.network.LocalAddress
 import it.fotofesta.tv.network.NetworkFolder
 import it.fotofesta.tv.network.NetworkMedia
 import it.fotofesta.tv.network.NetworkPath
+import it.fotofesta.tv.smb.SmbAddress
+import it.fotofesta.tv.smb.SmbDiscovery
+import it.fotofesta.tv.smb.SmbException
+import it.fotofesta.tv.smb.SmbFolder
+import it.fotofesta.tv.smb.SmbLocation
+import it.fotofesta.tv.smb.SmbLogin
 import kotlin.coroutines.resume
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -91,6 +100,10 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private val googleImport = GoogleImportFlow(googleAuth, googlePicker)
     private val guests = services.guests
     private val networkMedia = services.networkMedia
+    private val smbShares = services.smbShares
+    /** Nomi dei computer con cartelle condivise trovati in rete, per mostrarli al posto dell'indirizzo. */
+    private val smbNames = java.util.concurrent.ConcurrentHashMap<String, String>()
+    private var smbJob: Job? = null
     private val icloudClient = services.icloudClient
     private val icloudStream = services.icloudStream
     /** Album iCloud trovato e mostrato in anteprima, in attesa di "Usa questo album". */
@@ -182,6 +195,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             if (folder != null) loadUsbFolder(folder) else settingsRepository.loadUsbTree()?.let { stored -> loadUsb(Uri.parse(stored)) }
         }
         if (lastSource == "NETWORK") settingsRepository.loadNetworkFolder()?.let { loadNetworkFolder(it) }
+        if (lastSource == "SMB") settingsRepository.loadSmbFolder()?.let { loadSmbFolder(it, settingsRepository.loadSmbPassword()) }
         if (lastSource == "ICLOUD") settingsRepository.loadICloudToken()?.let { restoreICloudAlbum(it) }
         _state.update { it.copy(icloud = it.icloud.copy(savedName = settingsRepository.loadICloudName())) }
         viewModelScope.launch {
@@ -212,6 +226,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             Destination.GUEST_WIFI -> navigate(wifiReturnTo)
             Destination.FILE_BROWSER -> if (_state.value.browser.directory != null) browserUp() else closeBrowser()
             Destination.ICLOUD_LINK -> closeICloudLink()
+            Destination.SMB_LOGIN -> closeSmbLogin()
         }
     }
 
@@ -395,7 +410,14 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             it.copy(
                 destination = Destination.FILE_BROWSER,
                 message = null,
-                browser = BrowserState(kind = kind, loading = true, systemPickerAvailable = systemPickerAvailable),
+                browser = BrowserState(
+                    kind = kind,
+                    loading = true,
+                    systemPickerAvailable = systemPickerAvailable,
+                    smbSaved = settingsRepository.loadSmbFolder()?.let { folder ->
+                        BrowserServer(folder.title, folder.location.browserPath, smbAddressText(folder.location))
+                    },
+                ),
             )
         }
         browserJob = viewModelScope.launch {
@@ -406,21 +428,35 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         if (kind == BrowserKind.PHOTOS) browserSearchNetwork() else discoveryJob?.cancel()
     }
 
-    /** Cerca i server multimediali (DLNA) della rete di casa; dura qualche secondo. */
+    /**
+     * Cerca nella rete di casa i server multimediali (DLNA) e i computer con cartelle condivise
+     * (SMB) che si annunciano con Bonjour; dura qualche secondo.
+     */
     fun browserSearchNetwork() {
         discoveryJob?.cancel()
         _state.update { it.copy(browser = it.browser.copy(searchingNetwork = true)) }
         discoveryJob = viewModelScope.launch {
+            val smbSearch = async(Dispatchers.IO) {
+                runCatching { SmbDiscovery.search() }
+                    .onFailure { Log.w(TAG, "Ricerca delle cartelle condivise non riuscita", it) }
+                    .getOrDefault(emptyList())
+            }
             val servers = withContext(Dispatchers.IO) {
                 runCatching { networkMedia.discover() }
                     .onFailure { Log.w(TAG, "Ricerca dei server in rete non riuscita", it) }
                     .getOrDefault(emptyList())
             }
+            val hosts = smbSearch.await()
+            hosts.forEach { host -> smbNames[SmbLocation(host.address, host.port).server] = host.name }
             _state.update {
                 it.copy(
                     browser = it.browser.copy(
                         searchingNetwork = false,
                         servers = servers.map { server -> BrowserServer(server.name, NetworkPath.of(server.udn, NetworkMedia.ROOT)) },
+                        smbHosts = hosts.map { host ->
+                            val location = SmbLocation(host.address, host.port)
+                            BrowserServer(host.name, location.browserPath, smbAddressText(location))
+                        },
                     ),
                 )
             }
@@ -430,6 +466,10 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     fun browserOpen(path: String) {
         NetworkPath.parse(path)?.let { (udn, containerId) ->
             browserOpenNetwork(path, udn, containerId)
+            return
+        }
+        SmbLocation.parse(path)?.let { location ->
+            browserOpenSmb(location)
             return
         }
         val browser = _state.value.browser
@@ -459,6 +499,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                         folders = listing.folders.map { folder -> BrowserEntry(folder.name, folder.absolutePath) },
                         files = listing.files.map { file -> BrowserEntry(file.name, file.absolutePath) },
                         photosHere = photosHere,
+                        trail = emptyList(),
+                        canUse = true,
                         loading = false,
                     ),
                 )
@@ -501,6 +543,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                         folders = page.containers.map { folder -> BrowserEntry(folder.title, NetworkPath.of(udn, folder.id)) },
                         files = emptyList(),
                         photosHere = page.files.count { file -> file.mimeType.startsWith("image/") },
+                        canUse = true,
                         loading = false,
                     ),
                 )
@@ -539,6 +582,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                     files = emptyList(),
                     photosHere = 0,
                     trail = emptyList(),
+                    canUse = true,
                     loading = false,
                 ),
             )
@@ -548,6 +592,13 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     fun browserUseFolder() {
         val browser = _state.value.browser
         val path = browser.directory ?: return
+        SmbLocation.parse(path)?.let { location ->
+            if (location.share.isEmpty()) return
+            val login = smbShares.loginFor(location) ?: SmbLogin()
+            val title = browser.trail.lastOrNull()?.name ?: location.name
+            loadSmbFolder(SmbFolder(location, title, login.user, login.domain), login.password, fromBrowser = true)
+            return
+        }
         val network = NetworkPath.parse(path)
         if (network == null) {
             loadUsbFolder(path, fromBrowser = true)
@@ -640,6 +691,212 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         browserJob?.cancel()
         discoveryJob?.cancel()
         navigate(if (_state.value.browser.kind == BrowserKind.MUSIC) Destination.SETTINGS else Destination.HOME)
+    }
+
+    /** Contenuto di una cartella condivisa: [folders] null se il computer non sa elencare le condivisioni. */
+    private class SmbPage(val folders: List<String>?, val photos: Int)
+
+    /**
+     * Elenco delle condivisioni di un computer, o cartella di una condivisione. Senza accesso
+     * (computer mai aperto) si chiedono nome utente e password.
+     */
+    private fun browserOpenSmb(location: SmbLocation) {
+        browserJob?.cancel()
+        _state.update { it.copy(browser = it.browser.copy(loading = true)) }
+        browserJob = viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    if (!knownSmbLogin(location)) return@runCatching null
+                    if (location.share.isEmpty()) {
+                        SmbPage(smbShares.shares(location), 0)
+                    } else {
+                        smbShares.list(location).let { listing -> SmbPage(listing.folders, listing.photos) }
+                    }
+                }
+            }
+            val page = result.getOrElse { failure ->
+                if (failure is CancellationException) throw failure
+                Log.w(TAG, "Cartella condivisa non leggibile", failure)
+                _state.update { it.copy(browser = it.browser.copy(loading = false)) }
+                val reason = (failure as? SmbException)?.reason
+                if (reason == SmbException.Reason.LOGIN) {
+                    openSmbLogin(location, smbErrorRes(failure, smbShares.loginFor(location)?.guest ?: true))
+                } else {
+                    showMessage(context.getString(smbErrorRes(failure, guest = false)))
+                }
+                return@launch
+            }
+            when {
+                page == null -> {
+                    _state.update { it.copy(browser = it.browser.copy(loading = false)) }
+                    openSmbLogin(location)
+                }
+                page.folders == null -> {
+                    _state.update { it.copy(browser = it.browser.copy(loading = false)) }
+                    openSmbLogin(location, askShare = true)
+                }
+                else -> _state.update {
+                    it.copy(
+                        browser = it.browser.copy(
+                            root = null,
+                            directory = location.browserPath,
+                            trail = smbTrail(location),
+                            folders = page.folders.map { name -> BrowserEntry(name, location.child(name).browserPath) },
+                            files = emptyList(),
+                            photosHere = page.photos,
+                            canUse = location.share.isNotEmpty(),
+                            loading = false,
+                        ),
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * C'è un accesso per il computer: provato in questa sessione, o quello della cartella condivisa
+     * salvata se è sullo stesso computer. Va chiamata fuori dal thread principale (Keystore).
+     */
+    private fun knownSmbLogin(location: SmbLocation): Boolean {
+        if (smbShares.loginFor(location) != null) return true
+        val saved = settingsRepository.loadSmbFolder()?.takeIf { it.location.server == location.server } ?: return false
+        smbShares.remember(saved.location, SmbLogin(saved.user, settingsRepository.loadSmbPassword(), saved.domain))
+        return true
+    }
+
+    /** Percorso aperto nel browser, dal computer alla cartella: "NAS › Foto › 2024". */
+    private fun smbTrail(location: SmbLocation): List<BrowserEntry> {
+        val trail = ArrayDeque<BrowserEntry>()
+        var current: SmbLocation? = location
+        while (current != null) {
+            val name = if (current.share.isEmpty()) smbNames[current.server] ?: current.host else current.name
+            trail.addFirst(BrowserEntry(name, current.browserPath))
+            current = current.parent()
+        }
+        return trail.toList()
+    }
+
+    /** Indirizzo come lo si scrive: "nas.local", "192.168.1.20:4450" o "\\NAS\Foto\2024". */
+    private fun smbAddressText(location: SmbLocation): String {
+        val name = if (':' in location.host) "[${location.host}]" else location.host
+        val host = if (location.port == SmbLocation.DEFAULT_PORT) name else "$name:${location.port}"
+        if (location.share.isEmpty()) return host
+        return "\\\\" + host + "\\" + location.share + location.path.takeIf { it.isNotEmpty() }?.let { "\\" + it.replace('/', '\\') }.orEmpty()
+    }
+
+    /** Accesso a un computer o NAS: dall'elenco dei computer trovati, o con l'indirizzo da scrivere. */
+    fun openSmbLogin(location: SmbLocation? = null, @StringRes errorRes: Int? = null, askShare: Boolean = false) {
+        smbJob?.cancel()
+        val saved = settingsRepository.loadSmbFolder()
+        val user = location?.let { smbShares.loginFor(it)?.user ?: saved?.takeIf { folder -> folder.location.server == it.server }?.user }
+        _state.update {
+            it.copy(
+                destination = Destination.SMB_LOGIN,
+                message = null,
+                smb = SmbLoginState(
+                    address = location?.let(::smbAddressText).orEmpty(),
+                    name = location?.let { place -> smbNames[place.server] },
+                    user = user.orEmpty(),
+                    errorRes = errorRes,
+                    askShare = askShare,
+                ),
+            )
+        }
+    }
+
+    /**
+     * "Connetti": prova l'accesso e apre le condivisioni del computer, o direttamente la condivisione
+     * e la cartella scritte nell'indirizzo o nel campo della condivisione.
+     */
+    fun smbConnect(address: String, user: String, password: String, share: String = "") {
+        val parsed = SmbAddress.parse(address)
+        val server = parsed?.copy(share = "", path = "")
+        val target = when {
+            parsed == null || server == null -> null
+            share.isNotBlank() -> SmbAddress.parse(smbAddressText(server) + "/" + share.trim().replace('\\', '/'))
+            else -> parsed
+        }
+        if (server == null || target == null) {
+            _state.update { it.copy(smb = it.smb.copy(errorRes = R.string.smb_error_address, loading = false)) }
+            return
+        }
+        val login = SmbLogin.of(user, password)
+        smbJob?.cancel()
+        _state.update { it.copy(smb = it.smb.copy(loading = true, errorRes = null)) }
+        smbJob = viewModelScope.launch {
+            try {
+                val shares = withContext(Dispatchers.IO) { smbShares.login(server, login) }
+                if (target.share.isEmpty() && shares == null) {
+                    _state.update { it.copy(smb = it.smb.copy(loading = false, askShare = true)) }
+                    return@launch
+                }
+                _state.update { it.copy(destination = Destination.FILE_BROWSER, smb = it.smb.copy(loading = false)) }
+                browserOpenSmb(target)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                Log.w(TAG, "Accesso alla cartella condivisa non riuscito", failure)
+                _state.update { it.copy(smb = it.smb.copy(loading = false, errorRes = smbErrorRes(failure, login.guest))) }
+            }
+        }
+    }
+
+    fun closeSmbLogin() {
+        smbJob?.cancel()
+        navigate(Destination.FILE_BROWSER)
+    }
+
+    @StringRes
+    private fun smbErrorRes(failure: Throwable, guest: Boolean): Int = when ((failure as? SmbException)?.reason) {
+        SmbException.Reason.LOGIN -> if (guest) R.string.smb_error_guest else R.string.smb_error_login
+        SmbException.Reason.DENIED -> R.string.smb_error_denied
+        SmbException.Reason.NOT_FOUND -> R.string.smb_error_not_found
+        else -> R.string.smb_error_unreachable
+    }
+
+    /**
+     * Foto e video di una cartella condivisa, con le sottocartelle. Con [fromBrowser], se si è ancora
+     * nel browser, alla fine si torna alla schermata iniziale. La cartella e l'accesso si salvano
+     * solo se la lettura riesce.
+     */
+    private fun loadSmbFolder(folder: SmbFolder, password: String, fromBrowser: Boolean = false) {
+        cancelPendingSources()
+        usbJob = viewModelScope.launch {
+            _state.update { it.copy(busy = true, message = context.getString(R.string.message_network_indexing)) }
+            try {
+                val photos = withContext(Dispatchers.IO) {
+                    smbShares.remember(folder.location, SmbLogin(folder.user, password, folder.domain))
+                    smbShares.scanPhotos(folder.location) { ensureActive() }
+                }
+                val message = if (photos.isEmpty()) {
+                    context.getString(R.string.message_usb_empty)
+                } else {
+                    settingsRepository.saveSmbFolder(folder, password)
+                    showPhotos(photos, quantityString(R.plurals.source_network, photos.size), SourceType.NETWORK, folder.title)
+                    discardGoogleSelection()
+                    _state.update {
+                        it.copy(browser = it.browser.copy(smbSaved = BrowserServer(folder.title, folder.location.browserPath, smbAddressText(folder.location))))
+                    }
+                    quantityString(R.plurals.message_usb_ready, photos.size)
+                }
+                _state.update {
+                    it.copy(
+                        busy = false,
+                        message = message,
+                        destination = if (fromBrowser && it.destination == Destination.FILE_BROWSER && photos.isNotEmpty()) {
+                            Destination.HOME
+                        } else {
+                            it.destination
+                        },
+                    )
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                Log.w(TAG, "Lettura della cartella condivisa non riuscita", failure)
+                _state.update { it.copy(busy = false, message = context.getString(smbErrorRes(failure, folder.user.isBlank()))) }
+            }
+        }
     }
 
     /**
@@ -1241,6 +1498,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         icloudRefreshJob?.cancel()
         googleJob?.cancel()
         browserJob?.cancel()
+        smbJob?.cancel()
         usbJob?.cancel()
         sleepJob?.cancel()
         musicPlayer.release()

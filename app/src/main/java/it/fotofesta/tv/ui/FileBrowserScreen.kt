@@ -17,11 +17,14 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Cloud
+import androidx.compose.material.icons.rounded.Computer
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.FolderOpen
+import androidx.compose.material.icons.rounded.FolderShared
 import androidx.compose.material.icons.rounded.Lan
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.QueueMusic
@@ -60,6 +63,7 @@ fun FileBrowserScreen(
     onSystemPicker: () -> Unit,
     onSearchNetwork: () -> Unit,
     onICloud: () -> Unit,
+    onSmbAdd: () -> Unit,
     onBack: () -> Unit,
     icloudAlbum: String? = null,
 ) {
@@ -101,7 +105,7 @@ fun FileBrowserScreen(
                     modifier = if (listEmpty && !photos) Modifier.initialFocus(focusKey) else Modifier,
                     icon = Icons.Rounded.ArrowUpward,
                 )
-                if (photos) {
+                if (photos && state.canUse) {
                     TvButton(
                         stringResource(R.string.browser_use_folder),
                         onUseFolder,
@@ -193,6 +197,34 @@ fun FileBrowserScreen(
                                 modifier = if (firstFocus && state.servers.isEmpty()) Modifier.initialFocus(focusKey) else Modifier,
                             )
                         }
+                    }
+                    // Cartelle condivise (SMB) di PC, Mac e NAS: quelli trovati con Bonjour, o con l'indirizzo.
+                    item(key = "smb") { SectionLabel(stringResource(R.string.browser_section_smb)) }
+                    state.smbSaved?.let { saved ->
+                        item(key = "smb-saved") {
+                            BrowserRow(
+                                label = saved.name,
+                                detail = stringResource(R.string.browser_smb_saved, saved.detail.orEmpty()),
+                                icon = Icons.Rounded.FolderShared,
+                                onClick = { onOpen(saved.path) },
+                            )
+                        }
+                    }
+                    itemsIndexed(state.smbHosts, key = { _, host -> "smb-host:" + host.path }) { _, host ->
+                        BrowserRow(
+                            label = host.name,
+                            detail = host.detail,
+                            icon = Icons.Rounded.Computer,
+                            onClick = { onOpen(host.path) },
+                        )
+                    }
+                    item(key = "smb-add") {
+                        BrowserRow(
+                            label = stringResource(R.string.browser_smb_add),
+                            detail = stringResource(R.string.browser_smb_add_hint),
+                            icon = Icons.Rounded.Add,
+                            onClick = onSmbAdd,
+                        )
                     }
                     // Album condiviso di iCloud con il link pubblico: per chi ha le foto su iPhone.
                     item(key = "icloud") { SectionLabel(stringResource(R.string.browser_section_icloud)) }
