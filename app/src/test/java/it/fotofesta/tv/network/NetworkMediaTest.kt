@@ -88,6 +88,28 @@ class NetworkMediaTest {
     }
 
     @Test
+    fun photosUseTheLightestVersionThatCoversTheScreen() {
+        val xml = browseResponse(didl(photo("p1", "IMG.jpg", "/media/1.jpg")), 1, 1).toByteArray()
+        val base = "http://192.168.1.10:8200/ctl"
+        // Schermo Full HD: basta la versione grande 1024×768? No, serve almeno 1920×1080: si prende
+        // l'originale. Con uno schermo piccolo basta quella media.
+        assertEquals("http://192.168.1.10:8200/media/1.jpg", UpnpXml.parseBrowseResponse(xml, base, mimeTypes::contains, ScreenSize(1920, 1080)).files.single().url)
+        assertEquals("http://192.168.1.10:8200/media/1.jpg?med", UpnpXml.parseBrowseResponse(xml, base, mimeTypes::contains, ScreenSize(1024, 600)).files.single().url)
+        val sized = didl(
+            """<item id="p2"><dc:title>Grande</dc:title><upnp:class>object.item.imageItem.photo</upnp:class>""" +
+                """<res protocolInfo="http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_LRG" resolution="6000x4000">/o.jpg</res>""" +
+                """<res protocolInfo="http-get:*:image/jpeg:*" resolution="2560x1707">/l.jpg</res>""" +
+                """<res protocolInfo="http-get:*:image/jpeg:*" resolution="1920x1280">/m.jpg</res>""" +
+                """<res protocolInfo="http-get:*:image/jpeg:DLNA.ORG_PN=JPEG_TN" resolution="4000x3000">/t.jpg</res></item>""",
+        )
+        val page = browseResponse(sized, 1, 1).toByteArray()
+        assertEquals("http://192.168.1.10:8200/m.jpg", UpnpXml.parseBrowseResponse(page, base, mimeTypes::contains, ScreenSize(1920, 1080)).files.single().url)
+        assertEquals("http://192.168.1.10:8200/o.jpg", UpnpXml.parseBrowseResponse(page, base, mimeTypes::contains, ScreenSize(3840, 2160)).files.single().url)
+        // Senza dimensioni dello schermo resta l'originale.
+        assertEquals("http://192.168.1.10:8200/o.jpg", UpnpXml.parseBrowseResponse(page, base, mimeTypes::contains).files.single().url)
+    }
+
+    @Test
     fun videosKeepTheirVideoVersionAndCoversAreNotPhotos() {
         val content = didl(
             """<item id="v1"><dc:title>Torta.mp4</dc:title><upnp:class>object.item.videoItem</upnp:class>""" +

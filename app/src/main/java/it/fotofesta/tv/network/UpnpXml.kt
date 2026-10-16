@@ -27,6 +27,9 @@ data class MediaContainer(val id: String, val title: String, val musicOrVideo: B
 /** File di un server multimediale, con l'indirizzo da cui scaricarlo e il tipo MIME. */
 data class MediaFile(val id: String, val title: String, val url: String, val mimeType: String)
 
+/** Lato lungo e lato corto dello schermo in pixel, per scegliere la versione di una foto. */
+data class ScreenSize(val longEdge: Int, val shortEdge: Int)
+
 /** Contenuto di una pagina di Browse: cartelle, file e quanti elementi ha in tutto la cartella. */
 data class BrowsePage(
     val containers: List<MediaContainer>,
@@ -83,9 +86,15 @@ object UpnpXml {
 
     /**
      * Risposta di Browse: l'elenco DIDL-Lite dentro Result, già decodificato. Tiene i file con un tipo
-     * MIME accettato da [acceptsMime]; [baseUrl] risolve gli indirizzi relativi.
+     * MIME accettato da [acceptsMime]; [baseUrl] risolve gli indirizzi relativi. Con [screen] le foto
+     * usano la versione più leggera che copre lo schermo, se il server ne offre una.
      */
-    fun parseBrowseResponse(xml: ByteArray, baseUrl: String, acceptsMime: (String) -> Boolean): BrowsePage {
+    fun parseBrowseResponse(
+        xml: ByteArray,
+        baseUrl: String,
+        acceptsMime: (String) -> Boolean,
+        screen: ScreenSize? = null,
+    ): BrowsePage {
         val root = parse(xml)
         root.descendants("Fault").firstOrNull()?.let {
             val code = it.descendants("errorCode").firstOrNull()?.text()
@@ -116,7 +125,7 @@ object UpnpXml {
                 upnpClass.startsWith("object.item.imageItem") -> { mime -> mime.startsWith("image/") }
                 else -> { _ -> true }
             }
-            val resource = bestResource(item) { acceptsMime(it) && kind(it) } ?: return@mapNotNull null
+            val resource = bestResource(item, screen) { acceptsMime(it) && kind(it) } ?: return@mapNotNull null
             val url = resolve(baseUrl, resource.first) ?: return@mapNotNull null
             MediaFile(id, item.child("title")?.text().orEmpty().ifEmpty { id }, url, resource.second)
         }
@@ -126,10 +135,19 @@ object UpnpXml {
     /**
      * Fra le versioni di un file (originale, miniature, conversioni) sceglie la più grande con un tipo
      * accettato. Le miniature DLNA (*_TN, JPEG_SM) vanno per ultime; senza risoluzione dichiarata una
-     * versione conta come originale.
+     * versione conta come originale. Per le foto, con [screen], vince la versione più piccola che
+     * copre lo schermo: un originale da 24 megapixel pesa decine di MB e la TV lo ridurrebbe comunque.
      */
-    private fun bestResource(item: Element, acceptsMime: (String) -> Boolean): Pair<String, String>? {
-        data class Candidate(val url: String, val mime: String, val thumbnail: Boolean, val pixels: Long, val order: Int)
+    private fun bestResource(item: Element, screen: ScreenSize?, acceptsMime: (String) -> Boolean): Pair<String, String>? {
+        data class Candidate(
+            val url: String,
+            val mime: String,
+            val thumbnail: Boolean,
+            val pixels: Long,
+            val order: Int,
+            val longEdge: Int = 0,
+            val shortEdge: Int = 0,
+        )
         val candidates = item.children("res").mapIndexedNotNull { index, res ->
             val info = res.getAttribute("protocolInfo").split(':')
             if (info.size < 3 || !info[0].equals("http-get", ignoreCase = true)) return@mapIndexedNotNull null
@@ -138,10 +156,17 @@ object UpnpXml {
             if (!acceptsMime(mime)) return@mapIndexedNotNull null
             val profile = info.getOrNull(3).orEmpty().uppercase()
             val thumbnail = "_TN" in profile || "JPEG_SM" in profile
-            val pixels = res.getAttribute("resolution").split('x', 'X').takeIf { it.size == 2 }
-                ?.let { (w, h) -> (w.trim().toLongOrNull() ?: 0) * (h.trim().toLongOrNull() ?: 0) }
-                ?.takeIf { it > 0 } ?: Long.MAX_VALUE
-            Candidate(url, mime, thumbnail, pixels, index)
+            val size = res.getAttribute("resolution").split('x', 'X').takeIf { it.size == 2 }
+                ?.map { it.trim().toIntOrNull() ?: 0 }
+                ?.takeIf { (w, h) -> w > 0 && h > 0 }
+            val pixels = size?.let { (w, h) -> w.toLong() * h } ?: Long.MAX_VALUE
+            Candidate(url, mime, thumbnail, pixels, index, size?.max() ?: 0, size?.min() ?: 0)
+        }
+        if (screen != null) {
+            val fitting = candidates.filter {
+                it.mime.startsWith("image/") && !it.thumbnail && it.longEdge >= screen.longEdge && it.shortEdge >= screen.shortEdge
+            }
+            fitting.minByOrNull { it.pixels }?.let { return it.url to it.mime }
         }
         val best = candidates.sortedWith(
             compareBy<Candidate> { it.thumbnail }.thenByDescending { it.pixels }.thenBy { it.order },

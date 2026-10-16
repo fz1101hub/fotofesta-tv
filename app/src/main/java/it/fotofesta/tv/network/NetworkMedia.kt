@@ -23,6 +23,8 @@ class NetworkMedia(
     private val http: LanHttp,
     /** Tipi MIME delle foto che la TV sa decodificare. */
     private val imageMimeTypes: Set<String>,
+    /** Dimensioni dello schermo: le foto usano la versione del server che basta a riempirlo. */
+    private val screen: ScreenSize? = null,
     private val search: () -> List<Ssdp.Answer> = { Ssdp.search() },
 ) {
     private val servers = ConcurrentHashMap<String, MediaServer>()
@@ -116,7 +118,7 @@ class NetworkMedia(
         return http.post(server.controlUrl, headers, body).use { response ->
             // Gli errori SOAP arrivano con 500 e un Fault nel corpo, che parseBrowseResponse spiega.
             if (!response.isSuccessful && response.status != 500) throw IOException("Browse: HTTP ${response.status}")
-            val page = UpnpXml.parseBrowseResponse(response.bytes(MAX_BROWSE_BYTES), server.controlUrl, ::acceptsMedia)
+            val page = UpnpXml.parseBrowseResponse(response.bytes(MAX_BROWSE_BYTES), server.controlUrl, ::acceptsMedia, screen)
             // Solo file raggiungibili dalla TV: un indirizzo fuori dalla rete di casa non si carica.
             page.copy(files = page.files.filter { http.accepts(it.url) })
         }
