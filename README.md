@@ -19,8 +19,10 @@ Il repository contiene anche la versione per **Apple TV** (cartella [`apple/`](a
 | Festa | Foto nuove mostrate subito, nome del mittente, approvazione facoltativa, QR nell’angolo dello slideshow, QR della Wi‑Fi | Pronta |
 | Slideshow | Durata 3, 5, 8, 12 o 20 secondi | Pronta |
 | Slideshow | Dissolvenza, scorrimento e zoom dolce | Pronta |
-| Slideshow | Foto intera o riempimento schermo, shuffle, orologio | Pronta |
+| Slideshow | Foto verticali con sfondo sfocato della stessa foto, bande nere o riempimento schermo; shuffle, orologio | Pronta |
+| Slideshow | Didascalia con nome significativo o cartella (non “IMG_2024…”), data di scatto o mittente, barra di avanzamento | Pronta |
 | Slideshow | Movimento lento (effetto Ken Burns) e pausa automatica dopo 30, 60 o 120 minuti | Pronta |
+| Interfaccia | Stile ad alto contrasto (testi almeno 6:1), fuoco del telecomando in bianco pieno, carattere Figtree, home con le foto della raccolta in uso, impostazioni a sezioni | Pronta |
 | Accessibilità | Focus visibile, D-pad, tasti media, riduzione movimento, contrasto elevato | Pronta |
 | Audio | Brano locale selezionato dall’utente, loop e volume | Pronta |
 | Salvaschermo | Foto dell’ultima raccolta quando la TV è inattiva, con dissolvenza, movimento lento e orologio che cambia angolo | Pronta |
@@ -130,3 +132,7 @@ Risultati della validazione locale della versione 1.0.0:
 [7]: https://developers.google.com/identity/protocols/oauth2/limited-input-device "OAuth 2.0 for TV and Limited-Input Device Applications"
 [8]: https://developers.google.com/photos/overview/authorization "Google Photos API authorization scopes"
 [9]: https://developer.android.com/guide/practices/page-sizes "Support 16 KB page sizes"
+
+## Licenze di terze parti
+
+Il carattere [Figtree](https://github.com/erikdkennedy/figtree) è distribuito con la SIL Open Font License 1.1; il testo della licenza è incluso nelle app (`app/src/main/assets/licenses/Figtree-OFL.txt` e `apple/FotoFestaTV/Resources/Fonts/Figtree-OFL.txt`).

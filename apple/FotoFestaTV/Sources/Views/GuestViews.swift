@@ -2,41 +2,25 @@ import FotoFestaCore
 import SwiftUI
 import UIKit
 
-/// Festa con le foto degli invitati: QR da inquadrare, foto da approvare e impostazioni.
+/// Festa con le foto degli invitati. Prima di iniziare: come funziona, "Avvia la festa" e le due
+/// impostazioni principali. Durante la festa: QR grande a sinistra, contatori, ultime foto e comandi.
 struct GuestsView: View {
     @Environment(AppModel.self) private var model
     @State private var confirmingEnd = false
+    @Namespace private var namespace
 
     var body: some View {
         let guests = model.guests
-        ZStack {
-            Theme.background.ignoresSafeArea()
-            VStack(alignment: .leading, spacing: 36) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(L("guests.kicker").uppercased()).font(.headline).foregroundStyle(Theme.coral)
-                    Text(L("guests.title")).font(.largeTitle.bold())
-                    Text(L("guests.subtitle")).foregroundStyle(Theme.secondaryText)
-                }
-                if guests.active {
-                    activeContent(guests)
-                } else {
-                    VStack(alignment: .leading, spacing: 28) {
-                        Text(L("guests.intro")).foregroundStyle(Theme.secondaryText)
-                        Text(L("guests.same_network")).foregroundStyle(Theme.secondaryText)
-                        Button {
-                            model.startGuestParty()
-                        } label: {
-                            Label(L("guests.start"), systemImage: "person.3.fill")
-                        }
-                    }
-                    .padding(48)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Theme.navySoft, in: RoundedRectangle(cornerRadius: 32))
-                }
-                Spacer(minLength: 0)
+        ZStack(alignment: .topLeading) {
+            Theme.background
+            if guests.active {
+                inProgress(guests)
+            } else {
+                intro(guests)
             }
-            .padding(80)
         }
+        .ignoresSafeArea()
+        .focusScope(namespace)
         .confirmationDialog(L("guests.end_confirm_title"), isPresented: $confirmingEnd, titleVisibility: .visible) {
             Button(L("guests.end"), role: .destructive) { model.endGuestParty() }
             Button(L("action.cancel"), role: .cancel) {}
@@ -45,82 +29,187 @@ struct GuestsView: View {
         }
     }
 
-    private func activeContent(_ guests: GuestParty) -> some View {
-        HStack(alignment: .top, spacing: 56) {
-            HStack(alignment: .top, spacing: 32) {
-                if let wifi = guests.wifi {
-                    QRCard(text: wifi.qrPayload, label: L("guests.qr_wifi"), caption: L("guests.scan_wifi", wifi.ssid), size: 300)
-                }
-                if let url = guests.url {
-                    QRCard(text: url, label: L("guests.qr_send"), caption: L("guests.scan_send"), detail: url, size: guests.wifi == nil ? 380 : 300)
-                } else {
-                    GuestStatus(problem: guests.problem)
-                        .frame(width: 380, height: 380)
-                        .background(Theme.navySoft, in: RoundedRectangle(cornerRadius: 24))
-                }
-            }
-            ScrollView {
+    private func intro(_ guests: GuestParty) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            BrandMark()
+            HStack(alignment: .top, spacing: 80) {
                 VStack(alignment: .leading, spacing: 28) {
-                    Text(L("guests.shown", model.approvedGuestCount)).font(.title2.bold())
+                    SectionTitle(kicker: L("guests.kicker"), title: L("guests.title"), large: true)
+                    VStack(alignment: .leading, spacing: 20) {
+                        StepRow(number: 1, text: L("guests.step_1"))
+                        StepRow(number: 2, text: L("guests.step_2"))
+                        StepRow(number: 3, text: L("guests.step_3"))
+                    }
+                    .padding(.vertical, 16)
                     Button {
-                        model.play()
+                        model.startGuestParty()
                     } label: {
-                        Label(L("action.start_slideshow"), systemImage: "play.fill")
+                        Label(L("home.start_party"), systemImage: "person.2.fill")
                     }
+                    .buttonStyle(PillButtonStyle())
                     .prefersDefaultFocus(true, in: namespace)
-                    if !model.pendingGuestPhotos.isEmpty {
-                        NavigationLink(value: Route.guestReview) {
-                            Label(L("guests.pending", model.pendingGuestPhotos.count), systemImage: "checkmark.circle")
-                        }
-                    }
-                    Toggle(L("guests.approval"), isOn: Binding(get: { guests.approval }, set: { guests.setApproval($0) }))
-                    Text(L("guests.approval_body")).font(.callout).foregroundStyle(Theme.secondaryText)
-                    Toggle(L("guests.qr_in_slideshow"), isOn: Binding(get: { guests.qrInSlideshow }, set: { guests.setQRInSlideshow($0) }))
-                    HStack(spacing: 24) {
-                        NavigationLink(value: Route.guestWifi) {
-                            Label(guests.wifi == nil ? L("guests.wifi_set") : L("guests.wifi_change"), systemImage: "wifi")
-                        }
-                        if guests.wifi != nil {
-                            Button(L("guests.wifi_remove")) { guests.saveWifi(nil) }
-                        }
-                    }
-                    Text(L("guests.wifi_body")).font(.callout).foregroundStyle(Theme.secondaryText)
-                    Button(L("guests.end"), role: .destructive) { confirmingEnd = true }
-                    Text(L("guests.intro")).font(.callout).foregroundStyle(Theme.secondaryText)
-                    // AirPlay lo gestisce tvOS sopra l'app: le foto trasmesse non entrano nella festa
-                    // e coprono lo slideshow.
+                    Text(L("guests.same_network")).font(.figtree(30)).foregroundStyle(Theme.secondaryText)
+                    // AirPlay lo gestisce tvOS sopra l'app: le foto trasmesse non entrano nella festa.
                     Label(L("guests.airplay_tip"), systemImage: "airplayvideo")
-                        .font(.callout)
-                        .foregroundStyle(Theme.amber)
+                        .font(.figtree(26))
+                        .foregroundStyle(Theme.secondaryText)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: 16) {
+                    Button {
+                        guests.setApproval(!guests.approval)
+                    } label: {
+                        SettingsRowLabel(title: L("guests.approval"), subtitle: L("guests.approval_body"), isOn: guests.approval)
+                    }
+                    .buttonStyle(RowButtonStyle())
+                    NavigationLink(value: Route.guestWifi) {
+                        SettingsRowLabel(title: L("guests.wifi"), subtitle: L("guests.wifi_body"), value: guests.wifi?.ssid ?? L("settings.wifi_none"))
+                    }
+                    .buttonStyle(RowButtonStyle())
+                    Text(L("guests.intro")).font(.figtree(26)).foregroundStyle(Theme.secondaryText).padding(.top, 16)
+                }
+                .frame(width: 760)
+                .padding(.top, 68)
             }
-            .focusScope(namespace)
+            .padding(.top, 72)
+        }
+        .padding(.horizontal, 96)
+        .padding(.vertical, 54)
+    }
+
+    private func inProgress(_ guests: GuestParty) -> some View {
+        HStack(spacing: 0) {
+            SendPanel(guests: guests)
+                .frame(width: 720)
+                .frame(maxHeight: .infinity)
+                .background(Theme.surface)
+            ZStack(alignment: .topTrailing) {
+                VStack(alignment: .leading, spacing: 28) {
+                    Kicker(text: L("home.guests_title"))
+                    Text(L("guests.party_started")).font(.figtree(76, .extraBold)).foregroundStyle(Theme.text)
+                    HStack(spacing: 28) {
+                        StatView(value: model.approvedGuestCount, label: LP("guests.stat_received", model.approvedGuestCount), highlight: false)
+                        if guests.approval || !model.pendingGuestPhotos.isEmpty {
+                            StatView(value: model.pendingGuestPhotos.count, label: LP("guests.stat_pending", model.pendingGuestPhotos.count), highlight: !model.pendingGuestPhotos.isEmpty)
+                        }
+                    }
+                    if !recent.isEmpty {
+                        HStack(spacing: 16) {
+                            ForEach(recent) { photo in
+                                PhotoImage(photo: photo, fitMode: .crop, maxPixelSize: 400, placeholder: false)
+                                    .frame(width: 184, height: 124)
+                                    .background(Theme.surface)
+                                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            }
+                        }
+                        .padding(.top, 12)
+                    }
+                    HStack(spacing: 24) {
+                        Button {
+                            model.play()
+                        } label: {
+                            Label(L("action.start_slideshow"), systemImage: "play.fill")
+                        }
+                        .buttonStyle(PillButtonStyle())
+                        .prefersDefaultFocus(true, in: namespace)
+                        if !model.pendingGuestPhotos.isEmpty {
+                            NavigationLink(value: Route.guestReview) {
+                                Text(LP("guests.approve_photos", model.pendingGuestPhotos.count))
+                            }
+                            .buttonStyle(PillButtonStyle())
+                        }
+                    }
+                    .padding(.top, 16)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .padding(.leading, 88)
+                .padding(.trailing, 96)
+                .padding(.top, 120)
+                Button(L("guests.end_short")) { confirmingEnd = true }
+                    .buttonStyle(PillButtonStyle(kind: .ghost))
+                    .padding(.horizontal, 96)
+                    .padding(.top, 54)
+            }
         }
     }
 
-    @Namespace private var namespace
+    /// Le ultime foto arrivate, dalla più recente.
+    private var recent: [Photo] {
+        Array(model.photos.filter { if case .guest = $0.source { return true } else { return false } }
+            .sorted { ($0.receivedAt ?? .distantPast) > ($1.receivedAt ?? .distantPast) }
+            .prefix(4))
+    }
 }
 
-/// QR con una didascalia, per la pagina degli invitati e per la Wi‑Fi.
-private struct QRCard: View {
+/// Passo numerato di come funziona la festa.
+private struct StepRow: View {
+    let number: Int
     let text: String
-    let label: String
-    let caption: String
-    var detail: String?
-    var size: CGFloat = 360
 
     var body: some View {
-        VStack(spacing: 18) {
-            QRCodeView(text: text, accessibilityLabel: label, size: size)
-            Text(caption).font(.headline).multilineTextAlignment(.center)
-            if let detail {
-                Text(detail).font(.caption).foregroundStyle(Theme.secondaryText).lineLimit(2).multilineTextAlignment(.center)
+        HStack(spacing: 24) {
+            Text("\(number)")
+                .font(.figtree(26, .extraBold))
+                .foregroundStyle(Theme.text)
+                .frame(width: 52, height: 52)
+                .background(Circle().fill(Theme.surfaceRaised))
+            Text(text).font(.figtree(34)).foregroundStyle(Theme.secondaryText)
+        }
+    }
+}
+
+/// Numero grande con la sua etichetta; `highlight` lo colora con l'accento (foto da approvare).
+private struct StatView: View {
+    let value: Int
+    let label: String
+    let highlight: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("\(value)").font(.figtree(60, .extraBold).monospacedDigit()).foregroundStyle(highlight ? Theme.accent : Theme.text)
+            Text(label).font(.figtree(26)).foregroundStyle(Theme.secondaryText)
+        }
+        .padding(.horizontal, 36)
+        .padding(.vertical, 24)
+        .frame(minWidth: 300, alignment: .leading)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
+}
+
+/// QR per mandare le foto (con quello della Wi‑Fi, se impostata), oppure perché il dispositivo non è pronto.
+private struct SendPanel: View {
+    let guests: GuestParty
+
+    var body: some View {
+        VStack(spacing: 28) {
+            if let url = guests.url {
+                if let wifi = guests.wifi {
+                    HStack(alignment: .top, spacing: 32) {
+                        labeledQR(wifi.qrPayload, description: L("guests.qr_wifi"), label: L("guests.qr_step_wifi"))
+                        labeledQR(url, description: L("guests.qr_send"), label: L("guests.qr_step_send"))
+                    }
+                } else {
+                    QRCodeView(text: url, accessibilityLabel: L("guests.qr_send"), size: 396)
+                        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+                }
+                Text(L("guests.send_title")).font(.figtree(36, .extraBold)).foregroundStyle(Theme.text).multilineTextAlignment(.center)
+                Text(guests.wifi.map { L("guests.send_body_network", $0.ssid) } ?? L("guests.send_body"))
+                    .font(.figtree(26))
+                    .foregroundStyle(Theme.secondaryText)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 560)
+            } else {
+                GuestStatus(problem: guests.problem)
             }
         }
-        .frame(width: size + 40)
-        .padding(24)
-        .background(Theme.navySoft, in: RoundedRectangle(cornerRadius: 24))
+        .padding(48)
+    }
+
+    private func labeledQR(_ text: String, description: String, label: String) -> some View {
+        VStack(spacing: 16) {
+            QRCodeView(text: text, accessibilityLabel: description, size: 280)
+                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+            Text(label).font(.figtree(26, .bold)).foregroundStyle(Theme.text).multilineTextAlignment(.center)
+        }
     }
 }
 
@@ -129,15 +218,16 @@ private struct GuestStatus: View {
     let problem: GuestProblem?
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 24) {
             if let problem {
-                Image(systemName: "wifi.exclamationmark").font(.system(size: 64)).foregroundStyle(Theme.amber)
+                Image(systemName: "wifi.exclamationmark").font(.system(size: 64)).foregroundStyle(Theme.error)
                 Text(problem == .noNetwork ? L("guests.no_network") : L("guests.server_failed"))
+                    .font(.figtree(32))
                     .multilineTextAlignment(.center)
-                    .foregroundStyle(Theme.amber)
+                    .foregroundStyle(Theme.error)
             } else {
                 ProgressView()
-                Text(L("guests.starting")).foregroundStyle(Theme.secondaryText)
+                Text(L("guests.starting")).font(.figtree(30)).foregroundStyle(Theme.secondaryText)
             }
         }
         .padding(32)
@@ -149,30 +239,47 @@ struct WaitingForGuestsView: View {
     let guests: GuestParty
 
     var body: some View {
-        VStack(spacing: 32) {
-            Text(L("guests.waiting_title")).font(.system(size: 64, weight: .bold))
+        VStack(spacing: 36) {
+            Text(L("guests.waiting_title")).font(.figtree(76, .extraBold)).foregroundStyle(Theme.text)
             if let url = guests.url {
-                QRCodeView(text: url, accessibilityLabel: L("guests.qr_send"), size: 420)
-                Text(L("guests.waiting_body")).font(.title3).foregroundStyle(Theme.secondaryText).multilineTextAlignment(.center)
+                QRCodeView(text: url, accessibilityLabel: L("guests.qr_send"), size: 440)
+                    .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+                Text(L("guests.waiting_body")).font(.figtree(34)).foregroundStyle(Theme.secondaryText).multilineTextAlignment(.center)
             } else {
                 GuestStatus(problem: guests.problem)
             }
         }
-        .frame(maxWidth: 1200)
+        .frame(maxWidth: 1280)
     }
 }
 
-/// QR piccolo nell'angolo dello slideshow.
+/// QR piccolo nell'angolo dello slideshow, o l'avviso se la festa non riesce a partire.
 struct SlideshowGuestQR: View {
-    let url: String
+    let guests: GuestParty
 
     var body: some View {
-        VStack(spacing: 10) {
-            QRCodeView(text: url, accessibilityLabel: L("guests.qr_send"), size: 200)
-            Text(L("guests.slideshow_cta")).font(.callout.bold())
+        HStack(spacing: 20) {
+            if let url = guests.url {
+                QRCodeView(text: url, accessibilityLabel: L("guests.qr_send"), size: 180)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(L("guests.slideshow_cta")).font(.figtree(26, .bold)).foregroundStyle(Theme.text)
+                    Text(L("slideshow.qr_body")).font(.figtree(23)).foregroundStyle(Theme.secondaryText)
+                }
+            } else if let problem = guests.problem {
+                Text(problem == .noNetwork ? L("guests.no_network") : L("guests.server_failed"))
+                    .font(.figtree(26))
+                    .foregroundStyle(Theme.error)
+                    .frame(maxWidth: 640, alignment: .leading)
+            } else {
+                ProgressView()
+                Text(L("guests.starting")).font(.figtree(26)).foregroundStyle(Theme.secondaryText)
+            }
         }
-        .padding(16)
-        .background(.black.opacity(0.55), in: RoundedRectangle(cornerRadius: 20))
+        .padding(.leading, 16)
+        .padding(.trailing, 28)
+        .padding(.vertical, 16)
+        .background(Theme.background.opacity(0.78), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 }
 
@@ -185,43 +292,43 @@ struct GuestReviewView: View {
         ZStack {
             Theme.background.ignoresSafeArea()
             VStack(alignment: .leading, spacing: 32) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(L("review.kicker").uppercased()).font(.headline).foregroundStyle(Theme.coral)
-                    Text(L("review.title")).font(.largeTitle.bold())
-                    Text(L("guests.pending", pending.count)).foregroundStyle(Theme.secondaryText)
-                }
+                SectionTitle(kicker: L("review.kicker"), title: L("review.title"), subtitle: L("guests.pending", pending.count))
                 if let photo = pending.first {
                     HStack(alignment: .top, spacing: 48) {
                         PhotoImage(photo: photo, fitMode: .contain, maxPixelSize: 1920)
                             .background(Color.black)
                             .clipShape(RoundedRectangle(cornerRadius: 24))
                         VStack(alignment: .leading, spacing: 28) {
-                            Text(photo.title).font(.title3.bold()).lineLimit(2)
+                            Text(photo.title).font(.figtree(34, .bold)).foregroundStyle(Theme.text).lineLimit(2)
                             Button {
                                 model.approveGuestPhoto(photo)
                             } label: {
                                 Label(L("review.show"), systemImage: "checkmark")
                             }
-                            Button(role: .destructive) {
+                            .buttonStyle(PillButtonStyle())
+                            Button {
                                 model.discardGuestPhoto(photo)
                             } label: {
                                 Label(L("review.discard"), systemImage: "xmark")
                             }
+                            .buttonStyle(PillButtonStyle())
                             if pending.count > 1 {
                                 Button {
                                     model.guests.approveAll()
                                 } label: {
                                     Label(L("review.approve_all"), systemImage: "checkmark.circle")
                                 }
+                                .buttonStyle(PillButtonStyle(kind: .ghost))
                             }
                         }
                         .frame(width: 520, alignment: .leading)
                     }
                 } else {
-                    Text(L("review.empty")).foregroundStyle(Theme.secondaryText)
+                    Text(L("review.empty")).font(.figtree(34)).foregroundStyle(Theme.secondaryText)
                 }
             }
-            .padding(80)
+            .padding(.horizontal, 96)
+            .padding(.vertical, 60)
         }
     }
 }

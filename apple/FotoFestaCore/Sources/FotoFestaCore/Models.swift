@@ -14,11 +14,14 @@ public struct Photo: Identifiable, Hashable, Codable, Sendable {
     public let id: String
     public let title: String
     public let source: PhotoSource
+    /// Quando la foto è arrivata al dispositivo, per le foto degli invitati.
+    public let receivedAt: Date?
 
-    public init(id: String, title: String, source: PhotoSource) {
+    public init(id: String, title: String, source: PhotoSource, receivedAt: Date? = nil) {
         self.id = id
         self.title = title
         self.source = source
+        self.receivedAt = receivedAt
     }
 }
 
@@ -26,8 +29,10 @@ public enum TransitionStyle: String, Codable, CaseIterable, Sendable {
     case fade, slide, zoom
 }
 
+/// Come una foto riempie lo schermo. Con `blur` la foto è intera e le bande ai lati (foto verticali o
+/// non 16:9) mostrano la stessa foto ingrandita e sfocata.
 public enum FitMode: String, Codable, CaseIterable, Sendable {
-    case contain, crop
+    case blur, contain, crop
 }
 
 /// Impostazioni dello slideshow, salvate in UserDefaults come JSON.
@@ -38,7 +43,7 @@ public struct SlideshowSettings: Codable, Equatable, Sendable {
 
     public var intervalSeconds = 8
     public var transition: TransitionStyle = .fade
-    public var fitMode: FitMode = .contain
+    public var fitMode: FitMode = .blur
     public var shuffle = false
     public var reducedMotion = false
     public var showClock = true

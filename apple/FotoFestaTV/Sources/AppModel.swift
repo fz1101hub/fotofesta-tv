@@ -10,6 +10,16 @@ enum Route: Hashable {
     case slideshow, settings, games, memory, mystery, googleConnect, guests, guestReview, guestWifi
 }
 
+/// Da dove vengono le foto della raccolta mostrata nella home.
+enum CollectionSource: Equatable {
+    case demo, google, guests
+}
+
+/// Sezioni della schermata Impostazioni.
+enum SettingsCategory: CaseIterable, Hashable {
+    case slideshow, party, privacy
+}
+
 enum GoogleState: Equatable {
     case idle
     case working(ImportStep?)
@@ -26,6 +36,13 @@ final class AppModel {
     /// Raccolta mostrata: quella scelta (demo o Google) più le foto approvate degli invitati.
     private(set) var photos: [Photo]
     private(set) var sourceLabel: String
+    /// Nome della raccolta per la home (Google Foto, foto demo, foto degli invitati) e sua origine.
+    private(set) var collectionTitle = ""
+    private(set) var collectionSource: CollectionSource = .demo
+    /// Foto della raccolta scelta, senza quelle degli invitati aggiunte durante la festa.
+    private(set) var collectionCount = 0
+    /// Sezione aperta nelle impostazioni: resta tale tornando dalla Wi‑Fi degli invitati.
+    var settingsCategory: SettingsCategory = .slideshow
     private(set) var currentIndex = 0
     /// Cresce a ogni cambio di foto voluto (successiva, precedente, nuova raccolta). Il cambio
     /// automatico si basa su questo e non sull'indice, che si sposta quando arrivano o spariscono
@@ -92,6 +109,7 @@ final class AppModel {
         baseLabel = initialLabel
         baseIsDemo = initialPhotos == Self.demoPhotos
         order.reset(count: initialPhotos.count, shuffle: settings.shuffle)
+        updateCollectionInfo()
         if let initialMessage { showMessage(initialMessage) }
         // Selezione rimasta da una sorgente abbandonata: non verrà più usata.
         if savedSelection != nil, UserDefaults.standard.string(forKey: Self.sourceKey) != "google" {
@@ -359,6 +377,14 @@ final class AppModel {
         guests.start()
     }
 
+    /// "Avvia la festa" della home: accende la ricezione delle foto e fa partire lo slideshow con il QR
+    /// nell'angolo. Con le foto demo lo slideshow mostra il QR grande in attesa della prima foto.
+    func startPartyAndPlay() {
+        guests.start()
+        if !guests.qrInSlideshow { guests.setQRInSlideshow(true) }
+        play()
+    }
+
     func endGuestParty() {
         guests.end()
         freshPhotos.clear()
@@ -414,7 +440,8 @@ final class AppModel {
         Photo(
             id: "guest:\(guest.id)",
             title: guest.sender.map { L("guest.photo_from", $0) } ?? L("guest.photo"),
-            source: .guest(id: guest.id)
+            source: .guest(id: guest.id),
+            receivedAt: guest.receivedAt
         )
     }
 
@@ -458,6 +485,20 @@ final class AppModel {
         photos = newPhotos
         currentIndex = index
         sourceLabel = collectionLabel()
+        updateCollectionInfo()
+    }
+
+    private func updateCollectionInfo() {
+        // Con le foto demo e la festa in corso si mostrano solo le foto degli invitati.
+        if baseIsDemo, guestPartyActive || !guestPhotos.isEmpty {
+            collectionSource = .guests
+            collectionTitle = L("home.guests_title")
+            collectionCount = guestPhotos.count
+        } else {
+            collectionSource = baseIsDemo ? .demo : .google
+            collectionTitle = baseIsDemo ? L("collection.demo") : L("home.google_title")
+            collectionCount = basePhotos.count
+        }
     }
 
     private func collectionLabel() -> String {

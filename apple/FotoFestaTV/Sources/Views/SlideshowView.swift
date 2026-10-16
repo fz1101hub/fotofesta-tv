@@ -31,7 +31,7 @@ struct SlideshowView: View {
                 } else if model.guests.active {
                     WaitingForGuestsView(guests: model.guests)
                 } else {
-                    Text(L("slideshow.empty")).font(.title2)
+                    Text(L("slideshow.empty")).font(.figtree(48, .extraBold)).foregroundStyle(Theme.text)
                 }
             }
             .ignoresSafeArea()
@@ -40,28 +40,24 @@ struct SlideshowView: View {
         .buttonStyle(FullScreenButtonStyle())
         .ignoresSafeArea()
         .overlay(alignment: .bottom) {
-            if infoVisible || !model.isPlaying { infoBar(settings: settings) }
+            if model.currentPhoto != nil { captionArea(settings: settings) }
         }
         .overlay(alignment: .topTrailing) {
-            if settings.showClock { ClockView().padding(48) }
+            if settings.showClock {
+                ClockText()
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 12)
+                    .background(Theme.background.opacity(0.6), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .padding(.horizontal, 96)
+                    .padding(.top, 54)
+            }
         }
         // QR piccolo per gli invitati, che possono mandare foto in ogni momento.
         .overlay(alignment: .topLeading) {
-            if model.guests.active, model.guests.qrInSlideshow, model.currentPhoto != nil, let url = model.guests.url {
-                SlideshowGuestQR(url: url).padding(48)
-            }
-        }
-        // Il nome di chi ha mandato la foto, finché le informazioni (che mostrano già il titolo) sono nascoste.
-        .overlay(alignment: .bottomLeading) {
-            if !(infoVisible || !model.isPlaying), let name = guestName {
-                Text(name)
-                    .font(.title3.bold())
-                    .lineLimit(1)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
-                    .background(.black.opacity(0.55), in: RoundedRectangle(cornerRadius: 16))
-                    .padding(48)
-                    .transition(.opacity)
+            if model.guests.active, model.guests.qrInSlideshow, model.currentPhoto != nil {
+                SlideshowGuestQR(guests: model.guests)
+                    .padding(.horizontal, 96)
+                    .padding(.top, 54)
             }
         }
         .onMoveCommand { direction in
@@ -133,26 +129,74 @@ struct SlideshowView: View {
         }
     }
 
-    private func infoBar(settings: SlideshowSettings) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(model.currentPhoto?.title ?? "")
-                .font(.title2.bold())
-                .lineLimit(1)
-            Text(L("slideshow.info", model.currentIndex + 1, model.photos.count, settings.intervalSeconds))
-                .foregroundStyle(Theme.secondaryText)
-            if let sleepAt = model.sleepAt {
-                Text(L("slideshow.sleep_at", sleepAt.formatted(date: .omitted, time: .shortened)))
-                    .foregroundStyle(Theme.amber)
+    /// Didascalia sempre visibile: titolo, ora di arrivo, posizione e barra di avanzamento. Con le
+    /// informazioni visibili (o in pausa) sopra compaiono i comandi del telecomando.
+    private func captionArea(settings: SlideshowSettings) -> some View {
+        VStack(alignment: .leading, spacing: 20) {
+            if infoVisible || !model.isPlaying {
+                Text(model.isPlaying ? L("slideshow.hint_playing") : L("slideshow.hint_paused"))
+                    .font(.figtree(28, .semibold))
+                    .foregroundStyle(Theme.text)
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 14)
+                    .background(Theme.background.opacity(0.72), in: Capsule())
+                    .transition(.opacity)
             }
-            Text(model.isPlaying ? L("slideshow.hint_playing") : L("slideshow.hint_paused"))
-                .font(.callout)
-                .foregroundStyle(Theme.secondaryText)
+            HStack(alignment: .bottom, spacing: 40) {
+                VStack(alignment: .leading, spacing: 4) {
+                    if let title = captionTitle {
+                        Text(title).font(.figtree(48, .extraBold)).foregroundStyle(Theme.text).lineLimit(1)
+                    }
+                    if let receivedAt = model.currentPhoto?.receivedAt {
+                        Text(L("slideshow.received_at", receivedAt.formatted(date: .omitted, time: .shortened)))
+                            .font(.figtree(30))
+                            .foregroundStyle(Theme.secondaryText)
+                            .lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 0)
+                if let sleepAt = model.sleepAt {
+                    Text(L("slideshow.sleep_at", sleepAt.formatted(date: .omitted, time: .shortened)))
+                        .font(.figtree(30, .semibold))
+                        .foregroundStyle(Theme.accent)
+                }
+                Text("\(model.currentIndex + 1) / \(model.photos.count)")
+                    .font(.figtree(30).monospacedDigit())
+                    .foregroundStyle(Theme.secondaryText)
+            }
+            SlideProgress(
+                tick: model.slideTick,
+                playing: model.isPlaying && model.photos.count > 1,
+                interval: Double(settings.intervalSeconds)
+            )
         }
+        .padding(.horizontal, 96)
+        .padding(.top, 140)
+        .padding(.bottom, 64)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 80)
-        .padding(.vertical, 48)
-        .background(LinearGradient(colors: [.clear, .black.opacity(0.85)], startPoint: .top, endPoint: .bottom))
-        .transition(.opacity)
+        .background(
+            LinearGradient(
+                stops: [
+                    .init(color: .clear, location: 0),
+                    .init(color: .black.opacity(0.35), location: 0.45),
+                    .init(color: .black.opacity(0.82), location: 1),
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
+        .animation(.easeInOut(duration: 0.3), value: infoVisible || !model.isPlaying)
+        .allowsHitTesting(false)
+    }
+
+    /// Titolo della foto: il mittente per gli invitati, il nome delle demo, il nome del file solo se
+    /// è significativo (non "IMG_2024…").
+    private var captionTitle: String? {
+        guard let photo = model.currentPhoto else { return nil }
+        switch photo.source {
+        case .guest, .bundled: return photo.title
+        case .google: return PhotoCaption.title(photo.title)
+        }
     }
 
     private struct TimerKey: Hashable {
@@ -161,16 +205,25 @@ struct SlideshowView: View {
         let interval: Int
         let canAdvance: Bool
     }
+}
 
-    /// Nome dell'invitato che ha mandato la foto corrente, se l'ha indicato.
-    private var guestName: String? {
-        guard let photo = model.currentPhoto, case .guest = photo.source, photo.title != L("guest.photo") else { return nil }
-        return photo.title
+/// Foto dello slideshow. Con lo sfondo sfocato la foto resta intera e le bande ai lati mostrano la
+/// stessa foto ingrandita e sfocata; il movimento lento riguarda solo la foto.
+private struct SlideView: View {
+    let photo: Photo
+    let settings: SlideshowSettings
+    let playing: Bool
+
+    var body: some View {
+        ZStack {
+            if settings.fitMode == .blur { BlurredBackdrop(photo: photo) }
+            MovingPhoto(photo: photo, settings: settings, playing: playing)
+        }
     }
 }
 
 /// Foto con eventuale movimento lento (Ken Burns), fermo quando lo slideshow è in pausa.
-private struct SlideView: View {
+private struct MovingPhoto: View {
     let photo: Photo
     let settings: SlideshowSettings
     let playing: Bool
@@ -205,15 +258,40 @@ private struct SlideView: View {
     }
 }
 
-private struct ClockView: View {
+/// Barra sottile che si riempie fino al cambio di foto; in pausa si ferma e alla ripresa continua,
+/// come il timer dello slideshow, che conserva il tempo già trascorso sulla foto.
+private struct SlideProgress: View {
+    let tick: Int
+    let playing: Bool
+    let interval: Double
+
+    @State private var accumulated: TimeInterval = 0
+    @State private var resumedAt = Date()
+
     var body: some View {
-        TimelineView(.everyMinute) { context in
-            Text(context.date.formatted(date: .omitted, time: .shortened))
-                .font(.title2.monospacedDigit())
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
-                .background(.black.opacity(0.5), in: RoundedRectangle(cornerRadius: 14))
+        TimelineView(.animation(minimumInterval: 1.0 / 20, paused: !playing)) { context in
+            let elapsed = accumulated + (playing ? context.date.timeIntervalSince(resumedAt) : 0)
+            let progress = min(max(elapsed / max(interval, 1), 0), 1)
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Theme.text.opacity(0.22))
+                    Capsule().fill(Theme.accent).frame(width: geometry.size.width * progress)
+                }
+            }
+            .frame(height: 6)
         }
+        .onChange(of: tick) {
+            accumulated = 0
+            resumedAt = Date()
+        }
+        .onChange(of: playing) { _, nowPlaying in
+            if nowPlaying {
+                resumedAt = Date()
+            } else {
+                accumulated += Date().timeIntervalSince(resumedAt)
+            }
+        }
+        .accessibilityHidden(true)
     }
 }
 

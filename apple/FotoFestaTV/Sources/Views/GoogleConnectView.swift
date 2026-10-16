@@ -10,14 +10,14 @@ struct GoogleConnectView: View {
             Theme.background.ignoresSafeArea()
             VStack(alignment: .leading, spacing: 40) {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text(L("google.kicker").uppercased()).font(.headline).foregroundStyle(Theme.coral)
+                    Text(L("google.kicker").uppercased()).font(.figtree(24, .bold)).tracking(3.4).foregroundStyle(Theme.secondaryText)
                     Text(L("google.title")).font(.largeTitle.bold())
                     Text(L("google.subtitle")).foregroundStyle(Theme.secondaryText)
                 }
                 content
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(48)
-                    .background(Theme.navySoft, in: RoundedRectangle(cornerRadius: 32))
+                    .background(Theme.surface, in: RoundedRectangle(cornerRadius: 32, style: .continuous))
             }
             .padding(80)
         }
@@ -56,10 +56,10 @@ struct GoogleConnectView: View {
                     Text(L("google.open_url", url)).foregroundStyle(Theme.secondaryText)
                     Text(code)
                         .font(.system(size: 64, weight: .bold, design: .monospaced))
-                        .foregroundStyle(Theme.amber)
+                        .foregroundStyle(Theme.accent)
                         .padding(.horizontal, 28)
                         .padding(.vertical, 14)
-                        .background(Theme.navy, in: RoundedRectangle(cornerRadius: 18))
+                        .background(Theme.background, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                         .accessibilityLabel(Text(code.map(String.init).joined(separator: " ")))
                     Text(L("google.scope_note")).font(.callout).foregroundStyle(Theme.secondaryText)
                     cancelButton
@@ -87,13 +87,13 @@ struct GoogleConnectView: View {
             }
         case let .complete(count, expiresAt):
             VStack(spacing: 24) {
-                Text(L("google.photos_ready", count)).font(.largeTitle.bold()).foregroundStyle(Theme.cyan)
+                Text(L("google.photos_ready", count)).font(.largeTitle.bold()).foregroundStyle(Theme.text)
                 Text(L("google.complete_body")).foregroundStyle(Theme.secondaryText).multilineTextAlignment(.center)
                 Text(L("google.streaming_note")).font(.callout).foregroundStyle(Theme.secondaryText).multilineTextAlignment(.center)
                 if let expiresAt {
                     Text(L("google.available_until", expiresAt.formatted(date: .abbreviated, time: .shortened)))
                         .font(.callout)
-                        .foregroundStyle(Theme.amber)
+                        .foregroundStyle(Theme.accent)
                 }
                 Button {
                     model.play()

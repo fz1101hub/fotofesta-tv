@@ -100,6 +100,8 @@ struct PhotoImage: View {
     var fitMode: FitMode = .contain
     var maxPixelSize = 3840
     var accessibilityLabel: String?
+    /// Con false, durante il caricamento e in caso di errore non si mostra nulla (sfondi, miniature).
+    var placeholder = true
 
     @State private var image: UIImage?
     @State private var failed = false
@@ -111,11 +113,13 @@ struct PhotoImage: View {
                     .resizable()
                     .aspectRatio(contentMode: fitMode == .crop ? .fill : .fit)
                     .accessibilityLabel(Text(accessibilityLabel ?? photo.title))
+            } else if !placeholder {
+                Color.clear
             } else if failed {
                 VStack(spacing: 16) {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.system(size: 64))
-                    Text(L("photo.unavailable"))
+                    Text(L("photo.unavailable")).font(.figtree(34))
                 }
                 .foregroundStyle(Theme.secondaryText)
             } else {
@@ -130,5 +134,20 @@ struct PhotoImage: View {
             image = loaded
             failed = loaded == nil
         }
+    }
+}
+
+/// Sfondo per le foto intere: la stessa foto, ingrandita, sfocata e scurita perché quella davanti
+/// risalti. Si decodifica in miniatura, perché tanto viene sfocata.
+struct BlurredBackdrop: View {
+    let photo: Photo
+
+    var body: some View {
+        PhotoImage(photo: photo, fitMode: .crop, maxPixelSize: 160, accessibilityLabel: nil, placeholder: false)
+            .scaleEffect(1.12)
+            .blur(radius: 60)
+            .overlay(Color.black.opacity(0.5))
+            .clipped()
+            .accessibilityHidden(true)
     }
 }
