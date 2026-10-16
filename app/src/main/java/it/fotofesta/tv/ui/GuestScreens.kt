@@ -370,11 +370,13 @@ fun GuestReviewScreen(
 @Composable
 fun GuestWifiScreen(
     initialName: String?,
+    initialPassword: String?,
     onBack: () -> Unit,
     onSave: (ssid: String, password: String) -> Boolean,
 ) {
     var ssid by rememberSaveable { mutableStateOf(initialName.orEmpty()) }
-    var password by rememberSaveable { mutableStateOf("") }
+    // Anche la password è già compilata: con il campo vuoto la rete diventerebbe "aperta".
+    var password by rememberSaveable { mutableStateOf(initialPassword.orEmpty()) }
     Column(
         Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 30.dp).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(18.dp),

@@ -22,6 +22,8 @@ import java.net.InetAddress
 import java.security.SecureRandom
 import java.util.Base64
 import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.TimeUnit
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -47,7 +49,7 @@ class GuestParty(private val context: Context, val store: GuestPhotoStore) {
     private val prefs = context.getSharedPreferences("guest_party", Context.MODE_PRIVATE)
     private val secrets = KeystoreStrings(prefs, "fotofesta_guest_wifi_v1")
     private val connectivity = context.getSystemService(ConnectivityManager::class.java)
-    private val worker = Executors.newSingleThreadExecutor { runnable ->
+    private val worker = Executors.newSingleThreadScheduledExecutor { runnable ->
         Thread(runnable, "guest-party").apply { isDaemon = true }
     }
 
@@ -60,31 +62,22 @@ class GuestParty(private val context: Context, val store: GuestPhotoStore) {
     )
     val state: StateFlow<State> = _state.asStateFlow()
 
+    private val _ready = MutableStateFlow(false)
+
+    /** Vero quando le foto di una festa interrotta sono state riprese (o cancellate) all'avvio. */
+    val ready: StateFlow<Boolean> = _ready.asStateFlow()
+
     // Usati solo dal thread `worker`.
     private var foreground = false
     private var server: GuestUploadServer? = null
     private var serverAddress: InetAddress? = null
     private val networks = mutableMapOf<Network, Inet4Address?>()
-    private var callbackRegistered = false
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    /** Cresce a ogni registrazione: le notifiche di una registrazione precedente vengono ignorate. */
+    private var networkGeneration = 0
+    private var retry: ScheduledFuture<*>? = null
     private val template by lazy {
         context.assets.open("guest/index.html").use { it.readBytes().toString(Charsets.UTF_8) }
-    }
-
-    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
-        override fun onLinkPropertiesChanged(network: Network, linkProperties: LinkProperties) {
-            val address = ipv4(linkProperties)
-            worker.execute {
-                networks[network] = address
-                if (serving()) serve()
-            }
-        }
-
-        override fun onLost(network: Network) {
-            worker.execute {
-                networks.remove(network)
-                if (serving()) serve()
-            }
-        }
     }
 
     /** All'avvio del processo: riprende la festa interrotta da poco, altrimenti cancella le foto rimaste. */
@@ -93,12 +86,13 @@ class GuestParty(private val context: Context, val store: GuestPhotoStore) {
         _state.update { it.copy(wifi = wifi) }
         if (!_state.value.active) {
             store.clear()
-            return@execute
+        } else {
+            store.restore(IDLE_LIMIT_MS)
+            val newest = store.photos.value.maxOfOrNull { it.receivedAtMillis } ?: 0L
+            val lastActivity = max(prefs.getLong(KEY_STARTED_AT, 0L), newest)
+            if (System.currentTimeMillis() - lastActivity > IDLE_LIMIT_MS) endParty()
         }
-        store.restore(IDLE_LIMIT_MS)
-        val newest = store.photos.value.maxOfOrNull { it.receivedAtMillis } ?: 0L
-        val lastActivity = max(prefs.getLong(KEY_STARTED_AT, 0L), newest)
-        if (System.currentTimeMillis() - lastActivity > IDLE_LIMIT_MS) endParty()
+        _ready.value = true
     }
 
     /** Inizia a ricevere foto: il QR resta lo stesso finché la festa non finisce. */
@@ -172,6 +166,8 @@ class GuestParty(private val context: Context, val store: GuestPhotoStore) {
 
     /** Avvia il server sull'indirizzo attuale della TV, o lo sposta se la rete è cambiata. */
     private fun serve() {
+        retry?.cancel(false)
+        retry = null
         registerNetworkCallback()
         val address = currentAddress()
         if (address == null) {
@@ -184,7 +180,13 @@ class GuestParty(private val context: Context, val store: GuestPhotoStore) {
         val secret = prefs.getString(KEY_SECRET, null) ?: newSecret().also {
             prefs.edit().putString(KEY_SECRET, it).apply()
         }
-        val candidate = GuestUploadServer(secret, page = ::page, onPhoto = ::receive)
+        val candidate = GuestUploadServer(
+            key = secret,
+            page = ::page,
+            onPhoto = ::receive,
+            // Il sistema ha chiuso il server (ad esempio togliendo l'indirizzo): si riavvia a breve.
+            onFailure = { scheduleRetry(FAILURE_RETRY_SECONDS) },
+        )
         try {
             val port = candidate.start(address, PREFERRED_PORT)
             server = candidate
@@ -194,15 +196,29 @@ class GuestParty(private val context: Context, val store: GuestPhotoStore) {
         } catch (failure: IOException) {
             Log.w(TAG, "Server per le foto degli invitati non avviato", failure)
             _state.update { it.copy(url = null, problem = GuestProblem.SERVER_FAILED) }
+            scheduleRetry(START_RETRY_SECONDS)
+        }
+    }
+
+    /** Nuovo tentativo dopo qualche secondo, se nel frattempo la festa è ancora in primo piano. */
+    private fun scheduleRetry(seconds: Long) {
+        runCatching {
+            worker.schedule(Runnable { if (serving()) serve() }, seconds, TimeUnit.SECONDS)
+        }.onSuccess { future ->
+            worker.execute {
+                retry?.cancel(false)
+                retry = future
+            }
         }
     }
 
     private fun stopServing() {
+        retry?.cancel(false)
+        retry = null
         stopServer()
-        if (callbackRegistered) {
-            runCatching { connectivity?.unregisterNetworkCallback(networkCallback) }
-            callbackRegistered = false
-        }
+        networkCallback?.let { callback -> runCatching { connectivity?.unregisterNetworkCallback(callback) } }
+        networkCallback = null
+        networkGeneration++
         networks.clear()
         _state.update { it.copy(url = null, problem = null) }
     }
@@ -214,7 +230,7 @@ class GuestParty(private val context: Context, val store: GuestPhotoStore) {
     }
 
     private fun registerNetworkCallback() {
-        if (callbackRegistered) return
+        if (networkCallback != null) return
         val manager = connectivity ?: return
         val request = NetworkRequest.Builder()
             .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
@@ -222,7 +238,27 @@ class GuestParty(private val context: Context, val store: GuestPhotoStore) {
             // Basta la rete di casa: la festa funziona anche se il router non ha internet.
             .removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
             .build()
-        callbackRegistered = runCatching { manager.registerNetworkCallback(request, networkCallback) }.isSuccess
+        val generation = ++networkGeneration
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onLinkPropertiesChanged(network: Network, linkProperties: LinkProperties) {
+                val address = ipv4(linkProperties)
+                worker.execute {
+                    // Notifica arrivata dopo che la festa è andata in background: non vale più.
+                    if (generation != networkGeneration) return@execute
+                    networks[network] = address
+                    if (serving()) serve()
+                }
+            }
+
+            override fun onLost(network: Network) {
+                worker.execute {
+                    if (generation != networkGeneration) return@execute
+                    networks.remove(network)
+                    if (serving()) serve()
+                }
+            }
+        }
+        if (runCatching { manager.registerNetworkCallback(request, callback) }.isSuccess) networkCallback = callback
     }
 
     /** Indirizzo IPv4 della TV sulla rete di casa (Wi‑Fi o cavo). */
@@ -246,16 +282,21 @@ class GuestParty(private val context: Context, val store: GuestPhotoStore) {
     /** Chiamato dai thread del server per ogni foto ricevuta. */
     private fun receive(bytes: ByteArray, sender: String?): GuestUploadServer.UploadResult {
         if (!isDisplayable(bytes)) return GuestUploadServer.UploadResult.UNSUPPORTED
-        val photo = store.add(bytes, sender, approved = !_state.value.approval)
-            ?: return GuestUploadServer.UploadResult.FULL
-        return if (photo.approved) GuestUploadServer.UploadResult.SHOWN else GuestUploadServer.UploadResult.PENDING
+        return when (val result = store.add(bytes, sender, approved = !_state.value.approval)) {
+            is GuestPhotoStore.AddResult.Added ->
+                if (result.photo.approved) GuestUploadServer.UploadResult.SHOWN else GuestUploadServer.UploadResult.PENDING
+            GuestPhotoStore.AddResult.Full -> GuestUploadServer.UploadResult.FULL
+            GuestPhotoStore.AddResult.TooManyPending -> GuestUploadServer.UploadResult.TOO_MANY_PENDING
+        }
     }
 
     /** Legge solo le dimensioni: un file danneggiato o enorme non arriva mai allo slideshow. */
     private fun isDisplayable(bytes: ByteArray): Boolean {
         val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
-        return options.outWidth in 1..MAX_IMAGE_SIDE && options.outHeight in 1..MAX_IMAGE_SIDE
+        val width = options.outWidth
+        val height = options.outHeight
+        return width in 1..MAX_IMAGE_SIDE && height in 1..MAX_IMAGE_SIDE && width.toLong() * height <= MAX_IMAGE_PIXELS
     }
 
     /** Pagina per i telefoni con la misura dello schermo e le impostazioni attuali. */
@@ -290,7 +331,11 @@ class GuestParty(private val context: Context, val store: GuestPhotoStore) {
         const val PREFERRED_PORT = 8765
         /** Dopo 12 ore senza foto la festa si considera finita. */
         const val IDLE_LIMIT_MS = 12 * 60 * 60 * 1000L
-        const val MAX_IMAGE_SIDE = 10_000
+        const val MAX_IMAGE_SIDE = 8_192
+        /** Il doppio di uno schermo 4K: la pagina non manda mai di più. */
+        const val MAX_IMAGE_PIXELS = 2L * 3840 * 2160
+        const val FAILURE_RETRY_SECONDS = 2L
+        const val START_RETRY_SECONDS = 5L
         const val ZOOM_MARGIN = 1.1
         const val JPEG_QUALITY = 0.88
         const val KEY_ACTIVE = "active"

@@ -83,8 +83,9 @@ data class GuestsUiState(
     val approval: Boolean = false,
     /** QR piccolo nell'angolo dello slideshow, così gli invitati possono inquadrarlo in ogni momento. */
     val qrInSlideshow: Boolean = true,
-    /** Nome della rete Wi‑Fi del QR per entrare in rete, se impostata. */
+    /** Nome e password della rete Wi‑Fi del QR per entrare in rete, se impostata. */
     val wifiName: String? = null,
+    val wifiPassword: String? = null,
     val wifiQr: String? = null,
     /** Foto approvate in mostra. */
     val shown: Int = 0,
@@ -112,6 +113,12 @@ data class AppState(
     val busy: Boolean = false,
     val message: String? = null,
     val guests: GuestsUiState = GuestsUiState(),
+    /**
+     * Cresce a ogni cambio di foto voluto (successiva, precedente, nuova raccolta). Il cambio
+     * automatico si basa su questo e non sull'indice, che si sposta quando arrivano o spariscono
+     * foto degli invitati anche se la foto mostrata resta la stessa.
+     */
+    val slideTick: Int = 0,
     /** Istante (epoch ms) in cui scatterà la pausa automatica, se attiva. */
     val sleepAtMillis: Long? = null,
 )

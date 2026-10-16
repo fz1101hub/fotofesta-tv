@@ -77,9 +77,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private var baseIsDemo = true
     private var guestPhotos: List<PhotoItem> = emptyList()
     private var guestPartyActive = false
+    /** Foto approvate già viste; null finché le foto di una festa interrotta non sono state riprese. */
     private var knownGuestIds: Set<String>? = null
-    private var knownPendingIds: Set<String> = emptySet()
-    private val createdAtMillis = System.currentTimeMillis()
 
     private val _state = MutableStateFlow(
         AppState(
@@ -124,8 +123,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             googleStream.gone.collect { gone -> if (gone != null) onGoogleSelectionGone(gone) }
         }
         viewModelScope.launch {
-            combine(guests.state, guests.store.photos) { party, photos -> party to photos }
-                .collect { (party, photos) -> onGuestsChanged(party, photos) }
+            combine(guests.state, guests.store.photos, guests.ready) { party, photos, ready -> Triple(party, photos, ready) }
+                .collect { (party, photos, ready) -> onGuestsChanged(party, photos, ready) }
         }
     }
 
@@ -184,15 +183,16 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         val current = _state.value
         if (current.photos.isEmpty()) return
         val index = freshPhotos.take(current.photos, current.currentIndex)
-            ?: playbackOrder.next(freshPhotos.takeResume(current.photos) ?: current.currentIndex)
-        _state.update { it.copy(currentIndex = index) }
+            ?: freshPhotos.resume(current.photos, playbackOrder::next)
+            ?: playbackOrder.next(current.currentIndex)
+        _state.update { it.copy(currentIndex = index, slideTick = it.slideTick + 1) }
     }
 
     fun previous() {
         val current = _state.value
         if (current.photos.isEmpty()) return
         val index = freshPhotos.takeResume(current.photos) ?: playbackOrder.previous(current.currentIndex)
-        _state.update { it.copy(currentIndex = index) }
+        _state.update { it.copy(currentIndex = index, slideTick = it.slideTick + 1) }
     }
 
     /** Foto successiva prevista, usata dallo slideshow per precaricarla. */
@@ -417,6 +417,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     fun endGuestParty() {
         guests.end()
         freshPhotos.clear()
+        knownGuestIds = null
         _state.update { it.copy(message = context.getString(R.string.message_guests_ended)) }
     }
 
@@ -457,20 +458,18 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     fun approveAllGuestPhotos() = guests.approveAll()
 
     /**
-     * Aggiorna lo stato della festa e la raccolta mostrata. Le foto approvate da poco (arrivate
-     * dopo l'apertura dell'app, o appena approvate) passano davanti nello slideshow.
+     * Aggiorna lo stato della festa e la raccolta mostrata. Le foto approvate da poco (arrivate o
+     * approvate dopo la ripresa della festa) passano davanti nello slideshow; quelle riprese da una
+     * festa interrotta no. Non si usa l'orologio della TV, che può cambiare all'improvviso.
      */
-    private fun onGuestsChanged(party: GuestParty.State, photos: List<GuestPhotoStore.Photo>) {
+    private fun onGuestsChanged(party: GuestParty.State, photos: List<GuestPhotoStore.Photo>, ready: Boolean) {
         val approved = photos.filter { it.approved }
+        val approvedIds = approved.mapTo(mutableSetOf()) { it.id }
         val known = knownGuestIds
-        if (known != null) {
-            val fresh = approved.filter { photo ->
-                photo.id !in known && (photo.receivedAtMillis >= createdAtMillis || photo.id in knownPendingIds)
-            }
-            freshPhotos.add(fresh.map { "guest:${it.id}" })
+        if (ready && known != null) {
+            freshPhotos.add(approved.filter { it.id !in known }.map { "guest:${it.id}" })
         }
-        knownGuestIds = approved.mapTo(mutableSetOf()) { it.id }
-        knownPendingIds = photos.filterNot { it.approved }.mapTo(mutableSetOf()) { it.id }
+        knownGuestIds = if (ready) approvedIds else null
 
         val items = approved.map { it.toPhotoItem(context) }
         _state.update {
@@ -482,6 +481,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                     approval = party.approval,
                     qrInSlideshow = party.qrInSlideshow,
                     wifiName = party.wifi?.ssid,
+                    wifiPassword = party.wifi?.password,
                     wifiQr = party.wifi?.qrPayload(),
                     shown = items.size,
                     pending = photos.filterNot { photo -> photo.approved }.map { photo -> photo.toPhotoItem(context) },
@@ -528,15 +528,30 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         val current = _state.value
         val photos = combineWithGuests(basePhotos, baseIsDemo, guestPhotos, guestPartyActive)
         val shuffle = current.settings.shuffle
-        val index = if (restart) {
-            if (shuffle && photos.isNotEmpty()) photos.indices.random() else 0
-        } else {
-            val currentId = current.photos.getOrNull(current.currentIndex)?.id
-            photos.indexOfFirst { it.id == currentId }.takeIf { it >= 0 }
-                ?: current.currentIndex.coerceAtMost(photos.size - 1).coerceAtLeast(0)
+        if (restart) {
+            val index = if (shuffle && photos.isNotEmpty()) photos.indices.random() else 0
+            playbackOrder.reset(photos.size, shuffle, index)
+            _state.update {
+                it.copy(photos = photos, sourceLabel = collectionLabel(), currentIndex = index, slideTick = it.slideTick + 1)
+            }
+            return
         }
-        playbackOrder.reset(photos.size, shuffle, index)
-        _state.update { it.copy(photos = photos, sourceLabel = collectionLabel(), currentIndex = index) }
+        val currentId = current.photos.getOrNull(current.currentIndex)?.id
+        val index = photos.indexOfFirst { it.id == currentId }.takeIf { it >= 0 }
+            ?: current.currentIndex.coerceAtMost(photos.size - 1).coerceAtLeast(0)
+        // L'ordine del giro corrente resta: le foto nuove si inseriscono tra quelle non ancora viste.
+        val newIndexById = photos.withIndex().associate { (position, photo) -> photo.id to position }
+        playbackOrder.remap(photos.size, { old -> current.photos.getOrNull(old)?.id?.let(newIndexById::get) }, index)
+        // La foto mostrata è sparita (ad esempio scartata): quella al suo posto conta come un cambio.
+        val changed = photos.getOrNull(index)?.id != currentId
+        _state.update {
+            it.copy(
+                photos = photos,
+                sourceLabel = collectionLabel(),
+                currentIndex = index,
+                slideTick = if (changed) it.slideTick + 1 else it.slideTick,
+            )
+        }
     }
 
     private fun collectionLabel(): String = when {

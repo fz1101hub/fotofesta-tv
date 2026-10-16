@@ -117,10 +117,10 @@ fun SlideshowScreen(
             hideControls()
         }
     }
-    // Solo "più di una foto" e non il numero: le foto che arrivano dagli invitati non devono far
-    // ripartire il conteggio della foto mostrata.
+    // Il conteggio riparte solo a un cambio di foto voluto (slideTick), non quando l'indice si sposta
+    // o il numero di foto cambia perché arrivano o spariscono foto degli invitati.
     val canAdvance = state.photos.size > 1
-    LaunchedEffect(state.isPlaying, state.currentIndex, state.settings.intervalSeconds, canAdvance) {
+    LaunchedEffect(state.isPlaying, state.slideTick, state.settings.intervalSeconds, canAdvance) {
         if (state.isPlaying && canAdvance) {
             delay(state.settings.intervalSeconds * 1_000L)
             onNext()

@@ -28,6 +28,32 @@ class PlaybackOrder(private val random: Random = Random.Default) {
         }
     }
 
+    /**
+     * Aggiorna l'ordine quando la raccolta cambia senza ripartire (foto degli invitati che arrivano o
+     * spariscono). [oldToNew] traduce un indice della raccolta precedente in quello nuovo, o null se
+     * la foto non c'è più. In ordine casuale le foto restano dove erano nel giro corrente e quelle
+     * nuove vengono inserite a caso tra quelle non ancora mostrate, così il giro non ricomincia.
+     */
+    fun remap(newSize: Int, oldToNew: (Int) -> Int?, current: Int) {
+        if (!shuffle || newSize <= 0 || order.isEmpty()) {
+            reset(newSize, shuffle, current)
+            return
+        }
+        val list = order.mapNotNull(oldToNew).filter { it in 0 until newSize }.distinct().toMutableList()
+        val present = list.toSet()
+        val added = (0 until newSize).filterNot(present::contains).toMutableList()
+        if (current !in present) {
+            added.remove(current)
+            list.add(0, current.coerceIn(0, newSize - 1))
+        }
+        val position = list.indexOf(current).coerceAtLeast(0)
+        added.shuffled(random).forEach { index ->
+            list.add(random.nextInt(position + 1, list.size + 1), index)
+        }
+        order = list
+        lastOfPreviousCycle = lastOfPreviousCycle?.let(oldToNew)
+    }
+
     fun next(current: Int): Int {
         if (order.size <= 1) return order.firstOrNull() ?: 0
         val position = positionOf(current)

@@ -14,8 +14,9 @@ import java.util.Base64
  * Restano in RAM finché c'è posto. Quando la memoria assegnata non basta, quando il sistema chiede
  * di liberarne o quando l'app va in background, le più vecchie passano in [directory], una cartella
  * temporanea con un limite ([maxDiskBytes] e al massimo [freeShare] dello spazio libero). Se anche
- * quella è piena, le foto più vecchie fanno posto alle nuove. Alla fine della festa ([clear]) tutto
- * viene cancellato.
+ * quella è piena, le foto più vecchie fanno posto alle nuove: prima quelle ancora da approvare, così
+ * un invitato che manda molte foto non cancella quelle già in mostra. Le foto in attesa non possono
+ * superare [maxPending]. Alla fine della festa ([clear]) tutto viene cancellato.
  *
  * I dati di ogni foto su disco stanno nel nome del file, così dopo un riavvio dell'app la festa può
  * riprendere senza un indice separato da tenere allineato.
@@ -24,9 +25,10 @@ class GuestPhotoStore(
     private val directory: File,
     private val memoryBudgetBytes: Long,
     private val maxDiskBytes: Long,
-    private val freeSpace: () -> Long = { directory.usableSpace },
+    private val freeSpace: () -> Long = { usableSpaceOf(directory) },
     private val freeShare: Double = 0.10,
     private val maxPhotos: Int = 1_000,
+    private val maxPending: Int = 100,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     data class Photo(
@@ -37,10 +39,13 @@ class GuestPhotoStore(
         val approved: Boolean,
     )
 
-    /** Contenuto di una foto: in RAM oppure nella cartella di riserva. */
-    sealed interface Content {
-        class Bytes(val value: ByteArray) : Content
-        class OnDisk(val file: File) : Content
+    /** Esito di [add]. */
+    sealed interface AddResult {
+        data class Added(val photo: Photo) : AddResult
+        /** Né RAM né cartella hanno posto per la foto. */
+        data object Full : AddResult
+        /** Troppe foto in attesa di approvazione. */
+        data object TooManyPending : AddResult
     }
 
     private class Entry(var photo: Photo, var bytes: ByteArray?, var file: File?)
@@ -56,25 +61,32 @@ class GuestPhotoStore(
     /** Tutte le foto, approvate e da approvare, dalla più vecchia alla più recente. */
     val photos: StateFlow<List<Photo>> = _photos.asStateFlow()
 
-    /** Aggiunge una foto; null se non c'è posto né in RAM né su disco. */
     @Synchronized
-    fun add(bytes: ByteArray, sender: String?, approved: Boolean): Photo? {
+    fun add(bytes: ByteArray, sender: String?, approved: Boolean): AddResult {
         require(bytes.isNotEmpty()) { "Foto vuota" }
+        if (!approved && entries.values.count { !it.photo.approved } >= maxPending) return AddResult.TooManyPending
         val photo = Photo(newId(), GuestSender.clean(sender), clock(), bytes.size, approved)
-        entries[photo.id] = Entry(photo, bytes, null)
+        val entry = Entry(photo, bytes, null)
+        entries[photo.id] = entry
         memoryUsed += bytes.size
-        while (entries.size > maxPhotos) drop(entries.values.first())
-        fitInMemory()
+        while (entries.size > maxPhotos) drop(victim(entries.values))
+        // Una foto in attesa non può far cancellare foto già approvate: piuttosto viene rifiutata.
+        fitInMemory(allowApprovedEviction = approved)
         publish()
-        return photo.takeIf { entries.containsKey(it.id) }
+        return if (entries[photo.id] === entry) AddResult.Added(photo) else AddResult.Full
     }
 
+    /** Byte della foto, letti con il lock: un'approvazione non può rinominare il file a metà lettura. */
     @Synchronized
-    fun open(id: String): Content? {
+    fun read(id: String): ByteArray? {
         val entry = entries[id] ?: return null
-        entry.bytes?.let { return Content.Bytes(it) }
-        return entry.file?.let { Content.OnDisk(it) }
+        entry.bytes?.let { return it }
+        return entry.file?.let { file -> runCatching { file.readBytes() }.getOrNull() }
     }
+
+    /** Dove si trova la foto (per i test). */
+    @Synchronized
+    internal fun isOnDisk(id: String): Boolean? = entries[id]?.let { it.file != null }
 
     @Synchronized
     fun approve(id: String): Boolean {
@@ -148,8 +160,8 @@ class GuestPhotoStore(
             entries[photo.id] = Entry(photo, null, file)
             diskUsed += photo.sizeBytes
         }
-        while (entries.size > maxPhotos) drop(entries.values.first())
-        while (diskUsed > diskBudget() && entries.isNotEmpty()) drop(entries.values.first())
+        while (entries.size > maxPhotos) drop(victim(entries.values))
+        while (diskUsed > diskBudget() && entries.isNotEmpty()) drop(victim(entries.values))
         publish()
         return entries.size
     }
@@ -160,25 +172,35 @@ class GuestPhotoStore(
     @Synchronized
     fun diskUsedBytes(): Long = diskUsed
 
-    private fun fitInMemory() {
+    /** Prima da sacrificare: la foto in attesa più vecchia, altrimenti la più vecchia in assoluto. */
+    private fun victim(candidates: Collection<Entry>): Entry =
+        candidates.firstOrNull { !it.photo.approved } ?: candidates.first()
+
+    private fun fitInMemory(allowApprovedEviction: Boolean = true) {
         while (memoryUsed > memoryBudgetBytes) {
-            val oldest = entries.values.firstOrNull { it.bytes != null } ?: return
-            if (!spill(oldest, evictOthers = true)) drop(oldest)
+            val inMemory = entries.values.filter { it.bytes != null }
+            val oldest = inMemory.firstOrNull() ?: return
+            if (!spill(oldest, evictOthers = true, allowApprovedEviction)) drop(victim(inMemory))
         }
     }
 
     /**
      * Scrive la foto su disco e la toglie dalla RAM. Con [evictOthers] fa posto cancellando le foto
-     * più vecchie già su disco; restituisce false se non c'è posto o la scrittura non riesce.
+     * più vecchie già su disco: prima quelle in attesa, e quelle approvate solo con
+     * [allowApprovedEviction] e se anche la foto da spostare è approvata. Restituisce false se non
+     * c'è posto o la scrittura non riesce.
      */
-    private fun spill(entry: Entry, evictOthers: Boolean): Boolean {
+    private fun spill(entry: Entry, evictOthers: Boolean, allowApprovedEviction: Boolean = true): Boolean {
         val bytes = entry.bytes ?: return true
         val size = bytes.size.toLong()
         if (size > diskBudget()) return false
         while (diskUsed + size > diskBudget()) {
             if (!evictOthers) return false
-            val oldestOnDisk = entries.values.firstOrNull { it.file != null && it !== entry } ?: return false
-            drop(oldestOnDisk)
+            val onDisk = entries.values.filter { it.file != null && it !== entry }
+            val evict = onDisk.firstOrNull { !it.photo.approved }
+                ?: onDisk.firstOrNull()?.takeIf { allowApprovedEviction && entry.photo.approved }
+                ?: return false
+            drop(evict)
         }
         val target = File(directory, fileName(entry.photo))
         val temp = File(directory, "${entry.photo.id}.tmp")
@@ -253,10 +275,17 @@ class GuestPhotoStore(
 
     private fun isHexDigit(char: Char) = char in '0'..'9' || char in 'a'..'f'
 
-    private companion object {
+    internal companion object {
         const val EXTENSION = ".img"
         const val ID_LENGTH = 16
         val URL_ENCODER: Base64.Encoder = Base64.getUrlEncoder().withoutPadding()
         val URL_DECODER: Base64.Decoder = Base64.getUrlDecoder()
+
+        /**
+         * Spazio libero sul volume della cartella. `File.usableSpace` vale 0 per un percorso che non
+         * esiste ancora: si misura la prima cartella esistente risalendo il percorso.
+         */
+        fun usableSpaceOf(directory: File): Long =
+            generateSequence(directory.absoluteFile) { it.parentFile }.firstOrNull(File::exists)?.usableSpace ?: 0L
     }
 }

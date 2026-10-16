@@ -15,7 +15,8 @@ import java.io.IOException
 
 /**
  * Carica una foto mandata da un invitato dall'archivio della festa (RAM o cartella di riserva).
- * I byte si leggono subito: una foto cancellata a metà caricamento dà un errore, non un'immagine rotta.
+ * I byte si leggono subito e con il lock dell'archivio: una foto cancellata o rinominata a metà
+ * caricamento dà un errore o la foto intera, mai un'immagine rotta.
  */
 class GuestPhotoFetcher(
     private val photo: PhotoRef.GuestPhoto,
@@ -23,15 +24,11 @@ class GuestPhotoFetcher(
     private val store: GuestPhotoStore,
 ) : Fetcher {
     override suspend fun fetch(): FetchResult {
-        val (bytes, dataSource) = when (val content = store.open(photo.id)) {
-            is GuestPhotoStore.Content.Bytes -> content.value to DataSource.MEMORY
-            is GuestPhotoStore.Content.OnDisk -> content.file.readBytes() to DataSource.DISK
-            null -> throw IOException("Foto dell'invitato non più disponibile")
-        }
+        val bytes = store.read(photo.id) ?: throw IOException("Foto dell'invitato non più disponibile")
         return SourceResult(
             source = ImageSource(Buffer().write(bytes), options.context),
             mimeType = null,
-            dataSource = dataSource,
+            dataSource = DataSource.MEMORY,
         )
     }
 

@@ -75,4 +75,25 @@ class GuestPlaybackTest {
         assertNull(fresh.peekResume(base + guests))
         assertNull(fresh.take(base + guests, currentIndex = 0))
     }
+
+    @Test
+    fun `after fresh photos playback skips the ones just shown`() {
+        // Si era sull'ultima foto (g1); arrivano g2 e g3 in coda: dopo averle mostrate si riparte
+        // dall'inizio e non da g2.
+        val photos = listOf(item("g1", SourceType.GUESTS), item("g2", SourceType.GUESTS), item("g3", SourceType.GUESTS))
+        val order = PlaybackOrder().apply { reset(3, shuffle = false, current = 0) }
+        val fresh = FreshPhotos()
+        fresh.add(listOf("g2", "g3"))
+        assertEquals(1, fresh.take(photos, currentIndex = 0))
+        assertEquals(2, fresh.take(photos, currentIndex = 1))
+        assertNull(fresh.take(photos, currentIndex = 2))
+        assertEquals(0, fresh.resume(photos, order::next))
+        assertNull(fresh.resume(photos, order::next))
+    }
+
+    @Test
+    fun `resume without a fresh run does nothing`() {
+        val fresh = FreshPhotos()
+        assertNull(fresh.resume(base, PlaybackOrder().apply { reset(3, shuffle = false) }::next))
+    }
 }

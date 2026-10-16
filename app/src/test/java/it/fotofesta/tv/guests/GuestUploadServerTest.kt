@@ -25,8 +25,17 @@ class GuestUploadServerTest {
 
     private val jpeg = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte(), 1, 2, 3, 4)
 
+    private var failures = 0
+
     @Before
-    fun setUp() {
+    fun setUp() = startServer()
+
+    private fun startServer(
+        maxUploadsPerMinute: Int = 100,
+        headerDeadlineMillis: Long = GuestUploadServer.HEADER_DEADLINE_MS,
+        nowMillis: () -> Long = { System.nanoTime() / 1_000_000 },
+    ) {
+        if (::server.isInitialized) server.stop()
         server = GuestUploadServer(
             key = KEY,
             page = { "<html>pagina</html>" },
@@ -34,8 +43,12 @@ class GuestUploadServerTest {
                 received += bytes to sender
                 result
             },
+            onFailure = { failures++ },
             maxUploadBytes = 1_000,
             readTimeoutMillis = 2_000,
+            headerDeadlineMillis = headerDeadlineMillis,
+            maxUploadsPerMinute = maxUploadsPerMinute,
+            nowMillis = nowMillis,
         )
         port = server.start(loopback, preferredPort = 0)
     }
@@ -71,12 +84,14 @@ class GuestUploadServerTest {
         sender: String? = null,
         length: Long = body.size.toLong(),
         host: String = "127.0.0.1:$port",
+        uploadId: String? = null,
     ): Reply {
         val head = buildString {
             append("POST /photos HTTP/1.1\r\nHost: $host\r\nContent-Type: image/jpeg\r\n")
             append("Content-Length: $length\r\n")
             if (key != null) append("X-FotoFesta-Key: $key\r\n")
             if (sender != null) append("X-FotoFesta-Sender: $sender\r\n")
+            if (uploadId != null) append("X-FotoFesta-Upload: $uploadId\r\n")
             append("\r\n")
         }
         return send(head.toByteArray() + body)
@@ -111,6 +126,49 @@ class GuestUploadServerTest {
         assertEquals(507, post(jpeg).status)
         result = GuestUploadServer.UploadResult.UNSUPPORTED
         assertEquals(415, post(jpeg).status)
+        result = GuestUploadServer.UploadResult.TOO_MANY_PENDING
+        val tooMany = post(jpeg)
+        assertEquals(507, tooMany.status)
+        assertEquals("""{"error":"pending_full"}""", tooMany.body)
+    }
+
+    @Test
+    fun `a repeated upload is stored only once`() {
+        assertEquals(200, post(jpeg, uploadId = "abcdef123456").status)
+        assertEquals(200, post(jpeg, uploadId = "abcdef123456").status)
+        assertEquals(1, received.size)
+        assertEquals(200, post(jpeg, uploadId = "other-upload-1").status)
+        assertEquals(2, received.size)
+    }
+
+    @Test
+    fun `uploads from one phone are rate limited`() {
+        startServer(maxUploadsPerMinute = 2)
+        assertEquals(200, post(jpeg).status)
+        assertEquals(200, post(jpeg).status)
+        val limited = post(jpeg)
+        assertEquals(429, limited.status)
+        assertEquals("10", limited.headers["retry-after"])
+        assertEquals(2, received.size)
+    }
+
+    @Test
+    fun `slow requests are dropped after the header deadline`() {
+        // Orologio finto: ogni lettura sembra durare un secondo, il limite è di 5 secondi.
+        var clock = 0L
+        startServer(headerDeadlineMillis = 5_000, nowMillis = { clock += 1_000; clock })
+        Socket().use { socket ->
+            socket.connect(InetSocketAddress(loopback, port), 2_000)
+            socket.soTimeout = 5_000
+            socket.getOutputStream().write("GET /?k=$KEY HTTP/1.1\r\nHost: 127.0.0.1:$port\r\n\r\n".toByteArray())
+            assertTrue(socket.getInputStream().readBytes().isEmpty())
+        }
+    }
+
+    @Test
+    fun `a deliberate stop is not reported as a failure`() {
+        server.stop()
+        assertEquals(0, failures)
     }
 
     @Test

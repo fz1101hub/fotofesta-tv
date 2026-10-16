@@ -10,11 +10,14 @@ import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
+import java.net.SocketTimeoutException
 import java.net.URLDecoder
 import java.security.MessageDigest
+import java.util.ArrayDeque
 import java.util.Collections
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.Semaphore
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -24,24 +27,42 @@ import java.util.concurrent.atomic.AtomicInteger
  * riceve. Le foto non passano da internet: vanno dal telefono alla TV attraverso il router.
  *
  * Solo chi ha inquadrato il QR conosce [key], richiesta sia per aprire la pagina sia per inviare.
- * Ogni richiesta usa una connessione propria, con limiti su intestazioni, dimensione e tempi.
+ * Ogni richiesta usa una connessione propria, con limiti su intestazioni, dimensione e tempi totali
+ * (non solo per lettura: una connessione lentissima non tiene occupato il server), un massimo di
+ * connessioni e di invii al minuto per telefono e un tetto ai byte in arrivo contemporaneamente.
+ * Se il server si ferma da solo (ad esempio quando la rete cade) viene chiamato [onFailure].
  */
 class GuestUploadServer(
     private val key: String,
     private val page: () -> String,
     private val onPhoto: (bytes: ByteArray, sender: String?) -> UploadResult,
+    private val onFailure: () -> Unit = {},
     private val maxUploadBytes: Int = MAX_UPLOAD_BYTES,
     private val readTimeoutMillis: Int = READ_TIMEOUT_MS,
+    private val headerDeadlineMillis: Long = HEADER_DEADLINE_MS,
+    private val bodyDeadlineMillis: Long = BODY_DEADLINE_MS,
+    private val maxUploadsPerMinute: Int = MAX_UPLOADS_PER_MINUTE,
+    private val nowMillis: () -> Long = { System.nanoTime() / 1_000_000 },
 ) {
-    enum class UploadResult { SHOWN, PENDING, FULL, UNSUPPORTED }
+    enum class UploadResult { SHOWN, PENDING, FULL, TOO_MANY_PENDING, UNSUPPORTED }
 
     private var serverSocket: ServerSocket? = null
     private var executor: ThreadPoolExecutor? = null
+    @Volatile private var acceptThread: Thread? = null
+    @Volatile private var stopping = false
     private val openSockets: MutableSet<Socket> = Collections.synchronizedSet(mutableSetOf())
     @Volatile private var expectedHost: String = ""
+    private val perClient = mutableMapOf<InetAddress, Int>()
+    private val recentUploads = mutableMapOf<InetAddress, ArrayDeque<Long>>()
+    private val inFlight = Semaphore(MAX_IN_FLIGHT_BYTES)
+    // Invii già ricevuti, per non salvare due volte una foto se il telefono ripete l'invio.
+    private val handledUploads = object : LinkedHashMap<String, Response>(64, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Response>?) = size > 200
+    }
 
+    /** Il server accetta connessioni: socket aperto e thread di ascolto vivo. */
     val isRunning: Boolean
-        @Synchronized get() = serverSocket?.isClosed == false
+        @Synchronized get() = serverSocket?.isClosed == false && acceptThread?.isAlive == true
 
     /**
      * Avvia il server su [address], preferibilmente sulla porta [preferredPort] (così il QR resta
@@ -51,6 +72,7 @@ class GuestUploadServer(
     @Throws(IOException::class)
     fun start(address: InetAddress, preferredPort: Int): Int {
         stop()
+        stopping = false
         val socket = bind(address, preferredPort)
         val port = socket.localPort
         expectedHost = hostHeader(address, port)
@@ -62,21 +84,33 @@ class GuestUploadServer(
         }
         serverSocket = socket
         executor = pool
-        Thread({ acceptLoop(socket, pool) }, "guest-upload-accept").apply { isDaemon = true }.start()
+        acceptThread = Thread({ acceptLoop(socket, pool) }, "guest-upload-accept").apply {
+            isDaemon = true
+            start()
+        }
         return port
     }
 
-    @Synchronized
+    /**
+     * Ferma il server e aspetta (al massimo due secondi) che le richieste in corso finiscano: dopo
+     * il ritorno nessuna foto viene più consegnata a [onPhoto].
+     */
     fun stop() {
-        runCatching { serverSocket?.close() }
-        serverSocket = null
-        executor?.shutdownNow()
-        executor = null
-        // Le letture dei socket non si interrompono con interrupt(): si chiudono direttamente.
-        synchronized(openSockets) {
-            openSockets.forEach { runCatching { it.close() } }
-            openSockets.clear()
+        val pool: ThreadPoolExecutor?
+        synchronized(this) {
+            stopping = true
+            runCatching { serverSocket?.close() }
+            serverSocket = null
+            pool = executor
+            executor = null
+            pool?.shutdownNow()
+            // Le letture dei socket non si interrompono con interrupt(): si chiudono direttamente.
+            synchronized(openSockets) {
+                openSockets.forEach { runCatching { it.close() } }
+                openSockets.clear()
+            }
         }
+        pool?.awaitTermination(2, TimeUnit.SECONDS)
     }
 
     private fun bind(address: InetAddress, preferredPort: Int): ServerSocket {
@@ -99,29 +133,53 @@ class GuestUploadServer(
             val client = try {
                 server.accept()
             } catch (_: IOException) {
+                // Chiusura voluta da stop(), oppure il sistema ha tolto l'indirizzo: in quel caso
+                // chi ha avviato il server deve riavviarlo.
+                runCatching { server.close() }
+                if (!stopping) onFailure()
                 break
+            }
+            val clientAddress = client.inetAddress
+            if (!acquireClient(clientAddress)) {
+                // Troppe connessioni dallo stesso telefono.
+                reject(client, 429)
+                continue
             }
             try {
                 openSockets += client
-                pool.execute { serve(client) }
+                pool.execute { serve(client, clientAddress) }
             } catch (_: RejectedExecutionException) {
-                // Troppe richieste insieme: il telefono riproverà.
+                // Troppe richieste insieme: il telefono riproverà dopo qualche secondo.
                 openSockets -= client
-                runCatching { client.close() }
+                releaseClient(clientAddress)
+                reject(client, 503)
             }
         }
     }
 
-    private fun serve(client: Socket) {
+    /** Risposta breve dal thread di ascolto, senza leggere la richiesta. */
+    private fun reject(client: Socket, status: Int) {
+        runCatching {
+            client.use { socket ->
+                socket.soTimeout = 1_000
+                val output = BufferedOutputStream(socket.getOutputStream())
+                write(output, Response.json(status, """{"error":"busy"}""", listOf("Retry-After" to "5")))
+                output.flush()
+            }
+        }
+    }
+
+    private fun serve(client: Socket, clientAddress: InetAddress) {
         try {
             client.use { socket ->
                 socket.soTimeout = readTimeoutMillis
+                val startedAt = nowMillis()
                 val input = BufferedInputStream(socket.getInputStream())
                 val response = try {
-                    val request = readRequest(input) ?: return
-                    route(request, input)
+                    val request = readRequest(input, deadline = startedAt + headerDeadlineMillis, now = nowMillis) ?: return
+                    route(request, input, clientAddress, startedAt)
                 } catch (error: HttpError) {
-                    Response.json(error.status, """{"error":"${error.code}"}""")
+                    Response.json(error.status, """{"error":"${error.code}"}""", error.headers)
                 }
                 val output = BufferedOutputStream(socket.getOutputStream())
                 write(output, response)
@@ -134,12 +192,15 @@ class GuestUploadServer(
             }
         } catch (_: IOException) {
             // Connessione caduta o troppo lenta: non c'è nessuno a cui rispondere.
+        } catch (_: Throwable) {
+            // Anche un errore inatteso (ad esempio memoria esaurita) non deve chiudere l'app.
         } finally {
             openSockets -= client
+            releaseClient(clientAddress)
         }
     }
 
-    private fun route(request: Request, body: InputStream): Response {
+    private fun route(request: Request, body: InputStream, clientAddress: InetAddress, startedAt: Long): Response {
         val host = request.headers["host"]
         if (host != null && !host.equals(expectedHost, ignoreCase = true)) {
             throw HttpError(421, "host")
@@ -152,27 +213,63 @@ class GuestUploadServer(
             }
             "/photos" -> {
                 if (request.method != "POST") throw HttpError(405, "method")
-                receivePhoto(request, body)
+                receivePhoto(request, body, clientAddress, startedAt)
             }
             else -> Response.json(404, """{"error":"not_found"}""")
         }
     }
 
-    private fun receivePhoto(request: Request, body: InputStream): Response {
+    private fun receivePhoto(request: Request, body: InputStream, clientAddress: InetAddress, startedAt: Long): Response {
         if (!keyMatches(request.headers["x-fotofesta-key"])) throw HttpError(401, "key")
         if (request.headers.containsKey("transfer-encoding")) throw HttpError(411, "length")
         val length = request.headers["content-length"]?.trim()?.toLongOrNull() ?: throw HttpError(411, "length")
         if (length <= 0) throw HttpError(400, "empty")
         if (length > maxUploadBytes) throw HttpError(413, "too_large")
-        val bytes = readBody(body, length.toInt())
-        if (ImageFormat.sniff(bytes) == null) throw HttpError(415, "unsupported")
-        val sender = request.headers["x-fotofesta-sender"]?.let(::decodeSender)
-        return when (onPhoto(bytes, sender)) {
-            UploadResult.SHOWN -> Response.json(200, """{"status":"shown"}""")
-            UploadResult.PENDING -> Response.json(200, """{"status":"pending"}""")
-            UploadResult.FULL -> throw HttpError(507, "full")
-            UploadResult.UNSUPPORTED -> throw HttpError(415, "unsupported")
+        val uploadId = request.headers["x-fotofesta-upload"]?.takeIf { it.length in 8..64 && it.all(::isIdChar) }
+        uploadId?.let { id -> synchronized(handledUploads) { handledUploads[id] }?.let { return it } }
+        if (!allowUpload(clientAddress)) throw HttpError(429, "rate", listOf("Retry-After" to "10"))
+        val size = length.toInt()
+        if (!inFlight.tryAcquire(size, IN_FLIGHT_WAIT_SECONDS, TimeUnit.SECONDS)) {
+            throw HttpError(503, "busy", listOf("Retry-After" to "5"))
         }
+        val response = try {
+            val bytes = readBody(body, size, deadline = startedAt + bodyDeadlineMillis, now = nowMillis)
+            if (ImageFormat.sniff(bytes) == null) throw HttpError(415, "unsupported")
+            val sender = request.headers["x-fotofesta-sender"]?.let(::decodeSender)
+            when (onPhoto(bytes, sender)) {
+                UploadResult.SHOWN -> Response.json(200, """{"status":"shown"}""")
+                UploadResult.PENDING -> Response.json(200, """{"status":"pending"}""")
+                UploadResult.FULL -> throw HttpError(507, "full")
+                UploadResult.TOO_MANY_PENDING -> throw HttpError(507, "pending_full")
+                UploadResult.UNSUPPORTED -> throw HttpError(415, "unsupported")
+            }
+        } finally {
+            inFlight.release(size)
+        }
+        uploadId?.let { id -> synchronized(handledUploads) { handledUploads[id] = response } }
+        return response
+    }
+
+    private fun acquireClient(address: InetAddress): Boolean = synchronized(perClient) {
+        val count = perClient[address] ?: 0
+        if (count >= MAX_CONNECTIONS_PER_CLIENT) return false
+        perClient[address] = count + 1
+        true
+    }
+
+    private fun releaseClient(address: InetAddress) = synchronized(perClient) {
+        val count = (perClient[address] ?: 1) - 1
+        if (count <= 0) perClient.remove(address) else perClient[address] = count
+    }
+
+    /** Al massimo [maxUploadsPerMinute] invii al minuto dallo stesso telefono. */
+    private fun allowUpload(address: InetAddress): Boolean = synchronized(recentUploads) {
+        val now = nowMillis()
+        val times = recentUploads.getOrPut(address) { ArrayDeque() }
+        while (times.isNotEmpty() && now - times.peekFirst()!! > 60_000) times.pollFirst()
+        if (times.size >= maxUploadsPerMinute) return false
+        times.addLast(now)
+        true
     }
 
     private fun keyMatches(candidate: String?): Boolean =
@@ -181,7 +278,13 @@ class GuestUploadServer(
     private fun decodeSender(value: String): String? =
         runCatching { URLDecoder.decode(value, "UTF-8") }.getOrNull()?.let(GuestSender::clean)
 
-    private class HttpError(val status: Int, val code: String) : Exception(code)
+    private fun isIdChar(char: Char) = char.isLetterOrDigit() || char == '-' || char == '_'
+
+    private class HttpError(
+        val status: Int,
+        val code: String,
+        val headers: List<Pair<String, String>> = emptyList(),
+    ) : Exception(code)
 
     class Request(
         val method: String,
@@ -198,8 +301,8 @@ class GuestUploadServer(
         val head: Boolean = false,
     ) {
         companion object {
-            fun json(status: Int, body: String) =
-                Response(status, "application/json; charset=utf-8", body.toByteArray(Charsets.UTF_8))
+            fun json(status: Int, body: String, headers: List<Pair<String, String>> = emptyList()) =
+                Response(status, "application/json; charset=utf-8", body.toByteArray(Charsets.UTF_8), headers)
 
             fun html(status: Int, body: String, head: Boolean = false) = Response(
                 status,
@@ -230,11 +333,18 @@ class GuestUploadServer(
     companion object {
         /** Più di quanto serve a una foto 4K già ridotta dal telefono. */
         const val MAX_UPLOAD_BYTES = 12 * 1024 * 1024
-        const val READ_TIMEOUT_MS = 20_000
+        const val READ_TIMEOUT_MS = 10_000
+        const val HEADER_DEADLINE_MS = 15_000L
+        const val BODY_DEADLINE_MS = 120_000L
+        const val MAX_UPLOADS_PER_MINUTE = 60
+        private const val MAX_CONNECTIONS_PER_CLIENT = 3
+        /** Byte di foto in arrivo contemporaneamente, per tutti i telefoni insieme. */
+        private const val MAX_IN_FLIGHT_BYTES = 24 * 1024 * 1024
+        private const val IN_FLIGHT_WAIT_SECONDS = 10L
         private const val MAX_HEADER_BYTES = 16 * 1024
         private const val MAX_DRAIN_BYTES = 256 * 1024
         private const val DRAIN_TIMEOUT_MS = 1_000
-        private const val WORKERS = 4
+        private const val WORKERS = 6
         private const val QUEUE_SIZE = 16
         private const val BACKLOG = 32
 
@@ -255,9 +365,16 @@ class GuestUploadServer(
             return if (':' in host) "[$host]:$port" else "$host:$port"
         }
 
-        /** Legge riga di richiesta e intestazioni; null se il client chiude senza mandare nulla. */
-        internal fun readRequest(input: InputStream): Request? {
-            val head = readHead(input) ?: return null
+        /**
+         * Legge riga di richiesta e intestazioni; null se il client chiude senza mandare nulla.
+         * Oltre [deadline] (in base a [now]) la richiesta viene abbandonata anche se i byte arrivano.
+         */
+        internal fun readRequest(
+            input: InputStream,
+            deadline: Long = Long.MAX_VALUE,
+            now: () -> Long = { 0L },
+        ): Request? {
+            val head = readHead(input, deadline, now) ?: return null
             val lines = head.split("\r\n", "\n")
             val parts = lines.first().split(' ')
             if (parts.size != 3 || !parts[2].startsWith("HTTP/1.")) throw HttpError(400, "request")
@@ -280,7 +397,7 @@ class GuestUploadServer(
             return Request(parts[0], path, query, headers)
         }
 
-        private fun readHead(input: InputStream): String? {
+        private fun readHead(input: InputStream, deadline: Long, now: () -> Long): String? {
             val buffer = java.io.ByteArrayOutputStream()
             var previous = -1
             var beforePrevious = -1
@@ -291,6 +408,7 @@ class GuestUploadServer(
                     if (buffer.size() == 0) return null
                     throw EOFException("Intestazioni incomplete")
                 }
+                if (now() > deadline) throw SocketTimeoutException("Intestazioni troppo lente")
                 if (buffer.size() >= MAX_HEADER_BYTES) throw HttpError(431, "header")
                 buffer.write(byte)
                 val endsWithCrlfCrlf = byte == '\n'.code && previous == '\r'.code &&
@@ -317,12 +435,13 @@ class GuestUploadServer(
             }
         }
 
-        private fun readBody(input: InputStream, length: Int): ByteArray {
+        private fun readBody(input: InputStream, length: Int, deadline: Long, now: () -> Long): ByteArray {
             val bytes = ByteArray(length)
             var offset = 0
             while (offset < length) {
                 val read = input.read(bytes, offset, length - offset)
                 if (read == -1) throw EOFException("Corpo incompleto")
+                if (now() > deadline) throw SocketTimeoutException("Invio troppo lento")
                 offset += read
             }
             return bytes
@@ -339,7 +458,9 @@ class GuestUploadServer(
             413 -> "Payload Too Large"
             415 -> "Unsupported Media Type"
             421 -> "Misdirected Request"
+            429 -> "Too Many Requests"
             431 -> "Request Header Fields Too Large"
+            503 -> "Service Unavailable"
             507 -> "Insufficient Storage"
             else -> "Error"
         }

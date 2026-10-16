@@ -188,6 +188,7 @@ class MainActivity : ComponentActivity() {
                         )
                         Destination.GUEST_WIFI -> GuestWifiScreen(
                             initialName = state.guests.wifiName,
+                            initialPassword = state.guests.wifiPassword,
                             onBack = { viewModel.navigate(Destination.GUESTS) },
                             onSave = viewModel::saveGuestWifi,
                         )

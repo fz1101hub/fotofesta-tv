@@ -3,6 +3,7 @@ package it.fotofesta.tv.model
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.random.Random
 
@@ -85,5 +86,44 @@ class PlaybackOrderTest {
         assertNull(order.peekNext(42))
         val expected = order.peekNext(1)
         assertEquals(expected, order.next(1))
+    }
+
+    @Test
+    fun `remap keeps the shuffled cycle and inserts new photos among the unseen ones`() {
+        val order = PlaybackOrder(Random(7)).apply { reset(5, shuffle = true, current = 2) }
+        val seen = mutableListOf(2)
+        repeat(2) { seen += order.next(seen.last()) }
+        // Arriva una foto nuova (indice 5): le foto già viste non devono ricomparire in questo giro.
+        order.remap(6, { it }, current = seen.last())
+        var current = seen.last()
+        val rest = mutableListOf<Int>()
+        repeat(3) {
+            current = order.next(current)
+            rest += current
+        }
+        assertEquals(setOf(0, 1, 3, 4, 5) - seen.toSet(), rest.toSet())
+        assertTrue(rest.none { it in seen })
+    }
+
+    @Test
+    fun `remap drops removed photos and translates indices`() {
+        val order = PlaybackOrder(Random(3)).apply { reset(4, shuffle = true, current = 3) }
+        // La foto 0 sparisce: le altre scalano di uno.
+        order.remap(3, { old -> if (old == 0) null else old - 1 }, current = 2)
+        val visited = mutableSetOf(2)
+        var current = 2
+        repeat(2) {
+            current = order.next(current)
+            visited += current
+        }
+        assertEquals(setOf(0, 1, 2), visited)
+    }
+
+    @Test
+    fun `remap in sequential order keeps natural order`() {
+        val order = PlaybackOrder().apply { reset(3, shuffle = false) }
+        order.remap(4, { it }, current = 2)
+        assertEquals(3, order.next(2))
+        assertEquals(0, order.next(3))
     }
 }

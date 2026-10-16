@@ -9,7 +9,9 @@ import it.fotofesta.tv.model.PhotoItem
 import it.fotofesta.tv.model.combineWithGuests
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Raccolta attiva dell'ultima sorgente scelta (Google Foto, cartella USB o foto demo), con le foto
@@ -26,7 +28,10 @@ class ActiveCollection(private val context: Context) {
             "USB" -> settings.loadUsbTree()?.let { scanUsb(Uri.parse(it)) }.orEmpty()
             else -> emptyList()
         }
-        val guests = context.appServices.guests.store.photos.value
+        // All'avvio a freddo del salvaschermo le foto di una festa interrotta si stanno ancora riprendendo.
+        val party = context.appServices.guests
+        withTimeoutOrNull(3_000) { party.ready.first { it } }
+        val guests = party.store.photos.value
             .filter { it.approved }
             .map { it.toPhotoItem(context) }
         combineWithGuests(
