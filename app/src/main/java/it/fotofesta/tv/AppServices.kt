@@ -10,10 +10,13 @@ import it.fotofesta.tv.google.GoogleSelectionStore
 import it.fotofesta.tv.google.SecureTokenStore
 import it.fotofesta.tv.guests.GuestParty
 import it.fotofesta.tv.guests.PhoneGame
+import it.fotofesta.tv.icloud.ICloudAlbumClient
+import it.fotofesta.tv.icloud.ICloudAlbumStream
 import it.fotofesta.tv.guests.GuestPhotoStore
 import it.fotofesta.tv.media.VideoDataSources
 import it.fotofesta.tv.network.LanHttp
 import it.fotofesta.tv.network.NetworkMedia
+import it.fotofesta.tv.network.ScreenSize
 import okhttp3.OkHttpClient
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -51,10 +54,14 @@ class AppServices(context: Context) {
     val lanHttp = LanHttp()
 
     /** Cartelle dei server multimediali (DLNA) della rete di casa. */
-    val networkMedia = NetworkMedia(lanHttp, NetworkMedia.imageMimeTypes(Build.VERSION.SDK_INT))
+    val networkMedia = NetworkMedia(lanHttp, NetworkMedia.imageMimeTypes(Build.VERSION.SDK_INT), screenSize(context))
 
-    /** Da dove il lettore legge i video: TV e disco USB, rete di casa, Google Foto. */
-    val videoDataSources = VideoDataSources(context.applicationContext, lanHttp, googleStream, http)
+    /** Album condiviso di iCloud in uso, con gli indirizzi dei file che Apple fa scadere. */
+    val icloudClient = ICloudAlbumClient(http)
+    val icloudStream = ICloudAlbumStream(icloudClient, screenSize(context))
+
+    /** Da dove il lettore legge i video: TV e disco USB, rete di casa, Google Foto, iCloud. */
+    val videoDataSources = VideoDataSources(context.applicationContext, lanHttp, googleStream, icloudStream, http)
 
     /** Gioco con i telefoni: la TV fa le domande, gli invitati rispondono dalla pagina della festa. */
     val phoneGame = PhoneGame()
@@ -64,6 +71,11 @@ class AppServices(context: Context) {
 
     private companion object {
         const val MB = 1024L * 1024
+
+        /** Le foto in rete e su iCloud si chiedono nella versione che basta a riempire lo schermo. */
+        fun screenSize(context: Context): ScreenSize = context.resources.displayMetrics.let {
+            ScreenSize(maxOf(it.widthPixels, it.heightPixels), minOf(it.widthPixels, it.heightPixels))
+        }
 
         fun guestStore(context: Context): GuestPhotoStore {
             val activities = context.getSystemService(ActivityManager::class.java)

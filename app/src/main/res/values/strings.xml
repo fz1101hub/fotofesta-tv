@@ -315,7 +315,7 @@
     <string name="home_tile_google_body">Pick on your phone</string>
     <string name="home_tile_guests_body">Photos from phones, with a QR code</string>
     <string name="home_tile_guests_title">Guests</string>
-    <string name="home_tile_usb_body">USB drive or home network</string>
+    <string name="home_tile_usb_body">USB, home network and iCloud</string>
     <string name="settings_cat_music">Music</string>
     <string name="settings_cat_party">Party</string>
     <string name="settings_cat_privacy">Account and privacy</string>
@@ -359,7 +359,7 @@
     </plurals>
     <string name="home_folders_title">Folders</string>
     <string name="home_network_title">Home network</string>
-    <string name="browser_roots_hint_photos">Drives connected to the TV and media servers on your home network.</string>
+    <string name="browser_roots_hint_photos">Drives connected to the TV, home network servers and iCloud shared albums.</string>
     <string name="browser_section_drives">Drives</string>
     <string name="browser_section_network">Home network (DLNA)</string>
     <string name="browser_no_usb">No USB drive connected.</string>
@@ -377,4 +377,36 @@
     <string name="settings_video_sound">Video sound</string>
     <string name="settings_video_sound_body">While a video plays its sound, the background music pauses.</string>
     <string name="video_unsupported">This video can’t be played on this TV.</string>
+    <string name="icloud_kicker">iCloud</string>
+    <string name="icloud_title">iCloud Shared Album</string>
+    <string name="icloud_subtitle">Photos and videos from a shared album with “Public Website” turned on, from iPhone, iPad or Mac.</string>
+    <string name="icloud_steps">On iPhone, open the shared album in the Photos app, tap the people icon and turn on “Public Website”. Then scan the QR code and paste the link on your phone, or type here the code that follows “#” in the link.</string>
+    <string name="icloud_qr">Scan with your phone and paste the link</string>
+    <string name="icloud_no_network">Connect the TV to your home network to use the QR code.</string>
+    <string name="icloud_field">Album link or code</string>
+    <string name="icloud_open">Open</string>
+    <string name="icloud_loading">Opening the album…</string>
+    <string name="icloud_use">Use this album</string>
+    <string name="icloud_album_by">by %1$s</string>
+    <string name="icloud_note">The album is public: anyone with the link can see it. Apple doesn’t document this feature: if it changes, the album may not open until the app is updated.</string>
+    <string name="icloud_error_link">That’s not an iCloud shared album link: you need the “Public Website” link.</string>
+    <string name="icloud_error_not_found">Album not found: check the link and that “Public Website” is still on.</string>
+    <string name="icloud_error_unreachable">iCloud isn’t responding: check the internet connection and try again.</string>
+    <string name="icloud_error_changed">Apple has changed the shared album page: the album can’t be opened until the app is updated.</string>
+    <string name="icloud_error_empty">The album is empty.</string>
+    <string name="browser_section_icloud">iCloud</string>
+    <string name="browser_icloud_hint">With the album’s public link, from iPhone</string>
+    <string name="home_icloud_title">iCloud album</string>
+    <plurals name="source_icloud">
+        <item quantity="one">iCloud album · %1$d item</item>
+        <item quantity="other">iCloud album · %1$d items</item>
+    </plurals>
+    <plurals name="icloud_photo_count">
+        <item quantity="one">%1$d photo</item>
+        <item quantity="other">%1$d photos</item>
+    </plurals>
+    <plurals name="icloud_video_count">
+        <item quantity="one">%1$d video</item>
+        <item quantity="other">%1$d videos</item>
+    </plurals>
 </resources>

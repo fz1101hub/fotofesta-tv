@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Lan
@@ -58,7 +59,9 @@ fun FileBrowserScreen(
     onUseMusicFolder: () -> Unit,
     onSystemPicker: () -> Unit,
     onSearchNetwork: () -> Unit,
+    onICloud: () -> Unit,
     onBack: () -> Unit,
+    icloudAlbum: String? = null,
 ) {
     val photos = state.kind == BrowserKind.PHOTOS
     val focusKey = state.directory ?: "roots"
@@ -190,6 +193,16 @@ fun FileBrowserScreen(
                                 modifier = if (firstFocus && state.servers.isEmpty()) Modifier.initialFocus(focusKey) else Modifier,
                             )
                         }
+                    }
+                    // Album condiviso di iCloud con il link pubblico: per chi ha le foto su iPhone.
+                    item(key = "icloud") { SectionLabel(stringResource(R.string.browser_section_icloud)) }
+                    item(key = "icloud-album") {
+                        BrowserRow(
+                            label = stringResource(R.string.icloud_title),
+                            detail = icloudAlbum ?: stringResource(R.string.browser_icloud_hint),
+                            icon = Icons.Rounded.Cloud,
+                            onClick = onICloud,
+                        )
                     }
                 }
             } else {

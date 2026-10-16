@@ -314,7 +314,7 @@
     <string name="home_tile_google_body">Auf dem Smartphone wählen</string>
     <string name="home_tile_guests_body">Fotos vom Smartphone per QR‑Code</string>
     <string name="home_tile_guests_title">Gäste</string>
-    <string name="home_tile_usb_body">USB oder Heimnetz</string>
+    <string name="home_tile_usb_body">USB, Heimnetz und iCloud</string>
     <string name="settings_cat_music">Musik</string>
     <string name="settings_cat_party">Party</string>
     <string name="settings_cat_privacy">Konto und Datenschutz</string>
@@ -358,7 +358,7 @@
     </plurals>
     <string name="home_folders_title">Ordner</string>
     <string name="home_network_title">Heimnetz</string>
-    <string name="browser_roots_hint_photos">Mit dem Fernseher verbundene Laufwerke und Medienserver im Heimnetz.</string>
+    <string name="browser_roots_hint_photos">Mit dem Fernseher verbundene Laufwerke, Server im Heimnetz und geteilte iCloud-Alben.</string>
     <string name="browser_section_drives">Laufwerke</string>
     <string name="browser_section_network">Heimnetz (DLNA)</string>
     <string name="browser_no_usb">Kein USB-Speicher verbunden.</string>
@@ -376,4 +376,36 @@
     <string name="settings_video_sound">Ton der Videos</string>
     <string name="settings_video_sound_body">Während ein Video Ton hat, pausiert die Hintergrundmusik.</string>
     <string name="video_unsupported">Dieses Video kann auf diesem Fernseher nicht abgespielt werden.</string>
+    <string name="icloud_kicker">iCloud</string>
+    <string name="icloud_title">Geteiltes iCloud-Album</string>
+    <string name="icloud_subtitle">Fotos und Videos aus einem geteilten Album mit aktivierter „Öffentlicher Website“, von iPhone, iPad oder Mac.</string>
+    <string name="icloud_steps">Öffne auf dem iPhone das geteilte Album in der Fotos-App, tippe auf das Personensymbol und aktiviere „Öffentliche Website“. Scanne dann den QR-Code und füge den Link auf dem Handy ein, oder gib hier den Code ein, der im Link nach „#“ steht.</string>
+    <string name="icloud_qr">Mit dem Handy scannen und den Link einfügen</string>
+    <string name="icloud_no_network">Verbinde den Fernseher mit dem Heimnetz, um den QR-Code zu nutzen.</string>
+    <string name="icloud_field">Link oder Code des Albums</string>
+    <string name="icloud_open">Öffnen</string>
+    <string name="icloud_loading">Album wird geöffnet…</string>
+    <string name="icloud_use">Dieses Album verwenden</string>
+    <string name="icloud_album_by">von %1$s</string>
+    <string name="icloud_note">Das Album ist öffentlich: Jeder mit dem Link kann es sehen. Apple dokumentiert diese Funktion nicht: Ändert sie sich, lässt sich das Album möglicherweise erst nach einem App-Update wieder öffnen.</string>
+    <string name="icloud_error_link">Das ist kein Link zu einem geteilten iCloud-Album: Du brauchst den Link der „Öffentlichen Website“.</string>
+    <string name="icloud_error_not_found">Album nicht gefunden: Prüfe den Link und ob „Öffentliche Website“ noch aktiviert ist.</string>
+    <string name="icloud_error_unreachable">iCloud antwortet nicht: Prüfe die Internetverbindung und versuche es erneut.</string>
+    <string name="icloud_error_changed">Apple hat die Seite der geteilten Alben geändert: Das Album lässt sich erst nach einem App-Update öffnen.</string>
+    <string name="icloud_error_empty">Das Album ist leer.</string>
+    <string name="browser_section_icloud">iCloud</string>
+    <string name="browser_icloud_hint">Mit dem öffentlichen Link des Albums, vom iPhone</string>
+    <string name="home_icloud_title">iCloud-Album</string>
+    <plurals name="source_icloud">
+        <item quantity="one">iCloud-Album · %1$d Element</item>
+        <item quantity="other">iCloud-Album · %1$d Elemente</item>
+    </plurals>
+    <plurals name="icloud_photo_count">
+        <item quantity="one">%1$d Foto</item>
+        <item quantity="other">%1$d Fotos</item>
+    </plurals>
+    <plurals name="icloud_video_count">
+        <item quantity="one">%1$d Video</item>
+        <item quantity="other">%1$d Videos</item>
+    </plurals>
 </resources>

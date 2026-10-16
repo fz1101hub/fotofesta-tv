@@ -48,6 +48,7 @@ fun PhotoRef.coilModel(): Any = when (this) {
     is PhotoRef.GooglePhoto -> this
     is PhotoRef.GuestPhoto -> this
     is PhotoRef.NetworkPhoto -> this
+    is PhotoRef.ICloudPhoto -> this
 }
 
 @Composable

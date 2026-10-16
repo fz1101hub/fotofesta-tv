@@ -470,6 +470,8 @@ private fun Caption(photo: PhotoItem, state: AppState) {
     val title = when (photo.source) {
         SourceType.GUESTS -> photo.sender?.let { stringResource(R.string.guest_photo_from, it) } ?: stringResource(R.string.guest_photo)
         SourceType.DEMO -> photo.title
+        // Album iCloud: la didascalia scritta su iPhone, altrimenti chi l'ha aggiunta all'album.
+        SourceType.ICLOUD -> photo.title.ifBlank { null } ?: photo.sender?.let { stringResource(R.string.guest_photo_from, it) }
         else -> PhotoCaption.title(photo.title, (photo.ref as? PhotoRef.LocalFile)?.let { File(it.path).parentFile?.name })
     }
     val received = photo.receivedAtMillis?.let { stringResource(R.string.slideshow_received_at, rememberTimeText(it)) }

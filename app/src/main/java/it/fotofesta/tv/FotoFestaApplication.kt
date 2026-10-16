@@ -10,6 +10,7 @@ import coil.ImageLoaderFactory
 import it.fotofesta.tv.google.GooglePhotosPickerRepository
 import it.fotofesta.tv.ui.GooglePhotoFetcher
 import it.fotofesta.tv.ui.GuestPhotoFetcher
+import it.fotofesta.tv.ui.ICloudPhotoFetcher
 import it.fotofesta.tv.ui.NetworkPhotoFetcher
 import kotlin.concurrent.thread
 
@@ -51,6 +52,8 @@ class FotoFestaApplication : Application(), ImageLoaderFactory {
             add(GuestPhotoFetcher.Key())
             add(NetworkPhotoFetcher.Factory(services.lanHttp))
             add(NetworkPhotoFetcher.Key())
+            add(ICloudPhotoFetcher.Factory(services.icloudStream, services.http))
+            add(ICloudPhotoFetcher.Key())
         }
         .build()
 }

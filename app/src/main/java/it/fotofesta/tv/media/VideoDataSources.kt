@@ -15,6 +15,7 @@ import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.datasource.TransferListener
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import it.fotofesta.tv.google.GooglePhotosStream
+import it.fotofesta.tv.icloud.ICloudAlbumStream
 import it.fotofesta.tv.model.PhotoRef
 import it.fotofesta.tv.network.LanHttp
 import it.fotofesta.tv.network.LanResponse
@@ -24,6 +25,7 @@ import java.io.File
 import java.io.IOException
 
 private const val GOOGLE_SCHEME = "fotofesta-google"
+private const val ICLOUD_SCHEME = "fotofesta-icloud"
 
 /** Indirizzo da dare al lettore video per un elemento della raccolta. */
 fun PhotoRef.videoUri(): Uri = when (this) {
@@ -31,19 +33,22 @@ fun PhotoRef.videoUri(): Uri = when (this) {
     is PhotoRef.LocalUri -> Uri.parse(value)
     is PhotoRef.NetworkPhoto -> Uri.parse(url)
     is PhotoRef.GooglePhoto -> Uri.Builder().scheme(GOOGLE_SCHEME).authority("media").appendPath(mediaId).build()
+    is PhotoRef.ICloudPhoto -> Uri.Builder().scheme(ICLOUD_SCHEME).authority("media").appendPath(guid).build()
     is PhotoRef.Resource, is PhotoRef.GuestPhoto -> throw IllegalArgumentException("Non è un video: $this")
 }
 
 /**
  * Da dove il lettore video legge i byte: file e documenti dalla TV o dal disco USB, video della rete
- * di casa con [LanHttp] (l'unico HTTP in chiaro ammesso) e video di Google Foto con il token
- * dell'utente, chiesto di nuovo a ogni apertura perché scade.
+ * di casa con [LanHttp] (l'unico HTTP in chiaro ammesso), video di Google Foto con il token
+ * dell'utente, chiesto di nuovo a ogni apertura perché scade, e video degli album condivisi di
+ * iCloud dall'indirizzo che dà Apple, anch'esso rinnovato quando scade.
  */
 @OptIn(UnstableApi::class)
 class VideoDataSources(
     private val context: Context,
     private val lan: LanHttp,
     googleStream: GooglePhotosStream,
+    icloudStream: ICloudAlbumStream,
     http: OkHttpClient,
 ) : DataSource.Factory {
     private val local = DefaultDataSource.Factory(context)
@@ -63,10 +68,24 @@ class VideoDataSources(
             .withAdditionalHeaders(mapOf("Authorization" to "Bearer ${access.accessToken}"))
     }
 
+    private val icloud = ResolvingDataSource.Factory(OkHttpDataSource.Factory(http)) { spec ->
+        if (spec.uri.scheme != ICLOUD_SCHEME) return@Factory spec
+        val guid = spec.uri.lastPathSegment ?: throw IOException("Video iCloud senza identificativo")
+        val url = try {
+            runBlocking { icloudStream.mediaUrl(guid) }
+        } catch (failure: IOException) {
+            throw failure
+        } catch (failure: Exception) {
+            throw IOException("Video iCloud non disponibile", failure)
+        }
+        spec.withUri(Uri.parse(url))
+    }
+
     override fun createDataSource(): DataSource = RoutingDataSource { uri ->
         when (uri.scheme?.lowercase()) {
             "http" -> LanDataSource(lan)
             GOOGLE_SCHEME -> google.createDataSource()
+            ICLOUD_SCHEME -> icloud.createDataSource()
             else -> local.createDataSource()
         }
     }

@@ -44,6 +44,13 @@ import it.fotofesta.tv.model.SlideshowSettings
 import it.fotofesta.tv.model.SourceType
 import it.fotofesta.tv.model.UserFacingException
 import it.fotofesta.tv.model.combineWithGuests
+import it.fotofesta.tv.icloud.ICloudAlbum
+import it.fotofesta.tv.icloud.ICloudAlbumException
+import it.fotofesta.tv.icloud.ICloudLink
+import it.fotofesta.tv.icloud.ICloudPairingTexts
+import it.fotofesta.tv.model.ICloudLinkState
+import it.fotofesta.tv.network.LinkPairingServer
+import it.fotofesta.tv.network.LocalAddress
 import it.fotofesta.tv.network.NetworkFolder
 import it.fotofesta.tv.network.NetworkMedia
 import it.fotofesta.tv.network.NetworkPath
@@ -84,6 +91,13 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private val googleImport = GoogleImportFlow(googleAuth, googlePicker)
     private val guests = services.guests
     private val networkMedia = services.networkMedia
+    private val icloudClient = services.icloudClient
+    private val icloudStream = services.icloudStream
+    /** Album iCloud trovato e mostrato in anteprima, in attesa di "Usa questo album". */
+    private var icloudPreview: ICloudAlbum? = null
+    private var icloudJob: Job? = null
+    private var icloudRefreshJob: Job? = null
+    private var pairingServer: LinkPairingServer? = null
     /** Gioco con i telefoni, per "Foto misteriosa" e "Chi l'ha scattata?" durante la festa. */
     val phoneGame = services.phoneGame
     private val playbackOrder = PlaybackOrder()
@@ -168,6 +182,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             if (folder != null) loadUsbFolder(folder) else settingsRepository.loadUsbTree()?.let { stored -> loadUsb(Uri.parse(stored)) }
         }
         if (lastSource == "NETWORK") settingsRepository.loadNetworkFolder()?.let { loadNetworkFolder(it) }
+        if (lastSource == "ICLOUD") settingsRepository.loadICloudToken()?.let { restoreICloudAlbum(it) }
+        _state.update { it.copy(icloud = it.icloud.copy(savedName = settingsRepository.loadICloudName())) }
         viewModelScope.launch {
             googleStream.gone.collect { gone -> if (gone != null) onGoogleSelectionGone(gone) }
         }
@@ -195,6 +211,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             Destination.GUEST_REVIEW, Destination.AWARDS -> navigate(Destination.GUESTS)
             Destination.GUEST_WIFI -> navigate(wifiReturnTo)
             Destination.FILE_BROWSER -> if (_state.value.browser.directory != null) browserUp() else closeBrowser()
+            Destination.ICLOUD_LINK -> closeICloudLink()
         }
     }
 
@@ -623,6 +640,170 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         browserJob?.cancel()
         discoveryJob?.cancel()
         navigate(if (_state.value.browser.kind == BrowserKind.MUSIC) Destination.SETTINGS else Destination.HOME)
+    }
+
+    /**
+     * Collegamento di un album condiviso di iCloud: la TV mostra un QR che apre sul telefono una
+     * pagina dove incollare il link; in alternativa il codice si scrive con il telecomando.
+     */
+    fun openICloudLink() {
+        icloudJob?.cancel()
+        icloudPreview = null
+        _state.update {
+            it.copy(
+                destination = Destination.ICLOUD_LINK,
+                message = null,
+                icloud = ICloudLinkState(savedName = it.icloud.savedName),
+            )
+        }
+        startPairing()
+        // L'album già in uso compare subito, pronto per essere ripreso.
+        settingsRepository.loadICloudToken()?.let { previewICloudAlbum(it) }
+    }
+
+    private fun startPairing() {
+        pairingServer?.close()
+        pairingServer = null
+        viewModelScope.launch {
+            val url = withContext(Dispatchers.IO) {
+                runCatching {
+                    val address = LocalAddress.current(context) ?: return@runCatching null
+                    val key = java.util.UUID.randomUUID().toString().replace("-", "")
+                    val server = LinkPairingServer(key, ICloudPairingTexts::forLanguage) { link ->
+                        val token = ICloudLink.token(link)
+                        // Il link arriva dal telefono: la TV apre l'album e lo mostra in anteprima.
+                        if (token != null) viewModelScope.launch { previewICloudAlbum(token) }
+                        token != null
+                    }
+                    val port = server.start(address)
+                    pairingServer = server
+                    "http://${address.hostAddress}:$port/?k=$key"
+                }.onFailure { Log.w(TAG, "Pagina per il link iCloud non avviata", it) }.getOrNull()
+            }
+            if (_state.value.destination == Destination.ICLOUD_LINK) {
+                _state.update { it.copy(icloud = it.icloud.copy(pairingUrl = url)) }
+            } else {
+                stopPairing()
+            }
+        }
+    }
+
+    private fun stopPairing() {
+        val server = pairingServer
+        pairingServer = null
+        if (server != null) viewModelScope.launch(Dispatchers.IO) { server.close() }
+    }
+
+    /** Link o codice scritto con il telecomando, o arrivato dal telefono. */
+    fun previewICloudAlbum(input: String) {
+        val token = ICloudLink.token(input)
+        if (token == null) {
+            _state.update { it.copy(icloud = it.icloud.copy(loading = false, errorRes = R.string.icloud_error_link, token = null)) }
+            return
+        }
+        icloudJob?.cancel()
+        _state.update { it.copy(icloud = it.icloud.copy(loading = true, errorRes = null, token = null)) }
+        icloudJob = viewModelScope.launch {
+            try {
+                val album = icloudClient.album(token)
+                if (album.items.isEmpty()) {
+                    _state.update { it.copy(icloud = it.icloud.copy(loading = false, errorRes = R.string.icloud_error_empty)) }
+                    return@launch
+                }
+                icloudPreview = album
+                _state.update {
+                    it.copy(
+                        icloud = it.icloud.copy(
+                            loading = false,
+                            errorRes = null,
+                            token = album.token,
+                            name = album.name,
+                            owner = album.owner,
+                            photos = album.photoCount,
+                            videos = album.videoCount,
+                        ),
+                    )
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                Log.w(TAG, "Album iCloud non aperto", failure)
+                _state.update { it.copy(icloud = it.icloud.copy(loading = false, errorRes = icloudErrorRes(failure))) }
+            }
+        }
+    }
+
+    /** "Usa questo album": diventa la raccolta e si aggiorna da solo quando l'album cambia. */
+    fun useICloudAlbum() {
+        val album = icloudPreview ?: return
+        cancelPendingSources()
+        applyICloudAlbum(album)
+        settingsRepository.saveICloudAlbum(album.token, album.name)
+        discardGoogleSelection()
+        stopPairing()
+        _state.update {
+            it.copy(
+                destination = Destination.HOME,
+                message = quantityString(R.plurals.message_usb_ready, album.items.size),
+                icloud = it.icloud.copy(savedName = album.name),
+            )
+        }
+    }
+
+    fun closeICloudLink() {
+        icloudJob?.cancel()
+        stopPairing()
+        navigate(Destination.FILE_BROWSER)
+    }
+
+    private fun applyICloudAlbum(album: ICloudAlbum) {
+        icloudStream.use(album)
+        showPhotos(album.toPhotos(), quantityString(R.plurals.source_icloud, album.items.size), SourceType.ICLOUD, icloudTitle(album))
+        startICloudRefresh(album.token)
+    }
+
+    private fun icloudTitle(album: ICloudAlbum) = album.name.ifBlank { context.getString(R.string.home_icloud_title) }
+
+    /** All'avvio: l'album salvato, se è ancora pubblico. */
+    private fun restoreICloudAlbum(token: String) {
+        usbJob = viewModelScope.launch {
+            try {
+                applyICloudAlbum(icloudClient.album(token))
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                Log.w(TAG, "Album iCloud non ripristinato", failure)
+                showMessage(context.getString(icloudErrorRes(failure)))
+            }
+        }
+    }
+
+    /**
+     * Le foto aggiunte all'album dagli iPhone compaiono da sole: l'elenco si rilegge ogni pochi
+     * minuti finché l'album è la raccolta in uso.
+     */
+    private fun startICloudRefresh(token: String) {
+        icloudRefreshJob?.cancel()
+        icloudRefreshJob = viewModelScope.launch {
+            while (true) {
+                delay(ICLOUD_REFRESH_MS)
+                if (baseSource != SourceType.ICLOUD) return@launch
+                val album = runCatching { icloudClient.album(token) }.getOrNull() ?: continue
+                if (baseSource != SourceType.ICLOUD) return@launch
+                val current = icloudStream.album
+                if (current != null && current.items.map { it.guid } == album.items.map { it.guid }) continue
+                icloudStream.use(album)
+                basePhotos = album.toPhotos()
+                baseLabel = quantityString(R.plurals.source_icloud, album.items.size)
+                applyCollection(restart = false)
+            }
+        }
+    }
+
+    private fun icloudErrorRes(failure: Throwable): Int = when ((failure as? ICloudAlbumException)?.reason) {
+        ICloudAlbumException.Reason.NOT_FOUND -> R.string.icloud_error_not_found
+        ICloudAlbumException.Reason.CHANGED -> R.string.icloud_error_changed
+        else -> R.string.icloud_error_unreachable
     }
 
     fun showStoragePermissionDenied(kind: BrowserKind) = showMessage(
@@ -1056,6 +1237,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         context.resources.getQuantityString(id, count, count)
 
     override fun onCleared() {
+        pairingServer?.close()
+        icloudRefreshJob?.cancel()
         googleJob?.cancel()
         browserJob?.cancel()
         usbJob?.cancel()
@@ -1067,5 +1250,6 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private companion object {
         const val TAG = "FotoFestaViewModel"
         const val INDEX_TIMEOUT_MS = 90_000L
+        const val ICLOUD_REFRESH_MS = 5 * 60_000L
     }
 }

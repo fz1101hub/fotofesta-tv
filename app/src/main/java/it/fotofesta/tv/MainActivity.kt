@@ -61,6 +61,7 @@ import it.fotofesta.tv.ui.GamesScreen
 import it.fotofesta.tv.ui.GoogleConnectScreen
 import it.fotofesta.tv.ui.GuestReviewScreen
 import it.fotofesta.tv.ui.GuestWifiScreen
+import it.fotofesta.tv.ui.ICloudLinkScreen
 import it.fotofesta.tv.ui.GuestsScreen
 import it.fotofesta.tv.ui.HomeScreen
 import it.fotofesta.tv.ui.MemoryGameScreen
@@ -158,6 +159,8 @@ class MainActivity : ComponentActivity() {
                     // Durante la festa il QR deve restare visibile mentre gli invitati lo inquadrano.
                     Destination.GUESTS -> state.guests.active
                     Destination.GUEST_REVIEW, Destination.AWARDS -> true
+                    // Il QR per incollare il link dell'album deve restare visibile.
+                    Destination.ICLOUD_LINK -> true
                     else -> false
                 }
                 DisposableEffect(keepScreenOn) {
@@ -281,7 +284,15 @@ class MainActivity : ComponentActivity() {
                                 launchSystemPicker(state.browser.kind, { usbPicker.launch(null) }, { musicPicker.launch(arrayOf("audio/*")) })
                             },
                             onSearchNetwork = viewModel::browserSearchNetwork,
+                            onICloud = viewModel::openICloudLink,
                             onBack = viewModel::closeBrowser,
+                            icloudAlbum = state.icloud.savedName,
+                        )
+                        Destination.ICLOUD_LINK -> ICloudLinkScreen(
+                            state = state.icloud,
+                            onSubmit = viewModel::previewICloudAlbum,
+                            onUse = viewModel::useICloudAlbum,
+                            onBack = viewModel::closeICloudLink,
                         )
                         Destination.GUEST_WIFI -> GuestWifiScreen(
                             initialName = state.guests.wifiName,

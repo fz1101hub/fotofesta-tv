@@ -4,7 +4,7 @@ import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import it.fotofesta.tv.R
 
-enum class Destination { HOME, SETTINGS, SLIDESHOW, GAMES, MEMORY, MYSTERY, PUZZLE, WHO_TOOK_IT, GOOGLE_CONNECT, GUESTS, GUEST_REVIEW, AWARDS, GUEST_WIFI, FILE_BROWSER }
+enum class Destination { HOME, SETTINGS, SLIDESHOW, GAMES, MEMORY, MYSTERY, PUZZLE, WHO_TOOK_IT, GOOGLE_CONNECT, GUESTS, GUEST_REVIEW, AWARDS, GUEST_WIFI, FILE_BROWSER, ICLOUD_LINK }
 
 enum class TransitionType(@StringRes val labelRes: Int) {
     FADE(R.string.transition_fade),
@@ -44,7 +44,7 @@ data class CollectionInfo(
 /** Errore da mostrare all'utente con un testo localizzato. */
 class UserFacingException(@StringRes val messageRes: Int) : Exception()
 
-enum class SourceType { DEMO, USB, NETWORK, GOOGLE_PHOTOS, GUESTS }
+enum class SourceType { DEMO, USB, NETWORK, ICLOUD, GOOGLE_PHOTOS, GUESTS }
 
 sealed interface PhotoRef {
     data class Resource(@DrawableRes val drawable: Int) : PhotoRef
@@ -59,6 +59,9 @@ sealed interface PhotoRef {
 
     /** Foto di un server multimediale della rete di casa, caricata al momento (NetworkPhotoFetcher). */
     data class NetworkPhoto(val url: String) : PhotoRef
+
+    /** Foto o video di un album condiviso di iCloud, caricato al momento (ICloudPhotoFetcher). */
+    data class ICloudPhoto(val guid: String) : PhotoRef
 }
 
 data class PhotoItem(
@@ -170,6 +173,22 @@ data class BrowserState(
     val trail: List<BrowserEntry> = emptyList(),
 )
 
+/** Collegamento di un album condiviso di iCloud: QR per il telefono, ricerca e anteprima dell'album. */
+data class ICloudLinkState(
+    /** Indirizzo della pagina per incollare il link dal telefono; null se la TV non è in rete. */
+    val pairingUrl: String? = null,
+    val loading: Boolean = false,
+    @StringRes val errorRes: Int? = null,
+    /** Album trovato, pronto per "Usa questo album". */
+    val token: String? = null,
+    val name: String = "",
+    val owner: String? = null,
+    val photos: Int = 0,
+    val videos: Int = 0,
+    /** Album già in uso, mostrato nel browser delle cartelle. */
+    val savedName: String? = null,
+)
+
 data class MemoryCard(
     val key: Int,
     val photo: PhotoItem,
@@ -194,6 +213,7 @@ data class AppState(
     val message: String? = null,
     val guests: GuestsUiState = GuestsUiState(),
     val browser: BrowserState = BrowserState(),
+    val icloud: ICloudLinkState = ICloudLinkState(),
     /**
      * Cresce a ogni cambio di foto voluto (successiva, precedente, nuova raccolta). Il cambio
      * automatico si basa su questo e non sull'indice, che si sposta quando arrivano o spariscono

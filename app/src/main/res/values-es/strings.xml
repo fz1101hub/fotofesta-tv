@@ -330,7 +330,7 @@
     <string name="home_tile_google_body">Elige desde el teléfono</string>
     <string name="home_tile_guests_body">Fotos desde el teléfono, con un QR</string>
     <string name="home_tile_guests_title">Invitados</string>
-    <string name="home_tile_usb_body">USB o red local</string>
+    <string name="home_tile_usb_body">USB, red local e iCloud</string>
     <string name="settings_cat_music">Música</string>
     <string name="settings_cat_party">Fiesta</string>
     <string name="settings_cat_privacy">Cuenta y privacidad</string>
@@ -381,7 +381,7 @@
     </plurals>
     <string name="home_folders_title">Carpetas</string>
     <string name="home_network_title">Red local</string>
-    <string name="browser_roots_hint_photos">Unidades conectadas a la TV y servidores multimedia de la red local.</string>
+    <string name="browser_roots_hint_photos">Unidades conectadas a la TV, servidores de la red local y álbumes compartidos de iCloud.</string>
     <string name="browser_section_drives">Unidades</string>
     <string name="browser_section_network">Red local (DLNA)</string>
     <string name="browser_no_usb">No hay ninguna unidad USB conectada.</string>
@@ -400,4 +400,39 @@
     <string name="settings_video_sound">Sonido de los vídeos</string>
     <string name="settings_video_sound_body">Mientras suena un vídeo, la música de fondo se detiene.</string>
     <string name="video_unsupported">Este vídeo no se puede reproducir en esta TV.</string>
+    <string name="icloud_kicker">iCloud</string>
+    <string name="icloud_title">Álbum compartido de iCloud</string>
+    <string name="icloud_subtitle">Fotos y vídeos de un álbum compartido con «Sitio web público» activado, desde iPhone, iPad o Mac.</string>
+    <string name="icloud_steps">En el iPhone, abre el álbum compartido en la app Fotos, toca el icono de las personas y activa «Sitio web público». Después escanea el código QR y pega el enlace en el teléfono, o escribe aquí el código que va después de «#» en el enlace.</string>
+    <string name="icloud_qr">Escanea con el móvil y pega el enlace</string>
+    <string name="icloud_no_network">Conecta la TV a la red local para usar el código QR.</string>
+    <string name="icloud_field">Enlace o código del álbum</string>
+    <string name="icloud_open">Abrir</string>
+    <string name="icloud_loading">Abriendo el álbum…</string>
+    <string name="icloud_use">Usar este álbum</string>
+    <string name="icloud_album_by">de %1$s</string>
+    <string name="icloud_note">El álbum es público: cualquiera con el enlace puede verlo. Apple no documenta esta función: si cambia, puede que el álbum no se abra hasta que se actualice la app.</string>
+    <string name="icloud_error_link">No es el enlace de un álbum compartido de iCloud: necesitas el enlace del «Sitio web público».</string>
+    <string name="icloud_error_not_found">No se ha encontrado el álbum: comprueba el enlace y que «Sitio web público» siga activado.</string>
+    <string name="icloud_error_unreachable">iCloud no responde: comprueba la conexión a internet e inténtalo de nuevo.</string>
+    <string name="icloud_error_changed">Apple ha cambiado la página de los álbumes compartidos: el álbum no se puede abrir hasta que se actualice la app.</string>
+    <string name="icloud_error_empty">El álbum está vacío.</string>
+    <string name="browser_section_icloud">iCloud</string>
+    <string name="browser_icloud_hint">Con el enlace público del álbum, desde el iPhone</string>
+    <string name="home_icloud_title">Álbum de iCloud</string>
+    <plurals name="source_icloud">
+        <item quantity="one">Álbum de iCloud · %1$d elemento</item>
+        <item quantity="many">Álbum de iCloud · %1$d elementos</item>
+        <item quantity="other">Álbum de iCloud · %1$d elementos</item>
+    </plurals>
+    <plurals name="icloud_photo_count">
+        <item quantity="one">%1$d foto</item>
+        <item quantity="many">%1$d fotos</item>
+        <item quantity="other">%1$d fotos</item>
+    </plurals>
+    <plurals name="icloud_video_count">
+        <item quantity="one">%1$d vídeo</item>
+        <item quantity="many">%1$d vídeos</item>
+        <item quantity="other">%1$d vídeos</item>
+    </plurals>
 </resources>

@@ -106,6 +106,15 @@ class SettingsRepository(context: Context) {
             .apply()
     }
 
+    /** Album condiviso di iCloud: il codice del link pubblico e il nome, per il browser. */
+    fun saveICloudAlbum(token: String, name: String) {
+        sources.edit().putString("icloud_token", token).putString("icloud_name", name).putString("last_source", "ICLOUD").apply()
+    }
+
+    fun loadICloudToken(): String? = sources.getString("icloud_token", null)
+
+    fun loadICloudName(): String? = sources.getString("icloud_name", null)
+
     fun loadNetworkFolder(): NetworkFolder? {
         val udn = sources.getString("network_udn", null) ?: return null
         val location = sources.getString("network_location", null) ?: return null

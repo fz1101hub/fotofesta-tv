@@ -34,6 +34,8 @@ class ActiveCollection(private val context: Context) {
                 ?: settings.loadUsbTree()?.let { scanUsb(Uri.parse(it)) }.orEmpty()
             // Le foto in rete si caricano dal server di casa: serve che sia acceso.
             "NETWORK" -> settings.loadNetworkFolder()?.let(::scanNetwork).orEmpty()
+            // Le foto di iCloud si caricano da Apple durante il salvaschermo: serve la connessione.
+            "ICLOUD" -> settings.loadICloudToken()?.let { loadICloud(it) }.orEmpty()
             else -> emptyList()
         }
         // All'avvio a freddo del salvaschermo le foto di una festa interrotta si stanno ancora riprendendo.
@@ -63,6 +65,19 @@ class ActiveCollection(private val context: Context) {
         val server = media.find(folder.udn, folder.location) ?: return@runCatching emptyList()
         media.scanPhotos(server, folder.containerId)
     }.onFailure { Log.w("ActiveCollection", "Cartella di rete non disponibile", it) }.getOrDefault(emptyList())
+
+    /** Album condiviso di iCloud; vuoto se non si legge (link non più pubblico, niente rete). */
+    private suspend fun loadICloud(token: String): List<PhotoItem> = try {
+        val services = context.appServices
+        val album = services.icloudClient.album(token)
+        services.icloudStream.use(album)
+        album.toPhotos()
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (failure: Exception) {
+        Log.w("ActiveCollection", "Album iCloud non disponibile", failure)
+        emptyList()
+    }
 
     private suspend fun scanUsb(treeUri: Uri): List<PhotoItem> = try {
         UsbPhotoRepository(context).scan(treeUri)

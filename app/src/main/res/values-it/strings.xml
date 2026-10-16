@@ -330,7 +330,7 @@
     <string name="home_tile_google_body">Scegli dal telefono</string>
     <string name="home_tile_guests_body">Foto dal telefono, con un QR</string>
     <string name="home_tile_guests_title">Invitati</string>
-    <string name="home_tile_usb_body">Disco USB o rete di casa</string>
+    <string name="home_tile_usb_body">USB, rete di casa e iCloud</string>
     <string name="settings_cat_music">Musica</string>
     <string name="settings_cat_party">Festa</string>
     <string name="settings_cat_privacy">Account e privacy</string>
@@ -381,7 +381,7 @@
     </plurals>
     <string name="home_folders_title">Cartelle</string>
     <string name="home_network_title">Rete di casa</string>
-    <string name="browser_roots_hint_photos">Dischi collegati alla TV e server multimediali della rete di casa.</string>
+    <string name="browser_roots_hint_photos">Dischi collegati alla TV, server della rete di casa e album condivisi iCloud.</string>
     <string name="browser_section_drives">Dischi</string>
     <string name="browser_section_network">Rete di casa (DLNA)</string>
     <string name="browser_no_usb">Nessun disco USB collegato.</string>
@@ -400,4 +400,39 @@
     <string name="settings_video_sound">Audio dei video</string>
     <string name="settings_video_sound_body">Mentre un video suona, la musica di sottofondo si ferma.</string>
     <string name="video_unsupported">Questo video non si può riprodurre su questa TV.</string>
+    <string name="icloud_kicker">iCloud</string>
+    <string name="icloud_title">Album condiviso iCloud</string>
+    <string name="icloud_subtitle">Foto e video di un album condiviso con «Sito web pubblico» attivo, da iPhone, iPad o Mac.</string>
+    <string name="icloud_steps">Su iPhone apri l\'album condiviso nell\'app Foto, tocca l\'icona delle persone e attiva «Sito web pubblico». Poi inquadra il QR e incolla il link dal telefono, oppure scrivi qui il codice che nel link viene dopo «#».</string>
+    <string name="icloud_qr">Inquadra con il telefono e incolla il link</string>
+    <string name="icloud_no_network">Collega la TV alla rete di casa per usare il QR.</string>
+    <string name="icloud_field">Link o codice dell\'album</string>
+    <string name="icloud_open">Apri</string>
+    <string name="icloud_loading">Apro l\'album…</string>
+    <string name="icloud_use">Usa questo album</string>
+    <string name="icloud_album_by">di %1$s</string>
+    <string name="icloud_note">L\'album è pubblico: chi ha il link può vederlo. Apple non documenta questa funzione: se la cambia, l\'album potrebbe non aprirsi finché l\'app non viene aggiornata.</string>
+    <string name="icloud_error_link">Non è il link di un album condiviso iCloud: serve il link del «Sito web pubblico».</string>
+    <string name="icloud_error_not_found">Album non trovato: controlla il link e che «Sito web pubblico» sia ancora attivo.</string>
+    <string name="icloud_error_unreachable">iCloud non risponde: controlla la connessione a internet e riprova.</string>
+    <string name="icloud_error_changed">Apple ha cambiato la pagina degli album condivisi: l\'album non si può aprire finché l\'app non viene aggiornata.</string>
+    <string name="icloud_error_empty">L\'album è vuoto.</string>
+    <string name="browser_section_icloud">iCloud</string>
+    <string name="browser_icloud_hint">Con il link pubblico dell\'album, da iPhone</string>
+    <string name="home_icloud_title">Album iCloud</string>
+    <plurals name="source_icloud">
+        <item quantity="one">Album iCloud · %1$d elemento</item>
+        <item quantity="many">Album iCloud · %1$d elementi</item>
+        <item quantity="other">Album iCloud · %1$d elementi</item>
+    </plurals>
+    <plurals name="icloud_photo_count">
+        <item quantity="one">%1$d foto</item>
+        <item quantity="many">%1$d foto</item>
+        <item quantity="other">%1$d foto</item>
+    </plurals>
+    <plurals name="icloud_video_count">
+        <item quantity="one">%1$d video</item>
+        <item quantity="many">%1$d video</item>
+        <item quantity="other">%1$d video</item>
+    </plurals>
 </resources>

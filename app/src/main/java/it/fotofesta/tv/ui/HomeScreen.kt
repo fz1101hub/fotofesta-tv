@@ -159,7 +159,7 @@ fun HomeScreen(
                     )
                 }
                 // Cartelle di un disco USB o di un server della rete di casa, dal browser di cartelle.
-                val folders = collection.source == SourceType.USB || collection.source == SourceType.NETWORK
+                val folders = collection.source == SourceType.USB || collection.source == SourceType.NETWORK || collection.source == SourceType.ICLOUD
                 SourceTile(
                     stringResource(R.string.home_folders_title),
                     if (folders) {
@@ -195,6 +195,7 @@ private fun collectionDetail(state: AppState): String {
     parts += when (collection.source) {
         SourceType.USB -> stringResource(R.string.home_usb_title)
         SourceType.NETWORK -> stringResource(R.string.home_network_title)
+        SourceType.ICLOUD -> stringResource(R.string.home_icloud_title)
         SourceType.GOOGLE_PHOTOS -> stringResource(R.string.home_google_title)
         SourceType.DEMO -> stringResource(R.string.home_tile_demo_body)
         SourceType.GUESTS -> stringResource(R.string.home_tile_guests_body)
