@@ -1,0 +1,28 @@
+FotoFesta TV verwandelt deinen Fernseher in einen digitalen Bilderrahmen für Partys, Familienessen und Abende mit Freunden.
+
+<b>Woher deine Fotos kommen</b>
+• Google Fotos: Scanne einen QR-Code mit deinem Smartphone, melde dich an und wähle die Fotos aus, die gezeigt werden sollen. Keine Passworteingabe mit der Fernbedienung und Zugriff nur auf die Fotos, die du auswählst.
+• Gästefotos: Gäste scannen einen QR-Code auf dem Fernseher und senden Fotos von ihrem eigenen Smartphone – über dein Heimnetz und ohne App-Installation. Neue Fotos erscheinen sofort in der Diashow, mit dem Namen des Absenders; wenn du möchtest, gibst du sie vorher mit der Fernbedienung frei.
+• USB-Festplatte oder USB-Stick: Wähle einen Ordner, auch ohne Internet. Die Fotos bleiben auf dem Speicher und werden nie kopiert.
+• Vier Demofotos, um die App sofort auszuprobieren.
+
+<b>Diashow</b>
+• 3 bis 20 Sekunden pro Foto
+• Übergänge: Überblenden, Schieben und sanfter Zoom
+• Langsamer Schwenk und Zoom (Ken-Burns-Effekt)
+• Ganzes Foto oder bildschirmfüllend, zufällige Reihenfolge ohne Wiederholungen
+• Uhr und Hintergrundmusik mit einem Titel von deinem Fernseher
+• Sleep-Timer nach 30, 60 oder 120 Minuten
+• Bildschirmschoner mit deinen Fotos, wenn der Fernseher nicht benutzt wird
+
+<b>Fotospiele</b>
+• Fotopaare: Finde die passenden Paare
+• Rätselfoto: Errate das unscharfe Bild
+
+<b>Für die Fernbedienung gemacht</b>
+Alles funktioniert mit den Pfeiltasten der Fernbedienung, mit gut sichtbarem Fokus, Texten, die vom Sofa aus lesbar sind, und einer Option zum Reduzieren von Bewegungen.
+
+<b>Datenschutz</b>
+Keine Werbung, kein Tracking und kein Server des Entwicklers. Fotos von Google werden direkt aus Google Fotos angezeigt und nie auf den Fernseher kopiert, belegen also keinen Speicherplatz. Gästefotos gelangen vom Smartphone zum Fernseher, ohne über das Internet zu gehen, bleiben während der Party im Arbeitsspeicher und werden am Ende gelöscht.
+
+Google Fotos erlaubt Apps nicht, deine gesamte Fotosammlung zu lesen: Du wählst die Fotos jedes Mal auf deinem Smartphone aus.

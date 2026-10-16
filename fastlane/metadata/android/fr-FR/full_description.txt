@@ -1,0 +1,28 @@
+FotoFesta TV transforme votre téléviseur en cadre photo numérique pour les fêtes, les dîners en famille et les soirées entre amis.
+
+<b>D’où viennent vos photos</b>
+• Google Photos : scannez un code QR avec votre téléphone, connectez-vous et choisissez les photos à afficher. Aucun mot de passe à saisir avec la télécommande, et un accès limité aux photos que vous sélectionnez.
+• Photos des invités : vos invités scannent un code QR sur le téléviseur et envoient des photos depuis leur propre téléphone, via votre réseau domestique et sans application à installer. Les nouvelles photos apparaissent aussitôt dans le diaporama avec le nom de l’expéditeur ; si vous le souhaitez, vous les approuvez d’abord avec la télécommande.
+• Disque dur ou clé USB : choisissez un dossier, même sans Internet. Les photos restent sur le support et ne sont jamais copiées.
+• Quatre photos de démonstration pour essayer l’application tout de suite.
+
+<b>Diaporama</b>
+• De 3 à 20 secondes par photo
+• Transitions en fondu, glissement et zoom doux
+• Panoramique et zoom lents (effet Ken Burns)
+• Photo entière ou plein écran, ordre aléatoire sans répétition
+• Horloge et musique de fond à partir d’un morceau présent sur votre téléviseur
+• Minuteur de veille après 30, 60 ou 120 minutes
+• Économiseur d’écran avec vos photos quand le téléviseur est inactif
+
+<b>Jeux photo</b>
+• Memory photo : retrouvez les paires
+• Photo mystère : devinez l’image floutée
+
+<b>Conçu pour la télécommande</b>
+Tout fonctionne avec les flèches de la télécommande, avec une sélection bien visible, des textes lisibles depuis le canapé et une option pour réduire les animations.
+
+<b>Confidentialité</b>
+Aucune publicité, aucun pistage et aucun serveur du développeur. Les photos Google s’affichent directement depuis Google Photos et ne sont jamais copiées sur le téléviseur : elles n’occupent donc aucun espace de stockage. Les photos des invités vont du téléphone au téléviseur sans passer par Internet, restent en mémoire pendant la fête et sont supprimées à la fin.
+
+Google Photos ne permet pas aux applications de lire toute votre bibliothèque : vous choisissez les photos depuis votre téléphone à chaque fois.

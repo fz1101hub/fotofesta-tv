@@ -1,12 +1,25 @@
-"""Testi dell'app Apple TV: genera en.lproj e it.lproj/Localizable.strings e verifica le chiavi.
+"""Testi dell'app Apple TV: genera <lingua>.lproj/Localizable.strings e InfoPlist.strings e
+verifica le chiavi.
+
+Inglese e italiano sono qui sotto; francese, spagnolo e tedesco sono in translations/<lingua>.json,
+con le stesse chiavi e gli stessi segnaposto.
 
 Uso: python3 apple/scripts/strings.py   (esce con errore se una chiave usata in L("…") manca)
 """
+import json
 import re
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+TRANSLATIONS = Path(__file__).resolve().parent / "translations"
+EXTRA_LANGUAGES = ("fr", "es", "de")
+
+# Testi di Info.plist mostrati dal sistema (richiesta di accesso alla rete locale).
+INFO_PLIST = {
+    "en": {"NSLocalNetworkUsageDescription": "FotoFesta TV receives the photos your guests send from their phones over your home network."},
+    "it": {"NSLocalNetworkUsageDescription": "FotoFesta TV riceve le foto che gli invitati mandano dal telefono attraverso la rete di casa."},
+}
 
 # chiave: (inglese, italiano)
 STRINGS = {
@@ -169,29 +182,61 @@ def escape(text: str) -> str:
     return text.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
 
 
+def load_languages(errors: list) -> tuple:
+    """Testi per lingua: {"en": {chiave: testo}, ...} e i testi di Info.plist."""
+    languages = {
+        "en": {key: values[0] for key, values in STRINGS.items()},
+        "it": {key: values[1] for key, values in STRINGS.items()},
+    }
+    info = dict(INFO_PLIST)
+    for language in EXTRA_LANGUAGES:
+        path = TRANSLATIONS / f"{language}.json"
+        if not path.exists():
+            errors.append(f"traduzione mancante: {path.name}")
+            continue
+        data = json.loads(path.read_text(encoding="utf-8"))
+        texts = data.get("strings", {})
+        missing = sorted(STRINGS.keys() - texts.keys())
+        extra = sorted(texts.keys() - STRINGS.keys())
+        errors += [f"{language}: chiave mancante {key}" for key in missing]
+        errors += [f"{language}: chiave sconosciuta {key}" for key in extra]
+        languages[language] = texts
+        info[language] = data.get("infoPlist", {})
+    for language, texts in languages.items():
+        for key, english in languages["en"].items():
+            if key in texts and PLACEHOLDER.findall(english) != PLACEHOLDER.findall(texts[key]):
+                errors.append(f"{language}: segnaposto diversi in {key}")
+        if info.get(language, {}).keys() != INFO_PLIST["en"].keys():
+            errors.append(f"{language}: testi di Info.plist incompleti")
+    return languages, info
+
+
+def write_strings(path: Path, entries: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines = ["/* Generato da apple/scripts/strings.py: modificare lì, non qui. */", ""]
+    lines += [f'"{key}" = "{escape(text)}";' for key, text in entries.items()]
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def main() -> int:
     errors = []
-    for key, (english, italian) in STRINGS.items():
-        if PLACEHOLDER.findall(english) != PLACEHOLDER.findall(italian):
-            errors.append(f"segnaposto diversi in {key}")
     used = set()
     for source in (ROOT / "FotoFestaTV/Sources").rglob("*.swift"):
         used |= set(re.findall(r'\bL\("([^"]+)"', source.read_text()))
     errors += [f"chiave mancante: {key}" for key in sorted(used - STRINGS.keys())]
     unused = sorted(STRINGS.keys() - used)
-    for index, folder in enumerate(("en.lproj", "it.lproj")):
-        directory = ROOT / "FotoFestaTV/Resources" / folder
-        directory.mkdir(parents=True, exist_ok=True)
-        lines = ["/* Generato da apple/scripts/strings.py: modificare lì, non qui. */", ""]
-        lines += [f'"{key}" = "{escape(values[index])}";' for key, values in STRINGS.items()]
-        (directory / "Localizable.strings").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    languages, info = load_languages(errors)
+    resources = ROOT / "FotoFestaTV/Resources"
+    for language, texts in languages.items():
+        # Stesso ordine delle chiavi in tutte le lingue, per confrontare i file a colpo d'occhio.
+        write_strings(resources / f"{language}.lproj/Localizable.strings", {key: texts[key] for key in STRINGS if key in texts})
+        write_strings(resources / f"{language}.lproj/InfoPlist.strings", info.get(language, {}))
     if unused:
         print("non usate:", ", ".join(unused))
     for error in errors:
         print("ERRORE:", error)
-    print(f"{len(STRINGS)} testi, {len(used)} usati nel codice")
+    print(f"{len(STRINGS)} testi in {len(languages)} lingue, {len(used)} usati nel codice")
     return 1 if errors else 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

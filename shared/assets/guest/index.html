@@ -114,8 +114,91 @@ const EN = {
   waiting: "Queued",
   summary: (done, total) => done + " of " + total + " sent",
 };
-const T = (navigator.language || "").toLowerCase().startsWith("it") ? IT : EN;
-document.documentElement.lang = T === IT ? "it" : "en";
+const FR = {
+  title: "Envoyez vos photos sur le téléviseur",
+  intro: "Choisissez des photos sur votre téléphone : elles apparaîtront dans le diaporama en quelques secondes.",
+  senderLabel: "Votre nom (facultatif)",
+  senderPlaceholder: "Affiché à côté de vos photos",
+  pick: "Choisir des photos",
+  keepOpen: "Gardez cette page ouverte jusqu’à l’envoi de vos photos.",
+  approval: "L’organisateur vérifie les photos avant qu’elles n’apparaissent sur le téléviseur.",
+  privacy: "Les photos sont envoyées uniquement au téléviseur, via le réseau domestique, sans passer par Internet. Elles sont redimensionnées à la taille de l’écran, débarrassées des données comme la position, puis supprimées à la fin de la fête. Les originaux restent intacts sur votre téléphone.",
+  preparing: "Préparation…",
+  sending: "Envoi…",
+  retrying: "Le téléviseur est occupé, nouvelle tentative dans un instant…",
+  shown: "Envoyée : bientôt sur le téléviseur",
+  pending: "Envoyée : en attente d’approbation",
+  unsupported: "Format non pris en charge",
+  heic: "Ce navigateur ne peut pas ouvrir les photos HEIC. Envoyez-la depuis une autre app (par exemple Google Photos) ou réglez votre appareil photo sur JPEG.",
+  tooLarge: "Photo trop volumineuse",
+  full: "Le téléviseur n’a plus d’espace : réessayez plus tard",
+  pendingFull: "De nombreuses photos attendent déjà d’être approuvées : réessayez plus tard",
+  offline: "Le téléviseur ne répond pas. Votre téléphone est-il connecté au même Wi‑Fi que le téléviseur ?",
+  expired: "Ce lien n’est plus valide : scannez à nouveau le code QR sur le téléviseur.",
+  retry: "Réessayer",
+  failed: "Échec de l’envoi",
+  waiting: "En attente",
+  summary: (done, total) => "Photos envoyées : " + done + " sur " + total,
+};
+const ES = {
+  title: "Envía tus fotos a la TV",
+  intro: "Elige fotos en tu teléfono: aparecerán en la presentación en unos segundos.",
+  senderLabel: "Tu nombre (opcional)",
+  senderPlaceholder: "Aparecerá junto a tus fotos",
+  pick: "Elegir fotos",
+  keepOpen: "Mantén esta página abierta hasta que se envíen tus fotos.",
+  approval: "El anfitrión revisa las fotos antes de que aparezcan en la TV.",
+  privacy: "Las fotos solo van a la TV, a través de la red doméstica, sin pasar por internet. Se reducen al tamaño de la pantalla, se les quitan datos como la ubicación y se borran al terminar la fiesta. Los originales de tu teléfono no cambian.",
+  preparing: "Preparando…",
+  sending: "Enviando…",
+  retrying: "La TV está ocupada, se reintentará enseguida…",
+  shown: "Enviada: en la TV en breve",
+  pending: "Enviada: pendiente de aprobación",
+  unsupported: "Formato no compatible",
+  heic: "Este navegador no puede abrir fotos HEIC. Envíala desde otra app (por ejemplo, Google Fotos) o configura la cámara en JPEG.",
+  tooLarge: "Foto demasiado grande",
+  full: "La TV no tiene más espacio: inténtalo más tarde",
+  pendingFull: "Ya hay muchas fotos pendientes de aprobación: inténtalo más tarde",
+  offline: "La TV no responde. ¿Tu teléfono está en la misma red Wi‑Fi que la TV?",
+  expired: "Este enlace ya no es válido: vuelve a escanear el código QR de la TV.",
+  retry: "Reintentar",
+  failed: "Error al enviar",
+  waiting: "En cola",
+  summary: (done, total) => done + " de " + total + " enviadas",
+};
+const DE = {
+  title: "Schick deine Fotos an den Fernseher",
+  intro: "Wähle Fotos auf deinem Smartphone aus – in wenigen Sekunden erscheinen sie in der Diashow.",
+  senderLabel: "Dein Name (optional)",
+  senderPlaceholder: "Wird neben deinen Fotos angezeigt",
+  pick: "Fotos auswählen",
+  keepOpen: "Lass diese Seite geöffnet, bis deine Fotos gesendet sind.",
+  approval: "Die Gastgeber prüfen die Fotos, bevor sie auf dem Fernseher erscheinen.",
+  privacy: "Die Fotos gehen nur an den Fernseher, über das Heimnetz und ohne Umweg über das Internet. Dabei werden sie auf Bildschirmgröße verkleinert, ohne Daten wie den Standort übertragen und am Ende der Party gelöscht. Die Originale auf deinem Smartphone bleiben unverändert.",
+  preparing: "Wird vorbereitet…",
+  sending: "Wird gesendet…",
+  retrying: "Der Fernseher ist beschäftigt, gleich neuer Versuch…",
+  shown: "Gesendet: gleich auf dem Fernseher",
+  pending: "Gesendet: wartet auf Freigabe",
+  unsupported: "Format nicht unterstützt",
+  heic: "Dieser Browser kann keine HEIC-Fotos öffnen. Sende das Foto aus einer anderen App (zum Beispiel Google Fotos) oder stell deine Kamera auf JPEG um.",
+  tooLarge: "Foto zu groß",
+  full: "Der Fernseher hat keinen Speicherplatz mehr: Versuch es später noch einmal",
+  pendingFull: "Es warten schon viele Fotos auf Freigabe: Versuch es später noch einmal",
+  offline: "Der Fernseher antwortet nicht. Ist dein Smartphone im selben WLAN wie der Fernseher?",
+  expired: "Dieser Link ist nicht mehr gültig: Scanne den QR‑Code auf dem Fernseher erneut.",
+  retry: "Erneut versuchen",
+  failed: "Senden fehlgeschlagen",
+  waiting: "In der Warteschlange",
+  summary: (done, total) => done + " von " + total + " gesendet",
+};
+const TEXTS = { it: IT, en: EN, fr: FR, es: ES, de: DE };
+// Prima lingua del telefono che la pagina conosce, altrimenti inglese.
+const LANG = (navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ""])
+  .map((tag) => String(tag).toLowerCase().split("-")[0])
+  .find((code) => Object.prototype.hasOwnProperty.call(TEXTS, code)) || "en";
+const T = TEXTS[LANG];
+document.documentElement.lang = LANG;
 
 const $ = (id) => document.getElementById(id);
 $("title").textContent = T.title;

@@ -1,0 +1,22 @@
+FotoFesta TV convierte tu Apple TV en un marco digital de fotos para fiestas, cenas familiares y noches con amigos.
+
+DE DÓNDE SALEN TUS FOTOS
+• Fotos de invitados: los invitados escanean un código QR en la TV y envían fotos desde su propio teléfono, a través de tu red doméstica y sin instalar ninguna app. Las fotos nuevas aparecen al momento en la presentación con el nombre de quien las envía; si quieres, primero las apruebas con el mando.
+• Google Fotos: escanea un código QR con tu teléfono, inicia sesión y elige las fotos que quieres mostrar. Sin escribir contraseñas con el mando y con acceso solo a las fotos que selecciones.
+• Cuatro fotos de demostración para probar la app al momento.
+
+PRESENTACIÓN
+• De 3 a 20 segundos por foto
+• Transiciones de fundido, deslizamiento y zoom suave
+• Zoom y desplazamiento lentos (efecto Ken Burns)
+• Foto entera o pantalla completa, orden aleatorio sin repeticiones
+• Reloj y temporizador de pausa a los 30, 60 o 120 minutos
+
+JUEGOS CON FOTOS
+• Juego de parejas: encuentra las fotos iguales
+• Foto misteriosa: adivina la foto desenfocada
+
+PRIVACIDAD
+Sin anuncios, sin herramientas de análisis y sin servidor del desarrollador. Las fotos seleccionadas se muestran directamente desde Google Fotos y nunca se copian en tu Apple TV, y “Desconectar y borrar” revoca el acceso. Las fotos de los invitados van del teléfono al Apple TV sin pasar por internet y se borran al terminar la fiesta.
+
+Google Fotos no permite que las apps lean toda tu biblioteca: eliges las fotos desde el teléfono cada vez.

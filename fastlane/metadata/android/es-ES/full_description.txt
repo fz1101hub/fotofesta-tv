@@ -1,0 +1,28 @@
+FotoFesta TV convierte tu televisor en un marco digital de fotos para fiestas, cenas familiares y noches con amigos.
+
+<b>De dónde salen tus fotos</b>
+• Google Fotos: escanea un código QR con tu teléfono, inicia sesión y elige las fotos que quieres mostrar. Sin escribir contraseñas con el mando y con acceso solo a las fotos que selecciones.
+• Fotos de invitados: los invitados escanean un código QR en la TV y envían fotos desde su propio teléfono, a través de tu red doméstica y sin instalar ninguna app. Las fotos nuevas aparecen al momento en la presentación con el nombre de quien las envía; si quieres, primero las apruebas con el mando.
+• Disco o memoria USB: elige una carpeta, incluso sin internet. Las fotos se quedan en la unidad y nunca se copian.
+• Cuatro fotos de demostración para probar la app al momento.
+
+<b>Presentación</b>
+• De 3 a 20 segundos por foto
+• Transiciones de fundido, deslizamiento y zoom suave
+• Zoom y desplazamiento lentos (efecto Ken Burns)
+• Foto entera o pantalla completa, orden aleatorio sin repeticiones
+• Reloj y música de fondo con una pista de tu TV
+• Temporizador de pausa a los 30, 60 o 120 minutos
+• Salvapantallas con tus fotos cuando la TV está inactiva
+
+<b>Juegos con fotos</b>
+• Juego de parejas: encuentra las fotos iguales
+• Foto misteriosa: adivina la foto desenfocada
+
+<b>Pensada para el mando</b>
+Todo funciona con las flechas del mando, con un foco bien visible, textos legibles desde el sofá y una opción para reducir el movimiento.
+
+<b>Privacidad</b>
+Sin anuncios, sin seguimiento y sin servidor del desarrollador. Las fotos de Google se muestran directamente desde Google Fotos y nunca se copian en la TV, así que no ocupan espacio. Las fotos de los invitados van del teléfono a la TV sin pasar por internet, se quedan en memoria durante la fiesta y se borran al final.
+
+Google Fotos no permite que las apps lean toda tu biblioteca: eliges las fotos desde el teléfono cada vez.

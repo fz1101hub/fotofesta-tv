@@ -18,6 +18,9 @@ GREY = (185, 195, 217)
 TAGLINES = {
     "it-IT": "I tuoi ricordi sul grande schermo",
     "en-US": "Your memories on the big screen",
+    "fr-FR": "Vos souvenirs sur grand écran",
+    "es-ES": "Tus recuerdos en pantalla grande",
+    "de-DE": "Deine Erinnerungen ganz groß",
 }
 
 

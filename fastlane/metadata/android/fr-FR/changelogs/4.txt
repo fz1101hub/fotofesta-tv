@@ -1,0 +1,7 @@
+• Photos des invités : ils scannent un code QR et envoient leurs photos du téléphone au téléviseur via le réseau domestique
+• Nouvelles photos aussitôt dans le diaporama, avec le nom de l’expéditeur
+• Approbation à la télécommande et Wi‑Fi partagé par code QR
+• Toutes les photos de la fête supprimées d’une touche à la fin
+• Google Photos en streaming : aucune copie sur le téléviseur
+• Dossiers USB et musique au choix sur tout téléviseur, même sans gestionnaire de fichiers
+• Google Cast supprimé

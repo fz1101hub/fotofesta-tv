@@ -45,7 +45,7 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleDevelopmentRegion: en
-        CFBundleLocalizations: [en, it]
+        CFBundleLocalizations: [en, it, fr, es, de]
         LSApplicationCategoryType: public.app-category.photography
         UIRequiredDeviceCapabilities: [arm64]
         UILaunchScreen: {}

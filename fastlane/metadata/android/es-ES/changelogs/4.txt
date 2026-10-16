@@ -1,0 +1,7 @@
+• Fotos de invitados: escanean un código QR y envían fotos desde su teléfono a la TV por tu red doméstica
+• Las fotos nuevas aparecen al momento en la presentación, con el nombre de quien las envía
+• Aprueba fotos con el mando y comparte tu Wi‑Fi con un código QR
+• Borra todas las fotos de la fiesta con un solo botón al final
+• Google Fotos en streaming: no se copia ninguna foto en la TV
+• Elige carpetas USB y música en cualquier TV, incluso sin gestor de archivos
+• Google Cast eliminado

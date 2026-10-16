@@ -15,7 +15,7 @@ Versione tvOS dell'app, scritta in Swift e SwiftUI, pensata per l'App Store. Con
 | Musica di sottofondo | No | tvOS non permette di scegliere file audio locali |
 | Salvaschermo di sistema | No | tvOS non accetta salvaschermi di terze parti |
 | Memory e Foto misteriosa | Sì | |
-| Italiano e inglese | Sì | `apple/scripts/strings.py` genera i file `.strings` |
+| Italiano, inglese, francese, spagnolo e tedesco | Sì | `apple/scripts/strings.py` (inglese e italiano) e `apple/scripts/translations/<lingua>.json` generano `Localizable.strings` e `InfoPlist.strings` |
 
 Le foto di Google Foto non vengono copiate sulla Apple TV: si caricano da Google alla risoluzione richiesta, con una sessione di rete senza cache su disco, e restano solo in memoria. In UserDefaults resta un piccolo elenco con la sessione Picker e gli identificativi delle foto; quando Google chiude la sessione (la data è mostrata a fine collegamento) l'app torna alle foto demo e chiede di sceglierle di nuovo. Una selezione è limitata a 1000 foto, perché su tvOS le preferenze hanno spazio ridotto. I token restano nel Portachiavi, che sopravvive alla disinstallazione: al primo avvio dopo una nuova installazione l'app cancella i token rimasti.
 

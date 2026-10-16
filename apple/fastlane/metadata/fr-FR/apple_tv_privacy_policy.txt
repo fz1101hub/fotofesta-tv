@@ -1,0 +1,11 @@
+FotoFesta TV affiche sur votre téléviseur les photos que vous choisissez. L’app ne contient ni publicité, ni outil d’analyse, ni pistage, et n’envoie aucune donnée au développeur.
+
+Google Photos (facultatif) : l’Apple TV communique directement avec Google via des connexions chiffrées. L’app demande uniquement l’accès aux photos que vous choisissez sur votre téléphone, pas au reste de votre bibliothèque. Les photos choisies ne sont pas copiées sur l’Apple TV : elles se chargent depuis Google pendant leur affichage et sont conservées uniquement en mémoire. L’Apple TV conserve la liste des photos choisies dans les préférences de l’app et les jetons Google (d’accès et d’actualisation) dans le trousseau.
+
+Photos des invités (facultatif) : pendant la fête, l’Apple TV reçoit, via votre réseau domestique et sans passer par Internet, les photos que les invités envoient depuis leur téléphone, avec le nom qu’ils choisissent d’indiquer. La page sur le téléphone les redimensionne et supprime les métadonnées comme la position. Les photos sont conservées en mémoire et dans un dossier temporaire de l’Apple TV, et sont supprimées avec « Terminer la fête et supprimer les photos », ou au premier lancement après 12 heures sans nouvelle photo. Si vous configurez le code QR du Wi‑Fi, le nom et le mot de passe du réseau restent sur cette Apple TV.
+
+Réglages › « Déconnecter et supprimer » efface la liste des photos et le jeton, ferme la sélection chez Google et révoque l’accès. Vous pouvez aussi révoquer l’accès sur myaccount.google.com/permissions. La liste est également supprimée lorsque vous choisissez une autre source ou lorsque Google ferme la sélection.
+
+La politique de confidentialité complète est disponible à l’URL de la politique de confidentialité de cette app et sous forme de code QR dans les réglages de l’app.
+
+Responsable du traitement : [da completare] · Contact : [da completare]

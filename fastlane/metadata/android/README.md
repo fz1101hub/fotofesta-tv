@@ -11,7 +11,7 @@ Testi e grafica per `fastlane supply` (`fastlane android metadata`), una cartell
 | `images/icon.png` | 512×512 | Icona |
 | `images/featureGraphic.png` | 1024×500 | Grafica in evidenza |
 | `images/tvBanner.png` | 1280×720 | Banner Android TV |
-| `images/tvScreenshots/` | 1920×1080 | **Da aggiungere**: almeno uno screenshot reale per lingua |
+| `images/tvScreenshots/` | 1920×1080 | **Da aggiungere**: almeno uno screenshot reale nella lingua predefinita (le altre lingue, se mancano, usano quelli) |
 
 La grafica si rigenera con `python3 scripts/make_store_assets.py`.
 

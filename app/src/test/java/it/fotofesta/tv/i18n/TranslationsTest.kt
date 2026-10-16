@@ -7,32 +7,59 @@ import org.w3c.dom.Element
 import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 
-/** Inglese (predefinito) e italiano devono avere le stesse chiavi e gli stessi segnaposto. */
+/**
+ * Ogni traduzione deve avere le stesse chiavi e gli stessi segnaposto dell'inglese (predefinito) e
+ * le forme plurali che la lingua usa.
+ */
 class TranslationsTest {
     private val placeholder = Regex("""%\d+\$[sd]""")
 
+    /** Forme plurali richieste da ciascuna lingua (CLDR, come le controlla Android Lint). */
+    private val requiredQuantities = mapOf(
+        "values" to setOf("one", "other"),
+        "values-it" to setOf("one", "many", "other"),
+        "values-fr" to setOf("one", "many", "other"),
+        "values-es" to setOf("one", "many", "other"),
+        "values-de" to setOf("one", "other"),
+    )
+
+    private val translations = requiredQuantities.keys - "values"
+
     @Test
-    fun `italian translation matches default resources`() {
+    fun `translations match default resources`() {
         val english = load("values")
-        val italian = load("values-it")
-        assertEquals("Chiavi diverse tra values e values-it", english.keys, italian.keys)
-        english.forEach { (key, texts) ->
-            val expected = texts.flatMap { placeholder.findAll(it).map { m -> m.value } }.toSet()
-            val actual = italian.getValue(key).flatMap { placeholder.findAll(it).map { m -> m.value } }.toSet()
-            assertEquals("Segnaposto diversi in $key", expected, actual)
+        translations.forEach { folder ->
+            val translated = load(folder)
+            assertEquals("Chiavi diverse tra values e $folder", english.keys, translated.keys)
+            english.forEach { (key, texts) ->
+                val expected = texts.flatMap { placeholder.findAll(it).map { m -> m.value } }.toSet()
+                val actual = translated.getValue(key).flatMap { placeholder.findAll(it).map { m -> m.value } }.toSet()
+                assertEquals("Segnaposto diversi in $key ($folder)", expected, actual)
+            }
         }
     }
 
     @Test
-    fun `plurals define the other quantity`() {
-        listOf("values", "values-it").forEach { folder ->
+    fun `plurals define the quantities each language uses`() {
+        requiredQuantities.forEach { (folder, required) ->
             val document = parse(folder)
             val plurals = document.getElementsByTagName("plurals")
             for (index in 0 until plurals.length) {
                 val element = plurals.item(index) as Element
                 val items = element.getElementsByTagName("item")
-                val quantities = (0 until items.length).map { (items.item(it) as Element).getAttribute("quantity") }
-                assertTrue("${element.getAttribute("name")} in $folder", "other" in quantities)
+                val quantities = (0 until items.length).map { (items.item(it) as Element).getAttribute("quantity") }.toSet()
+                assertTrue("${element.getAttribute("name")} in $folder: servono $required", quantities.containsAll(required))
+            }
+        }
+    }
+
+    @Test
+    fun `apostrophes are escaped or typographic`() {
+        // Un apostrofo dritto non preceduto da \ rompe la compilazione delle risorse.
+        val unescaped = Regex("""(?<!\\)'""")
+        requiredQuantities.keys.forEach { folder ->
+            load(folder).forEach { (key, texts) ->
+                texts.forEach { text -> assertTrue("Apostrofo non protetto in $key ($folder)", !unescaped.containsMatchIn(text)) }
             }
         }
     }

@@ -27,9 +27,9 @@ Il repository contiene anche la versione per **Apple TV** (cartella [`apple/`](a
 | Giochi | Memory dei ricordi | Pronta |
 | Giochi | Foto misteriosa | Pronta |
 | Privacy | Nessuna pubblicità, analisi o SDK che inviano dati; token AES-GCM in Android Keystore ([DATA_SAFETY.md](docs/DATA_SAFETY.md)) | Pronta |
-| Lingue | Italiano e inglese (predefinito per le altre lingue del televisore) | Pronta |
+| Lingue | Italiano, inglese, francese, spagnolo e tedesco, anche nella pagina per i telefoni degli invitati, che segue la lingua del telefono; inglese per le altre lingue | Pronta |
 | Google Play | Banner Leanback 320×180 nell’app; per la scheda icona 512×512, grafica 1024×500 e banner TV 1280×720; AAB firmato | Pronta |
-| Apple TV | App tvOS 17+ con icona a livelli, Top Shelf, italiano e inglese | Da compilare e provare su un Mac ([apple/README.md](apple/README.md)) |
+| Apple TV | App tvOS 17+ con icona a livelli, Top Shelf, nelle stesse cinque lingue | Compilata e testata nella CI; da provare su una Apple TV ([apple/README.md](apple/README.md)) |
 
 ## Scelta dell’approccio
 

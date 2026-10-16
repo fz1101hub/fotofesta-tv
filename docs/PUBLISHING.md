@@ -77,7 +77,8 @@ La versione 1.3.0 compila e supera test e Lint nella CI (`.github/workflows/andr
 3. **Scheda dello store principale**:
    - Testi da `fastlane/metadata/android/<lingua>/`.
    - Icona, grafica in evidenza e banner TV da `.../images/`.
-   - Screenshot: catturali dalla TV con `adb exec-out screencap -p > shot.png`. Servono almeno uno screenshot TV per lingua, e Play Console può richiedere anche gli screenshot generici della scheda.
+   - Le schede sono pronte in italiano, inglese, francese, spagnolo e tedesco: `fastlane android metadata` le carica tutte.
+   - Screenshot: catturali dalla TV con `adb exec-out screencap -p > shot.png`. Servono almeno gli screenshot TV della lingua predefinita: per le altre lingue, se mancano, Play mostra quelli. Play Console può richiedere anche gli screenshot generici della scheda.
 4. **Form factor Android TV**: in **Impostazioni avanzate › Form factor** aggiungi **Android TV** e accetta i requisiti. La revisione TV verifica:
    - banner e icona Leanback;
    - navigazione completa con il telecomando;
@@ -144,11 +145,11 @@ Questi passaggi funzionano solo dopo il primo caricamento manuale.
      export REVIEW_DEMO_PASSWORD="..."
      ```
      È consigliato: "Prova subito" funziona senza login, ma l'account permette ai revisori di provare Google Foto. Se le variabili sono impostate, fastlane aggiunge alle note per i revisori la frase che rimanda all'account; altrimenti le note non lo citano.
-   - con `PHOTOS_CLIENT_ID` vuoto in `Config/Secrets.xcconfig` la build non mostra Google Foto e l'account non serve. In quel caso togli Google Foto da `description.txt`, `promotional_text.txt`, `apple_tv_privacy_policy.txt` e dalle note per i revisori, poi esegui `release` con `ALLOW_NO_GOOGLE=1`: senza, fastlane si ferma.
-   - in `apple_tv_privacy_policy.txt` (testo dell'informativa mostrato su Apple TV) completa titolare e contatto.
+   - con `PHOTOS_CLIENT_ID` vuoto in `Config/Secrets.xcconfig` la build non mostra Google Foto e l'account non serve. In quel caso togli Google Foto da `description.txt`, `promotional_text.txt` e `apple_tv_privacy_policy.txt` di ogni lingua e dalle note per i revisori, poi esegui `release` con `ALLOW_NO_GOOGLE=1`: senza, fastlane si ferma.
+   - in `apple_tv_privacy_policy.txt` di ogni lingua (testo dell'informativa mostrato su Apple TV) completa titolare e contatto al posto di `[da completare]`.
 5. Carica la scheda:
    - testi: `bundle exec fastlane tvos metadata`, che prende i dati da `apple/fastlane/metadata/` (compresa l'informativa breve mostrata su Apple TV, `apple_tv_privacy_policy.txt`) e si ferma se trova ancora segnaposto (`[da completare]`, `EXAMPLE`, `[Titolare]`);
-   - screenshot: 1920×1080 o 3840×2160, catturabili dal simulatore con **File › Save Screen**.
+   - screenshot: 1920×1080 o 3840×2160, catturabili dal simulatore con **File › Save Screen**. Bastano quelli della lingua principale: le altre localizzazioni (italiano, inglese, francese, spagnolo, tedesco) li usano se non ne hanno di propri.
 6. Invia per la revisione dalla pagina della versione.
 
 Note per la revisione Apple:
@@ -168,7 +169,7 @@ Note per la revisione Apple:
 | USB con molte foto, rimozione del disco durante lo slideshow | ☐ | — |
 | Browser delle cartelle: permesso concesso e negato, disco USB, scelta del brano, TV con e senza selettore di Android | ☐ | — |
 | Musica, salvaschermo, pausa automatica | ☐ | pausa automatica |
-| Lingua del dispositivo in inglese e in italiano | ☐ | ☐ |
+| Lingua del dispositivo in italiano, inglese, francese, spagnolo e tedesco (testi tagliati sui pulsanti) | ☐ | ☐ |
 | Rete assente all'avvio e durante il collegamento | ☐ | ☐ |
 | Foto degli invitati: invio da Android e iPhone, approvazione, QR della Wi‑Fi, uscita e ritorno nell'app, fine festa | ☐ | ☐ |
 | Informativa privacy pubblicata e URL inseriti negli store | ☐ | ☐ |
