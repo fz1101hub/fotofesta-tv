@@ -129,6 +129,11 @@ public enum SSDP {
 
 /// Indirizzi della rete di casa: solo questi si leggono in chiaro (http) per le cartelle di rete.
 public enum LANAddress {
+    /// Solo per le schermate dal simulatore nella CI (build di debug): il server finto gira sul Mac in
+    /// loopback, perché il runner non lascia passare il traffico del simulatore verso la rete. Spento
+    /// di serie e mai acceso nell'app pubblicata.
+    public nonisolated(unsafe) static var allowsLoopback = false
+
     /// Indirizzo IP numerico privato o locale: 10/8, 172.16/12, 192.168/16, 169.254/16, IPv6
     /// link-local (fe80::/10) e locali (fc00::/7). I nomi non contano: potrebbero puntare fuori.
     public static func isLocal(_ host: String) -> Bool {
@@ -138,6 +143,7 @@ public enum LANAddress {
             let value = UInt32(bigEndian: v4.s_addr)
             let a = value >> 24
             let b = (value >> 16) & 0xFF
+            if allowsLoopback && a == 127 { return true }
             return a == 10 || (a == 172 && (16...31).contains(b)) || (a == 192 && b == 168) || (a == 169 && b == 254)
         }
         var v6 = in6_addr()

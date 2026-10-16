@@ -73,8 +73,13 @@ extension AppModel {
         case "network_folder", "network_slideshow":
             // Server DLNA finto avviato dallo script sull'indirizzo del Mac (FOTOFESTA_NETWORK_HOST):
             // si aggiunge con l'indirizzo, si apre la prima cartella e, per lo slideshow, la si usa.
+            guard let host = ProcessInfo.processInfo.environment["FOTOFESTA_NETWORK_HOST"] else {
+                openNetwork()
+                return
+            }
+            // Il server finto gira sul Mac in loopback (vedi scripts/screenshots.sh).
+            LANAddress.allowsLoopback = host.hasPrefix("127.")
             openNetwork()
-            guard let host = ProcessInfo.processInfo.environment["FOTOFESTA_NETWORK_HOST"] else { return }
             addNetworkAddress(host)
             Task {
                 // Diagnosi per il log della CI: richiesta diretta al server e stato dell'app.

@@ -100,7 +100,6 @@ struct HomeView: View {
                             title: L("home.network_title"),
                             subtitle: L("home.tile_network_body"),
                             systemImage: "server.rack",
-                            artwork: "demo_birthday.jpg",
                             badge: inUse(.network)
                         ) { model.openNetwork() }
                         ShelfCard(
