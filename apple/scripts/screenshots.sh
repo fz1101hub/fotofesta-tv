@@ -12,7 +12,7 @@ esac
 OUT="build/screenshots"
 BUNDLE_ID="it.fotofesta.tv"
 # La festa resta accesa fra un avvio e l'altro: gli scenari della festa vanno per ultimi.
-SCENARIOS=(home slideshow settings games guests party party_slideshow)
+SCENARIOS=(home slideshow settings games memory mystery guests party party_slideshow)
 
 # Simulatore Apple TV con il runtime tvOS più recente, preferendo il modello 4K.
 pick_device() {

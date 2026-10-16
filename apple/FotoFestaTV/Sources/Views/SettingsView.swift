@@ -1,8 +1,8 @@
 import FotoFestaCore
 import SwiftUI
 
-/// Impostazioni nello stile dell'app Impostazioni di tvOS: a sinistra l'icona dell'app, a destra un
-/// elenco nativo diviso in sezioni, con selettori, interruttori e collegamenti di sistema.
+/// Impostazioni nello stile dell'app Impostazioni di tvOS: a sinistra l'icona dell'app (AppLogo, una
+/// copia piatta dell'icona a livelli), a destra un elenco nativo diviso in sezioni.
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
@@ -11,9 +11,12 @@ struct SettingsView: View {
     var body: some View {
         HStack(spacing: 0) {
             VStack(spacing: 32) {
-                Image(systemName: "photo.on.rectangle.angled")
-                    .font(.system(size: 220, weight: .regular))
-                    .foregroundStyle(Theme.accent)
+                Image("AppLogo")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 600)
+                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                    .shadow(color: .black.opacity(0.5), radius: 30, y: 16)
                 Text("FotoFesta TV").font(.title2.bold())
                 Text(L("settings.subtitle_local"))
                     .font(.callout)

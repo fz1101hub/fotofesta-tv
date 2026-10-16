@@ -56,7 +56,6 @@ struct GoogleConnectView: View {
                     Text(L("google.open_url", url)).foregroundStyle(Theme.secondaryText)
                     Text(code)
                         .font(.system(size: 64, weight: .bold, design: .monospaced))
-                        .foregroundStyle(Theme.accent)
                         .padding(.horizontal, 28)
                         .padding(.vertical, 14)
                         .background(Theme.background, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -92,8 +91,7 @@ struct GoogleConnectView: View {
                 Text(L("google.streaming_note")).font(.callout).foregroundStyle(Theme.secondaryText).multilineTextAlignment(.center)
                 if let expiresAt {
                     Text(L("google.available_until", expiresAt.formatted(date: .abbreviated, time: .shortened)))
-                        .font(.callout)
-                        .foregroundStyle(Theme.accent)
+                        .font(.callout.weight(.semibold))
                 }
                 Button {
                     model.play()

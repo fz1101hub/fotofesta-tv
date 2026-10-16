@@ -106,8 +106,8 @@ struct MemoryGameView: View {
             if card.revealed || card.matched {
                 PhotoImage(photo: card.photo, fitMode: .crop, maxPixelSize: 800, accessibilityLabel: card.matched ? L("memory.card_matched", card.photo.title) : card.photo.title)
             } else {
-                LinearGradient(colors: [Theme.accent, Color(hex: 0x8E3420)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                Text("?").font(.system(size: 80, weight: .bold)).foregroundStyle(Theme.onAccent)
+                LinearGradient(colors: [Color(white: 0.34), Color(white: 0.16)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                Text("?").font(.system(size: 80, weight: .bold)).foregroundStyle(.white)
                     .accessibilityLabel(Text(L("memory.card_covered", position + 1)))
             }
         }
@@ -166,7 +166,7 @@ struct MysteryGameView: View {
             VStack(alignment: .leading, spacing: 24) {
                 Text(L("games.mystery_title")).font(.headline).foregroundStyle(Theme.secondaryText)
                 Text(revealed ? L("mystery.solved", answer?.title ?? "") : L("mystery.question")).font(.title2.bold())
-                Text(feedback).font(.title3.bold()).foregroundStyle(revealed ? Theme.accent : .primary)
+                Text(feedback).font(.title3.bold())
                 ForEach(choices) { choice in
                     Button(choice.title) { choose(choice) }
                         .disabled(revealed)

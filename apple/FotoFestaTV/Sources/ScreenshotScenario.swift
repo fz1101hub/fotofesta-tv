@@ -10,6 +10,8 @@ extension AppModel {
         case "slideshow": startDemo()
         case "settings": path = [.settings]
         case "games": path = [.games]
+        case "memory": path = [.games, .memory]
+        case "mystery": path = [.games, .mystery]
         case "guests": path = [.guests]
         case "party":
             startGuestParty()

@@ -59,17 +59,17 @@ struct ShelfCardLabel: View {
     }
 }
 
-/// Etichetta piccola con la tinta dell'app, come "In uso".
+/// Etichetta piccola evidenziata, come "In uso".
 struct Badge: View {
     let text: String
 
     var body: some View {
         Text(text)
             .font(.caption.bold())
-            .foregroundStyle(Theme.onAccent)
+            .foregroundStyle(Theme.onHighlight)
             .padding(.horizontal, 16)
             .padding(.vertical, 6)
-            .background(Capsule().fill(Theme.accent))
+            .background(Capsule().fill(Theme.highlight))
     }
 }
 

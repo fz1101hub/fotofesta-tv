@@ -37,7 +37,8 @@ struct GuestsView: View {
         HStack(alignment: .center, spacing: 100) {
             Image(systemName: "person.2.wave.2.fill")
                 .font(.system(size: 240))
-                .foregroundStyle(Theme.accent)
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(.white)
                 .frame(width: 560)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 36) {

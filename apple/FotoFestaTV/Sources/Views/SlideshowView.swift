@@ -157,7 +157,7 @@ struct SlideshowView: View {
                 if let sleepAt = model.sleepAt {
                     Text(L("slideshow.sleep_at", sleepAt.formatted(date: .omitted, time: .shortened)))
                         .font(.callout.weight(.semibold))
-                        .foregroundStyle(Theme.accent)
+                        .foregroundStyle(Theme.highlight)
                 }
                 Text("\(model.currentIndex + 1) / \(model.photos.count)")
                     .font(.callout.monospacedDigit())

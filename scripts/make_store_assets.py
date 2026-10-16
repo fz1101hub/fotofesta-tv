@@ -3,7 +3,7 @@
 Uso: python3 scripts/make_store_assets.py
 Scrive in fastlane/metadata/android/<lingua>/images/ (icona 512, feature graphic 1024x500,
 banner TV 1280x720) e l'asset catalog Apple TV in apple/FotoFestaTV/Resources/Assets.xcassets
-(icona a livelli per la parallasse, immagini Top Shelf).
+(icona a livelli per la parallasse, immagini Top Shelf, icona piatta per le impostazioni).
 """
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
@@ -133,8 +133,22 @@ def image_set(directory: Path, scales: dict[str, tuple[int, int]], tagline: str)
     write_json(directory, {"images": images, "info": INFO})
 
 
+def logo_set(directory: Path, scales: dict[str, tuple[int, int]]) -> None:
+    """Icona dell'app in un solo livello: le impostazioni la mostrano a sinistra, come fa tvOS."""
+    images = []
+    directory.mkdir(parents=True, exist_ok=True)
+    for scale, size in scales.items():
+        back, front = icon_layers(size)
+        flat = back.convert("RGBA")
+        flat.alpha_composite(front)
+        name = f"logo@{scale}.png"
+        flat.convert("RGB").save(directory / name, optimize=True)
+        images.append({"idiom": "tv", "scale": scale, "filename": name})
+    write_json(directory, {"images": images, "info": INFO})
+
+
 def make_tvos_asset_catalog() -> None:
-    """Asset catalog Apple TV: icona a livelli (Home e App Store) e immagini Top Shelf."""
+    """Asset catalog Apple TV: icona a livelli (Home e App Store), immagini Top Shelf e icona piatta."""
     catalog = ROOT / "apple/FotoFestaTV/Resources/Assets.xcassets"
     write_json(catalog, {"info": INFO})
     brand = catalog / "App Icon & Top Shelf Image.brandassets"
@@ -152,10 +166,7 @@ def make_tvos_asset_catalog() -> None:
     tagline = TAGLINES["en-US"]
     image_set(brand / "Top Shelf Image Wide.imageset", {"1x": (2320, 720), "2x": (4640, 1440)}, tagline)
     image_set(brand / "Top Shelf Image.imageset", {"1x": (1920, 720), "2x": (3840, 1440)}, tagline)
-    write_json(catalog / "AccentColor.colorset", {
-        "colors": [{"idiom": "universal", "color": {"color-space": "srgb", "components": {"red": "1.000", "green": "0.475", "blue": "0.357", "alpha": "1.000"}}}],
-        "info": INFO,
-    })
+    logo_set(catalog / "AppLogo.imageset", {"1x": (600, 360), "2x": (1200, 720)})
 
 
 def main() -> None:
