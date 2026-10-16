@@ -257,12 +257,15 @@ struct GuestReviewView: View {
     var body: some View {
         let pending = model.pendingGuestPhotos
         VStack(alignment: .leading, spacing: 40) {
-            ScreenTitle(title: L("review.title"), subtitle: L("guests.pending", pending.count))
+            ScreenTitle(title: L("guests.title"), subtitle: L("guests.pending", pending.count))
             if let photo = pending.first {
                 HStack(alignment: .top, spacing: 64) {
-                    PhotoImage(photo: photo, fitMode: .contain, maxPixelSize: 1920)
-                        .background(Color.black)
-                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    // Come nello slideshow: la foto intera, con la stessa foto sfocata ai lati.
+                    ZStack {
+                        BlurredBackdrop(photo: photo)
+                        PhotoImage(photo: photo, fitMode: .contain, maxPixelSize: 1920)
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                     VStack(alignment: .leading, spacing: 28) {
                         Text(photo.title).font(.title3.bold()).lineLimit(2)
                         Button {

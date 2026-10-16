@@ -93,7 +93,6 @@
 "guests.waiting_body" = "Scan the QR code with your phone: photos will appear here within a few seconds.";
 "guests.slideshow_cta" = "Send your photos";
 "message.guests_ended" = "Party ended: guest photos were deleted from the Apple TV.";
-"review.title" = "Photos to approve";
 "review.show" = "Show";
 "review.discard" = "Discard";
 "review.approve_all" = "Approve all";

@@ -116,7 +116,6 @@ STRINGS = {
     "guests.waiting_body": ("Scan the QR code with your phone: photos will appear here within a few seconds.", "Inquadra il QR con il telefono: le foto compariranno qui in pochi secondi."),
     "guests.slideshow_cta": ("Send your photos", "Manda le tue foto"),
     "message.guests_ended": ("Party ended: guest photos were deleted from the Apple TV.", "Festa terminata: le foto degli invitati sono state cancellate dalla Apple TV."),
-    "review.title": ("Photos to approve", "Foto da approvare"),
     "review.show": ("Show", "Mostra"),
     "review.discard": ("Discard", "Scarta"),
     "review.approve_all": ("Approve all", "Approva tutte"),
