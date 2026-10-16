@@ -2,6 +2,7 @@ FotoFesta TV trasforma il televisore in una cornice digitale per feste, cene in 
 
 <b>Da dove arrivano le foto</b>
 • Google Foto: inquadri un QR con il telefono, accedi e scegli le foto da mostrare. Nessuna password da digitare con il telecomando e accesso solo alle foto che selezioni.
+• Foto degli invitati: gli ospiti inquadrano un QR sulla TV e mandano le foto dal loro telefono, attraverso la rete di casa e senza app da installare. Le foto nuove compaiono subito nello slideshow, con il nome di chi le ha mandate; se vuoi, le approvi prima con il telecomando.
 • Hard disk o chiavetta USB: scegli una cartella, anche senza internet. Le foto restano sul disco e non vengono copiate.
 • Quattro foto dimostrative per provare subito l'app.
 
@@ -22,6 +23,6 @@ FotoFesta TV trasforma il televisore in una cornice digitale per feste, cene in 
 Tutto si usa con le frecce del telecomando, con focus ben visibile, testi leggibili da lontano e un'opzione per ridurre le animazioni.
 
 <b>Privacy</b>
-Nessuna pubblicità, nessun tracciamento da parte dell'app e nessun server dello sviluppatore. Le foto Google si vedono direttamente da Google Foto e non vengono mai copiate sulla TV, quindi non occupano memoria.
+Nessuna pubblicità, nessun tracciamento e nessun server dello sviluppatore. Le foto Google si vedono direttamente da Google Foto e non vengono mai copiate sulla TV, quindi non occupano memoria. Le foto degli invitati vanno dal telefono alla TV senza passare da internet, restano in memoria durante la festa e si cancellano alla fine.
 
 Google Foto non consente alle app di leggere tutta la libreria: le foto vanno scelte di volta in volta dal telefono.

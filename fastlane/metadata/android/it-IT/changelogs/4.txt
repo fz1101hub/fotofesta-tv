@@ -1,0 +1,6 @@
+• Foto degli invitati: gli ospiti inquadrano un QR e mandano le foto dal telefono alla TV, attraverso la rete di casa
+• Le foto nuove compaiono subito nello slideshow, con il nome di chi le ha mandate
+• Approvazione delle foto dal telecomando e QR per entrare nella Wi‑Fi
+• Le foto della festa si cancellano con un tasto alla fine
+• Google Foto in streaming: nessuna foto copiata sulla TV
+• Rimosso Google Cast

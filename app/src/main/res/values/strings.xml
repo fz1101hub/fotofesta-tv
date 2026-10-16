@@ -11,13 +11,12 @@
     <string name="home_title">Choose where to start</string>
     <string name="home_subtitle">Google Photos stays in your account. USB works even without internet.</string>
     <string name="home_google_title">Google Photos</string>
-    <string name="home_google_body">Pick from your phone with a QR code. No casting and no manual import.</string>
+    <string name="home_google_body">Pick from your phone with a QR code. No manual import.</string>
     <string name="home_usb_title">USB drive</string>
     <string name="home_usb_body">Choose a folder. Access stays on this TV only.</string>
     <string name="home_demo_title">Try it now</string>
     <string name="home_demo_body">Four demo photos to explore transitions, music and games.</string>
     <string name="home_games">Photo games</string>
-    <string name="header_cast_connected">Chromecast connected</string>
     <string name="source_demo">Demo photos</string>
     <string name="demo_coast">Coast at sunset</string>
     <string name="demo_picnic">Family picnic</string>
@@ -88,7 +87,7 @@
     <string name="settings_google_data">Google Photos data</string>
     <string name="settings_google_data_body">Removes Google Photos access and the list of chosen photos from the TV.</string>
     <string name="settings_google_disconnect">Disconnect and delete</string>
-    <string name="settings_privacy">Privacy: FotoFesta TV has no ads and sends nothing to the developer. USB photos are never copied. Photos chosen from Google are not copied to the TV: they load from Google during the slideshow, and “Disconnect and delete” revokes access.</string>
+    <string name="settings_privacy">Privacy: FotoFesta TV has no ads and sends nothing to the developer. USB photos are never copied. Photos chosen from Google are not copied to the TV: they load from Google during the slideshow, and “Disconnect and delete” revokes access. Guest photos travel only over your home network and are deleted when the party ends.</string>
     <string name="settings_ken_burns">Slow pan and zoom</string>
     <string name="settings_ken_burns_body">Gently zooms and pans each photo while it is on screen.</string>
     <string name="settings_sleep_timer">Sleep timer</string>
@@ -137,8 +136,55 @@
     <string name="mystery_correct">Correct answer!</string>
     <string name="mystery_wrong">Not this one. The photo is now sharper.</string>
     <string name="mystery_hidden_photo">Hidden photo</string>
-    <string name="cast_status_ready">FotoFesta TV ready</string>
     <string name="dream_label">FotoFesta TV photos</string>
+    <string name="home_guests_title">Guest photos</string>
+    <string name="home_guests_body">Guests send photos from their phones by scanning a QR code.</string>
+    <string name="guests_kicker">Party mode</string>
+    <string name="guests_title">Guest photos</string>
+    <string name="guests_subtitle">Guests scan the QR code and send photos from their phones over your home network.</string>
+    <string name="guests_intro">Photos stay on the TV only during the party: in memory, with a small temporary folder as a fallback. Ending the party deletes them all.</string>
+    <string name="guests_start">Start receiving photos</string>
+    <string name="guests_qr_send">QR code to send photos</string>
+    <string name="guests_scan_send">Scan to send photos</string>
+    <string name="guests_qr_wifi">QR code to join the Wi‑Fi</string>
+    <string name="guests_scan_wifi">Scan to join “%1$s”</string>
+    <string name="guests_same_network">Phones must be on the same network as the TV.</string>
+    <string name="guests_no_network">Connect the TV to your home network (Wi‑Fi or cable) to receive photos.</string>
+    <string name="guests_server_failed">The TV can’t receive photos right now. End the party and start it again.</string>
+    <string name="guests_waiting_network">Starting…</string>
+    <string name="guests_review">Review</string>
+    <string name="guests_approval">Approve photos</string>
+    <string name="guests_approval_body">New photos appear only after you approve them with the remote.</string>
+    <string name="guests_qr_in_slideshow">QR code in the slideshow</string>
+    <string name="guests_qr_in_slideshow_body">Shows a small QR code in a corner so guests can send photos at any time.</string>
+    <string name="guests_wifi">Wi‑Fi QR code</string>
+    <string name="guests_wifi_body">Lets guests join your Wi‑Fi without typing the password.</string>
+    <string name="guests_wifi_set">Set up</string>
+    <string name="guests_wifi_change">Change</string>
+    <string name="guests_wifi_remove">Remove</string>
+    <string name="guests_end">End party and delete photos</string>
+    <string name="guests_end_confirm">Press again to delete</string>
+    <string name="message_guests_ended">Party ended: guest photos were deleted from the TV.</string>
+    <string name="guests_slideshow_cta">Send your photos</string>
+    <string name="guests_waiting_title">Send your photos!</string>
+    <string name="guests_waiting_body">Scan the QR code with your phone: photos will appear here within a few seconds.</string>
+    <string name="guest_photo">Guest photo</string>
+    <string name="guest_photo_from">Photo from %1$s</string>
+    <string name="review_kicker">Guest photos</string>
+    <string name="review_title">Photos to approve</string>
+    <string name="review_show">Show</string>
+    <string name="review_discard">Discard</string>
+    <string name="review_approve_all">Approve all</string>
+    <string name="review_empty">No photos waiting for approval.</string>
+    <string name="wifi_kicker">Guest photos</string>
+    <string name="wifi_title">Wi‑Fi for guests</string>
+    <string name="wifi_subtitle">Enter your network name and password: the TV will show a QR code to join it. The password is stored encrypted on this TV only.</string>
+    <string name="wifi_name">Network name</string>
+    <string name="wifi_password">Password (empty for an open network)</string>
+    <string name="wifi_save">Save</string>
+    <string name="wifi_error_name">Enter the network name.</string>
+    <string name="wifi_error_name_long">The network name is too long.</string>
+    <string name="wifi_error_password">The password must be 8 to 63 characters long.</string>
     <plurals name="games_active_collection">
         <item quantity="one">Active collection: %1$d photo</item>
         <item quantity="other">Active collection: %1$d photos</item>
@@ -155,10 +201,6 @@
         <item quantity="one">Google Photos · %1$d photo</item>
         <item quantity="other">Google Photos · %1$d photos</item>
     </plurals>
-    <plurals name="source_cast">
-        <item quantity="one">Chromecast · %1$d photo</item>
-        <item quantity="other">Chromecast · %1$d photos</item>
-    </plurals>
     <plurals name="message_usb_ready">
         <item quantity="one">%1$d photo ready.</item>
         <item quantity="other">%1$d photos ready.</item>
@@ -166,5 +208,21 @@
     <plurals name="message_google_skipped">
         <item quantity="one">%1$d item skipped: only photos are shown, not videos.</item>
         <item quantity="other">%1$d items skipped: only photos are shown, not videos.</item>
+    </plurals>
+    <plurals name="guests_shown">
+        <item quantity="one">%1$d photo in the slideshow</item>
+        <item quantity="other">%1$d photos in the slideshow</item>
+    </plurals>
+    <plurals name="guests_pending">
+        <item quantity="one">%1$d photo to approve</item>
+        <item quantity="other">%1$d photos to approve</item>
+    </plurals>
+    <plurals name="source_guests">
+        <item quantity="one">Guest photos · %1$d photo</item>
+        <item quantity="other">Guest photos · %1$d photos</item>
+    </plurals>
+    <plurals name="source_with_guests">
+        <item quantity="one">%1$s + %2$d from guests</item>
+        <item quantity="other">%1$s + %2$d from guests</item>
     </plurals>
 </resources>

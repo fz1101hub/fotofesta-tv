@@ -2,6 +2,7 @@ FotoFesta TV turns your television into a digital photo frame for parties, famil
 
 <b>Where your photos come from</b>
 • Google Photos: scan a QR code with your phone, sign in and choose the photos to show. No passwords to type with the remote, and access only to the photos you select.
+• Guest photos: guests scan a QR code on the TV and send photos from their own phones, over your home network and with no app to install. New photos appear right away in the slideshow with the sender's name; if you like, you approve them first with the remote.
 • USB drive or stick: choose a folder, even without internet. Photos stay on the drive and are never copied.
 • Four demo photos to try the app right away.
 
@@ -22,6 +23,6 @@ FotoFesta TV turns your television into a digital photo frame for parties, famil
 Everything works with the remote's arrow keys, with a clearly visible focus, text readable from the couch and an option to reduce motion.
 
 <b>Privacy</b>
-No ads, no tracking by the app and no developer server. Google photos are shown straight from Google Photos and never copied to the TV, so they take no storage space.
+No ads, no tracking and no developer server. Google photos are shown straight from Google Photos and never copied to the TV, so they take no storage space. Guest photos go from the phone to the TV without passing through the internet, stay in memory during the party and are deleted at the end.
 
 Google Photos doesn't let apps read your whole library: you choose the photos from your phone each time.

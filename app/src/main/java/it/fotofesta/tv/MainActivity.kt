@@ -32,6 +32,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -39,12 +40,14 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
-import com.google.android.gms.cast.tv.CastReceiverContext
 import it.fotofesta.tv.model.Destination
 import it.fotofesta.tv.model.GoogleConnectState
 import it.fotofesta.tv.ui.FotoFestaTheme
 import it.fotofesta.tv.ui.GamesScreen
 import it.fotofesta.tv.ui.GoogleConnectScreen
+import it.fotofesta.tv.ui.GuestReviewScreen
+import it.fotofesta.tv.ui.GuestWifiScreen
+import it.fotofesta.tv.ui.GuestsScreen
 import it.fotofesta.tv.ui.HomeScreen
 import it.fotofesta.tv.ui.MemoryGameScreen
 import it.fotofesta.tv.ui.MysteryGameScreen
@@ -91,6 +94,9 @@ class MainActivity : ComponentActivity() {
                     Destination.MEMORY, Destination.MYSTERY -> true
                     Destination.GOOGLE_CONNECT ->
                         state.google !is GoogleConnectState.Error && state.google !is GoogleConnectState.Complete
+                    // Durante la festa il QR deve restare visibile mentre gli invitati lo inquadrano.
+                    Destination.GUESTS -> state.guests.active
+                    Destination.GUEST_REVIEW -> true
                     else -> false
                 }
                 DisposableEffect(keepScreenOn) {
@@ -113,6 +119,7 @@ class MainActivity : ComponentActivity() {
                             state = state,
                             showGoogle = viewModel.showGoogle,
                             onGoogle = viewModel::startGoogleConnect,
+                            onGuests = { viewModel.navigate(Destination.GUESTS) },
                             onUsb = { launchPicker { usbPicker.launch(null) } },
                             onDemo = viewModel::useDemoAndPlay,
                             onPlay = viewModel::playCurrent,
@@ -144,18 +151,50 @@ class MainActivity : ComponentActivity() {
                             onMemory = { viewModel.navigate(Destination.MEMORY) },
                             onMystery = { viewModel.navigate(Destination.MYSTERY) },
                         )
-                        Destination.MEMORY -> MemoryGameScreen(state.photos) { viewModel.navigate(Destination.GAMES) }
-                        Destination.MYSTERY -> MysteryGameScreen(state.photos) { viewModel.navigate(Destination.GAMES) }
+                        // Le partite usano le foto presenti all'apertura del gioco: quelle che arrivano
+                        // dagli invitati durante la partita non la fanno ricominciare.
+                        Destination.MEMORY -> {
+                            val photos = remember { state.photos }
+                            MemoryGameScreen(photos) { viewModel.navigate(Destination.GAMES) }
+                        }
+                        Destination.MYSTERY -> {
+                            val photos = remember { state.photos }
+                            MysteryGameScreen(photos) { viewModel.navigate(Destination.GAMES) }
+                        }
                         Destination.GOOGLE_CONNECT -> GoogleConnectScreen(
                             state = state.google,
                             onCancel = viewModel::cancelGoogleConnect,
                             onRetry = viewModel::startGoogleConnect,
                             onPlay = viewModel::playCurrent,
                         )
+                        Destination.GUESTS -> GuestsScreen(
+                            guests = state.guests,
+                            onBack = { viewModel.navigate(Destination.HOME) },
+                            onStart = viewModel::startGuestParty,
+                            onEnd = viewModel::endGuestParty,
+                            onPlay = viewModel::playCurrent,
+                            onReview = { viewModel.navigate(Destination.GUEST_REVIEW) },
+                            onApproval = viewModel::setGuestApproval,
+                            onQrInSlideshow = viewModel::setGuestQrInSlideshow,
+                            onWifi = { viewModel.navigate(Destination.GUEST_WIFI) },
+                            onRemoveWifi = viewModel::removeGuestWifi,
+                        )
+                        Destination.GUEST_REVIEW -> GuestReviewScreen(
+                            pending = state.guests.pending,
+                            onBack = { viewModel.navigate(Destination.GUESTS) },
+                            onShow = viewModel::approveGuestPhoto,
+                            onDiscard = viewModel::discardGuestPhoto,
+                            onApproveAll = viewModel::approveAllGuestPhotos,
+                        )
+                        Destination.GUEST_WIFI -> GuestWifiScreen(
+                            initialName = state.guests.wifiName,
+                            onBack = { viewModel.navigate(Destination.GUESTS) },
+                            onSave = viewModel::saveGuestWifi,
+                        )
                     }
 
                     // Messaggi e avanzamento in sovrimpressione, in basso: in alto coprirebbero
-                    // l'intestazione con la sorgente e l'indicatore Chromecast.
+                    // l'intestazione con la sorgente e l'indicatore della festa.
                     if (state.message != null || state.busy) {
                         Column(
                             modifier = Modifier.align(Alignment.BottomCenter)
@@ -233,10 +272,6 @@ class MainActivity : ComponentActivity() {
                     PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
                 )
             )
-        }
-        // Collega la MediaSession a Cast Connect: i comandi play/pausa/skip dei sender arrivano qui.
-        runCatching {
-            CastReceiverContext.getInstance().mediaManager.setSessionCompatToken(mediaSession.sessionToken)
         }
     }
 

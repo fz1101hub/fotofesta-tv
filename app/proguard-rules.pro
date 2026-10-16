@@ -1,3 +1,1 @@
--keep class com.google.android.gms.cast.tv.** { *; }
--keep class it.fotofesta.tv.cast.FotoFestaReceiverOptionsProvider { *; }
 -dontwarn org.conscrypt.**

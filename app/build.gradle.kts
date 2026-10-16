@@ -30,13 +30,11 @@ android {
         applicationId = "it.fotofesta.tv"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.2.0"
+        versionCode = 4
+        versionName = "1.3.0"
 
         buildConfigField("String", "PHOTOS_CLIENT_ID", quotedProperty("PHOTOS_CLIENT_ID"))
         buildConfigField("String", "PHOTOS_CLIENT_SECRET", quotedProperty("PHOTOS_CLIENT_SECRET"))
-        buildConfigField("String", "CAST_NAMESPACE", "\"urn:x-cast:it.fotofesta.tv\"")
-        buildConfigField("int", "CAST_PROTOCOL_VERSION", "1")
     }
 
     buildFeatures {
@@ -49,6 +47,9 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
+
+    // La pagina che i telefoni degli invitati aprono è la stessa per Android TV e Apple TV.
+    sourceSets.getByName("main").assets.srcDir("../shared/assets")
 
     packaging {
         resources.excludes += setOf("META-INF/AL2.0", "META-INF/LGPL2.1")
@@ -109,9 +110,6 @@ dependencies {
     implementation("androidx.documentfile:documentfile:1.1.0")
     implementation("androidx.media:media:1.8.0")
     implementation("com.google.zxing:core:3.5.3")
-
-    implementation("com.google.android.gms:play-services-cast-tv:21.1.1")
-    implementation("com.google.android.gms:play-services-cast:22.3.1")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20250517")

@@ -86,11 +86,4 @@ class PlaybackOrderTest {
         val expected = order.peekNext(1)
         assertEquals(expected, order.next(1))
     }
-
-    @Test
-    fun `settings patch only changes provided fields`() {
-        val base = SlideshowSettings(intervalSeconds = 12, shuffle = true, musicVolume = .6f)
-        val result = SettingsPatch(transition = TransitionType.SLIDE).applyTo(base)
-        assertEquals(base.copy(transition = TransitionType.SLIDE), result)
-    }
 }

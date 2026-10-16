@@ -10,13 +10,12 @@
     <string name="home_title">Scegli da dove iniziare</string>
     <string name="home_subtitle">Google Foto resta sul tuo account. USB funziona anche senza internet.</string>
     <string name="home_google_title">Google Foto</string>
-    <string name="home_google_body">Seleziona dal telefono con QR. Nessun cast e nessun import manuale.</string>
+    <string name="home_google_body">Seleziona dal telefono con QR. Nessun import manuale.</string>
     <string name="home_usb_title">Hard disk USB</string>
     <string name="home_usb_body">Scegli una cartella. L’accesso resta solo su questa TV.</string>
     <string name="home_demo_title">Prova subito</string>
     <string name="home_demo_body">Quattro foto demo per esplorare transizioni, musica e giochi.</string>
     <string name="home_games">Giochi con le foto</string>
-    <string name="header_cast_connected">Chromecast collegato</string>
     <string name="source_demo">Foto dimostrative</string>
     <string name="demo_coast">Costa al tramonto</string>
     <string name="demo_picnic">Picnic in famiglia</string>
@@ -87,7 +86,7 @@
     <string name="settings_google_data">Dati Google Foto</string>
     <string name="settings_google_data_body">Rimuove dalla TV l’accesso a Google Foto e l’elenco delle foto scelte.</string>
     <string name="settings_google_disconnect">Disconnetti e cancella</string>
-    <string name="settings_privacy">Privacy: FotoFesta TV non contiene pubblicità e non invia nulla allo sviluppatore. Le foto USB non vengono copiate. Le foto scelte da Google non vengono copiate sulla TV: si caricano da Google durante lo slideshow e ‘Disconnetti e cancella’ revoca l’accesso.</string>
+    <string name="settings_privacy">Privacy: FotoFesta TV non contiene pubblicità e non invia nulla allo sviluppatore. Le foto USB non vengono copiate. Le foto scelte da Google non vengono copiate sulla TV: si caricano da Google durante lo slideshow e ‘Disconnetti e cancella’ revoca l’accesso. Le foto degli invitati passano solo dalla rete di casa e vengono cancellate a fine festa.</string>
     <string name="settings_ken_burns">Movimento lento</string>
     <string name="settings_ken_burns_body">Zoom e spostamento lenti su ogni foto mentre è sullo schermo.</string>
     <string name="settings_sleep_timer">Pausa automatica</string>
@@ -136,8 +135,55 @@
     <string name="mystery_correct">Risposta corretta!</string>
     <string name="mystery_wrong">Non è questa. La foto ora è più nitida.</string>
     <string name="mystery_hidden_photo">Foto nascosta</string>
-    <string name="cast_status_ready">FotoFesta TV pronta</string>
     <string name="dream_label">Foto di FotoFesta TV</string>
+    <string name="home_guests_title">Foto degli invitati</string>
+    <string name="home_guests_body">Gli invitati mandano le foto dal telefono inquadrando un QR.</string>
+    <string name="guests_kicker">Modalità festa</string>
+    <string name="guests_title">Foto degli invitati</string>
+    <string name="guests_subtitle">Gli invitati inquadrano il QR e mandano le foto dal telefono attraverso la rete di casa.</string>
+    <string name="guests_intro">Le foto restano sulla TV solo durante la festa: in memoria, con una piccola cartella temporanea di riserva. Terminando la festa vengono cancellate tutte.</string>
+    <string name="guests_start">Inizia a ricevere foto</string>
+    <string name="guests_qr_send">QR per mandare le foto</string>
+    <string name="guests_scan_send">Inquadra per mandare le foto</string>
+    <string name="guests_qr_wifi">QR per entrare nella Wi‑Fi</string>
+    <string name="guests_scan_wifi">Inquadra per entrare in “%1$s”</string>
+    <string name="guests_same_network">I telefoni devono essere sulla stessa rete della TV.</string>
+    <string name="guests_no_network">Collega la TV alla rete di casa (Wi‑Fi o cavo) per ricevere le foto.</string>
+    <string name="guests_server_failed">La TV non riesce a ricevere foto in questo momento. Termina la festa e ricominciala.</string>
+    <string name="guests_waiting_network">Avvio in corso…</string>
+    <string name="guests_review">Controlla</string>
+    <string name="guests_approval">Approvazione delle foto</string>
+    <string name="guests_approval_body">Le foto nuove compaiono solo dopo che le approvi con il telecomando.</string>
+    <string name="guests_qr_in_slideshow">QR nello slideshow</string>
+    <string name="guests_qr_in_slideshow_body">Mostra un piccolo QR in un angolo, così gli invitati possono mandare foto in ogni momento.</string>
+    <string name="guests_wifi">QR della Wi‑Fi</string>
+    <string name="guests_wifi_body">Gli invitati entrano nella tua Wi‑Fi senza scrivere la password.</string>
+    <string name="guests_wifi_set">Imposta</string>
+    <string name="guests_wifi_change">Modifica</string>
+    <string name="guests_wifi_remove">Rimuovi</string>
+    <string name="guests_end">Termina la festa e cancella le foto</string>
+    <string name="guests_end_confirm">Premi di nuovo per cancellare</string>
+    <string name="message_guests_ended">Festa terminata: le foto degli invitati sono state cancellate dalla TV.</string>
+    <string name="guests_slideshow_cta">Manda le tue foto</string>
+    <string name="guests_waiting_title">Manda le tue foto!</string>
+    <string name="guests_waiting_body">Inquadra il QR con il telefono: le foto compariranno qui in pochi secondi.</string>
+    <string name="guest_photo">Foto di un invitato</string>
+    <string name="guest_photo_from">Foto di %1$s</string>
+    <string name="review_kicker">Foto degli invitati</string>
+    <string name="review_title">Foto da approvare</string>
+    <string name="review_show">Mostra</string>
+    <string name="review_discard">Scarta</string>
+    <string name="review_approve_all">Approva tutte</string>
+    <string name="review_empty">Nessuna foto in attesa di approvazione.</string>
+    <string name="wifi_kicker">Foto degli invitati</string>
+    <string name="wifi_title">Wi‑Fi per gli invitati</string>
+    <string name="wifi_subtitle">Scrivi nome e password della rete: la TV mostrerà un QR per entrarci. La password resta cifrata solo su questa TV.</string>
+    <string name="wifi_name">Nome della rete</string>
+    <string name="wifi_password">Password (vuota per una rete aperta)</string>
+    <string name="wifi_save">Salva</string>
+    <string name="wifi_error_name">Scrivi il nome della rete.</string>
+    <string name="wifi_error_name_long">Il nome della rete è troppo lungo.</string>
+    <string name="wifi_error_password">La password deve avere da 8 a 63 caratteri.</string>
     <plurals name="games_active_collection">
         <item quantity="one">Raccolta attiva: %1$d foto</item>
         <item quantity="many">Raccolta attiva: %1$d foto</item>
@@ -158,11 +204,6 @@
         <item quantity="many">Google Foto · %1$d foto</item>
         <item quantity="other">Google Foto · %1$d foto</item>
     </plurals>
-    <plurals name="source_cast">
-        <item quantity="one">Chromecast · %1$d foto</item>
-        <item quantity="many">Chromecast · %1$d foto</item>
-        <item quantity="other">Chromecast · %1$d foto</item>
-    </plurals>
     <plurals name="message_usb_ready">
         <item quantity="one">%1$d foto pronta.</item>
         <item quantity="many">%1$d foto pronte.</item>
@@ -172,5 +213,25 @@
         <item quantity="one">%1$d elemento ignorato: vengono mostrate solo le foto, non i video.</item>
         <item quantity="many">%1$d elementi ignorati: vengono mostrate solo le foto, non i video.</item>
         <item quantity="other">%1$d elementi ignorati: vengono mostrate solo le foto, non i video.</item>
+    </plurals>
+    <plurals name="guests_shown">
+        <item quantity="one">%1$d foto nello slideshow</item>
+        <item quantity="many">%1$d foto nello slideshow</item>
+        <item quantity="other">%1$d foto nello slideshow</item>
+    </plurals>
+    <plurals name="guests_pending">
+        <item quantity="one">%1$d foto da approvare</item>
+        <item quantity="many">%1$d foto da approvare</item>
+        <item quantity="other">%1$d foto da approvare</item>
+    </plurals>
+    <plurals name="source_guests">
+        <item quantity="one">Foto degli invitati · %1$d foto</item>
+        <item quantity="many">Foto degli invitati · %1$d foto</item>
+        <item quantity="other">Foto degli invitati · %1$d foto</item>
+    </plurals>
+    <plurals name="source_with_guests">
+        <item quantity="one">%1$s + %2$d dagli invitati</item>
+        <item quantity="many">%1$s + %2$d dagli invitati</item>
+        <item quantity="other">%1$s + %2$d dagli invitati</item>
     </plurals>
 </resources>

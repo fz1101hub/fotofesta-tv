@@ -4,14 +4,17 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import it.fotofesta.tv.appServices
+import it.fotofesta.tv.guests.toPhotoItem
 import it.fotofesta.tv.model.PhotoItem
+import it.fotofesta.tv.model.combineWithGuests
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Raccolta attiva dell'ultima sorgente scelta (Google Foto, cartella USB o foto demo). La usa il
- * salvaschermo, che gira senza l'interfaccia dell'app.
+ * Raccolta attiva dell'ultima sorgente scelta (Google Foto, cartella USB o foto demo), con le foto
+ * approvate degli invitati se la festa è in corso. La usa il salvaschermo, che gira senza
+ * l'interfaccia dell'app.
  */
 class ActiveCollection(private val context: Context) {
     suspend fun load(): List<PhotoItem> = withContext(Dispatchers.IO) {
@@ -23,7 +26,15 @@ class ActiveCollection(private val context: Context) {
             "USB" -> settings.loadUsbTree()?.let { scanUsb(Uri.parse(it)) }.orEmpty()
             else -> emptyList()
         }
-        photos.ifEmpty { DemoPhotos.load(context) }
+        val guests = context.appServices.guests.store.photos.value
+            .filter { it.approved }
+            .map { it.toPhotoItem(context) }
+        combineWithGuests(
+            base = photos.ifEmpty { DemoPhotos.load(context) },
+            baseIsDemo = photos.isEmpty(),
+            guests = guests,
+            partyActive = false,
+        )
     }
 
     private suspend fun scanUsb(treeUri: Uri): List<PhotoItem> = try {

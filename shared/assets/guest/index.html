@@ -1,0 +1,341 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>FotoFesta</title>
+<style>
+  :root { --bg: #0b1222; --card: #17213a; --fg: #eef2fa; --muted: #aab4c8; --accent: #ff7a59; --ok: #6ee7b7; --warn: #fbbf24; --err: #fca5a5; --line: #2a3654; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-text-size-adjust: 100%; }
+  main { max-width: 560px; margin: 0 auto; padding: max(20px, env(safe-area-inset-top)) 16px max(32px, env(safe-area-inset-bottom)); }
+  .brand { color: var(--accent); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: .8rem; }
+  h1 { font-size: 1.6rem; line-height: 1.2; margin: .3rem 0 .6rem; }
+  p { margin: .4rem 0; overflow-wrap: anywhere; }
+  .muted { color: var(--muted); font-size: .92rem; }
+  label.field { display: block; margin: 1.2rem 0 .3rem; font-weight: 600; }
+  input[type=text] { width: 100%; font: inherit; color: var(--fg); background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+  input[type=text]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .pick { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; margin: 1.2rem 0 .4rem; padding: 18px; border: 0; border-radius: 16px; background: var(--accent); color: #1b1020; font: 700 1.15rem/1.2 inherit; cursor: pointer; }
+  .pick:focus-within { outline: 3px solid #fff; outline-offset: 2px; }
+  .pick input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  .note { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-top: 1rem; }
+  #summary { margin-top: 1rem; font-weight: 600; min-height: 1.5em; }
+  ul { list-style: none; margin: .6rem 0 0; padding: 0; display: grid; gap: 8px; }
+  li { display: flex; align-items: center; gap: 12px; background: var(--card); border-radius: 12px; padding: 8px; }
+  li .thumb { width: 52px; height: 52px; flex: none; border-radius: 8px; background: #26314d center / cover no-repeat; }
+  li .text { min-width: 0; flex: 1; }
+  li .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: .92rem; }
+  li .state { font-size: .88rem; color: var(--muted); }
+  li.ok .state { color: var(--ok); }
+  li.wait .state { color: var(--warn); }
+  li.err .state { color: var(--err); }
+  progress { width: 100%; height: 6px; accent-color: var(--accent); }
+  #banner { display: none; margin-top: 1rem; padding: 12px 14px; border-radius: 14px; background: #3b1d24; color: var(--err); font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand">FotoFesta</div>
+  <h1 id="title"></h1>
+  <p class="muted" id="intro"></p>
+
+  <label class="field" for="sender" id="senderLabel"></label>
+  <input type="text" id="sender" maxlength="40" autocomplete="nickname" enterkeyhint="done">
+
+  <label class="pick"><span id="pickText"></span><input type="file" id="files" accept="image/*" multiple></label>
+  <p class="muted" id="keepOpen"></p>
+
+  <div id="banner" role="alert"></div>
+  <div id="summary" aria-live="polite"></div>
+  <ul id="list"></ul>
+
+  <div class="note">
+    <p class="muted" id="approvalNote" hidden></p>
+    <p class="muted" id="privacy"></p>
+  </div>
+</main>
+<script>
+"use strict";
+// Valori impostati dalla TV quando serve la pagina: misura dello schermo e modalità di adattamento.
+const CONFIG = __FOTOFESTA_CONFIG__;
+
+const IT = {
+  title: "Manda le tue foto sulla TV",
+  intro: "Scegli le foto dal telefono: compariranno nello slideshow tra pochi secondi.",
+  senderLabel: "Il tuo nome (facoltativo)",
+  senderPlaceholder: "Comparirà accanto alle tue foto",
+  pick: "Scegli le foto",
+  keepOpen: "Tieni aperta questa pagina finché le foto non sono inviate.",
+  approval: "L'organizzatore controlla le foto prima che compaiano sulla TV.",
+  privacy: "Le foto vanno solo alla TV, attraverso la rete di casa, senza passare da internet. Vengono ridotte alla misura dello schermo, senza dati come la posizione, e cancellate a fine festa. Gli originali sul telefono restano come sono.",
+  preparing: "Preparazione…",
+  sending: "Invio…",
+  shown: "Inviata: tra poco sulla TV",
+  pending: "Inviata: in attesa di approvazione",
+  unsupported: "Formato non supportato",
+  tooLarge: "Foto troppo grande",
+  full: "La TV non ha più spazio: riprova più tardi",
+  offline: "La TV non risponde. Il telefono è collegato alla stessa Wi‑Fi della TV?",
+  expired: "Questo link non è più valido: inquadra di nuovo il QR sulla TV.",
+  failed: "Invio non riuscito",
+  waiting: "In coda",
+  summary: (done, total) => done + " di " + total + " inviate",
+};
+const EN = {
+  title: "Send your photos to the TV",
+  intro: "Choose photos on your phone: they will appear in the slideshow within a few seconds.",
+  senderLabel: "Your name (optional)",
+  senderPlaceholder: "Shown next to your photos",
+  pick: "Choose photos",
+  keepOpen: "Keep this page open until your photos are sent.",
+  approval: "The host reviews photos before they appear on the TV.",
+  privacy: "Photos only go to the TV, over the home network, without passing through the internet. They are resized to fit the screen, stripped of data such as location, and deleted when the party ends. The originals on your phone stay as they are.",
+  preparing: "Preparing…",
+  sending: "Sending…",
+  shown: "Sent: on the TV shortly",
+  pending: "Sent: waiting for approval",
+  unsupported: "Unsupported format",
+  tooLarge: "Photo too large",
+  full: "The TV is out of space: try again later",
+  offline: "The TV is not responding. Is your phone on the same Wi‑Fi as the TV?",
+  expired: "This link is no longer valid: scan the QR code on the TV again.",
+  failed: "Sending failed",
+  waiting: "Queued",
+  summary: (done, total) => done + " of " + total + " sent",
+};
+const T = (navigator.language || "").toLowerCase().startsWith("it") ? IT : EN;
+document.documentElement.lang = T === IT ? "it" : "en";
+
+const $ = (id) => document.getElementById(id);
+$("title").textContent = T.title;
+$("intro").textContent = T.intro;
+$("senderLabel").textContent = T.senderLabel;
+$("sender").placeholder = T.senderPlaceholder;
+$("pickText").textContent = T.pick;
+$("keepOpen").textContent = T.keepOpen;
+$("privacy").textContent = T.privacy;
+if (CONFIG.approval) {
+  $("approvalNote").textContent = T.approval;
+  $("approvalNote").hidden = false;
+}
+
+const KEY = new URLSearchParams(location.search).get("k") || "";
+const senderInput = $("sender");
+try { senderInput.value = localStorage.getItem("fotofesta.sender") || ""; } catch (e) {}
+senderInput.addEventListener("change", () => {
+  try { localStorage.setItem("fotofesta.sender", senderInput.value.trim()); } catch (e) {}
+});
+
+const queue = [];
+let total = 0;
+let done = 0;
+let running = false;
+let stopped = false;
+
+$("files").addEventListener("change", (event) => {
+  const files = Array.from(event.target.files || []);
+  event.target.value = "";
+  if (stopped) return;
+  for (const file of files) {
+    const item = addRow(file.name || "foto");
+    queue.push({ file, item });
+    total++;
+  }
+  updateSummary();
+  if (!running) run();
+});
+
+function addRow(name) {
+  const li = document.createElement("li");
+  const thumb = document.createElement("div");
+  thumb.className = "thumb";
+  const text = document.createElement("div");
+  text.className = "text";
+  const label = document.createElement("div");
+  label.className = "name";
+  label.textContent = name;
+  const state = document.createElement("div");
+  state.className = "state";
+  state.textContent = T.waiting;
+  const bar = document.createElement("progress");
+  bar.max = 1;
+  bar.value = 0;
+  bar.hidden = true;
+  text.append(label, state, bar);
+  li.append(thumb, text);
+  $("list").prepend(li);
+  return { li, thumb, state, bar };
+}
+
+function setState(item, text, kind) {
+  item.state.textContent = text;
+  item.li.className = kind || "";
+}
+
+function updateSummary() {
+  $("summary").textContent = total ? T.summary(done, total) : "";
+}
+
+function showBanner(text) {
+  $("banner").textContent = text;
+  $("banner").style.display = "block";
+}
+
+async function run() {
+  running = true;
+  while (queue.length && !stopped) {
+    const { file, item } = queue.shift();
+    await processOne(file, item);
+    updateSummary();
+  }
+  running = false;
+}
+
+async function processOne(file, item) {
+  setState(item, T.preparing);
+  let blob;
+  try {
+    blob = await resize(file);
+  } catch (e) {
+    setState(item, T.unsupported, "err");
+    return;
+  }
+  if (blob.size > CONFIG.maxBytes) {
+    setState(item, T.tooLarge, "err");
+    return;
+  }
+  const preview = URL.createObjectURL(blob);
+  item.thumb.style.backgroundImage = "url(" + preview + ")";
+  item.bar.hidden = false;
+  setState(item, T.sending);
+  let result;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    result = await upload(blob, item);
+    if (result.status !== 0) break;
+    await sleep(1500 * (attempt + 1));
+  }
+  item.bar.hidden = true;
+  if (result.status === 200) {
+    done++;
+    if (result.body && result.body.status === "pending") setState(item, T.pending, "wait");
+    else setState(item, T.shown, "ok");
+  } else if (result.status === 401 || result.status === 403 || result.status === 421) {
+    setState(item, T.failed, "err");
+    stopAll(T.expired);
+  } else if (result.status === 0) {
+    setState(item, T.failed, "err");
+    stopAll(T.offline);
+  } else if (result.status === 413) {
+    setState(item, T.tooLarge, "err");
+  } else if (result.status === 415) {
+    setState(item, T.unsupported, "err");
+  } else if (result.status === 507) {
+    setState(item, T.full, "err");
+  } else {
+    setState(item, T.failed, "err");
+  }
+}
+
+function stopAll(message) {
+  stopped = true;
+  showBanner(message);
+  while (queue.length) setState(queue.shift().item, T.failed, "err");
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => { URL.revokeObjectURL(url); resolve(image); };
+    image.onerror = () => { URL.revokeObjectURL(url); reject(new Error("decode")); };
+    image.src = url;
+  });
+}
+
+// Riduce la foto alla misura dello schermo della TV e la ricodifica in JPEG: l'orientamento viene
+// applicato dal browser e i metadati (posizione, modello del telefono) non vengono copiati.
+async function resize(file) {
+  const image = await loadImage(file);
+  const width = image.naturalWidth;
+  const height = image.naturalHeight;
+  if (!width || !height) throw new Error("size");
+  const boxW = CONFIG.maxWidth;
+  const boxH = CONFIG.maxHeight;
+  let scale = CONFIG.fit === "cover" ? Math.max(boxW / width, boxH / height) : Math.min(boxW / width, boxH / height);
+  scale = Math.min(1, scale);
+  // Panorami molto lunghi in modalità "riempi": mai più di due schermi di pixel.
+  const maxPixels = boxW * boxH * 2;
+  if (width * height * scale * scale > maxPixels) scale = Math.sqrt(maxPixels / (width * height));
+  const targetW = Math.max(1, Math.round(width * scale));
+  const targetH = Math.max(1, Math.round(height * scale));
+
+  // Riduzione a metà per passi: con un solo passaggio alcuni browser producono immagini seghettate.
+  let source = image;
+  let sourceW = width;
+  let sourceH = height;
+  const canvases = [];
+  while (sourceW / 2 >= targetW && sourceH / 2 >= targetH) {
+    const step = makeCanvas(Math.round(sourceW / 2), Math.round(sourceH / 2));
+    step.context.drawImage(source, 0, 0, step.canvas.width, step.canvas.height);
+    canvases.push(step.canvas);
+    source = step.canvas;
+    sourceW = step.canvas.width;
+    sourceH = step.canvas.height;
+  }
+  const final = makeCanvas(targetW, targetH);
+  final.context.fillStyle = "#000";
+  final.context.fillRect(0, 0, targetW, targetH);
+  final.context.drawImage(source, 0, 0, targetW, targetH);
+  let blob = await toJpeg(final.canvas, CONFIG.quality);
+  if (blob && blob.size > CONFIG.maxBytes) blob = await toJpeg(final.canvas, 0.7);
+  // Su iPhone i canvas restano in memoria finché non si azzerano le dimensioni.
+  for (const canvas of canvases.concat(final.canvas)) { canvas.width = 0; canvas.height = 0; }
+  if (!blob) throw new Error("encode");
+  return blob;
+}
+
+function makeCanvas(width, height) {
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
+  return { canvas, context };
+}
+
+function toJpeg(canvas, quality) {
+  return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+}
+
+function upload(blob, item) {
+  return new Promise((resolve) => {
+    const request = new XMLHttpRequest();
+    request.open("POST", "/photos");
+    request.timeout = 120000;
+    request.setRequestHeader("Content-Type", "image/jpeg");
+    request.setRequestHeader("X-FotoFesta-Key", KEY);
+    const sender = senderInput.value.trim().slice(0, 40);
+    if (sender) request.setRequestHeader("X-FotoFesta-Sender", encodeURIComponent(sender));
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable) item.bar.value = event.loaded / event.total;
+    };
+    request.onload = () => {
+      let body = null;
+      try { body = JSON.parse(request.responseText); } catch (e) {}
+      resolve({ status: request.status, body });
+    };
+    request.onerror = () => resolve({ status: 0 });
+    request.ontimeout = () => resolve({ status: 0 });
+    request.send(blob);
+  });
+}
+</script>
+</body>
+</html>

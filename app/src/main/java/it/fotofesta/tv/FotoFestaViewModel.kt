@@ -8,23 +8,29 @@ import androidx.annotation.PluralsRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import coil.imageLoader
-import it.fotofesta.tv.cast.CastBridge
-import it.fotofesta.tv.cast.CastCommand
 import it.fotofesta.tv.data.DemoPhotos
 import it.fotofesta.tv.data.SettingsRepository
 import it.fotofesta.tv.data.UsbPhotoRepository
 import it.fotofesta.tv.google.GoogleImportFlow
 import it.fotofesta.tv.google.GooglePhotosStream
 import it.fotofesta.tv.google.HttpStatusException
+import it.fotofesta.tv.guests.GuestParty
+import it.fotofesta.tv.guests.GuestPhotoStore
+import it.fotofesta.tv.guests.WifiNetwork
+import it.fotofesta.tv.guests.guestPhotoId
+import it.fotofesta.tv.guests.toPhotoItem
 import it.fotofesta.tv.media.BackgroundMusicPlayer
 import it.fotofesta.tv.model.AppState
 import it.fotofesta.tv.model.Destination
+import it.fotofesta.tv.model.FreshPhotos
 import it.fotofesta.tv.model.GoogleConnectState
+import it.fotofesta.tv.model.GuestsUiState
 import it.fotofesta.tv.model.PhotoItem
 import it.fotofesta.tv.model.PlaybackOrder
 import it.fotofesta.tv.model.SlideshowSettings
 import it.fotofesta.tv.model.SourceType
 import it.fotofesta.tv.model.UserFacingException
+import it.fotofesta.tv.model.combineWithGuests
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -32,6 +38,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -51,7 +58,9 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private val googleSelection = services.googleSelection
     private val googleStream = services.googleStream
     private val googleImport = GoogleImportFlow(googleAuth, googlePicker)
+    private val guests = services.guests
     private val playbackOrder = PlaybackOrder()
+    private val freshPhotos = FreshPhotos()
     private var googleJob: Job? = null
     private var usbJob: Job? = null
     private var restoreJob: Job? = null
@@ -61,6 +70,16 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private val savedMusic = settingsRepository.loadMusic()
 
     private val demoPhotos = DemoPhotos.load(context)
+
+    // Raccolta scelta (demo, USB o Google) e foto approvate degli invitati: insieme formano quella mostrata.
+    private var basePhotos: List<PhotoItem> = demoPhotos
+    private var baseLabel: String = context.getString(R.string.source_demo)
+    private var baseIsDemo = true
+    private var guestPhotos: List<PhotoItem> = emptyList()
+    private var guestPartyActive = false
+    private var knownGuestIds: Set<String>? = null
+    private var knownPendingIds: Set<String> = emptySet()
+    private val createdAtMillis = System.currentTimeMillis()
 
     private val _state = MutableStateFlow(
         AppState(
@@ -75,14 +94,12 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
 
     init {
         playbackOrder.reset(demoPhotos.size, _state.value.settings.shuffle)
-        // Prima si ripristina l'ultima sorgente, poi si ascoltano i comandi Cast: un LOAD già in coda
-        // (avvio tramite Cast Connect) annulla il ripristino invece di essere sovrascritto.
         val lastSource = settingsRepository.loadLastSource()
         if (lastSource == "GOOGLE") {
             restoreJob = viewModelScope.launch {
                 val selection = withContext(Dispatchers.IO) { googleSelection.current() }
                 when {
-                    selection != null -> showPhotos(selection.toPhotos(), googleLabel(selection.items.size))
+                    selection != null -> showPhotos(selection.toPhotos(), googleLabel(selection.items.size), isDemo = false)
                     // Già spiegato da onGoogleSelectionGone (es. accesso perso durante il salvaschermo).
                     googleStream.gone.value != null -> Unit
                     else -> {
@@ -104,15 +121,11 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         }
         if (lastSource == "USB") settingsRepository.loadUsbTree()?.let { stored -> loadUsb(Uri.parse(stored)) }
         viewModelScope.launch {
-            CastBridge.connected.collect { connected ->
-                _state.update { it.copy(castSenderConnected = connected) }
-            }
-        }
-        viewModelScope.launch {
-            CastBridge.commands.collect(::handleCastCommand)
-        }
-        viewModelScope.launch {
             googleStream.gone.collect { gone -> if (gone != null) onGoogleSelectionGone(gone) }
+        }
+        viewModelScope.launch {
+            combine(guests.state, guests.store.photos) { party, photos -> party to photos }
+                .collect { (party, photos) -> onGuestsChanged(party, photos) }
         }
     }
 
@@ -130,21 +143,23 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             }
             Destination.MEMORY, Destination.MYSTERY -> navigate(Destination.GAMES)
             Destination.GOOGLE_CONNECT -> cancelGoogleConnect()
-            Destination.SETTINGS, Destination.GAMES -> navigate(Destination.HOME)
+            Destination.SETTINGS, Destination.GAMES, Destination.GUESTS -> navigate(Destination.HOME)
+            Destination.GUEST_REVIEW, Destination.GUEST_WIFI -> navigate(Destination.GUESTS)
         }
     }
 
     fun useDemoAndPlay() {
         cancelPendingSources()
         settingsRepository.saveLastSource("DEMO")
-        showPhotos(demoPhotos, context.getString(R.string.source_demo))
+        showPhotos(demoPhotos, context.getString(R.string.source_demo), isDemo = true)
         discardGoogleSelection()
         _state.update { it.copy(destination = Destination.SLIDESHOW, isPlaying = true) }
         syncMusic()
     }
 
     fun playCurrent() {
-        if (_state.value.photos.isEmpty()) {
+        // Durante la festa lo slideshow parte anche vuoto: mostra il QR in attesa della prima foto.
+        if (_state.value.photos.isEmpty() && !_state.value.guests.active) {
             showMessage(context.getString(R.string.message_choose_source))
             return
         }
@@ -164,22 +179,28 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
 
     // PlaybackOrder ha effetti collaterali (rimescola a fine giro): l'indice va calcolato fuori da
     // update {}, il cui blocco può essere rieseguito in caso di scritture concorrenti.
+    // Le foto appena mandate dagli invitati passano davanti, poi si riprende dal punto lasciato.
     fun next() {
-        if (_state.value.photos.isEmpty()) return
-        val index = playbackOrder.next(_state.value.currentIndex)
+        val current = _state.value
+        if (current.photos.isEmpty()) return
+        val index = freshPhotos.take(current.photos, current.currentIndex)
+            ?: playbackOrder.next(freshPhotos.takeResume(current.photos) ?: current.currentIndex)
         _state.update { it.copy(currentIndex = index) }
     }
 
     fun previous() {
-        if (_state.value.photos.isEmpty()) return
-        val index = playbackOrder.previous(_state.value.currentIndex)
+        val current = _state.value
+        if (current.photos.isEmpty()) return
+        val index = freshPhotos.takeResume(current.photos) ?: playbackOrder.previous(current.currentIndex)
         _state.update { it.copy(currentIndex = index) }
     }
 
     /** Foto successiva prevista, usata dallo slideshow per precaricarla. */
     fun upcomingPhoto(): PhotoItem? {
         val current = _state.value
-        return playbackOrder.peekNext(current.currentIndex)?.let(current.photos::getOrNull)
+        freshPhotos.peek(current.photos, current.currentIndex)?.let { return current.photos[it] }
+        val from = freshPhotos.peekResume(current.photos) ?: current.currentIndex
+        return playbackOrder.peekNext(from)?.let(current.photos::getOrNull)
     }
 
     fun updateSettings(value: SlideshowSettings) {
@@ -206,7 +227,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                     _state.update { it.copy(busy = false, message = context.getString(R.string.message_usb_empty)) }
                 } else {
                     settingsRepository.saveUsbTree(treeUri.toString())
-                    showPhotos(photos, quantityString(R.plurals.source_usb, photos.size))
+                    showPhotos(photos, quantityString(R.plurals.source_usb, photos.size), isDemo = false)
                     discardGoogleSelection()
                     _state.update { it.copy(busy = false, message = quantityString(R.plurals.message_usb_ready, photos.size)) }
                 }
@@ -283,7 +304,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         googleSelection.save(selection)
         googleStream.reset()
         settingsRepository.saveLastSource("GOOGLE")
-        showPhotos(selection.toPhotos(), googleLabel(selection.items.size))
+        showPhotos(selection.toPhotos(), googleLabel(selection.items.size), isDemo = false)
         if (previous != null && previous.sessionId != selection.sessionId) {
             // La sessione della selezione precedente non serve più.
             viewModelScope.launch(NonCancellable) {
@@ -314,8 +335,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         // Nel frattempo è arrivata una selezione nuova: quella persa non è più mostrata.
         if (googleSelection.current() != null) return
         if (settingsRepository.loadLastSource() == "GOOGLE") settingsRepository.saveLastSource("DEMO")
-        if (_state.value.photos.any { it.source == SourceType.GOOGLE_PHOTOS }) {
-            showPhotos(demoPhotos, context.getString(R.string.source_demo))
+        if (basePhotos.any { it.source == SourceType.GOOGLE_PHOTOS }) {
+            showPhotos(demoPhotos, context.getString(R.string.source_demo), isDemo = true)
         }
         showMessage(
             context.getString(
@@ -330,7 +351,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
      * Google Foto ne crea sempre una nuova), quindi si cancella e si chiude la sessione presso Google.
      */
     private fun discardGoogleSelection() {
-        // Senza selezione l'ultima sorgente non può restare Google (es. dopo un LOAD da Cast).
+        // Senza selezione l'ultima sorgente non può restare Google.
         if (settingsRepository.loadLastSource() == "GOOGLE") settingsRepository.saveLastSource("DEMO")
         val selection = googleSelection.current() ?: return
         googleSelection.clear()
@@ -372,11 +393,11 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                 withContext(Dispatchers.IO) { googleAuth.disconnect() }
             }
         }
-        val wasShowingGoogle = _state.value.photos.any { it.source == SourceType.GOOGLE_PHOTOS }
+        val wasShowingGoogle = basePhotos.any { it.source == SourceType.GOOGLE_PHOTOS }
         if (wasShowingGoogle || settingsRepository.loadLastSource() == "GOOGLE") {
             settingsRepository.saveLastSource("DEMO")
         }
-        if (wasShowingGoogle) showPhotos(demoPhotos, context.getString(R.string.source_demo))
+        if (wasShowingGoogle) showPhotos(demoPhotos, context.getString(R.string.source_demo), isDemo = true)
         _state.update {
             it.copy(
                 google = GoogleConnectState.Idle,
@@ -391,28 +412,96 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun showPickerUnavailable() = showMessage(context.getString(R.string.error_picker_unavailable))
 
-    private fun handleCastCommand(command: CastCommand) {
-        when (command) {
-            CastCommand.Play -> playCurrent()
-            CastCommand.Pause -> pause()
-            CastCommand.Next -> next()
-            CastCommand.Previous -> previous()
-            is CastCommand.ChangeSettings -> updateSettings(command.settings.applyTo(_state.value.settings))
-            is CastCommand.Load -> {
-                cancelPendingSources()
-                _state.update { it.copy(google = GoogleConnectState.Idle) }
-                command.settings?.let { updateSettings(it.applyTo(_state.value.settings)) }
-                showPhotos(command.photos, quantityString(R.plurals.source_cast, command.photos.size))
-                discardGoogleSelection()
-                _state.update { it.copy(destination = Destination.SLIDESHOW, isPlaying = true) }
-                syncMusic()
+    fun startGuestParty() = guests.start()
+
+    fun endGuestParty() {
+        guests.end()
+        freshPhotos.clear()
+        _state.update { it.copy(message = context.getString(R.string.message_guests_ended)) }
+    }
+
+    fun setGuestApproval(enabled: Boolean) = guests.setApproval(enabled)
+
+    fun setGuestQrInSlideshow(enabled: Boolean) = guests.setQrInSlideshow(enabled)
+
+    /** Salva la rete per il QR della Wi‑Fi; restituisce false (e lo spiega) se i dati non vanno bene. */
+    fun saveGuestWifi(ssid: String, password: String): Boolean {
+        val problem = WifiNetwork.validate(ssid, password)
+        if (problem != null) {
+            showMessage(
+                context.getString(
+                    when (problem) {
+                        WifiNetwork.Problem.MISSING_NAME -> R.string.wifi_error_name
+                        WifiNetwork.Problem.NAME_TOO_LONG -> R.string.wifi_error_name_long
+                        WifiNetwork.Problem.BAD_PASSWORD -> R.string.wifi_error_password
+                    }
+                )
+            )
+            return false
+        }
+        guests.saveWifi(WifiNetwork(ssid.trim(), password))
+        navigate(Destination.GUESTS)
+        return true
+    }
+
+    fun removeGuestWifi() = guests.saveWifi(null)
+
+    fun approveGuestPhoto(photo: PhotoItem) {
+        photo.guestPhotoId?.let(guests::approve)
+    }
+
+    fun discardGuestPhoto(photo: PhotoItem) {
+        photo.guestPhotoId?.let(guests::reject)
+    }
+
+    fun approveAllGuestPhotos() = guests.approveAll()
+
+    /**
+     * Aggiorna lo stato della festa e la raccolta mostrata. Le foto approvate da poco (arrivate
+     * dopo l'apertura dell'app, o appena approvate) passano davanti nello slideshow.
+     */
+    private fun onGuestsChanged(party: GuestParty.State, photos: List<GuestPhotoStore.Photo>) {
+        val approved = photos.filter { it.approved }
+        val known = knownGuestIds
+        if (known != null) {
+            val fresh = approved.filter { photo ->
+                photo.id !in known && (photo.receivedAtMillis >= createdAtMillis || photo.id in knownPendingIds)
             }
+            freshPhotos.add(fresh.map { "guest:${it.id}" })
+        }
+        knownGuestIds = approved.mapTo(mutableSetOf()) { it.id }
+        knownPendingIds = photos.filterNot { it.approved }.mapTo(mutableSetOf()) { it.id }
+
+        val items = approved.map { it.toPhotoItem(context) }
+        _state.update {
+            it.copy(
+                guests = GuestsUiState(
+                    active = party.active,
+                    url = party.url,
+                    problem = party.problem,
+                    approval = party.approval,
+                    qrInSlideshow = party.qrInSlideshow,
+                    wifiName = party.wifi?.ssid,
+                    wifiQr = party.wifi?.qrPayload(),
+                    shown = items.size,
+                    pending = photos.filterNot { photo -> photo.approved }.map { photo -> photo.toPhotoItem(context) },
+                ),
+            )
+        }
+        if (items != guestPhotos || party.active != guestPartyActive) {
+            guestPhotos = items
+            guestPartyActive = party.active
+            applyCollection(restart = false)
+        }
+        // Approvate o scartate tutte: si torna alla schermata della festa.
+        if (_state.value.destination == Destination.GUEST_REVIEW && _state.value.guests.pending.isEmpty()) {
+            navigate(Destination.GUESTS)
         }
     }
 
     /**
      * Annulla le sorgenti ancora in caricamento (scansione USB, collegamento Google, ripristino
-     * della cache): l'ultima scelta dell'utente o del sender Cast non deve essere sovrascritta.
+     * della selezione): l'ultima scelta dell'utente non deve essere sovrascritta.
      */
     private fun cancelPendingSources() {
         restoreJob?.cancel()
@@ -423,12 +512,37 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    /** Sostituisce la raccolta attiva ripartendo dalla prima foto dell'ordine di riproduzione. */
-    private fun showPhotos(photos: List<PhotoItem>, label: String) {
-        val shuffle = _state.value.settings.shuffle
-        val start = if (shuffle && photos.isNotEmpty()) photos.indices.random() else 0
-        playbackOrder.reset(photos.size, shuffle, start)
-        _state.update { it.copy(photos = photos, sourceLabel = label, currentIndex = start) }
+    /** Sostituisce la raccolta scelta ripartendo dalla prima foto dell'ordine di riproduzione. */
+    private fun showPhotos(photos: List<PhotoItem>, label: String, isDemo: Boolean) {
+        basePhotos = photos
+        baseLabel = label
+        baseIsDemo = isDemo
+        applyCollection(restart = true)
+    }
+
+    /**
+     * Ricalcola la raccolta mostrata. Con [restart] riparte dall'inizio; altrimenti resta sulla foto
+     * corrente (arrivano o spariscono foto degli invitati mentre lo slideshow va avanti).
+     */
+    private fun applyCollection(restart: Boolean) {
+        val current = _state.value
+        val photos = combineWithGuests(basePhotos, baseIsDemo, guestPhotos, guestPartyActive)
+        val shuffle = current.settings.shuffle
+        val index = if (restart) {
+            if (shuffle && photos.isNotEmpty()) photos.indices.random() else 0
+        } else {
+            val currentId = current.photos.getOrNull(current.currentIndex)?.id
+            photos.indexOfFirst { it.id == currentId }.takeIf { it >= 0 }
+                ?: current.currentIndex.coerceAtMost(photos.size - 1).coerceAtLeast(0)
+        }
+        playbackOrder.reset(photos.size, shuffle, index)
+        _state.update { it.copy(photos = photos, sourceLabel = collectionLabel(), currentIndex = index) }
+    }
+
+    private fun collectionLabel(): String = when {
+        guestPhotos.isEmpty() && !(baseIsDemo && guestPartyActive) -> baseLabel
+        baseIsDemo -> quantityString(R.plurals.source_guests, guestPhotos.size)
+        else -> context.resources.getQuantityString(R.plurals.source_with_guests, guestPhotos.size, baseLabel, guestPhotos.size)
     }
 
     private fun syncMusic() {

@@ -4,7 +4,7 @@ import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import it.fotofesta.tv.R
 
-enum class Destination { HOME, SETTINGS, SLIDESHOW, GAMES, MEMORY, MYSTERY, GOOGLE_CONNECT }
+enum class Destination { HOME, SETTINGS, SLIDESHOW, GAMES, MEMORY, MYSTERY, GOOGLE_CONNECT, GUESTS, GUEST_REVIEW, GUEST_WIFI }
 
 enum class TransitionType(@StringRes val labelRes: Int) {
     FADE(R.string.transition_fade),
@@ -20,16 +20,18 @@ enum class FitMode(@StringRes val labelRes: Int) {
 /** Errore da mostrare all'utente con un testo localizzato. */
 class UserFacingException(@StringRes val messageRes: Int) : Exception()
 
-enum class SourceType { DEMO, USB, GOOGLE_PHOTOS, CAST }
+enum class SourceType { DEMO, USB, GOOGLE_PHOTOS, GUESTS }
 
 sealed interface PhotoRef {
     data class Resource(@DrawableRes val drawable: Int) : PhotoRef
     data class LocalUri(val value: String) : PhotoRef
     data class LocalFile(val path: String) : PhotoRef
-    data class Remote(val url: String) : PhotoRef
 
     /** Foto di Google Foto caricata al momento da Google: sulla TV non ne resta una copia. */
     data class GooglePhoto(val mediaId: String) : PhotoRef
+
+    /** Foto mandata da un invitato, tenuta da GuestPhotoStore solo per la durata della festa. */
+    data class GuestPhoto(val id: String) : PhotoRef
 }
 
 data class PhotoItem(
@@ -53,31 +55,6 @@ data class SlideshowSettings(
     val sleepTimerMinutes: Int = 0,
 )
 
-/** Aggiornamento parziale delle impostazioni: i campi `null` lasciano invariato il valore corrente. */
-data class SettingsPatch(
-    val intervalSeconds: Int? = null,
-    val transition: TransitionType? = null,
-    val fitMode: FitMode? = null,
-    val shuffle: Boolean? = null,
-    val reducedMotion: Boolean? = null,
-    val showClock: Boolean? = null,
-    val musicVolume: Float? = null,
-    val kenBurns: Boolean? = null,
-    val sleepTimerMinutes: Int? = null,
-) {
-    fun applyTo(base: SlideshowSettings) = SlideshowSettings(
-        intervalSeconds = intervalSeconds ?: base.intervalSeconds,
-        transition = transition ?: base.transition,
-        fitMode = fitMode ?: base.fitMode,
-        shuffle = shuffle ?: base.shuffle,
-        reducedMotion = reducedMotion ?: base.reducedMotion,
-        showClock = showClock ?: base.showClock,
-        musicVolume = musicVolume ?: base.musicVolume,
-        kenBurns = kenBurns ?: base.kenBurns,
-        sleepTimerMinutes = sleepTimerMinutes ?: base.sleepTimerMinutes,
-    )
-}
-
 sealed interface GoogleConnectState {
     data object Idle : GoogleConnectState
     data class WaitingForAuthorization(
@@ -91,6 +68,29 @@ sealed interface GoogleConnectState {
     /** [expiresAtMillis]: fino a quando Google rende disponibili le foto scelte, se noto. */
     data class Complete(val count: Int, val expiresAtMillis: Long? = null) : GoogleConnectState
 }
+
+/** Perché la TV non riesce a ricevere le foto degli invitati. */
+enum class GuestProblem { NO_NETWORK, SERVER_FAILED }
+
+/** Stato della ricezione delle foto degli invitati, come lo mostra l'interfaccia. */
+data class GuestsUiState(
+    /** La festa è in corso: la TV riceve foto quando l'app è in primo piano. */
+    val active: Boolean = false,
+    /** Indirizzo della pagina per i telefoni, codificato nel QR; null finché la TV non è in rete. */
+    val url: String? = null,
+    val problem: GuestProblem? = null,
+    /** Le foto compaiono solo dopo l'approvazione dalla TV. */
+    val approval: Boolean = false,
+    /** QR piccolo nell'angolo dello slideshow, così gli invitati possono inquadrarlo in ogni momento. */
+    val qrInSlideshow: Boolean = true,
+    /** Nome della rete Wi‑Fi del QR per entrare in rete, se impostata. */
+    val wifiName: String? = null,
+    val wifiQr: String? = null,
+    /** Foto approvate in mostra. */
+    val shown: Int = 0,
+    /** Foto in attesa di approvazione, dalla più vecchia. */
+    val pending: List<PhotoItem> = emptyList(),
+)
 
 data class MemoryCard(
     val key: Int,
@@ -111,7 +111,7 @@ data class AppState(
     val google: GoogleConnectState = GoogleConnectState.Idle,
     val busy: Boolean = false,
     val message: String? = null,
-    val castSenderConnected: Boolean = false,
+    val guests: GuestsUiState = GuestsUiState(),
     /** Istante (epoch ms) in cui scatterà la pausa automatica, se attiva. */
     val sleepAtMillis: Long? = null,
 )

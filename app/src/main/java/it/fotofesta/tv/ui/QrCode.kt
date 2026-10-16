@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
@@ -19,15 +20,21 @@ import com.google.zxing.MultiFormatWriter
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 
 @Composable
-fun QrCode(value: String, description: String, modifier: Modifier = Modifier) {
+fun QrCode(
+    value: String,
+    description: String,
+    modifier: Modifier = Modifier,
+    size: Dp = 220.dp,
+    padding: Dp = 12.dp,
+) {
     val bitmap = remember(value) { createQrBitmap(value) }
-    Box(modifier.background(Color.White).padding(12.dp)) {
+    Box(modifier.background(Color.White).padding(padding)) {
         Image(
             bitmap = bitmap.asImageBitmap(),
             contentDescription = description,
             // Ingrandimento senza interpolazione: i moduli restano netti e facili da leggere.
             filterQuality = FilterQuality.None,
-            modifier = Modifier.size(220.dp),
+            modifier = Modifier.size(size),
         )
     }
 }

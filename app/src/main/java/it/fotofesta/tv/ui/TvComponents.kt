@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CastConnected
+import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.PhotoLibrary
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -155,7 +155,7 @@ fun SourceCard(
 }
 
 @Composable
-fun AppHeader(sourceLabel: String, castConnected: Boolean) {
+fun AppHeader(sourceLabel: String, partyLabel: String? = null) {
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 48.dp, vertical = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -169,14 +169,15 @@ fun AppHeader(sourceLabel: String, castConnected: Boolean) {
             Text(sourceLabel, style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
         }
         Spacer(Modifier.weight(1f))
-        if (castConnected) {
+        // Festa in corso: la TV riceve le foto degli invitati.
+        if (partyLabel != null) {
             Row(
                 Modifier.border(1.dp, Cyan, RoundedCornerShape(18.dp)).padding(horizontal = 14.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Rounded.CastConnected, contentDescription = null, tint = Cyan, modifier = Modifier.size(22.dp))
+                Icon(Icons.Rounded.Groups, contentDescription = null, tint = Cyan, modifier = Modifier.size(22.dp))
                 Spacer(Modifier.size(8.dp))
-                Text(stringResource(R.string.header_cast_connected), color = Cyan, style = MaterialTheme.typography.bodyMedium)
+                Text(partyLabel, color = Cyan, style = MaterialTheme.typography.bodyMedium)
             }
         }
     }

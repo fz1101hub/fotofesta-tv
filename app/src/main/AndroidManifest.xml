@@ -38,10 +38,6 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
-            <intent-filter>
-                <action android:name="com.google.android.gms.cast.tv.action.LAUNCH" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
         </activity>
 
         <!-- Salvaschermo di sistema con le foto dell'ultima raccolta. -->
@@ -56,9 +52,5 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </service>
-
-        <meta-data
-            android:name="com.google.android.gms.cast.tv.RECEIVER_OPTIONS_PROVIDER_CLASS_NAME"
-            android:value="it.fotofesta.tv.cast.FotoFestaReceiverOptionsProvider" />
     </application>
 </manifest>

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Cloud
+import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.SportsEsports
@@ -37,6 +38,7 @@ fun HomeScreen(
     state: AppState,
     showGoogle: Boolean,
     onGoogle: () -> Unit,
+    onGuests: () -> Unit,
     onUsb: () -> Unit,
     onDemo: () -> Unit,
     onPlay: () -> Unit,
@@ -52,7 +54,10 @@ fun HomeScreen(
         )
     ) {
         Column(Modifier.fillMaxSize()) {
-            AppHeader(state.sourceLabel, state.castSenderConnected)
+            AppHeader(
+                state.sourceLabel,
+                partyLabel = if (state.guests.active) quantityStringResource(R.plurals.guests_shown, state.guests.shown) else null,
+            )
             // Scorre solo se il testo della TV è impostato su "grande": il fuoco porta in vista l'ultima riga.
             Column(
                 Modifier.fillMaxSize()
@@ -87,6 +92,14 @@ fun HomeScreen(
                             Modifier.weight(1f),
                         )
                     }
+                    SourceCard(
+                        stringResource(R.string.home_guests_title),
+                        stringResource(R.string.home_guests_body),
+                        Icons.Rounded.Groups,
+                        Cyan,
+                        onGuests,
+                        Modifier.weight(1f),
+                    )
                     SourceCard(
                         stringResource(R.string.home_usb_title),
                         stringResource(R.string.home_usb_body),

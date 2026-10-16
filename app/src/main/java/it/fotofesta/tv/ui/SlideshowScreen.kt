@@ -65,6 +65,7 @@ import it.fotofesta.tv.R
 import it.fotofesta.tv.model.AppState
 import it.fotofesta.tv.model.FitMode
 import it.fotofesta.tv.model.PhotoItem
+import it.fotofesta.tv.model.SourceType
 import it.fotofesta.tv.model.TransitionType
 import java.util.Date
 import kotlinx.coroutines.delay
@@ -116,8 +117,11 @@ fun SlideshowScreen(
             hideControls()
         }
     }
-    LaunchedEffect(state.isPlaying, state.currentIndex, state.settings.intervalSeconds, state.photos.size) {
-        if (state.isPlaying && state.photos.size > 1) {
+    // Solo "più di una foto" e non il numero: le foto che arrivano dagli invitati non devono far
+    // ripartire il conteggio della foto mostrata.
+    val canAdvance = state.photos.size > 1
+    LaunchedEffect(state.isPlaying, state.currentIndex, state.settings.intervalSeconds, canAdvance) {
+        if (state.isPlaying && canAdvance) {
             delay(state.settings.intervalSeconds * 1_000L)
             onNext()
         }
@@ -189,8 +193,34 @@ fun SlideshowScreen(
                     modifier = Modifier.fillMaxSize(),
                 )
             }
+        } else if (state.guests.active) {
+            WaitingForGuests(state.guests, Modifier.align(Alignment.Center))
         } else {
             Text(stringResource(R.string.slideshow_empty), Modifier.align(Alignment.Center), style = MaterialTheme.typography.titleLarge)
+        }
+
+        val guestQr = state.guests.url?.takeIf { state.guests.active && state.guests.qrInSlideshow && photo != null }
+        if (guestQr != null) {
+            SlideshowGuestQr(guestQr, Modifier.align(Alignment.TopStart).padding(horizontal = 48.dp, vertical = 28.dp))
+        }
+
+        // Il nome di chi ha mandato la foto, finché i controlli (che mostrano già il titolo) sono nascosti.
+        val anonymousGuest = stringResource(R.string.guest_photo)
+        val guestName = photo?.takeIf { it.source == SourceType.GUESTS }?.title?.takeIf { it != anonymousGuest }
+        AnimatedVisibility(
+            visible = guestName != null && !(controlsVisible || !state.isPlaying),
+            enter = fadeIn(tween(300)),
+            exit = fadeOut(tween(300)),
+            modifier = Modifier.align(Alignment.BottomStart).padding(horizontal = 48.dp, vertical = 32.dp),
+        ) {
+            Text(
+                guestName.orEmpty(),
+                modifier = Modifier.background(Color.Black.copy(alpha = .55f), RoundedCornerShape(12.dp))
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                style = MaterialTheme.typography.titleLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
 
         AnimatedVisibility(
