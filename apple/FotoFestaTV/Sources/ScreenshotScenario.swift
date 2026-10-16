@@ -1,4 +1,5 @@
 #if DEBUG
+import FotoFestaCore
 import Foundation
 
 /// Solo nelle build di debug: apre una schermata scelta con la variabile d'ambiente
@@ -75,6 +76,23 @@ extension AppModel {
             openNetwork()
             guard let host = ProcessInfo.processInfo.environment["FOTOFESTA_NETWORK_HOST"] else { return }
             addNetworkAddress(host)
+            Task {
+                // Diagnosi per il log della CI: richiesta diretta al server e stato dell'app.
+                var report = "host=\(host) local=\(LANAddress.isLocal(host))\n"
+                if let url = URL(string: "http://\(host):8200/rootDesc.xml") {
+                    do {
+                        let (data, response) = try await URLSession.shared.data(for: URLRequest(url: url, timeoutInterval: 5))
+                        report += "direct status=\((response as? HTTPURLResponse)?.statusCode ?? 0) bytes=\(data.count)\n"
+                    } catch {
+                        report += "direct error=\(error)\n"
+                    }
+                }
+                try? await Task.sleep(nanoseconds: 9_000_000_000)
+                report += "servers=\(self.networkServers.map(\.name)) browse=\(self.networkBrowse?.trail.map(\.title) ?? []) message=\(self.message ?? "")\n"
+                let file = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+                    .appendingPathComponent("screenshot-network.txt")
+                try? report.write(to: file, atomically: true, encoding: .utf8)
+            }
             Task {
                 await waitUntil { self.networkBrowse != nil && !self.networkLoading }
                 if let first = self.networkBrowse?.folders.first { self.openNetworkFolder(first) }

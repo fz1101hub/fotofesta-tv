@@ -47,6 +47,9 @@ def browse(object_id):
 
 
 class Handler(BaseHTTPRequestHandler):
+    def log_message(self, format, *args):
+        print(self.address_string(), format % args, flush=True)
+
     def reply(self, status, body, kind):
         self.send_response(status)
         self.send_header("Content-Type", kind)

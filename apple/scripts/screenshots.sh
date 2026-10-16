@@ -171,6 +171,8 @@ if [[ "$HOST_IP" =~ ^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.) ]]; then
   sleep 1
   SIMCTL_CHILD_FOTOFESTA_NETWORK_HOST="$HOST_IP" launch network_folder
   capture network_folder 14
+  echo "Indirizzo del Mac: $HOST_IP"
+  cat "$(dirname "$URL_FILE")/screenshot-network.txt" || echo "::warning::Nessuna diagnosi delle cartelle di rete"
   SIMCTL_CHILD_FOTOFESTA_NETWORK_HOST="$HOST_IP" launch network_slideshow
   capture network_slideshow 20
   kill "$DLNA_PID" 2>/dev/null || true
