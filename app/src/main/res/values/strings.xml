@@ -111,6 +111,23 @@
     <string name="mystery_correct">Correct answer!</string>
     <string name="mystery_wrong">Not this one. The photo is now sharper.</string>
     <string name="mystery_hidden_photo">Hidden photo</string>
+    <string name="games_puzzle_title">Puzzle</string>
+    <string name="games_puzzle_body">Swap the pieces to put the photo back together. Three levels, from 6 to 24 pieces.</string>
+    <string name="puzzle_choose_level">Choose a level</string>
+    <string name="puzzle_choose_level_body">Select a piece, then the one to swap it with, until the photo is whole again.</string>
+    <string name="puzzle_level_easy">Easy</string>
+    <string name="puzzle_level_medium">Medium</string>
+    <string name="puzzle_level_hard">Hard</string>
+    <string name="puzzle_kicker">Puzzle · moves: %1$d</string>
+    <string name="puzzle_pick_first">Select a piece</string>
+    <string name="puzzle_pick_second">Now select the piece to swap it with</string>
+    <string name="puzzle_complete">Photo complete in %1$d moves!</string>
+    <string name="puzzle_show_photo">Show photo</string>
+    <string name="puzzle_hide_photo">Hide photo</string>
+    <string name="puzzle_change_level">Change level</string>
+    <string name="puzzle_cell">Square %1$d</string>
+    <string name="puzzle_cell_selected">Square %1$d, selected</string>
+    <string name="puzzle_cell_correct">Square %1$d, piece in the right place</string>
     <string name="dream_label">FotoFesta TV photos</string>
     <string name="home_guests_title">Guest photos</string>
     <string name="guests_kicker">Party mode</string>
@@ -165,6 +182,10 @@
     <string name="browser_unreadable">This folder can’t be read.</string>
     <string name="browser_permission_photos">FotoFesta TV can’t read the drive without access to photos. Allow it in Settings › Apps › FotoFesta TV › Permissions.</string>
     <string name="browser_permission_music">FotoFesta TV can’t read tracks without access to music and audio. Allow it in Settings › Apps › FotoFesta TV › Permissions.</string>
+    <plurals name="puzzle_pieces">
+        <item quantity="one">%1$d piece</item>
+        <item quantity="other">%1$d pieces</item>
+    </plurals>
     <plurals name="games_active_collection">
         <item quantity="one">Active collection: %1$d photo</item>
         <item quantity="other">Active collection: %1$d photos</item>

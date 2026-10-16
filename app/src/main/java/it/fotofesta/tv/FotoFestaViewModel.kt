@@ -168,7 +168,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                 pause()
                 navigate(Destination.HOME)
             }
-            Destination.MEMORY, Destination.MYSTERY -> navigate(Destination.GAMES)
+            Destination.MEMORY, Destination.MYSTERY, Destination.PUZZLE -> navigate(Destination.GAMES)
             Destination.GOOGLE_CONNECT -> cancelGoogleConnect()
             Destination.SETTINGS, Destination.GAMES, Destination.GUESTS -> navigate(Destination.HOME)
             Destination.GUEST_REVIEW -> navigate(Destination.GUESTS)

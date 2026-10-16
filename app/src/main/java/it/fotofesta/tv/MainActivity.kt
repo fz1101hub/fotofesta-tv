@@ -139,7 +139,7 @@ class MainActivity : ComponentActivity() {
                 // collegamento a Google il QR e il codice devono restare visibili mentre si usa il telefono.
                 val keepScreenOn = when (state.destination) {
                     Destination.SLIDESHOW -> state.isPlaying
-                    Destination.MEMORY, Destination.MYSTERY -> true
+                    Destination.MEMORY, Destination.MYSTERY, Destination.PUZZLE -> true
                     Destination.GOOGLE_CONNECT ->
                         state.google !is GoogleConnectState.Error && state.google !is GoogleConnectState.Complete
                     // Durante la festa il QR deve restare visibile mentre gli invitati lo inquadrano.
@@ -202,6 +202,7 @@ class MainActivity : ComponentActivity() {
                             onBack = { viewModel.navigate(Destination.HOME) },
                             onMemory = { viewModel.navigate(Destination.MEMORY) },
                             onMystery = { viewModel.navigate(Destination.MYSTERY) },
+                            onPuzzle = { viewModel.navigate(Destination.PUZZLE) },
                         )
                         // Le partite usano le foto presenti all'apertura del gioco: quelle che arrivano
                         // dagli invitati durante la partita non la fanno ricominciare.
@@ -212,6 +213,10 @@ class MainActivity : ComponentActivity() {
                         Destination.MYSTERY -> {
                             val photos = remember { state.photos }
                             MysteryGameScreen(photos) { viewModel.navigate(Destination.GAMES) }
+                        }
+                        Destination.PUZZLE -> {
+                            val photos = remember { state.photos }
+                            PuzzleGameScreen(photos) { viewModel.navigate(Destination.GAMES) }
                         }
                         Destination.GOOGLE_CONNECT -> GoogleConnectScreen(
                             state = state.google,

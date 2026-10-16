@@ -16,6 +16,7 @@ struct RootView: View {
                     case .games: GamesView()
                     case .memory: MemoryGameView()
                     case .mystery: MysteryGameView()
+                    case .puzzle: PuzzleGameView()
                     case .googleConnect: GoogleConnectView()
                     case .guests: GuestsView()
                     case .guestReview: GuestReviewView()
@@ -62,7 +63,7 @@ struct RootView: View {
         switch model.path.last {
         case .slideshow: return model.isPlaying
         case .guests: return model.guests.active
-        case .guestReview, .memory, .mystery: return true
+        case .guestReview, .memory, .mystery, .puzzle: return true
         case .googleConnect:
             if case .working = model.googleState { return true }
             return false

@@ -13,10 +13,17 @@ struct GamesView: View {
             Theme.background.ignoresSafeArea()
             VStack(alignment: .leading, spacing: 48) {
                 ScreenTitle(title: L("games.title"), subtitle: L("games.subtitle"))
-                HStack(spacing: 44) {
-                    gameCard(L("games.memory_title"), L("games.memory_body"), "square.grid.2x2.fill", .memory, enabled: playable)
-                    gameCard(L("games.mystery_title"), L("games.mystery_body"), "eye.fill", .mystery, enabled: playable)
+                // Fila di schede come le altre di tvOS: con più giochi scorre di lato.
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 44) {
+                        gameCard(L("games.memory_title"), L("games.memory_body"), "square.grid.2x2.fill", .memory, enabled: playable)
+                        gameCard(L("games.mystery_title"), L("games.mystery_body"), "eye.fill", .mystery, enabled: playable)
+                        gameCard(L("games.puzzle_title"), L("games.puzzle_body"), "puzzlepiece.fill", .puzzle, enabled: playable)
+                    }
+                    // Spazio per il sollevamento delle schede con il fuoco.
+                    .padding(.vertical, 40)
                 }
+                .scrollClipDisabled()
                 Text(playable ? L("games.active_collection", model.photos.count) : L("games.need_photos", minimumGamePhotos))
                     .foregroundStyle(Theme.secondaryText)
                 Spacer(minLength: 0)
@@ -26,10 +33,18 @@ struct GamesView: View {
 
     private func gameCard(_ title: String, _ subtitle: String, _ image: String, _ route: Route, enabled: Bool) -> some View {
         NavigationLink(value: route) {
-            GameCardLabel(title: title, subtitle: subtitle, systemImage: image, artwork: route == .memory ? "demo_coast.jpg" : "demo_mountains.jpg")
+            GameCardLabel(title: title, subtitle: subtitle, systemImage: image, artwork: artwork(for: route))
         }
         .buttonStyle(.card)
         .disabled(!enabled)
+    }
+
+    private func artwork(for route: Route) -> String {
+        switch route {
+        case .memory: return "demo_coast.jpg"
+        case .puzzle: return "demo_picnic.jpg"
+        default: return "demo_mountains.jpg"
+        }
     }
 }
 
@@ -53,7 +68,7 @@ private struct GameCardLabel: View {
             .foregroundStyle(.white)
             .padding(36)
         }
-        .frame(width: 720, height: 405)
+        .frame(width: 540, height: 304)
         .accessibilityElement(children: .combine)
     }
 }

@@ -110,6 +110,23 @@
     <string name="mystery_correct">Bonne réponse !</string>
     <string name="mystery_wrong">Ce n’est pas celle-ci. La photo est maintenant plus nette.</string>
     <string name="mystery_hidden_photo">Photo cachée</string>
+    <string name="games_puzzle_title">Puzzle</string>
+    <string name="games_puzzle_body">Échangez les pièces pour reconstituer la photo. Trois niveaux, de 6 à 24 pièces.</string>
+    <string name="puzzle_choose_level">Choisissez un niveau</string>
+    <string name="puzzle_choose_level_body">Sélectionnez une pièce, puis celle avec laquelle l’échanger, jusqu’à ce que la photo soit complète.</string>
+    <string name="puzzle_level_easy">Facile</string>
+    <string name="puzzle_level_medium">Moyen</string>
+    <string name="puzzle_level_hard">Difficile</string>
+    <string name="puzzle_kicker">Puzzle · coups : %1$d</string>
+    <string name="puzzle_pick_first">Sélectionnez une pièce</string>
+    <string name="puzzle_pick_second">Sélectionnez maintenant la pièce avec laquelle l’échanger</string>
+    <string name="puzzle_complete">Photo reconstituée en %1$d coups !</string>
+    <string name="puzzle_show_photo">Voir la photo</string>
+    <string name="puzzle_hide_photo">Masquer la photo</string>
+    <string name="puzzle_change_level">Changer de niveau</string>
+    <string name="puzzle_cell">Case %1$d</string>
+    <string name="puzzle_cell_selected">Case %1$d, sélectionnée</string>
+    <string name="puzzle_cell_correct">Case %1$d, pièce à la bonne place</string>
     <string name="dream_label">Photos FotoFesta TV</string>
     <string name="home_guests_title">Photos des invités</string>
     <string name="guests_kicker">Mode fête</string>
@@ -164,6 +181,11 @@
     <string name="browser_unreadable">Impossible de lire ce dossier.</string>
     <string name="browser_permission_photos">FotoFesta TV ne peut pas lire le périphérique sans accès aux photos. Autorisez-le dans Paramètres › Applications › FotoFesta TV › Autorisations.</string>
     <string name="browser_permission_music">FotoFesta TV ne peut pas lire les morceaux sans accès à la musique et à l’audio. Autorisez-le dans Paramètres › Applications › FotoFesta TV › Autorisations.</string>
+    <plurals name="puzzle_pieces">
+        <item quantity="one">%1$d pièce</item>
+        <item quantity="many">%1$d pièces</item>
+        <item quantity="other">%1$d pièces</item>
+    </plurals>
     <plurals name="games_active_collection">
         <item quantity="one">Collection active : %1$d photo</item>
         <item quantity="many">Collection active : %1$d photos</item>

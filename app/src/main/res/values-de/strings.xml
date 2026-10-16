@@ -110,6 +110,23 @@
     <string name="mystery_correct">Richtige Antwort!</string>
     <string name="mystery_wrong">Leider nicht. Das Foto ist jetzt schärfer.</string>
     <string name="mystery_hidden_photo">Verborgenes Foto</string>
+    <string name="games_puzzle_title">Puzzle</string>
+    <string name="games_puzzle_body">Tausche die Teile, bis das Foto wieder ganz ist. Drei Stufen, von 6 bis 24 Teilen.</string>
+    <string name="puzzle_choose_level">Wähle eine Stufe</string>
+    <string name="puzzle_choose_level_body">Wähle ein Teil und dann das Teil, mit dem es getauscht wird, bis das Foto wieder ganz ist.</string>
+    <string name="puzzle_level_easy">Leicht</string>
+    <string name="puzzle_level_medium">Mittel</string>
+    <string name="puzzle_level_hard">Schwer</string>
+    <string name="puzzle_kicker">Puzzle · Züge: %1$d</string>
+    <string name="puzzle_pick_first">Wähle ein Teil</string>
+    <string name="puzzle_pick_second">Wähle jetzt das Teil zum Tauschen</string>
+    <string name="puzzle_complete">Foto in %1$d Zügen zusammengesetzt!</string>
+    <string name="puzzle_show_photo">Foto zeigen</string>
+    <string name="puzzle_hide_photo">Foto ausblenden</string>
+    <string name="puzzle_change_level">Stufe wechseln</string>
+    <string name="puzzle_cell">Feld %1$d</string>
+    <string name="puzzle_cell_selected">Feld %1$d, ausgewählt</string>
+    <string name="puzzle_cell_correct">Feld %1$d, Teil an der richtigen Stelle</string>
     <string name="dream_label">Fotos von FotoFesta TV</string>
     <string name="home_guests_title">Gästefotos</string>
     <string name="guests_kicker">Partymodus</string>
@@ -164,6 +181,10 @@
     <string name="browser_unreadable">Dieser Ordner kann nicht gelesen werden.</string>
     <string name="browser_permission_photos">Ohne Zugriff auf Fotos kann FotoFesta TV den Speicher nicht lesen. Erlaube ihn unter Einstellungen › Apps › FotoFesta TV › Berechtigungen.</string>
     <string name="browser_permission_music">Ohne Zugriff auf Musik und Audio kann FotoFesta TV keine Titel lesen. Erlaube ihn unter Einstellungen › Apps › FotoFesta TV › Berechtigungen.</string>
+    <plurals name="puzzle_pieces">
+        <item quantity="one">%1$d Teil</item>
+        <item quantity="other">%1$d Teile</item>
+    </plurals>
     <plurals name="games_active_collection">
         <item quantity="one">Aktive Sammlung: %1$d Foto</item>
         <item quantity="other">Aktive Sammlung: %1$d Fotos</item>

@@ -12,6 +12,8 @@ extension AppModel {
         case "games": path = [.games]
         case "memory": path = [.games, .memory]
         case "mystery": path = [.games, .mystery]
+        // "puzzle_game" apre anche il livello medio (vedi PuzzleGameView).
+        case "puzzle", "puzzle_game": path = [.games, .puzzle]
         case "guests": path = [.guests]
         case "party":
             startGuestParty()

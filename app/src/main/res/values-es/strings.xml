@@ -110,6 +110,23 @@
     <string name="mystery_correct">¡Respuesta correcta!</string>
     <string name="mystery_wrong">Esta no es. Ahora la foto se ve más nítida.</string>
     <string name="mystery_hidden_photo">Foto oculta</string>
+    <string name="games_puzzle_title">Rompecabezas</string>
+    <string name="games_puzzle_body">Intercambia las piezas para recomponer la foto. Tres niveles, de 6 a 24 piezas.</string>
+    <string name="puzzle_choose_level">Elige un nivel</string>
+    <string name="puzzle_choose_level_body">Elige una pieza y luego la pieza con la que cambiarla, hasta que la foto vuelva a estar completa.</string>
+    <string name="puzzle_level_easy">Fácil</string>
+    <string name="puzzle_level_medium">Medio</string>
+    <string name="puzzle_level_hard">Difícil</string>
+    <string name="puzzle_kicker">Rompecabezas · jugadas: %1$d</string>
+    <string name="puzzle_pick_first">Elige una pieza</string>
+    <string name="puzzle_pick_second">Ahora elige la pieza con la que cambiarla</string>
+    <string name="puzzle_complete">¡Foto completa en %1$d jugadas!</string>
+    <string name="puzzle_show_photo">Ver la foto</string>
+    <string name="puzzle_hide_photo">Ocultar la foto</string>
+    <string name="puzzle_change_level">Cambiar de nivel</string>
+    <string name="puzzle_cell">Casilla %1$d</string>
+    <string name="puzzle_cell_selected">Casilla %1$d, elegida</string>
+    <string name="puzzle_cell_correct">Casilla %1$d, pieza en su sitio</string>
     <string name="dream_label">Fotos de FotoFesta TV</string>
     <string name="home_guests_title">Fotos de invitados</string>
     <string name="guests_kicker">Modo fiesta</string>
@@ -164,6 +181,11 @@
     <string name="browser_unreadable">No se puede leer esta carpeta.</string>
     <string name="browser_permission_photos">FotoFesta TV no puede leer la unidad sin acceso a las fotos. Permítelo en Ajustes › Aplicaciones › FotoFesta TV › Permisos.</string>
     <string name="browser_permission_music">FotoFesta TV no puede leer las pistas sin acceso a música y audio. Permítelo en Ajustes › Aplicaciones › FotoFesta TV › Permisos.</string>
+    <plurals name="puzzle_pieces">
+        <item quantity="one">%1$d pieza</item>
+        <item quantity="many">%1$d piezas</item>
+        <item quantity="other">%1$d piezas</item>
+    </plurals>
     <plurals name="games_active_collection">
         <item quantity="one">Colección activa: %1$d foto</item>
         <item quantity="many">Colección activa: %1$d fotos</item>

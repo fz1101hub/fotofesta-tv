@@ -110,6 +110,23 @@
     <string name="mystery_correct">Risposta corretta!</string>
     <string name="mystery_wrong">Non è questa. La foto ora è più nitida.</string>
     <string name="mystery_hidden_photo">Foto nascosta</string>
+    <string name="games_puzzle_title">Puzzle</string>
+    <string name="games_puzzle_body">Scambia i pezzi e ricomponi la foto. Tre livelli, da 6 a 24 pezzi.</string>
+    <string name="puzzle_choose_level">Scegli il livello</string>
+    <string name="puzzle_choose_level_body">Scegli un pezzo, poi quello con cui scambiarlo, finché la foto torna intera.</string>
+    <string name="puzzle_level_easy">Facile</string>
+    <string name="puzzle_level_medium">Medio</string>
+    <string name="puzzle_level_hard">Difficile</string>
+    <string name="puzzle_kicker">Puzzle · mosse: %1$d</string>
+    <string name="puzzle_pick_first">Scegli un pezzo</string>
+    <string name="puzzle_pick_second">Ora scegli il pezzo con cui scambiarlo</string>
+    <string name="puzzle_complete">Foto ricomposta in %1$d mosse!</string>
+    <string name="puzzle_show_photo">Mostra la foto</string>
+    <string name="puzzle_hide_photo">Nascondi la foto</string>
+    <string name="puzzle_change_level">Cambia livello</string>
+    <string name="puzzle_cell">Casella %1$d</string>
+    <string name="puzzle_cell_selected">Casella %1$d, scelta</string>
+    <string name="puzzle_cell_correct">Casella %1$d, pezzo al posto giusto</string>
     <string name="dream_label">Foto di FotoFesta TV</string>
     <string name="home_guests_title">Foto degli invitati</string>
     <string name="guests_kicker">Modalità festa</string>
@@ -164,6 +181,11 @@
     <string name="browser_unreadable">Questa cartella non si può leggere.</string>
     <string name="browser_permission_photos">Senza l’accesso alle foto FotoFesta TV non può leggere il disco. Consentilo in Impostazioni › App › FotoFesta TV › Autorizzazioni.</string>
     <string name="browser_permission_music">Senza l’accesso a musica e audio FotoFesta TV non può leggere i brani. Consentilo in Impostazioni › App › FotoFesta TV › Autorizzazioni.</string>
+    <plurals name="puzzle_pieces">
+        <item quantity="one">%1$d pezzo</item>
+        <item quantity="many">%1$d pezzi</item>
+        <item quantity="other">%1$d pezzi</item>
+    </plurals>
     <plurals name="games_active_collection">
         <item quantity="one">Raccolta attiva: %1$d foto</item>
         <item quantity="many">Raccolta attiva: %1$d foto</item>

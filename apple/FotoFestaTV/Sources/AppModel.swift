@@ -7,7 +7,7 @@ import Observation
 private let slideshowSettingsKey = "slideshowSettings"
 
 enum Route: Hashable {
-    case slideshow, settings, games, memory, mystery, googleConnect, guests, guestReview, guestWifi
+    case slideshow, settings, games, memory, mystery, puzzle, googleConnect, guests, guestReview, guestWifi
 }
 
 /// Da dove vengono le foto della raccolta mostrata nella home.

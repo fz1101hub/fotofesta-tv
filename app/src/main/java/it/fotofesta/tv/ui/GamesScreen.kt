@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material3.Icon
@@ -33,7 +34,7 @@ import it.fotofesta.tv.R
 const val MIN_GAME_PHOTOS = 2
 
 @Composable
-fun GamesScreen(photoCount: Int, onBack: () -> Unit, onMemory: () -> Unit, onMystery: () -> Unit) {
+fun GamesScreen(photoCount: Int, onBack: () -> Unit, onMemory: () -> Unit, onMystery: () -> Unit, onPuzzle: () -> Unit) {
     val playable = photoCount >= MIN_GAME_PHOTOS
     Column(Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 40.dp), verticalArrangement = Arrangement.spacedBy(30.dp)) {
         Row(Modifier.fillMaxWidth()) {
@@ -65,6 +66,14 @@ fun GamesScreen(photoCount: Int, onBack: () -> Unit, onMemory: () -> Unit, onMys
                 stringResource(R.string.games_mystery_body),
                 Icons.Rounded.Visibility,
                 onMystery,
+                Modifier.weight(1f),
+                enabled = playable,
+            )
+            GameTile(
+                stringResource(R.string.games_puzzle_title),
+                stringResource(R.string.games_puzzle_body),
+                Icons.Rounded.Extension,
+                onPuzzle,
                 Modifier.weight(1f),
                 enabled = playable,
             )
