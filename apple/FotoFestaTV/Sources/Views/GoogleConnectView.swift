@@ -10,14 +10,14 @@ struct GoogleConnectView: View {
             Theme.background.ignoresSafeArea()
             VStack(alignment: .leading, spacing: 40) {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text(L("google.kicker").uppercased()).font(.figtree(24, .bold)).tracking(3.4).foregroundStyle(Theme.secondaryText)
+                    Text(L("google.kicker")).font(.headline).foregroundStyle(Theme.secondaryText)
                     Text(L("google.title")).font(.largeTitle.bold())
                     Text(L("google.subtitle")).foregroundStyle(Theme.secondaryText)
                 }
                 content
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(48)
-                    .background(Theme.surface, in: RoundedRectangle(cornerRadius: 32, style: .continuous))
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 32, style: .continuous))
             }
             .padding(80)
         }
@@ -87,7 +87,7 @@ struct GoogleConnectView: View {
             }
         case let .complete(count, expiresAt):
             VStack(spacing: 24) {
-                Text(L("google.photos_ready", count)).font(.largeTitle.bold()).foregroundStyle(Theme.text)
+                Text(L("google.photos_ready", count)).font(.largeTitle.bold())
                 Text(L("google.complete_body")).foregroundStyle(Theme.secondaryText).multilineTextAlignment(.center)
                 Text(L("google.streaming_note")).font(.callout).foregroundStyle(Theme.secondaryText).multilineTextAlignment(.center)
                 if let expiresAt {

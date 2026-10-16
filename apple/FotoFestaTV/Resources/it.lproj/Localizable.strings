@@ -73,7 +73,6 @@
 "source.with_guests" = "%@ + dagli invitati: %ld";
 "guest.photo" = "Foto di un invitato";
 "guest.photo_from" = "Foto di %@";
-"guests.kicker" = "Modalità festa";
 "guests.title" = "Foto degli invitati";
 "guests.intro" = "Le foto restano sulla Apple TV solo durante la festa: in memoria, con una piccola cartella temporanea di riserva. Terminando la festa vengono cancellate tutte.";
 "guests.same_network" = "I telefoni devono essere sulla stessa rete della Apple TV.";
@@ -86,7 +85,6 @@
 "guests.approval" = "Approvazione delle foto";
 "guests.approval_body" = "Le foto nuove compaiono solo dopo che le approvi con il telecomando.";
 "guests.qr_in_slideshow" = "QR nello slideshow";
-"guests.wifi_body" = "Gli invitati entrano nella tua Wi‑Fi senza scrivere la password.";
 "guests.airplay_tip" = "Le foto mandate con AirPlay coprono lo slideshow e non entrano nella festa. Per evitarlo, in Impostazioni › AirPlay e HomeKit limita l'accesso ad AirPlay alle persone che condividono questa casa.";
 "guests.end" = "Termina la festa e cancella le foto";
 "guests.end_confirm_title" = "Terminare la festa?";
@@ -95,7 +93,6 @@
 "guests.waiting_body" = "Inquadra il QR con il telefono: le foto compariranno qui in pochi secondi.";
 "guests.slideshow_cta" = "Manda le tue foto";
 "message.guests_ended" = "Festa terminata: le foto degli invitati sono state cancellate dalla Apple TV.";
-"review.kicker" = "Foto degli invitati";
 "review.title" = "Foto da approvare";
 "review.show" = "Mostra";
 "review.discard" = "Scarta";
@@ -109,7 +106,6 @@
 "wifi.error_name" = "Scrivi il nome della rete.";
 "wifi.error_name_long" = "Il nome della rete è troppo lungo.";
 "wifi.error_password" = "La password deve avere da 8 a 63 caratteri.";
-"games.kicker" = "Gioca insieme";
 "games.title" = "Minigiochi con le tue foto";
 "games.subtitle" = "Usa il telecomando. Nessun punteggio o dato lascia la Apple TV.";
 "games.memory_title" = "Memory dei ricordi";
@@ -138,7 +134,6 @@
 "fit.crop_body" = "Le foto vengono tagliate per riempire lo schermo";
 "guests.end_short" = "Termina la festa";
 "guests.party_started" = "La festa è iniziata";
-"guests.qr_in_slideshow_body" = "Mostra un piccolo QR in un angolo, così gli invitati possono mandare foto in ogni momento.";
 "guests.qr_step_send" = "2 · Manda le foto";
 "guests.qr_step_wifi" = "1 · Entra nella Wi‑Fi";
 "guests.send_body" = "Inquadra il codice con la fotocamera del telefono. Serve la Wi‑Fi di casa.";
@@ -161,13 +156,6 @@
 "settings.cat_party" = "Festa";
 "settings.cat_privacy" = "Account e privacy";
 "settings.cat_slideshow" = "Slideshow";
-"settings.google_data_body" = "Rimuove dalla TV l’accesso a Google Foto e l’elenco delle foto scelte.";
-"settings.ken_burns_body" = "Zoom e spostamento lenti su ogni foto mentre è sullo schermo.";
-"settings.reduced_motion_body" = "Disattiva le animazioni, utile per sensibilità al movimento.";
-"settings.selected" = "Selezionato";
-"settings.sleep_timer_body" = "Mette in pausa slideshow e musica, poi lascia spegnere lo schermo della TV.";
-"settings.switch_on" = "Attivo";
-"settings.switch_off" = "Disattivo";
 "settings.wifi_none" = "Non impostata";
 "settings.wifi_remove_item" = "Rimuovi la Wi‑Fi";
 "slideshow.qr_body" = "Inquadra con il telefono";
@@ -186,3 +174,5 @@
 "guests.stat_pending.other" = "da approvare";
 "guests.approve_photos.one" = "Approva la foto (%ld)";
 "guests.approve_photos.other" = "Approva le foto (%ld)";
+"settings.subtitle_local" = "Le impostazioni restano solo su questa Apple TV.";
+"home.tile_settings_body" = "Slideshow, festa e privacy";

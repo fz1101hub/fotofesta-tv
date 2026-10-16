@@ -50,8 +50,6 @@ targets:
         UIRequiredDeviceCapabilities: [arm64]
         UILaunchScreen: {}
         UIUserInterfaceStyle: Dark
-        # Figtree (SIL OFL, Figtree-OFL.txt), lo stesso carattere dell'app Android.
-        UIAppFonts: [Figtree-Regular.ttf, Figtree-Medium.ttf, Figtree-SemiBold.ttf, Figtree-Bold.ttf, Figtree-ExtraBold.ttf]
         ITSAppUsesNonExemptEncryption: false
         NSLocalNetworkUsageDescription: "FotoFesta TV receives the photos your guests send from their phones over your home network."
         PhotosClientID: $(PHOTOS_CLIENT_ID)

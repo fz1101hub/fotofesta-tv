@@ -31,7 +31,7 @@ struct SlideshowView: View {
                 } else if model.guests.active {
                     WaitingForGuestsView(guests: model.guests)
                 } else {
-                    Text(L("slideshow.empty")).font(.figtree(48, .extraBold)).foregroundStyle(Theme.text)
+                    Text(L("slideshow.empty")).font(.title2)
                 }
             }
             .ignoresSafeArea()
@@ -45,19 +45,19 @@ struct SlideshowView: View {
         .overlay(alignment: .topTrailing) {
             if settings.showClock {
                 ClockText()
-                    .padding(.horizontal, 28)
-                    .padding(.vertical, 12)
-                    .background(Theme.background.opacity(0.6), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-                    .padding(.horizontal, 96)
-                    .padding(.top, 54)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 10)
+                    .background(.regularMaterial, in: Capsule())
+                    .padding(.horizontal, 90)
+                    .padding(.top, 60)
             }
         }
         // QR piccolo per gli invitati, che possono mandare foto in ogni momento.
         .overlay(alignment: .topLeading) {
             if model.guests.active, model.guests.qrInSlideshow, model.currentPhoto != nil {
                 SlideshowGuestQR(guests: model.guests)
-                    .padding(.horizontal, 96)
-                    .padding(.top, 54)
+                    .padding(.horizontal, 90)
+                    .padding(.top, 60)
             }
         }
         .onMoveCommand { direction in
@@ -135,21 +135,20 @@ struct SlideshowView: View {
         VStack(alignment: .leading, spacing: 20) {
             if infoVisible || !model.isPlaying {
                 Text(model.isPlaying ? L("slideshow.hint_playing") : L("slideshow.hint_paused"))
-                    .font(.figtree(28, .semibold))
-                    .foregroundStyle(Theme.text)
-                    .padding(.horizontal, 28)
-                    .padding(.vertical, 14)
-                    .background(Theme.background.opacity(0.72), in: Capsule())
+                    .font(.callout)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(.regularMaterial, in: Capsule())
                     .transition(.opacity)
             }
             HStack(alignment: .bottom, spacing: 40) {
                 VStack(alignment: .leading, spacing: 4) {
                     if let title = captionTitle {
-                        Text(title).font(.figtree(48, .extraBold)).foregroundStyle(Theme.text).lineLimit(1)
+                        Text(title).font(.title2.bold()).lineLimit(1)
                     }
                     if let receivedAt = model.currentPhoto?.receivedAt {
                         Text(L("slideshow.received_at", receivedAt.formatted(date: .omitted, time: .shortened)))
-                            .font(.figtree(30))
+                            .font(.callout)
                             .foregroundStyle(Theme.secondaryText)
                             .lineLimit(1)
                     }
@@ -157,11 +156,11 @@ struct SlideshowView: View {
                 Spacer(minLength: 0)
                 if let sleepAt = model.sleepAt {
                     Text(L("slideshow.sleep_at", sleepAt.formatted(date: .omitted, time: .shortened)))
-                        .font(.figtree(30, .semibold))
+                        .font(.callout.weight(.semibold))
                         .foregroundStyle(Theme.accent)
                 }
                 Text("\(model.currentIndex + 1) / \(model.photos.count)")
-                    .font(.figtree(30).monospacedDigit())
+                    .font(.callout.monospacedDigit())
                     .foregroundStyle(Theme.secondaryText)
             }
             SlideProgress(
@@ -170,9 +169,9 @@ struct SlideshowView: View {
                 interval: Double(settings.intervalSeconds)
             )
         }
-        .padding(.horizontal, 96)
+        .padding(.horizontal, 90)
         .padding(.top, 140)
-        .padding(.bottom, 64)
+        .padding(.bottom, 60)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             LinearGradient(
@@ -274,11 +273,11 @@ private struct SlideProgress: View {
             let progress = min(max(elapsed / max(interval, 1), 0), 1)
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
-                    Capsule().fill(Theme.text.opacity(0.22))
-                    Capsule().fill(Theme.accent).frame(width: geometry.size.width * progress)
+                    Capsule().fill(.white.opacity(0.25))
+                    Capsule().fill(.white).frame(width: geometry.size.width * progress)
                 }
             }
-            .frame(height: 6)
+            .frame(height: 8)
         }
         .onChange(of: tick) {
             accumulated = 0

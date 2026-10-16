@@ -1,136 +1,114 @@
 import FotoFestaCore
 import SwiftUI
 
-/// Home: la raccolta in uso occupa lo schermo, con "Avvia slideshow" già a fuoco e "Avvia la festa"
-/// accanto; sotto, la riga delle sorgenti (quella in uso segnata "In uso"), Giochi e Impostazioni.
+/// Home nello stile di tvOS: la raccolta in uso a tutto schermo, come le copertine dell'app TV, con
+/// titolo, descrizione e i pulsanti di sistema; sotto, una fila di schede (sorgenti, giochi,
+/// impostazioni) che con il fuoco si sollevano.
 struct HomeView: View {
     @Environment(AppModel.self) private var model
     @Namespace private var namespace
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            Theme.background
+        ZStack(alignment: .bottomLeading) {
             HomeBackdrop(photos: Array(model.photos.prefix(12)))
-            // Scuro a sinistra, dove ci sono i testi, e in basso, sotto le schede.
-            LinearGradient(
-                stops: [
-                    .init(color: Theme.background.opacity(0.97), location: 0),
-                    .init(color: Theme.background.opacity(0.86), location: 0.34),
-                    .init(color: Theme.background.opacity(0.25), location: 0.66),
-                    .init(color: Theme.background.opacity(0.1), location: 1),
-                ],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-            LinearGradient(
-                stops: [
-                    .init(color: Theme.background.opacity(0), location: 0.45),
-                    .init(color: Theme.background.opacity(0.6), location: 0.7),
-                    .init(color: Theme.background.opacity(0.98), location: 1),
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
+                .ignoresSafeArea()
+            // Scuro in basso e a sinistra, dove ci sono testi e schede.
+            LinearGradient(colors: [.black.opacity(0.85), .black.opacity(0.15)], startPoint: .leading, endPoint: .trailing)
+                .ignoresSafeArea()
+            LinearGradient(colors: [.clear, .black.opacity(0.92)], startPoint: .center, endPoint: .bottom)
+                .ignoresSafeArea()
 
-            HStack(spacing: 28) {
-                BrandMark()
-                Spacer()
-                if model.guests.active {
-                    PartyChip(text: LP("home.party_chip", model.approvedGuestCount))
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    Spacer()
+                    if model.guests.active {
+                        Label(LP("home.party_chip", model.approvedGuestCount), systemImage: "person.2.fill")
+                            .font(.callout.weight(.semibold))
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 12)
+                            .background(.regularMaterial, in: Capsule())
+                    }
+                    ClockText()
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 10)
+                        .background(.regularMaterial, in: Capsule())
                 }
-                ClockText()
-            }
-            .padding(.horizontal, 96)
-            .padding(.top, 54)
-
-            VStack(alignment: .leading, spacing: 24) {
-                Kicker(text: L("home.collection_kicker"))
-                Text(model.collectionTitle)
-                    .font(.figtree(92, .extraBold))
-                    .foregroundStyle(Theme.text)
-                    .lineLimit(2)
-                Text(collectionDetail)
-                    .font(.figtree(34))
-                    .foregroundStyle(Theme.secondaryText)
-                    .lineLimit(1)
-                HStack(spacing: 28) {
+                Spacer(minLength: 0)
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(L("home.collection_kicker"))
+                        .font(.headline)
+                        .foregroundStyle(Theme.secondaryText)
+                    Text(model.collectionTitle)
+                        .font(.system(size: 80, weight: .bold))
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.7)
+                    Text(collectionDetail)
+                        .font(.title3)
+                        .foregroundStyle(Theme.secondaryText)
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: 1100, alignment: .leading)
+                HStack(spacing: 32) {
                     Button {
                         model.play()
                     } label: {
                         Label(L("action.start_slideshow"), systemImage: "play.fill")
                     }
-                    .buttonStyle(PillButtonStyle())
+                    .buttonStyle(.borderedProminent)
                     .prefersDefaultFocus(true, in: namespace)
                     Button {
                         if model.guests.active { model.openGuests() } else { model.startPartyAndPlay() }
                     } label: {
                         Label(model.guests.active ? L("home.party_running") : L("home.start_party"), systemImage: "person.2.fill")
                     }
-                    .buttonStyle(PillButtonStyle())
                 }
-                .padding(.top, 20)
-            }
-            .frame(width: 1000, alignment: .leading)
-            .padding(.leading, 96)
-            .padding(.top, 208)
+                .padding(.top, 36)
 
-            VStack(alignment: .leading, spacing: 24) {
-                Spacer()
-                Text(L("home.choose_photos")).font(.figtree(30, .bold)).foregroundStyle(Theme.secondaryText)
-                HStack(spacing: 28) {
-                    Button {
-                        model.openGuests()
-                    } label: {
-                        SourceTileLabel(
+                Text(L("home.choose_photos"))
+                    .font(.headline)
+                    .foregroundStyle(Theme.secondaryText)
+                    .padding(.top, 56)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 48) {
+                        ShelfCard(
                             title: L("home.tile_guests_title"),
                             subtitle: L("home.tile_guests_body"),
                             systemImage: "person.2.fill",
+                            artwork: "demo_birthday.jpg",
                             badge: inUse(.guests)
-                        )
-                    }
-                    .buttonStyle(TileButtonStyle())
-                    // Senza client OAuth nella build la scheda non compare: l'app resta usabile con le foto demo.
-                    if model.isGoogleConfigured {
-                        Button {
-                            model.startGoogleConnect()
-                        } label: {
-                            SourceTileLabel(
+                        ) { model.openGuests() }
+                        // Senza client OAuth nella build la scheda non compare: l'app resta usabile con le foto demo.
+                        if model.isGoogleConfigured {
+                            ShelfCard(
                                 title: L("home.google_title"),
                                 subtitle: L("home.tile_google_body"),
-                                systemImage: "cloud.fill",
+                                systemImage: "photo.on.rectangle.angled",
+                                artwork: "demo_mountains.jpg",
                                 badge: inUse(.google)
-                            )
+                            ) { model.startGoogleConnect() }
                         }
-                        .buttonStyle(TileButtonStyle())
-                    }
-                    Button {
-                        model.startDemo()
-                    } label: {
-                        SourceTileLabel(
+                        ShelfCard(
                             title: L("collection.demo"),
                             subtitle: L("home.tile_demo_body"),
-                            systemImage: "photo",
+                            systemImage: "sparkles",
+                            artwork: "demo_picnic.jpg",
                             badge: inUse(.demo)
-                        )
+                        ) { model.startDemo() }
+                        NavigationLink(value: Route.games) {
+                            ShelfCardLabel(title: L("home.tile_games"), subtitle: L("games.title"), systemImage: "gamecontroller.fill")
+                        }
+                        .buttonStyle(.card)
+                        NavigationLink(value: Route.settings) {
+                            ShelfCardLabel(title: L("action.settings"), subtitle: L("home.tile_settings_body"), systemImage: "gearshape.fill")
+                        }
+                        .buttonStyle(.card)
                     }
-                    .buttonStyle(TileButtonStyle())
-                    NavigationLink(value: Route.games) {
-                        SmallTileLabel(title: L("home.tile_games"), systemImage: "gamecontroller.fill")
-                    }
-                    .buttonStyle(TileButtonStyle())
-                    .frame(width: 184)
-                    NavigationLink(value: Route.settings) {
-                        SmallTileLabel(title: L("action.settings"), systemImage: "gearshape.fill")
-                    }
-                    .buttonStyle(TileButtonStyle())
-                    .frame(width: 184)
+                    // Spazio per il sollevamento delle schede con il fuoco.
+                    .padding(.vertical, 40)
                 }
-                .frame(height: 224)
+                .scrollClipDisabled()
             }
-            .padding(.horizontal, 96)
-            .padding(.bottom, 96)
         }
-        .ignoresSafeArea()
         .focusScope(namespace)
     }
 
@@ -152,21 +130,6 @@ struct HomeView: View {
     }
 }
 
-/// Scheda stretta con icona e nome, per Giochi e Impostazioni.
-private struct SmallTileLabel: View {
-    let title: String
-    let systemImage: String
-
-    var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: systemImage).font(.system(size: 46, weight: .semibold))
-            Text(title).font(.figtree(28, .bold)).lineLimit(1).minimumScaleFactor(0.8)
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
 /// Sfondo della home: le foto della raccolta in uso, una alla volta, con una dissolvenza lenta.
 private struct HomeBackdrop: View {
     let photos: [Photo]
@@ -174,6 +137,7 @@ private struct HomeBackdrop: View {
 
     var body: some View {
         ZStack {
+            Color.black
             if photos.indices.contains(index) {
                 PhotoImage(photo: photos[index], fitMode: .crop, maxPixelSize: 1920, placeholder: false)
                     .id(photos[index].id)

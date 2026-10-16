@@ -15,11 +15,6 @@ enum CollectionSource: Equatable {
     case demo, google, guests
 }
 
-/// Sezioni della schermata Impostazioni.
-enum SettingsCategory: CaseIterable, Hashable {
-    case slideshow, party, privacy
-}
-
 enum GoogleState: Equatable {
     case idle
     case working(ImportStep?)
@@ -41,8 +36,6 @@ final class AppModel {
     private(set) var collectionSource: CollectionSource = .demo
     /// Foto della raccolta scelta, senza quelle degli invitati aggiunte durante la festa.
     private(set) var collectionCount = 0
-    /// Sezione aperta nelle impostazioni: resta tale tornando dalla Wi‑Fi degli invitati.
-    var settingsCategory: SettingsCategory = .slideshow
     private(set) var currentIndex = 0
     /// Cresce a ogni cambio di foto voluto (successiva, precedente, nuova raccolta). Il cambio
     /// automatico si basa su questo e non sull'indice, che si sposta quando arrivano o spariscono

@@ -119,7 +119,7 @@ struct PhotoImage: View {
                 VStack(spacing: 16) {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.system(size: 64))
-                    Text(L("photo.unavailable")).font(.figtree(34))
+                    Text(L("photo.unavailable"))
                 }
                 .foregroundStyle(Theme.secondaryText)
             } else {

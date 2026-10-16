@@ -12,48 +12,49 @@ struct GamesView: View {
         ZStack {
             Theme.background.ignoresSafeArea()
             VStack(alignment: .leading, spacing: 48) {
-                SectionTitle(kicker: L("games.kicker"), title: L("games.title"), subtitle: L("games.subtitle"))
+                ScreenTitle(title: L("games.title"), subtitle: L("games.subtitle"))
                 HStack(spacing: 44) {
                     gameCard(L("games.memory_title"), L("games.memory_body"), "square.grid.2x2.fill", .memory, enabled: playable)
                     gameCard(L("games.mystery_title"), L("games.mystery_body"), "eye.fill", .mystery, enabled: playable)
                 }
                 Text(playable ? L("games.active_collection", model.photos.count) : L("games.need_photos", minimumGamePhotos))
-                    .font(.figtree(30))
                     .foregroundStyle(Theme.secondaryText)
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, 96)
-            .padding(.vertical, 60)
         }
     }
 
     private func gameCard(_ title: String, _ subtitle: String, _ image: String, _ route: Route, enabled: Bool) -> some View {
         NavigationLink(value: route) {
-            GameCardLabel(title: title, subtitle: subtitle, systemImage: image)
+            GameCardLabel(title: title, subtitle: subtitle, systemImage: image, artwork: route == .memory ? "demo_coast.jpg" : "demo_mountains.jpg")
         }
-        .buttonStyle(TileButtonStyle(cornerRadius: 32, focusScale: 1.04))
+        .buttonStyle(.card)
         .disabled(!enabled)
     }
 }
 
-/// Scheda di un gioco: icona su un quadrato corallo (scuro con il fuoco), nome e descrizione.
+/// Scheda di un gioco, nello stile delle schede di tvOS: foto demo, icona, nome e descrizione.
 private struct GameCardLabel: View {
-    @Environment(\.isFocused) private var focused
     let title: String
     let subtitle: String
     let systemImage: String
+    let artwork: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(focused ? Theme.onFocus : Theme.accent)
-                .frame(width: 96, height: 96)
-                .overlay(Image(systemName: systemImage).font(.system(size: 46, weight: .semibold)).foregroundStyle(focused ? Theme.focus : Theme.onAccent))
-            Text(title).font(.figtree(48, .extraBold))
-            SecondaryText(subtitle, size: 30).lineLimit(3)
+        ZStack(alignment: .bottomLeading) {
+            PhotoImage(photo: Photo(id: "artwork:\(artwork)", title: title, source: .bundled(fileName: artwork)), fitMode: .crop, maxPixelSize: 1200, placeholder: false)
+                .accessibilityHidden(true)
+            LinearGradient(colors: [.clear, .black.opacity(0.9)], startPoint: .top, endPoint: .bottom)
+            VStack(alignment: .leading, spacing: 10) {
+                Image(systemName: systemImage).font(.system(size: 48, weight: .semibold))
+                Text(title).font(.title2.bold())
+                Text(subtitle).font(.callout).foregroundStyle(Theme.secondaryText).lineLimit(2)
+            }
+            .foregroundStyle(.white)
+            .padding(36)
         }
-        .padding(44)
-        .frame(width: 720, height: 380, alignment: .topLeading)
+        .frame(width: 720, height: 405)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -76,8 +77,8 @@ struct MemoryGameView: View {
         VStack(alignment: .leading, spacing: 32) {
             HStack {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(L("memory.kicker", moves).uppercased()).font(.figtree(24, .bold)).tracking(3.4).foregroundStyle(Theme.secondaryText)
-                    Text(complete ? L("memory.complete", moves) : L("memory.find_pairs")).font(.figtree(56, .extraBold))
+                    Text(L("memory.kicker", moves)).font(.headline).foregroundStyle(Theme.secondaryText)
+                    Text(complete ? L("memory.complete", moves) : L("memory.find_pairs")).font(.title.bold())
                 }
                 Spacer()
                 Button(L("memory.new_game")) { newGame() }
@@ -106,7 +107,7 @@ struct MemoryGameView: View {
                 PhotoImage(photo: card.photo, fitMode: .crop, maxPixelSize: 800, accessibilityLabel: card.matched ? L("memory.card_matched", card.photo.title) : card.photo.title)
             } else {
                 LinearGradient(colors: [Theme.accent, Color(hex: 0x8E3420)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                Text("?").font(.figtree(80, .extraBold)).foregroundStyle(Theme.onAccent)
+                Text("?").font(.system(size: 80, weight: .bold)).foregroundStyle(Theme.onAccent)
                     .accessibilityLabel(Text(L("memory.card_covered", position + 1)))
             }
         }
@@ -153,7 +154,7 @@ struct MysteryGameView: View {
     var body: some View {
         HStack(spacing: 56) {
             ZStack {
-                Theme.surface
+                Color(white: 0.12)
                 if let answer {
                     PhotoImage(photo: answer, fitMode: .crop, maxPixelSize: 1600, accessibilityLabel: revealed ? answer.title : L("mystery.hidden_photo"))
                         .blur(radius: revealed ? 0 : CGFloat(40 - hintLevel * 12))
@@ -163,9 +164,9 @@ struct MysteryGameView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             VStack(alignment: .leading, spacing: 24) {
-                Text(L("games.mystery_title").uppercased()).font(.figtree(24, .bold)).tracking(3.4).foregroundStyle(Theme.secondaryText)
-                Text(revealed ? L("mystery.solved", answer?.title ?? "") : L("mystery.question")).font(.figtree(48, .extraBold))
-                Text(feedback).font(.figtree(40, .extraBold)).foregroundStyle(revealed ? Theme.accent : Theme.text)
+                Text(L("games.mystery_title")).font(.headline).foregroundStyle(Theme.secondaryText)
+                Text(revealed ? L("mystery.solved", answer?.title ?? "") : L("mystery.question")).font(.title2.bold())
+                Text(feedback).font(.title3.bold()).foregroundStyle(revealed ? Theme.accent : .primary)
                 ForEach(choices) { choice in
                     Button(choice.title) { choose(choice) }
                         .disabled(revealed)

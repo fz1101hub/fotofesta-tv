@@ -73,7 +73,6 @@
 "source.with_guests" = "%@ + from guests: %ld";
 "guest.photo" = "Guest photo";
 "guest.photo_from" = "Photo from %@";
-"guests.kicker" = "Party mode";
 "guests.title" = "Guest photos";
 "guests.intro" = "Photos stay on the Apple TV only during the party: in memory, with a small temporary folder as a fallback. Ending the party deletes them all.";
 "guests.same_network" = "Phones must be on the same network as the Apple TV.";
@@ -86,7 +85,6 @@
 "guests.approval" = "Approve photos";
 "guests.approval_body" = "New photos appear only after you approve them with the remote.";
 "guests.qr_in_slideshow" = "QR code in the slideshow";
-"guests.wifi_body" = "Lets guests join your Wi‑Fi without typing the password.";
 "guests.airplay_tip" = "Photos sent with AirPlay cover the slideshow and don't join the party. To prevent this, in Settings › AirPlay and HomeKit limit AirPlay access to people sharing this home.";
 "guests.end" = "End party and delete photos";
 "guests.end_confirm_title" = "End the party?";
@@ -95,7 +93,6 @@
 "guests.waiting_body" = "Scan the QR code with your phone: photos will appear here within a few seconds.";
 "guests.slideshow_cta" = "Send your photos";
 "message.guests_ended" = "Party ended: guest photos were deleted from the Apple TV.";
-"review.kicker" = "Guest photos";
 "review.title" = "Photos to approve";
 "review.show" = "Show";
 "review.discard" = "Discard";
@@ -109,7 +106,6 @@
 "wifi.error_name" = "Enter the network name.";
 "wifi.error_name_long" = "The network name is too long.";
 "wifi.error_password" = "The password must be 8 to 63 characters long.";
-"games.kicker" = "Play together";
 "games.title" = "Mini-games with your photos";
 "games.subtitle" = "Use the remote. No scores or data leave the Apple TV.";
 "games.memory_title" = "Memory match";
@@ -138,7 +134,6 @@
 "fit.crop_body" = "Photos are cropped to fill the screen";
 "guests.end_short" = "End the party";
 "guests.party_started" = "The party has started";
-"guests.qr_in_slideshow_body" = "Shows a small QR code in a corner so guests can send photos at any time.";
 "guests.qr_step_send" = "2 · Send photos";
 "guests.qr_step_wifi" = "1 · Join the Wi‑Fi";
 "guests.send_body" = "Scan the code with your phone camera. You need to be on the home Wi‑Fi.";
@@ -161,13 +156,6 @@
 "settings.cat_party" = "Party";
 "settings.cat_privacy" = "Account and privacy";
 "settings.cat_slideshow" = "Slideshow";
-"settings.google_data_body" = "Removes Google Photos access and the list of chosen photos from the TV.";
-"settings.ken_burns_body" = "Gently zooms and pans each photo while it is on screen.";
-"settings.reduced_motion_body" = "Turns off animations, helpful for motion sensitivity.";
-"settings.selected" = "Selected";
-"settings.sleep_timer_body" = "Pauses the slideshow and music, then lets the TV screen turn off.";
-"settings.switch_on" = "On";
-"settings.switch_off" = "Off";
 "settings.wifi_none" = "Not set";
 "settings.wifi_remove_item" = "Remove the Wi‑Fi";
 "slideshow.qr_body" = "Scan with your phone";
@@ -186,3 +174,5 @@
 "guests.stat_pending.other" = "to approve";
 "guests.approve_photos.one" = "Approve the photo (%ld)";
 "guests.approve_photos.other" = "Approve photos (%ld)";
+"settings.subtitle_local" = "Settings are saved only on this Apple TV.";
+"home.tile_settings_body" = "Slideshow, party and privacy";

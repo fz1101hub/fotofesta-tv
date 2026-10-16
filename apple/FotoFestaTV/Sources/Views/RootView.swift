@@ -26,13 +26,11 @@ struct RootView: View {
         .overlay(alignment: .top) {
             if let message = model.message {
                 Text(message)
-                    .font(.figtree(32, .semibold))
-                    .foregroundStyle(Theme.text)
+                    .font(.headline)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 44)
                     .padding(.vertical, 26)
-                    .background(Theme.surfaceRaised, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).stroke(Theme.outline, lineWidth: 2))
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
                     .shadow(color: .black.opacity(0.5), radius: 30, y: 12)
                     .padding(.top, 40)
                     .frame(maxWidth: 1200)

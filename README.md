@@ -22,7 +22,7 @@ Il repository contiene anche la versione per **Apple TV** (cartella [`apple/`](a
 | Slideshow | Foto verticali con sfondo sfocato della stessa foto, bande nere o riempimento schermo; shuffle, orologio | Pronta |
 | Slideshow | Didascalia con nome significativo o cartella (non “IMG_2024…”), data di scatto o mittente, barra di avanzamento | Pronta |
 | Slideshow | Movimento lento (effetto Ken Burns) e pausa automatica dopo 30, 60 o 120 minuti | Pronta |
-| Interfaccia | Stile ad alto contrasto (testi almeno 6:1), fuoco del telecomando in bianco pieno, carattere Figtree, home con le foto della raccolta in uso, impostazioni a sezioni | Pronta |
+| Interfaccia | Android TV: stile ad alto contrasto (testi almeno 6:1), fuoco del telecomando in bianco pieno, carattere Figtree, impostazioni a sezioni. Apple TV: componenti nativi di tvOS (schede che si sollevano, pulsanti e impostazioni di sistema). Su entrambe la home mostra le foto della raccolta in uso | Pronta |
 | Accessibilità | Focus visibile, D-pad, tasti media, riduzione movimento, contrasto elevato | Pronta |
 | Audio | Brano locale selezionato dall’utente, loop e volume | Pronta |
 | Salvaschermo | Foto dell’ultima raccolta quando la TV è inattiva, con dissolvenza, movimento lento e orologio che cambia angolo | Pronta |
@@ -135,4 +135,4 @@ Risultati della validazione locale della versione 1.0.0:
 
 ## Licenze di terze parti
 
-Il carattere [Figtree](https://github.com/erikdkennedy/figtree) è distribuito con la SIL Open Font License 1.1; il testo della licenza è incluso nelle app (`app/src/main/assets/licenses/Figtree-OFL.txt` e `apple/FotoFestaTV/Resources/Fonts/Figtree-OFL.txt`).
+Il carattere [Figtree](https://github.com/erikdkennedy/figtree), usato dall'app Android, è distribuito con la SIL Open Font License 1.1; il testo della licenza è incluso nell'app (`app/src/main/assets/licenses/Figtree-OFL.txt`). L'app Apple TV usa il carattere di sistema.
