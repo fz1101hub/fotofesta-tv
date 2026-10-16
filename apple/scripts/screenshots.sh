@@ -164,11 +164,16 @@ capture review 6
 # senza l'entitlement multicast: cartella, sottocartella e slideshow con le sue foto.
 launch network
 capture network 8
-# Il runner della CI non lascia passare il traffico del simulatore verso l'indirizzo di rete del Mac
-# (timeout): il server gira in loopback, che lo scenario ammette solo nelle build di debug.
+# Il server gira in loopback, che lo scenario ammette solo nelle build di debug: così non serve il
+# permesso della rete locale né l'indirizzo di rete del Mac.
+# Nella CI il firewall del Mac lascia scadere le connessioni verso Python: lo si spegne (macchina usa e getta).
+if [ -n "${CI:-}" ]; then
+  sudo -n /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate off || true
+  /usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate || true
+fi
 python3 scripts/fake_dlna.py 127.0.0.1 FotoFestaTV/Resources/Demo > "$OUT/fake_dlna.log" 2>&1 &
 DLNA_PID=$!
-sleep 1
+sleep 2
 # Diagnosi: il server risponde dal Mac?
 curl -sS -m 5 -o /dev/null -w "curl dal Mac: %{http_code}\n" http://127.0.0.1:8200/rootDesc.xml || echo "curl dal Mac non riuscito"
 lsof -nP -iTCP:8200 -sTCP:LISTEN || true
