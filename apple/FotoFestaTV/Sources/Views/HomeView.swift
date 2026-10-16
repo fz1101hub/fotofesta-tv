@@ -95,6 +95,14 @@ struct HomeView: View {
                             artwork: "demo_coast.jpg",
                             badge: inUse(.library)
                         ) { model.openLibrary() }
+                        // Server multimediali (DLNA) della rete di casa: NAS, PC, Plex, Jellyfin.
+                        ShelfCard(
+                            title: L("home.network_title"),
+                            subtitle: L("home.tile_network_body"),
+                            systemImage: "server.rack",
+                            artwork: "demo_birthday.jpg",
+                            badge: inUse(.network)
+                        ) { model.openNetwork() }
                         ShelfCard(
                             title: L("collection.demo"),
                             subtitle: L("home.tile_demo_body"),
@@ -131,8 +139,8 @@ struct HomeView: View {
         case .google:
             parts.append(L("home.google_title"))
             if model.approvedGuestCount > 0 { parts.append(LP("home.collection_guests", model.approvedGuestCount)) }
-        case .library:
-            parts.append(L("home.library_title"))
+        case .library, .network:
+            parts.append(L(model.collectionSource == .library ? "home.library_title" : "home.network_title"))
             if model.approvedGuestCount > 0 { parts.append(LP("home.collection_guests", model.approvedGuestCount)) }
         case .demo: parts.append(L("home.tile_demo_body"))
         case .guests: parts.append(L("home.tile_guests_body"))

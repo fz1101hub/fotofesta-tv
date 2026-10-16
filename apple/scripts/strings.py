@@ -18,11 +18,11 @@ EXTRA_LANGUAGES = ("fr", "es", "de")
 # Testi di Info.plist mostrati dal sistema (richieste di accesso alla rete locale e alle foto).
 INFO_PLIST = {
     "en": {
-        "NSLocalNetworkUsageDescription": "FotoFesta TV receives the photos your guests send from their phones over your home network.",
+        "NSLocalNetworkUsageDescription": "FotoFesta TV receives the photos your guests send from their phones and shows the photos of the media servers (NAS, PC) on your home network.",
         "NSPhotoLibraryUsageDescription": "FotoFesta TV shows the albums of your Photos library in the slideshow. Photos stay in your library and aren’t sent anywhere.",
     },
     "it": {
-        "NSLocalNetworkUsageDescription": "FotoFesta TV riceve le foto che gli invitati mandano dal telefono attraverso la rete di casa.",
+        "NSLocalNetworkUsageDescription": "FotoFesta TV riceve le foto che gli invitati mandano dal telefono e mostra le foto dei server multimediali (NAS, PC) della rete di casa.",
         "NSPhotoLibraryUsageDescription": "FotoFesta TV mostra nello slideshow gli album della tua libreria Foto. Le foto restano nella libreria e non vengono inviate altrove.",
     },
 }
@@ -300,6 +300,33 @@ STRINGS = {
     "library.unavailable": ("The iCloud Photos album is no longer available: choose another one.", "L’album di Foto di iCloud non è più disponibile: scegline un altro."),
     "source.library": ("iCloud Photos · items: %ld", "Foto di iCloud · elementi: %ld"),
     "message.library_ready": ("iCloud Photos ready for the slideshow.", "Foto di iCloud pronte per lo slideshow."),
+    "home.network_title": ("Network folders", "Cartelle di rete"),
+    "home.tile_network_body": ("NAS, PC and media servers", "NAS, PC e server multimediali"),
+    "network.kicker": ("Home network", "Rete di casa"),
+    "network.title": ("Network folders", "Cartelle di rete"),
+    "network.subtitle": ("Photos and videos from the media servers (DLNA) on your home network: NAS, PC, router, Plex, Jellyfin.", "Foto e video dei server multimediali (DLNA) della rete di casa: NAS, PC, router, Plex, Jellyfin."),
+    "network.in_use": ("In use · %@", "In uso · %@"),
+    "network.servers": ("Media servers", "Server multimediali"),
+    "network.searching": ("Looking for media servers…", "Cerco i server multimediali…"),
+    "network.none": ("No server found automatically. Add your NAS or PC with its IP address below, and check that media sharing (DLNA) is turned on.", "Nessun server trovato da solo. Aggiungi il NAS o il PC con il suo indirizzo IP qui sotto e controlla che la condivisione multimediale (DLNA) sia attiva."),
+    "network.search_again": ("Search again", "Cerca di nuovo"),
+    "network.add_title": ("Add with the address", "Aggiungi con l’indirizzo"),
+    "network.address_placeholder": ("For example 192.168.1.20", "Ad esempio 192.168.1.20"),
+    "network.add": ("Add", "Aggiungi"),
+    "network.add_hint": ("You’ll find the address in the NAS app or in your router’s list of devices.", "L’indirizzo è nell’app del NAS o nell’elenco dei dispositivi del router."),
+    "network.error_address": ("Type the IP address of a device on your home network, for example 192.168.1.20.", "Scrivi l’indirizzo IP di un dispositivo della rete di casa, ad esempio 192.168.1.20."),
+    "network.error_not_found": ("No media server answers at %@. Turn on media sharing (DLNA) on the NAS or PC.", "Nessun server multimediale risponde a %@. Attiva la condivisione multimediale (DLNA) sul NAS o sul PC."),
+    "network.unreachable": ("Server not reachable: check that it’s on and on the same network as the Apple TV.", "Server non raggiungibile: controlla che sia acceso e nella stessa rete della Apple TV."),
+    "network.use_folder": ("Use this folder", "Usa questa cartella"),
+    "network.up": ("Parent folder", "Cartella superiore"),
+    "network.photos_here.one": ("%ld photo here", "%ld foto qui"),
+    "network.photos_here.other": ("%ld photos here", "%ld foto qui"),
+    "network.no_subfolders": ("No subfolders: use this folder or go back.", "Nessuna sottocartella: usa questa cartella o torna su."),
+    "network.indexing": ("Looking for photos in the folder…", "Cerco le foto nella cartella…"),
+    "network.empty": ("No photos or videos in this folder.", "Nessuna foto o video in questa cartella."),
+    "network.unavailable": ("The network folder isn’t available: check that the server is on.", "La cartella di rete non è disponibile: controlla che il server sia acceso."),
+    "source.network": ("Network folder · items: %ld", "Cartella di rete · elementi: %ld"),
+    "message.network_ready": ("Network folder ready for the slideshow.", "Cartella di rete pronta per lo slideshow."),
 }
 
 PLACEHOLDER = re.compile(r"%(?:ld|@|d|lld)")

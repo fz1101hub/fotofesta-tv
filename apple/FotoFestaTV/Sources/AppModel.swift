@@ -7,12 +7,25 @@ import Observation
 private let slideshowSettingsKey = "slideshowSettings"
 
 enum Route: Hashable {
-    case slideshow, settings, games, memory, mystery, puzzle, whoTookIt, googleConnect, guests, guestReview, guestWifi, awards, library
+    case slideshow, settings, games, memory, mystery, puzzle, whoTookIt, googleConnect, guests, guestReview, guestWifi, awards, library, network
 }
 
 /// Da dove vengono le foto della raccolta mostrata nella home.
 enum CollectionSource: Equatable {
-    case demo, google, guests, library
+    case demo, google, guests, library, network
+}
+
+/// Cartella di un server di rete aperta nel browser, con il percorso dalla cartella principale.
+struct NetworkBrowse: Equatable {
+    struct Crumb: Equatable {
+        let id: String
+        let title: String
+    }
+
+    let server: MediaServer
+    var trail: [Crumb]
+    var folders: [MediaContainer] = []
+    var photosHere = 0
 }
 
 enum GoogleState: Equatable {
@@ -50,6 +63,12 @@ final class AppModel {
     private(set) var libraryAccess: PhotoLibrary.Access = PhotoLibrary.access
     private(set) var libraryAlbums: [LibraryAlbum] = []
     private(set) var libraryLoading = false
+    /// Cartelle di rete (DLNA): server trovati, cartella aperta e lettura in corso.
+    private(set) var networkServers: [MediaServer] = []
+    private(set) var networkSearching = false
+    private(set) var networkBrowse: NetworkBrowse?
+    private(set) var networkLoading = false
+    private(set) var networkSaved: NetworkFolder?
 
     static let demoPhotos: [Photo] = [
         Photo(id: "demo:coast", title: L("demo.coast"), source: .bundled(fileName: "demo_coast.jpg")),
@@ -72,6 +91,19 @@ final class AppModel {
     @ObservationIgnored private var libraryTask: Task<Void, Never>?
     @ObservationIgnored private var libraryReload: Task<Void, Never>?
     @ObservationIgnored private var libraryWatcher: PhotoLibraryWatcher?
+    @ObservationIgnored private var networkTask: Task<Void, Never>?
+    @ObservationIgnored private var networkSearchTask: Task<Void, Never>?
+    /// Server multimediali della rete di casa. Le foto si chiedono nella versione che basta a uno
+    /// schermo 4K (se il server ne offre più d'una): la riduzione finale la fa ImageLoader.
+    @ObservationIgnored private let networkMedia: NetworkMedia = {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.urlCache = nil
+        configuration.timeoutIntervalForRequest = 20
+        return NetworkMedia(
+            http: URLSessionHTTPClient(session: URLSession(configuration: configuration)),
+            screen: ScreenSize(longEdge: 3840, shortEdge: 2160)
+        )
+    }()
     @ObservationIgnored private var guestPhotos: [Photo] = []
     @ObservationIgnored private var guestPartyActive = false
     @ObservationIgnored private let freshPhotos = FreshPhotos()
@@ -89,6 +121,7 @@ final class AppModel {
     private static let sourceKey = "lastSource"
     private static let libraryAlbumKey = "libraryAlbumID"
     private static let libraryTitleKey = "libraryAlbumTitle"
+    private static let networkFolderKey = "networkFolder"
 
     init() {
         settings = Self.storedSettings()
@@ -135,6 +168,8 @@ final class AppModel {
         guests.onChange = { [weak self] in self?.guestsChanged() }
         guestsChanged()
         if UserDefaults.standard.string(forKey: Self.sourceKey) == "library" { restoreLibraryAlbum() }
+        networkSaved = UserDefaults.standard.data(forKey: Self.networkFolderKey).flatMap { try? JSONDecoder().decode(NetworkFolder.self, from: $0) }
+        if UserDefaults.standard.string(forKey: Self.sourceKey) == "network", let folder = networkSaved { restoreNetworkFolder(folder) }
     }
 
     /// Impostazioni salvate; usate anche dalla coda del server degli invitati (adattamento delle foto).
@@ -189,6 +224,7 @@ final class AppModel {
     func startDemo() {
         cancelGoogle()
         cancelLibraryLoad()
+        cancelNetworkLoad()
         defaults.set("demo", forKey: Self.sourceKey)
         show(Self.demoPhotos, label: L("source.demo"), isDemo: true)
         discardGoogleSelection()
@@ -276,6 +312,7 @@ final class AppModel {
     /// solo del cambio di sessione.
     private func applyImport(_ result: GoogleImportFlow.Result) {
         cancelLibraryLoad()
+        cancelNetworkLoad()
         let previous = google.selections.current()
         google.selections.save(result.selection)
         defaults.set("google", forKey: Self.sourceKey)
@@ -426,6 +463,7 @@ final class AppModel {
                 return
             }
             self.cancelGoogle()
+            self.cancelNetworkLoad()
             self.defaults.set("library", forKey: Self.sourceKey)
             self.defaults.set(album.id, forKey: Self.libraryAlbumKey)
             self.defaults.set(album.title, forKey: Self.libraryTitleKey)
@@ -487,6 +525,177 @@ final class AppModel {
             self.baseLabel = L("source.library", photos.count)
             self.applyCollection(restart: false)
         }
+    }
+
+    // MARK: - Cartelle di rete (DLNA)
+
+    func openNetwork() {
+        if path.last != .network { path.append(.network) }
+        networkBrowse = nil
+        if networkServers.isEmpty, !networkSearching { searchNetwork() }
+    }
+
+    /// Cerca i server in multicast: senza l'entitlement di Apple non risponde nessuno e resta
+    /// l'indirizzo da scrivere.
+    func searchNetwork() {
+        networkSearchTask?.cancel()
+        networkSearching = true
+        networkSearchTask = Task { [weak self, networkMedia] in
+            let found = await networkMedia.discover()
+            guard let self, !Task.isCancelled else { return }
+            self.mergeNetworkServers(found)
+            self.networkSearching = false
+        }
+    }
+
+    /// Server all'indirizzo scritto con il telecomando: se ce n'è uno solo si apre subito.
+    func addNetworkAddress(_ text: String) {
+        let host = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard LANAddress.isLocal(host) else {
+            showMessage(L("network.error_address"))
+            return
+        }
+        networkTask?.cancel()
+        networkLoading = true
+        networkTask = Task { [weak self, networkMedia] in
+            let found = await networkMedia.servers(at: host)
+            guard let self, !Task.isCancelled else { return }
+            self.networkLoading = false
+            guard !found.isEmpty else {
+                self.showMessage(L("network.error_not_found", host))
+                return
+            }
+            self.mergeNetworkServers(found)
+            if found.count == 1 { self.openNetworkServer(found[0]) }
+        }
+    }
+
+    private func mergeNetworkServers(_ found: [MediaServer]) {
+        var byUDN = Dictionary(networkServers.map { ($0.udn, $0) }, uniquingKeysWith: { first, _ in first })
+        for server in found { byUDN[server.udn] = server }
+        networkServers = byUDN.values.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
+    func openNetworkServer(_ server: MediaServer) {
+        loadNetworkPage(NetworkBrowse(server: server, trail: [.init(id: NetworkMedia.root, title: server.name)]))
+    }
+
+    func openNetworkFolder(_ folder: MediaContainer) {
+        guard var browse = networkBrowse else { return }
+        browse.trail.append(.init(id: folder.id, title: folder.title))
+        loadNetworkPage(browse)
+    }
+
+    /// Cartella superiore; dalla cartella principale si torna all'elenco dei server.
+    func networkUp() {
+        guard var browse = networkBrowse else { return }
+        networkTask?.cancel()
+        networkLoading = false
+        browse.trail.removeLast()
+        if browse.trail.isEmpty {
+            networkBrowse = nil
+        } else {
+            loadNetworkPage(browse)
+        }
+    }
+
+    /// Riapre la cartella in uso, per cambiarla o sceglierne una vicina.
+    func openSavedNetworkFolder() {
+        guard let folder = networkSaved else { return }
+        networkTask?.cancel()
+        networkLoading = true
+        networkTask = Task { [weak self, networkMedia] in
+            let server = await networkMedia.find(udn: folder.udn, location: folder.location)
+            guard let self, !Task.isCancelled else { return }
+            self.networkLoading = false
+            guard let server else {
+                self.showMessage(L("network.unreachable"))
+                return
+            }
+            self.mergeNetworkServers([server])
+            var trail = [NetworkBrowse.Crumb(id: NetworkMedia.root, title: server.name)]
+            if folder.containerID != NetworkMedia.root { trail.append(.init(id: folder.containerID, title: folder.title)) }
+            self.loadNetworkPage(NetworkBrowse(server: server, trail: trail))
+        }
+    }
+
+    private func loadNetworkPage(_ target: NetworkBrowse) {
+        guard let current = target.trail.last else { return }
+        networkTask?.cancel()
+        networkLoading = true
+        networkTask = Task { [weak self, networkMedia] in
+            do {
+                let page = try await networkMedia.list(target.server, containerID: current.id)
+                guard let self, !Task.isCancelled else { return }
+                var browse = target
+                browse.folders = page.containers
+                browse.photosHere = page.files.filter { !$0.mimeType.hasPrefix("video/") }.count
+                self.networkBrowse = browse
+                self.networkLoading = false
+            } catch {
+                guard let self, !Task.isCancelled else { return }
+                self.networkLoading = false
+                self.showMessage(L("network.unreachable"))
+            }
+        }
+    }
+
+    /// "Usa questa cartella": foto e video della cartella e delle sottocartelle diventano la raccolta.
+    func useNetworkFolder() {
+        guard let browse = networkBrowse, let current = browse.trail.last else { return }
+        // La cartella principale prende il nome del server, le altre il proprio.
+        let folder = NetworkFolder(udn: browse.server.udn, location: browse.server.location, containerID: current.id, title: current.title)
+        networkTask?.cancel()
+        networkLoading = true
+        showMessage(L("network.indexing"))
+        networkTask = Task { [weak self, networkMedia] in
+            let photos = try? await networkMedia.scanPhotos(browse.server, containerID: current.id)
+            guard let self, !Task.isCancelled else { return }
+            self.networkLoading = false
+            guard let photos else {
+                self.showMessage(L("network.unreachable"))
+                return
+            }
+            guard !photos.isEmpty else {
+                self.showMessage(L("network.empty"))
+                return
+            }
+            self.cancelGoogle()
+            self.cancelLibraryLoad()
+            self.applyNetworkFolder(folder, photos: photos)
+            self.discardGoogleSelection()
+            self.showMessage(L("message.network_ready"))
+            if self.path.last == .network { self.path.removeLast() }
+        }
+    }
+
+    private func applyNetworkFolder(_ folder: NetworkFolder, photos: [Photo]) {
+        defaults.set("network", forKey: Self.sourceKey)
+        if let data = try? JSONEncoder().encode(folder) { defaults.set(data, forKey: Self.networkFolderKey) }
+        networkSaved = folder
+        show(photos, label: L("source.network", photos.count), isDemo: false, source: .network, title: folder.title)
+    }
+
+    /// All'avvio: la cartella salvata, se il server è acceso (anche con un nuovo indirizzo).
+    private func restoreNetworkFolder(_ folder: NetworkFolder) {
+        networkTask = Task { [weak self, networkMedia] in
+            var photos: [Photo]?
+            if let server = await networkMedia.find(udn: folder.udn, location: folder.location) {
+                photos = try? await networkMedia.scanPhotos(server, containerID: folder.containerID)
+            }
+            guard let self, !Task.isCancelled else { return }
+            guard let photos, !photos.isEmpty else {
+                self.showMessage(L("network.unavailable"))
+                return
+            }
+            guard self.defaults.string(forKey: Self.sourceKey) == "network", self.baseIsDemo else { return }
+            self.show(photos, label: L("source.network", photos.count), isDemo: false, source: .network, title: folder.title)
+        }
+    }
+
+    private func cancelNetworkLoad() {
+        networkTask?.cancel()
+        networkLoading = false
     }
 
     // MARK: - Foto degli invitati

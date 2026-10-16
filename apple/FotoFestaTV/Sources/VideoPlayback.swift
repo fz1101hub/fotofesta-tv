@@ -196,6 +196,13 @@ final class VideoPlayback {
                 guard let self, !Task.isCancelled else { return }
                 if let item { self.attach(item) } else { self.failed = true }
             }
+        case let .network(address):
+            // Video del server di casa: AVPlayer lo legge direttamente, con le richieste Range.
+            guard let url = URL(string: address), LANAddress.isLocal(url) else {
+                failed = true
+                return
+            }
+            attach(AVPlayerItem(url: url))
         case .bundled, .guest:
             failed = true
         }

@@ -24,6 +24,7 @@ struct RootView: View {
                     case .guestWifi: GuestWifiView()
                     case .awards: AwardsView()
                     case .library: LibraryView()
+                    case .network: NetworkView()
                     }
                 }
         }

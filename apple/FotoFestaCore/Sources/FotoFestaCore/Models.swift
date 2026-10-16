@@ -11,6 +11,8 @@ public enum PhotoSource: Codable, Hashable, Sendable {
     /// Foto o video della libreria Foto del dispositivo (Foto di iCloud, album condivisi), letto con
     /// PhotoKit al momento: l'app non ne fa copie.
     case library(localIdentifier: String)
+    /// Foto o video di un server multimediale (DLNA) della rete di casa, letto al momento in http.
+    case network(url: String)
 }
 
 public struct Photo: Identifiable, Hashable, Codable, Sendable {

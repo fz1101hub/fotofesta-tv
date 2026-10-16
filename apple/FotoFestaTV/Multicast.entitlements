@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Ricerca automatica dei server multimediali (SSDP in multicast). Apple concede questo entitlement
+     su richiesta: si attiva in Config/App.xcconfig solo dopo l'approvazione (docs/PUBLISHING.md). -->
+<plist version="1.0">
+<dict>
+    <key>com.apple.developer.networking.multicast</key>
+    <true/>
+</dict>
+</plist>

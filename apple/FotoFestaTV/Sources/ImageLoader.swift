@@ -44,6 +44,12 @@ actor ImageLoader {
             guard let data = GuestStorage.store.read(id),
                   let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
             decoded = Self.thumbnail(source, maxPixelSize: maxPixelSize)
+        case let .network(address):
+            // Server multimediale della rete di casa: solo indirizzi locali, in chiaro come vuole DLNA.
+            guard let url = URL(string: address), LANAddress.isLocal(url),
+                  let data = await networkData(url),
+                  let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+            decoded = Self.thumbnail(source, maxPixelSize: maxPixelSize)
         case let .library(localIdentifier):
             // PhotoKit la dà già ridotta (e la scarica da iCloud se serve). Si tiene la UIImage così
             // com'è: porta con sé l'orientamento della foto, che il solo CGImage perderebbe.
@@ -56,6 +62,15 @@ actor ImageLoader {
         let image = UIImage(cgImage: decoded)
         cache.setObject(image, forKey: key, cost: decoded.bytesPerRow * decoded.height)
         return image
+    }
+
+    /// Foto intera dal server di casa; la riduzione allo schermo la fa ImageIO.
+    private func networkData(_ url: URL) async -> Data? {
+        var request = URLRequest(url: url, timeoutInterval: 30)
+        request.httpMethod = "GET"
+        guard let result = try? await network.data(for: request),
+              let http = result.1 as? HTTPURLResponse, (200..<300).contains(http.statusCode), !result.0.isEmpty else { return nil }
+        return result.0
     }
 
     /// Svuota la cache in memoria (ad esempio dopo "Disconnetti e cancella").
