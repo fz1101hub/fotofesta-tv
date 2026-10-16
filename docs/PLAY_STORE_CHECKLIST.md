@@ -15,16 +15,16 @@ Riepilogo dei requisiti di qualità. I passaggi operativi, nell'ordine in cui es
 | Target API TV | `targetSdk 35` | Supera il minimo TV API 34 in vigore nel 2026.[2] |
 | Android App Bundle | Generato | Firmare e caricare AAB release |
 | 32/64 bit | ARM e x86, 32/64 | Verificare report Play Console |
-| 16 KB | `zipalign -P 16` superato dalla 1.0.0 | Ripetere sull'AAB 1.3.0 e leggere il Rapporto pre-lancio |
-| Android Lint | Nessun errore nella CI della 1.3.0 | Ripetere con `./scripts/build.sh` o la CI prima di ogni caricamento |
+| 16 KB | `zipalign -P 16` superato dalla 1.0.0 | Ripetere sull'AAB 1.4.0 e leggere il Rapporto pre-lancio |
+| Android Lint | Nessun errore nella CI della 1.4.0 | Ripetere con `./scripts/build.sh` o la CI prima di ogni caricamento |
 | Test unitari | 122 superati (JVM) | Aggiungere test strumentali su TV reale |
-| Permessi foto e audio | `READ_MEDIA_IMAGES`/`READ_MEDIA_AUDIO` (Android 13+), `READ_EXTERNAL_STORAGE` fino ad Android 12, chiesti all'apertura del browser USB | Compilare la dichiarazione “Autorizzazioni per foto e video” ([DATA_SAFETY.md](DATA_SAFETY.md#autorizzazioni-per-foto-e-video)) |
+| Permessi foto, video e audio | `READ_MEDIA_IMAGES`/`READ_MEDIA_VIDEO`/`READ_MEDIA_AUDIO` (Android 13+), `READ_EXTERNAL_STORAGE` fino ad Android 12, chiesti all'apertura del browser delle cartelle | Compilare la dichiarazione “Autorizzazioni per foto e video” ([DATA_SAFETY.md](DATA_SAFETY.md#autorizzazioni-per-foto-e-video)) |
 
 ## Scheda Store
 
 Preparare almeno uno screenshot reale ad alta risoluzione della UI TV. Non usare mockup che mostrino funzioni diverse dalla build. La categoria proposta è **Fotografia**; la sezione giochi è secondaria e non richiede che l’app compaia nella riga Giochi, perché il suo scopo principale rimane lo slideshow.
 
-La descrizione deve spiegare che Google Foto richiede selezione esplicita, che USB e le foto degli invitati funzionano senza account, che per le foto degli invitati i telefoni devono essere sulla stessa rete della TV e che la musica è locale. Il salvaschermo è incluso, ma alcune Google TV ne nascondono la scelta: la scheda non deve promettere che sia sempre selezionabile dalle impostazioni. Non promettere sincronizzazione dell’intera libreria o video.
+La descrizione deve spiegare che Google Foto richiede selezione esplicita, che USB e le foto degli invitati funzionano senza account, che per le foto degli invitati i telefoni devono essere sulla stessa rete della TV che la musica è locale e che le cartelle di rete richiedono un server multimediale DLNA sulla stessa rete. Il salvaschermo è incluso, ma alcune Google TV ne nascondono la scelta: la scheda non deve promettere che sia sempre selezionabile dalle impostazioni. Non promettere sincronizzazione dell’intera libreria; per i video precisare che i formati riproducibili dipendono dalla TV.
 
 ## App access e verifica
 
@@ -34,7 +34,7 @@ La Google Photos API richiede una verifica OAuth separata.[3]
 
 ## Data Safety
 
-La versione corrente non invia dati allo sviluppatore, non contiene annunci e non include più SDK che raccolgono dati (Google Cast è stato rimosso nella 1.3.0): la risposta è "nessun dato raccolto". Le foto degli invitati restano sulla rete di casa e sulla TV. Le risposte da dare sono in [DATA_SAFETY.md](DATA_SAFETY.md). L’informativa pubblica (`site/privacy/index.html`) deve restare coerente con il modulo.
+La versione corrente non invia dati allo sviluppatore, non contiene annunci e non include più SDK che raccolgono dati (Google Cast è stato rimosso nella 1.3.0): la risposta è "nessun dato raccolto". Le foto degli invitati e le cartelle di rete restano sulla rete di casa e sulla TV. Le risposte da dare sono in [DATA_SAFETY.md](DATA_SAFETY.md). L’informativa pubblica (`site/privacy/index.html`) deve restare coerente con il modulo.
 
 ## Accessibilità europea
 

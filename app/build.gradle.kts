@@ -30,8 +30,8 @@ android {
         applicationId = "it.fotofesta.tv"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "1.3.0"
+        versionCode = 5
+        versionName = "1.4.0"
 
         buildConfigField("String", "PHOTOS_CLIENT_ID", quotedProperty("PHOTOS_CLIENT_ID"))
         buildConfigField("String", "PHOTOS_CLIENT_SECRET", quotedProperty("PHOTOS_CLIENT_SECRET"))

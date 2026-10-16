@@ -173,6 +173,26 @@ Due revisioni indipendenti (Android e Swift) hanno trovato questi problemi, tutt
 
 Verifiche: 113 test JVM superati e CI Android verde (build, test, Lint, APK); dopo il browser delle cartelle i test sono 122. La pagina per i telefoni è stata provata in Chromium (profili Pixel 7 e iPhone 13) contro il server della TV: riduzione e rotazione corrette, metadati rimossi, file non immagine rifiutati, TV spenta e riaccesa con "Riprova" che completa gli invii. Il codice Swift ha avuto due ulteriori revisioni dopo le correzioni; la CI Apple TV su macOS 15 lo compila per tvOS senza errori e i 65 test XCTest del nucleo passano.
 
+## Nuove funzioni (Android 1.4.0, Apple TV 1.2.0)
+
+Aggiunti su entrambe le piattaforme: Puzzle con tre livelli (6, 12 e 24 pezzi), “Chi l’ha scattata?”, premi di fine festa, risposte dai telefoni degli invitati in “Foto misteriosa” e “Chi l’ha scattata?”, mosaico, conto alla rovescia (mezzanotte, torta, brindisi, sorpresa), video nello slideshow (escludibili, con audio facoltativo) e un nuovo stile per Apple TV con i colori di tvOS. Solo su Android TV: cartelle dei server multimediali della rete di casa (DLNA), video da USB e rete, musica da una cartella intera. “Memory” si chiama ora “Trova la coppia”.
+
+Problemi trovati e corretti durante lo sviluppo:
+
+| Gravità | Problema | Correzione |
+| --- | --- | --- |
+| Alta | Da Android 13 una cartella USB letta dal percorso mostra solo i tipi di file permessi: i video sarebbero rimasti invisibili | Chiesto anche `READ_MEDIA_VIDEO`; per caricare la cartella basta il permesso delle foto, così chi l’aveva concesso solo per le foto non resta bloccato |
+| Alta | Cartella principale di un NAS con molta musica: la ricerca delle foto entrava negli alberi di album, artisti e generi ed esauriva il limite di cartelle prima delle foto | Le cartelle che per classe UPnP sono solo musica o playlist si saltano (provato anche contro MiniDLNA) |
+| Media | DLNA: la copertina JPEG di un brano o di un video poteva diventare una “foto” | Il tipo si decide dalla classe UPnP dell’elemento (`imageItem`, `videoItem`, `audioItem`) |
+| Media | I server DLNA parlano solo HTTP in chiaro, vietato dalla configurazione di rete | Client dedicato (`LanHttp`) limitato agli indirizzi privati, anche dopo un reindirizzamento; XML con DOCTYPE rifiutato; la configurazione resta invariata |
+| Media | AVPlayer non permette di aggiungere il token Google all’indirizzo di un video | `AVAssetResourceLoaderDelegate` con richieste Range e rinnovo del token se scade durante il video |
+| Media | Apple TV: “Chi l’ha scattata?” restava una schermata vuota (una vista vuota non riceve `onAppear`) | Sfondo sempre presente che avvia il gioco |
+| Media | tvOS 26: la tinta globale nascondeva le etichette dei pulsanti senza fuoco; un’immagine ritagliata usciva dal suo riquadro e spingeva fuori schermo “Foto misteriosa” | Tinta globale e ruoli distruttivi tolti; immagine in un `overlay` che non cambia le dimensioni |
+| Bassa | Android: schermata del Puzzle non compilata (import mancante); `weight` importato come funzione | Import corretti, verificati dalla CI |
+| Bassa | Pannello del gioco con i telefoni troppo alto con quattro nomi e la classifica, su Apple TV | Pannello orizzontale sotto la foto, classifica dei primi tre |
+
+Verifiche: 184 test JVM (Android) e 104 test XCTest (Apple TV) superati; CI Android (build, test, Lint, APK) e CI Apple TV verdi. Il client delle cartelle di rete è stato provato contro un vero server MiniDLNA; la pagina per i telefoni con il gioco in Chromium contro una TV simulata. Le schermate dal simulatore tvOS (`[screenshots]`) mostrano puzzle, giochi, festa, premi, mosaico, conto alla rovescia e il gioco con due telefoni simulati che rispondono.
+
 ## Raccomandazioni aperte
 
 | Priorità | Raccomandazione |
@@ -183,3 +203,5 @@ Verifiche: 113 test JVM superati e CI Android verde (build, test, Lint, APK); do
 | Media | Provare le foto degli invitati su TV reali con telefoni Android e iPhone: rete Wi‑Fi e via cavo, rete ospiti del router, uscita e ritorno nell'app, festa lunga con centinaia di foto. |
 | Bassa | Prima di portare `targetSdk` oltre 35, verificare se Android richiede il nuovo permesso per la rete locale anche per un server in ascolto. |
 | Bassa | Valutare l'approvazione delle foto attiva per impostazione predefinita, se le prove mostrano invii indesiderati. |
+| Alta | Provare le cartelle di rete con server reali (NAS, Plex o Jellyfin, router) e i video su TV diverse: formati, codec non supportati, video lunghi, audio insieme alla musica. Su Apple TV, i video di Google Foto. |
+| Media | Cartelle condivise SMB senza server multimediale: valutarle se gli utenti le chiedono (richiederebbero utente e password e una libreria SMB). |

@@ -1,15 +1,18 @@
 # Risposte per Google Play Data safety e App Store Privacy
 
-Queste risposte descrivono la build attuale (Android 1.3.0, Apple TV 1.1.0). Vanno ricontrollate a ogni nuova versione e ogni volta che si aggiunge un SDK.
+Queste risposte descrivono la build attuale (Android 1.4.0, Apple TV 1.2.0). Vanno ricontrollate a ogni nuova versione e ogni volta che si aggiunge un SDK.
 
 ## Google Play – Sicurezza dei dati
 
-Dalla versione 1.3.0 l'app per Android TV non include più Google Cast né altri SDK che inviano dati: le dipendenze sono AndroidX, Jetpack Compose, Coil, OkHttp, kotlinx.coroutines e ZXing, che lavorano solo sul dispositivo. Il codice dell'app non invia nulla allo sviluppatore. Google considera "raccolti" i dati trasmessi fuori dal dispositivo; qui non ce ne sono:
+Dalla versione 1.3.0 l'app per Android TV non include più Google Cast né altri SDK che inviano dati: le dipendenze sono AndroidX, Jetpack Compose, Media3 (lettore video), Coil, OkHttp, kotlinx.coroutines e ZXing, che lavorano solo sul dispositivo. Il codice dell'app non invia nulla allo sviluppatore. Google considera "raccolti" i dati trasmessi fuori dal dispositivo; qui non ce ne sono:
 
 - **Google Foto**: le chiamate a Google partono su richiesta dell'utente per leggere il suo stesso account e mostrargli le foto scelte. Le foto passano da Google alla TV solo per essere mostrate, senza essere salvate.
 - **Foto degli invitati**: vanno dal telefono dell'invitato alla TV attraverso la rete di casa, senza passare da internet né da server dello sviluppatore. Restano sulla TV solo durante la festa (in memoria, con una cartella temporanea di riserva) e vengono cancellate alla fine. Nome facoltativo dell'invitato: mostrato sulla TV accanto alle sue foto e cancellato con esse.
 - **Token Google e password della Wi‑Fi** per il QR degli invitati: cifrati sul dispositivo, mai trasmessi allo sviluppatore.
-- **Foto e musica del disco USB**: lette dal disco con i permessi di lettura di foto e audio, solo per mostrarle e riprodurle sulla TV. Non vengono copiate né trasmesse; sulla TV resta solo il percorso della cartella e del brano scelti.
+- **Foto, video e musica del disco USB**: letti dal disco con i permessi di lettura di foto, video e audio, solo per mostrarli e riprodurli sulla TV. Non vengono copiati né trasmessi; sulla TV resta solo il percorso della cartella e del brano scelti.
+- **Cartelle della rete di casa** (server multimediali DLNA di NAS, router, PC): la TV cerca i server sulla rete locale e legge foto e video dal server scelto solo per mostrarli, senza copiarli e senza passare da internet. Sulla TV restano il nome della cartella e l'identificativo del server.
+- **Video di Google Foto**: letti da Google come le foto, solo per mostrarli, senza copie sulla TV.
+- **Gioco con i telefoni**: durante la festa gli invitati rispondono dalla pagina servita dalla TV; risposte, nome facoltativo e punti restano in memoria sulla TV e spariscono alla fine del gioco o della festa.
 
 | Domanda di Play Console | Risposta |
 | --- | --- |
@@ -31,11 +34,11 @@ Se il revisore chiede comunque di dichiarare le foto (di Google Foto o degli inv
 
 ### Autorizzazioni per foto e video
 
-L'app dichiara `READ_MEDIA_IMAGES` (Android 13 e successivi; `READ_EXTERNAL_STORAGE` fino ad Android 12) e `READ_MEDIA_AUDIO`. Play Console chiede di motivare l'accesso alle foto: la funzione principale dell'app è mostrare in slideshow intere cartelle di foto di un disco USB collegato alla TV, e molte TV non hanno il selettore di documenti né il selettore di foto di Android. Testo proposto:
+L'app dichiara `READ_MEDIA_IMAGES` e `READ_MEDIA_VIDEO` (Android 13 e successivi; `READ_EXTERNAL_STORAGE` fino ad Android 12) e `READ_MEDIA_AUDIO`. Play Console chiede di motivare l'accesso a foto e video: la funzione principale dell'app è mostrare in slideshow intere cartelle di foto e video di un disco USB collegato alla TV, e molte TV non hanno il selettore di documenti né il selettore di foto di Android. Testo proposto:
 
-> FotoFesta TV is a slideshow app for Android TV. Its core feature is showing every photo in a folder of a USB drive plugged into the TV, including subfolders, with the remote control. The app needs ongoing access, not a one-time selection: it reads the folder again at every start, so photos added later to the drive appear, and it shows the same folder as the system screensaver (DreamService), which runs without the app's interface. Many Android TV devices have no document picker or photo picker, so the app lists the mounted drives and reads the chosen folder directly. Photos are only displayed on the TV: they are not copied, uploaded or shared. The permission is requested only when the user opens the USB folder browser.
+> FotoFesta TV is a slideshow app for Android TV. Its core feature is showing every photo and video in a folder of a USB drive plugged into the TV, including subfolders, with the remote control. The app needs ongoing access, not a one-time selection: it reads the folder again at every start, so photos and videos added later to the drive appear, and it shows the same folder as the system screensaver (DreamService), which runs without the app's interface. Many Android TV devices have no document picker or photo picker, so the app lists the mounted drives and reads the chosen folder directly. Photos and videos are only displayed on the TV: they are not copied, uploaded or shared. The permission is requested only when the user opens the folder browser.
 
-Il permesso si chiede solo all'apertura del browser delle cartelle; se viene negato, l'app usa il selettore di sistema quando la TV lo ha.
+Il permesso si chiede solo all'apertura del browser delle cartelle; se viene negato, il browser mostra comunque i server della rete di casa e, quando la TV lo ha, resta il selettore di sistema. Senza il permesso dei video (concesso a parte su alcune versioni di Android) le cartelle USB mostrano solo le foto.
 
 ## App Store – Privacy dell'app (etichetta nutrizionale)
 
@@ -43,7 +46,7 @@ Il permesso si chiede solo all'apertura del browser delle cartelle; se viene neg
 | --- | --- |
 | Raccogli dati da questa app? | **No, non raccogliamo dati** |
 
-L'app per Apple TV non include SDK di terze parti. Apple considera raccolta la trasmissione di dati fuori dal dispositivo quando lo sviluppatore o i suoi partner possono accedervi più a lungo del tempo necessario a gestire la richiesta. Le foto scelte in Google Foto passano direttamente da Google al dispositivo solo per essere mostrate, senza essere salvate; le foto degli invitati vanno dal telefono alla Apple TV sulla rete di casa e vengono cancellate a fine festa. Il manifest `PrivacyInfo.xcprivacy` dichiara UserDefaults (CA92.1) e lo spazio libero su disco (E174.1, per il limite della cartella temporanea).
+L'app per Apple TV non include SDK di terze parti. Apple considera raccolta la trasmissione di dati fuori dal dispositivo quando lo sviluppatore o i suoi partner possono accedervi più a lungo del tempo necessario a gestire la richiesta. Le foto e i video scelti in Google Foto passano direttamente da Google al dispositivo solo per essere mostrati, senza essere salvati; le foto degli invitati vanno dal telefono alla Apple TV sulla rete di casa e vengono cancellate a fine festa. Il manifest `PrivacyInfo.xcprivacy` dichiara UserDefaults (CA92.1) e lo spazio libero su disco (E174.1, per il limite della cartella temporanea).
 
 ## Informativa privacy
 

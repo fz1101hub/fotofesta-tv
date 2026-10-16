@@ -73,7 +73,17 @@ Le foto degli invitati non richiedono configurazione né account: funzionano con
 
 **Rete.** Telefono e TV devono essere sulla stessa rete. Le reti “ospiti” e l’isolamento dei client (AP isolation) di alcuni router bloccano il traffico tra dispositivi: in quel caso la pagina non si apre e gli invitati vanno collegati alla rete principale. Sui router con più reti (2,4 e 5 GHz) di solito il traffico passa tra le due. Su Apple TV la descrizione `NSLocalNetworkUsageDescription` è già in `Info.plist`.
 
-## 4. Installare su Google TV
+## 4. Cartelle di rete e video
+
+**Cartelle di rete (solo Android TV).** Non richiedono configurazione nell’app: serve un server multimediale DLNA/UPnP acceso sulla stessa rete della TV, ad esempio il server multimediale di un NAS (Synology Media Server, QNAP, WD), un router con un disco USB e la condivisione multimediale attiva (FRITZ!Box, molti router degli operatori), Windows con “Opzioni flusso multimediale”, Plex, Jellyfin, Emby o MiniDLNA. In “Cartelle” la TV li cerca con SSDP (multicast su `239.255.255.250:1900`, risposta diretta alla TV), legge la descrizione del dispositivo e sfoglia le cartelle con `ContentDirectory:Browse`, a pagine di 500 elementi. “Usa questa cartella” prende foto e video anche dalle sottocartelle, fino a 10.000 elementi e 2.000 cartelle, saltando album, artisti, generi e playlist musicali. La TV salva l’identificativo del server (UDN), l’indirizzo della sua descrizione e la cartella: se il server cambia indirizzo IP viene ritrovato in rete. Le cartelle condivise SMB di Windows e macOS non sono supportate senza un server multimediale.
+
+I server DLNA usano HTTP in chiaro. L’app continua a vietarlo nella configurazione di rete (`network_security_config.xml`): le richieste verso i server passano da `LanHttp`, un client minimo che si collega solo a indirizzi privati (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, link-local, fc00::/7), anche dopo un reindirizzamento, e rifiuta l’XML con DOCTYPE. Foto e video si leggono quando servono e non vengono copiati.
+
+**Video.** Su Android TV i video di cartelle USB, cartelle di rete e Google Foto entrano nella raccolta e nello slideshow, dove si guardano fino alla fine; li riproduce Media3 (ExoPlayer) con i contenitori MP4, MOV, 3GP, MKV, WebM, AVI, TS/M2TS, MPEG, FLV e OGV. I codec (H.264, HEVC, VP9, AV1, AC‑3…) dipendono dalla TV: un video che non si può decodificare mostra un avviso e viene saltato. Da Android 13 i video delle cartelle USB lette dal percorso richiedono `READ_MEDIA_VIDEO`, chiesto insieme a `READ_MEDIA_IMAGES` all’apertura del browser. Su Apple TV si vedono i video di Google Foto in MP4 o MOV (H.264, HEVC). In entrambe le app “Video” li esclude e “Audio dei video” li rende muti; su Android, mentre un video suona, la musica di sottofondo si ferma. Giochi, sfondo della home, caselle del mosaico e salvaschermo usano solo le foto.
+
+**Gioco con i telefoni.** Durante la festa, in “Foto misteriosa” e “Chi l’ha scattata?”, “Con i telefoni” pubblica la domanda sulla pagina della festa: la pagina interroga `GET /game` ogni 1,5 secondi e risponde con `POST /game/answer` (modulo `round`, `choice`, `player`, `name`, al massimo 1 KB), con la stessa chiave del QR. Il server risponde 409 se la domanda è chiusa e 400 se la risposta non è valida. Ogni telefono ha un identificativo casuale salvato nel browser; vale la sua prima risposta. Risposte, nomi e punti restano in memoria e si azzerano con una nuova partita.
+
+## 5. Installare su Google TV
 
 Per una prova locale:
 
@@ -84,7 +94,7 @@ adb install -r dist/FotoFesta-TV-debug.apk
 
 Per Google Play caricare l’AAB generato dopo aver configurato una firma di release. Non distribuire l’APK debug: usa un certificato condiviso e non può essere aggiornato da una release firmata con un’altra chiave.
 
-## 5. Firma release
+## 6. Firma release
 
 Creare una chiave una sola volta e conservarla in un password manager/backup offline:
 
@@ -108,7 +118,7 @@ Senza queste chiavi la build release resta non firmata e `scripts/build.sh` prod
 
 Non aggiungere `.jks`, password o `local.properties` al repository. La soluzione preferita per il Play Store è **Play App Signing**, usando la chiave locale come upload key.
 
-## 6. Checklist prima della pubblicazione
+## 7. Checklist prima della pubblicazione
 
 | Area | Azione |
 | --- | --- |

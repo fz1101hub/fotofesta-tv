@@ -60,7 +60,7 @@ Hai due modi:
 - **In locale**: `./scripts/build.sh`. Produce `dist/FotoFesta-TV-release.aab` ed esegue test e lint.
 - **Con GitHub Actions**: avvia **Actions › Android release › Run workflow** e scarica l'artefatto `FotoFesta-TV-release`, che contiene AAB e `mapping.txt`. Anche un tag `v*`, ad esempio `v1.3.0`, avvia il workflow, ma produce solo l'artefatto e non carica nulla su Play.
 
-La versione 1.3.0 compila e supera test e Lint nella CI (`.github/workflows/android.yml`); la build di release firmata va comunque provata su una TV prima di caricarla.
+La versione 1.4.0 compila e supera test e Lint nella CI (`.github/workflows/android.yml`); la build di release firmata va comunque provata su una TV prima di caricarla.
 
 ### Creare l'app in Play Console
 

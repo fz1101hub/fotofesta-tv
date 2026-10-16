@@ -10,11 +10,15 @@ Versione tvOS dell'app, scritta in Swift e SwiftUI, pensata per l'App Store. Con
 | Google Foto (QR + Picker API) | Sì | Stesso client OAuth "TVs and Limited Input devices" |
 | Foto degli invitati (QR, pagina web servita dalla TV) | Sì | Stessa pagina per i telefoni (`shared/assets/guest/index.html`), server su Network.framework |
 | Cartelle USB | No | tvOS non dà alle app accesso a dischi esterni |
+| Cartelle della rete di casa (DLNA) | No | Solo Android TV |
+| Video nello slideshow | Sì | Solo quelli di Google Foto, nei formati di tvOS (MP4 e MOV con H.264 o HEVC); escludibili o senza audio dalle impostazioni |
 | Slideshow: durata, transizioni, adattamento, ordine casuale, orologio | Sì | |
+| Mosaico e conto alla rovescia | Sì | |
 | Movimento lento (Ken Burns) e pausa automatica | Sì | |
 | Musica di sottofondo | No | tvOS non permette di scegliere file audio locali |
 | Salvaschermo di sistema | No | tvOS non accetta salvaschermi di terze parti |
-| Trova la coppia e Foto misteriosa | Sì | |
+| Trova la coppia, Foto misteriosa, Puzzle (3 livelli) e Chi l'ha scattata? | Sì | |
+| Risposte dai telefoni degli invitati e premi di fine festa | Sì | Stessi indirizzi `/game` e `/game/answer` del server della festa |
 | Italiano, inglese, francese, spagnolo e tedesco | Sì | `apple/scripts/strings.py` (inglese e italiano) e `apple/scripts/translations/<lingua>.json` generano `Localizable.strings` e `InfoPlist.strings` |
 
 Le foto di Google Foto non vengono copiate sulla Apple TV: si caricano da Google alla risoluzione richiesta, con una sessione di rete senza cache su disco, e restano solo in memoria. In UserDefaults resta un piccolo elenco con la sessione Picker e gli identificativi delle foto; quando Google chiude la sessione (la data è mostrata a fine collegamento) l'app torna alle foto demo e chiede di sceglierle di nuovo. Una selezione è limitata a 1000 foto, perché su tvOS le preferenze hanno spazio ridotto. I token restano nel Portachiavi, che sopravvive alla disinstallazione: al primo avvio dopo una nuova installazione l'app cancella i token rimasti.
@@ -59,7 +63,7 @@ La pubblicazione è descritta in [docs/PUBLISHING.md](../docs/PUBLISHING.md).
 
 ## Stato di verifica
 
-Il workflow `.github/workflows/apple.yml` gira su un runner macOS 15 con Xcode 26.3 (SDK tvOS 26): i 68 test XCTest del nucleo passano e l'app si compila per tvOS senza firma, senza errori né avvisi Swift. Con un repository privato i minuti macOS sono a pagamento. La logica è la stessa dell'app Android, coperta dai test JVM.
+Il workflow `.github/workflows/apple.yml` gira su un runner macOS 15 con Xcode 26.3 (SDK tvOS 26): i 104 test XCTest del nucleo passano e l'app si compila per tvOS senza firma. Con `[screenshots]` nel messaggio del commit, o avviandolo a mano, il workflow fa anche le schermate nel simulatore (`scripts/screenshots.sh`), comprese festa, premi e gioco con i telefoni: lo script manda foto e risposte come i telefoni degli invitati. Con un repository privato i minuti macOS sono a pagamento. La logica è la stessa dell'app Android, coperta dai test JVM.
 
 Con `[screenshots]` nel messaggio dell'ultimo commit (o avviando il workflow a mano) la CI apre anche l'app nel simulatore Apple TV in italiano e fotografa le schermate principali: home, slideshow, impostazioni, giochi, festa. Durante la festa lo script `scripts/screenshots.sh` manda alcune foto come farebbe il telefono di un invitato, per mostrare slideshow, miniature e approvazione. Le PNG a piena risoluzione si scaricano dall'artifact `FotoFestaTV-screenshots` e vanno bene anche per App Store Connect. Il passo fallisce se l'app si chiude da sola in una schermata. Gli scenari sono in `ScreenshotScenario.swift` e sono attivi solo nelle build di debug.
 
