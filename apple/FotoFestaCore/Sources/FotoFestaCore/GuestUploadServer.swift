@@ -50,6 +50,7 @@ public final class GuestUploadServer: @unchecked Sendable {
     private let maxUploadsPerMinute: Int
     private let page: @Sendable () -> String
     private let onPhoto: @Sendable (Data, String?) -> UploadResult
+    /// Chiamato sulla coda del server: non deve chiamare `start()` o `stop()` direttamente.
     private let onFailure: @Sendable () -> Void
     private let queue = DispatchQueue(label: "it.fotofesta.guest-upload")
 
@@ -116,34 +117,35 @@ public final class GuestUploadServer: @unchecked Sendable {
         listener.newConnectionHandler = { [weak self] connection in
             self?.accept(connection)
         }
-        // Lo stato cambia sempre sulla coda del server: basta un indicatore senza lock.
+        // Lo stato cambia sempre sulla coda del server: basta un indicatore senza lock, e il
+        // listener attivo si registra qui, prima che possa arrivare qualunque connessione.
         let resumed = OnceFlag()
-        let actualPort: UInt16 = try await withCheckedThrowingContinuation { continuation in
+        return try await withCheckedThrowingContinuation { continuation in
             listener.stateUpdateHandler = { [weak self, weak listener] state in
                 switch state {
                 case .ready:
-                    if resumed.claim() { continuation.resume(returning: listener?.port?.rawValue ?? 0) }
-                case let .failed(error):
-                    listener?.cancel()
-                    if resumed.claim() {
-                        continuation.resume(throwing: error)
-                    } else {
-                        // Fallito dopo l'avvio (ad esempio la rete è caduta): chi l'ha avviato lo riavvia.
-                        self?.listenerStopped()
+                    guard resumed.claim() else { return }
+                    let port = listener?.port?.rawValue ?? 0
+                    if let self, let listener {
+                        self.stopping = false
+                        self.listener = listener
+                        self.expectedHost = GuestUploadServer.hostHeader(host: host, port: port)
                     }
-                case let .waiting(error):
+                    continuation.resume(returning: port)
+                case let .failed(error), let .waiting(error):
                     // Senza rete il listener aspetterebbe all'infinito: meglio un errore subito.
                     listener?.cancel()
                     if resumed.claim() {
                         continuation.resume(throwing: error)
                     } else {
-                        self?.listenerStopped()
+                        // Fermato dopo l'avvio (ad esempio la rete è caduta): chi l'ha avviato lo riavvia.
+                        self?.listenerStopped(listener)
                     }
                 case .cancelled:
                     if resumed.claim() {
                         continuation.resume(throwing: CancellationError())
                     } else {
-                        self?.listenerStopped()
+                        self?.listenerStopped(listener)
                     }
                 default:
                     break
@@ -151,23 +153,23 @@ public final class GuestUploadServer: @unchecked Sendable {
             }
             listener.start(queue: queue)
         }
-        queue.sync {
-            self.stopping = false
-            self.listener = listener
-            self.expectedHost = Self.hostHeader(host: host, port: actualPort)
-        }
-        return actualPort
     }
 
-    /// Chiamato sulla coda del server quando il listener si ferma da solo dopo l'avvio.
-    private func listenerStopped() {
-        guard !stopping else { return }
+    /// Chiamato sulla coda del server quando un listener si ferma da solo dopo l'avvio. Conta solo
+    /// quello attivo: un tentativo precedente sulla porta preferita non deve fermare quello nuovo.
+    private func listenerStopped(_ stopped: NWListener?) {
+        guard !stopping, let stopped, stopped === listener else { return }
         listener = nil
         onFailure()
     }
 
     /// Chiamato sulla coda del server.
     private func accept(_ connection: NWConnection) {
+        // Connessione arrivata mentre il server si fermava: dopo stop() nessuna foto deve arrivare.
+        guard !stopping, listener != nil else {
+            connection.cancel()
+            return
+        }
         let client = Self.clientKey(connection.endpoint)
         guard connections.count < Self.maxConnections, (perClient[client] ?? 0) < Self.maxConnectionsPerClient else {
             // Troppe richieste insieme: risposta breve senza leggere la richiesta, il telefono riproverà.

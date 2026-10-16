@@ -50,6 +50,8 @@ final class GuestParty {
     @ObservationIgnored private var monitor: NWPathMonitor?
     @ObservationIgnored private var foreground = false
     @ObservationIgnored private var serving: Task<Void, Never>?
+    /// Un solo nuovo tentativo programmato alla volta, dopo un avvio non riuscito.
+    @ObservationIgnored private var retryTask: Task<Void, Never>?
     @ObservationIgnored private let approvalFlag = LockedFlag()
     /// Pagina per i telefoni (shared/assets/guest/index.html), con i valori da completare.
     @ObservationIgnored private let template: String
@@ -152,7 +154,8 @@ final class GuestParty {
     }
 
     func saveWifi(_ network: WifiNetwork?) {
-        let saved = WifiPasswordKeychain.write(network?.password)
+        // Per una rete aperta non c'è niente da mettere nel Portachiavi.
+        let saved = WifiPasswordKeychain.write(network.flatMap { $0.isOpen ? nil : $0.password })
         if let network, saved {
             defaults.set(network.ssid, forKey: Keys.wifiSSID)
             defaults.set(!network.isOpen, forKey: Keys.wifiHasPassword)
@@ -212,11 +215,14 @@ final class GuestParty {
         photos = store.photos
         ready = true
         onChange?()
+        // Il server parte solo ora: una foto ricevuta durante la ripresa andrebbe persa.
+        if active, foreground { refresh() }
     }
 
     /// Il server si è fermato da solo (ad esempio la rete è caduta): si riavvia.
     private func serverFailed(_ failed: GuestUploadServer) {
         guard failed === server else { return }
+        failed.stop()
         server = nil
         serverHost = nil
         refresh()
@@ -224,7 +230,7 @@ final class GuestParty {
 
     /// Avvia il server sull'indirizzo attuale, o lo sposta se la rete è cambiata.
     private func refresh() {
-        guard active, foreground else { return }
+        guard active, foreground, ready else { return }
         startMonitor()
         let previous = serving
         serving = Task { [weak self] in
@@ -234,7 +240,7 @@ final class GuestParty {
     }
 
     private func serve() async {
-        guard active, foreground else { return }
+        guard !Task.isCancelled, active, foreground else { return }
         guard let host = LocalNetwork.currentIPv4() else {
             server?.stop()
             server = nil
@@ -276,11 +282,14 @@ final class GuestParty {
             problem = nil
         } catch {
             candidate.stop()
+            guard !Task.isCancelled, active, foreground else { return }
             url = nil
             problem = .serverFailed
             // Nuovo tentativo tra qualche secondo, se la festa è ancora in primo piano.
-            Task { [weak self] in
+            retryTask?.cancel()
+            retryTask = Task { [weak self] in
                 try? await Task.sleep(nanoseconds: 5_000_000_000)
+                guard !Task.isCancelled else { return }
                 self?.refresh()
             }
         }
@@ -289,6 +298,8 @@ final class GuestParty {
     private func stopServing() {
         // Il tentativo annullato resta il "precedente": il prossimo avvio aspetta che finisca.
         serving?.cancel()
+        retryTask?.cancel()
+        retryTask = nil
         monitor?.cancel()
         monitor = nil
         server?.stop()

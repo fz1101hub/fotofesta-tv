@@ -50,13 +50,14 @@ public enum GuestImageFormat: Equatable, Sendable {
         return nil
     }
 
-    /// Legge solo le dimensioni: un file danneggiato o enorme non arriva mai allo slideshow.
-    public static func isDisplayable(_ data: Data, maxSide: Int = 10_000) -> Bool {
+    /// Legge solo le dimensioni: un file danneggiato o enorme non arriva mai allo slideshow. Il tetto
+    /// ai pixel è il doppio di uno schermo 4K: la pagina per i telefoni non manda mai di più.
+    public static func isDisplayable(_ data: Data, maxSide: Int = 8_192, maxPixels: Int = 2 * 3840 * 2160) -> Bool {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil),
               let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
               let width = properties[kCGImagePropertyPixelWidth] as? Int,
               let height = properties[kCGImagePropertyPixelHeight] as? Int else { return false }
-        return (1...maxSide).contains(width) && (1...maxSide).contains(height)
+        return (1...maxSide).contains(width) && (1...maxSide).contains(height) && width * height <= maxPixels
     }
 }
 
