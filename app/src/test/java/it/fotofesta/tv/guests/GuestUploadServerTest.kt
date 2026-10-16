@@ -14,6 +14,7 @@ import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.net.InetAddress
 import java.net.InetSocketAddress
+import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -286,10 +287,12 @@ class GuestUploadServerTest {
     fun `stop closes the port`() {
         server.stop()
         assertFalse(server.isRunning)
-        try {
-            Socket().use { it.connect(InetSocketAddress(loopback, port), 1_000) }
-            fail("La porta dovrebbe essere chiusa")
-        } catch (_: IOException) {
+        // La porta si può occupare di nuovo solo se nessuno è più in ascolto. Una connessione di
+        // prova non basterebbe: sulla porta effimera appena liberata il sistema può dare al client
+        // la stessa porta come origine, e la connessione a sé stessi riesce anche senza server.
+        ServerSocket().use { socket ->
+            socket.reuseAddress = true
+            socket.bind(InetSocketAddress(loopback, port))
         }
     }
 
