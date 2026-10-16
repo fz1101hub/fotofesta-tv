@@ -99,6 +99,11 @@ struct GuestsView: View {
                             Label(LP("guests.approve_photos", model.pendingGuestPhotos.count), systemImage: "checkmark.circle")
                         }
                     }
+                    if model.approvedGuestCount > 0 {
+                        NavigationLink(value: Route.awards) {
+                            Label(L("guests.awards"), systemImage: "trophy.fill")
+                        }
+                    }
                     // Senza ruolo "distruttivo": su tvOS 26 il pulsante rosso senza fuoco nasconde il
                     // testo. La conferma, nel dialogo di sistema, resta rossa.
                     Button {

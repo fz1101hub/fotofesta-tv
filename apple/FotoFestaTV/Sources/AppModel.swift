@@ -7,7 +7,7 @@ import Observation
 private let slideshowSettingsKey = "slideshowSettings"
 
 enum Route: Hashable {
-    case slideshow, settings, games, memory, mystery, puzzle, googleConnect, guests, guestReview, guestWifi
+    case slideshow, settings, games, memory, mystery, puzzle, whoTookIt, googleConnect, guests, guestReview, guestWifi, awards
 }
 
 /// Da dove vengono le foto della raccolta mostrata nella home.
@@ -434,7 +434,8 @@ final class AppModel {
             id: "guest:\(guest.id)",
             title: guest.sender.map { L("guest.photo_from", $0) } ?? L("guest.photo"),
             source: .guest(id: guest.id),
-            receivedAt: guest.receivedAt
+            receivedAt: guest.receivedAt,
+            sender: guest.sender
         )
     }
 

@@ -127,6 +127,24 @@
     <string name="puzzle_cell">Feld %1$d</string>
     <string name="puzzle_cell_selected">Feld %1$d, ausgewählt</string>
     <string name="puzzle_cell_correct">Feld %1$d, Teil an der richtigen Stelle</string>
+    <string name="games_who_title">Wer hat’s geknipst?</string>
+    <string name="games_who_body">Rate, welcher Gast das Foto geschickt hat. Gespielt wird mit den Partyfotos.</string>
+    <string name="games_who_unavailable">Dafür braucht es Partyfotos von mindestens zwei Gästen mit Namen.</string>
+    <string name="who_unavailable_title">Partyfotos nötig</string>
+    <string name="who_kicker">Wer hat’s geknipst? · Punkte: %1$d von %2$d</string>
+    <string name="who_question">Wer hat dieses Foto geschickt?</string>
+    <string name="who_correct">Richtig! %1$s hat es geschickt.</string>
+    <string name="who_wrong">Nein, %1$s hat es geschickt.</string>
+    <string name="who_next">Nächstes Foto</string>
+    <string name="who_photo">Foto zum Raten</string>
+    <string name="guests_awards">Party-Preise</string>
+    <string name="awards_kicker">Party-Bilanz</string>
+    <string name="awards_title">Die Party-Preise</string>
+    <string name="awards_golden_lens">Goldene Linse</string>
+    <string name="awards_first">Erstes Foto der Party</string>
+    <string name="awards_last">Großes Finale</string>
+    <string name="awards_anonymous">Ein Gast</string>
+    <string name="awards_at">um %1$s</string>
     <string name="dream_label">Fotos von FotoFesta TV</string>
     <string name="home_guests_title">Gästefotos</string>
     <string name="guests_kicker">Partymodus</string>
@@ -181,6 +199,14 @@
     <string name="browser_unreadable">Dieser Ordner kann nicht gelesen werden.</string>
     <string name="browser_permission_photos">Ohne Zugriff auf Fotos kann FotoFesta TV den Speicher nicht lesen. Erlaube ihn unter Einstellungen › Apps › FotoFesta TV › Berechtigungen.</string>
     <string name="browser_permission_music">Ohne Zugriff auf Musik und Audio kann FotoFesta TV keine Titel lesen. Erlaube ihn unter Einstellungen › Apps › FotoFesta TV › Berechtigungen.</string>
+    <plurals name="awards_photo_count">
+        <item quantity="one">%1$d Foto</item>
+        <item quantity="other">%1$d Fotos</item>
+    </plurals>
+    <plurals name="awards_guest_count">
+        <item quantity="one">%1$d Gast</item>
+        <item quantity="other">%1$d Gäste</item>
+    </plurals>
     <plurals name="puzzle_pieces">
         <item quantity="one">%1$d Teil</item>
         <item quantity="other">%1$d Teile</item>

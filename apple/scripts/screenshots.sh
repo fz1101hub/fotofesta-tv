@@ -118,6 +118,15 @@ sleep 1
 upload "$OUT/guest_landscape.jpg" Marco
 capture guest_slideshow 4
 capture party_photos 12
+launch who_game
+upload "$OUT/guest_portrait.jpg" Giulia
+upload "$OUT/guest_landscape.jpg" Marco
+capture who_game 6
+launch awards
+upload "$OUT/guest_portrait.jpg" Giulia
+upload "$OUT/guest_landscape.jpg" Marco
+upload "$OUT/guest_portrait.jpg" Giulia
+capture awards 6
 # Con l'approvazione accesa la foto aspetta in "Da approvare".
 launch review
 upload "$OUT/guest_portrait.jpg" Sara

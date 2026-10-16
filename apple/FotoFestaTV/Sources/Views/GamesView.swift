@@ -9,6 +9,7 @@ struct GamesView: View {
 
     var body: some View {
         let playable = model.photos.count >= minimumGamePhotos
+        let whoTookItPlayable = WhoTookIt.canPlay(model.photos)
         ZStack {
             Theme.background.ignoresSafeArea()
             VStack(alignment: .leading, spacing: 48) {
@@ -19,6 +20,14 @@ struct GamesView: View {
                         gameCard(L("games.memory_title"), L("games.memory_body"), "square.grid.2x2.fill", .memory, enabled: playable)
                         gameCard(L("games.mystery_title"), L("games.mystery_body"), "eye.fill", .mystery, enabled: playable)
                         gameCard(L("games.puzzle_title"), L("games.puzzle_body"), "puzzlepiece.fill", .puzzle, enabled: playable)
+                        // Si gioca solo con le foto della festa: senza, la scheda spiega cosa serve.
+                        gameCard(
+                            L("games.who_title"),
+                            whoTookItPlayable ? L("games.who_body") : L("games.who_unavailable"),
+                            "camera.fill",
+                            .whoTookIt,
+                            enabled: whoTookItPlayable
+                        )
                     }
                     // Spazio per il sollevamento delle schede con il fuoco.
                     .padding(.vertical, 40)
@@ -43,6 +52,7 @@ struct GamesView: View {
         switch route {
         case .memory: return "demo_coast.jpg"
         case .puzzle: return "demo_picnic.jpg"
+        case .whoTookIt: return "demo_birthday.jpg"
         default: return "demo_mountains.jpg"
         }
     }

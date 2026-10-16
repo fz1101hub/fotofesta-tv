@@ -16,12 +16,15 @@ public struct Photo: Identifiable, Hashable, Codable, Sendable {
     public let source: PhotoSource
     /// Quando la foto è arrivata al dispositivo, per le foto degli invitati.
     public let receivedAt: Date?
+    /// Nome con cui l'invitato ha firmato la foto, per le foto degli invitati.
+    public let sender: String?
 
-    public init(id: String, title: String, source: PhotoSource, receivedAt: Date? = nil) {
+    public init(id: String, title: String, source: PhotoSource, receivedAt: Date? = nil, sender: String? = nil) {
         self.id = id
         self.title = title
         self.source = source
         self.receivedAt = receivedAt
+        self.sender = sender
     }
 }
 

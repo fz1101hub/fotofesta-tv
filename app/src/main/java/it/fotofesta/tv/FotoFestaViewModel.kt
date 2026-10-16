@@ -168,10 +168,10 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                 pause()
                 navigate(Destination.HOME)
             }
-            Destination.MEMORY, Destination.MYSTERY, Destination.PUZZLE -> navigate(Destination.GAMES)
+            Destination.MEMORY, Destination.MYSTERY, Destination.PUZZLE, Destination.WHO_TOOK_IT -> navigate(Destination.GAMES)
             Destination.GOOGLE_CONNECT -> cancelGoogleConnect()
             Destination.SETTINGS, Destination.GAMES, Destination.GUESTS -> navigate(Destination.HOME)
-            Destination.GUEST_REVIEW -> navigate(Destination.GUESTS)
+            Destination.GUEST_REVIEW, Destination.AWARDS -> navigate(Destination.GUESTS)
             Destination.GUEST_WIFI -> navigate(wifiReturnTo)
             Destination.FILE_BROWSER -> if (_state.value.browser.directory != null) browserUp() else closeBrowser()
         }

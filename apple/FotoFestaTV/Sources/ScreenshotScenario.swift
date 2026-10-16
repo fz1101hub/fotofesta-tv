@@ -29,6 +29,22 @@ extension AppModel {
                 try? await Task.sleep(nanoseconds: 10_000_000_000)
                 self.path = [.guests]
             }
+        case "who_game":
+            // Lo script manda due foto firmate; quando ci sono, si apre "Chi l'ha scattata?".
+            startGuestParty()
+            shareGuestURL()
+            Task {
+                await waitUntil { self.approvedGuestCount >= 2 }
+                self.path = [.games, .whoTookIt]
+            }
+        case "awards":
+            // Lo script manda tre foto firmate; poi si aprono i premi della festa.
+            startGuestParty()
+            shareGuestURL()
+            Task {
+                await waitUntil { self.approvedGuestCount >= 3 }
+                self.path = [.guests, .awards]
+            }
         case "review":
             guests.setApproval(true)
             startGuestParty()

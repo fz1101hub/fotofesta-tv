@@ -48,8 +48,11 @@ import it.fotofesta.tv.files.StoragePermissions
 import it.fotofesta.tv.model.BrowserKind
 import it.fotofesta.tv.model.Destination
 import it.fotofesta.tv.model.GoogleConnectState
+import it.fotofesta.tv.model.PartyAwards
 import it.fotofesta.tv.model.SourceType
+import it.fotofesta.tv.model.WhoTookIt
 import it.fotofesta.tv.ui.Accent
+import it.fotofesta.tv.ui.AwardsScreen
 import it.fotofesta.tv.ui.FileBrowserScreen
 import it.fotofesta.tv.ui.FotoFestaTheme
 import it.fotofesta.tv.ui.GamesScreen
@@ -66,6 +69,7 @@ import it.fotofesta.tv.ui.SettingsScreen
 import it.fotofesta.tv.ui.SlideshowScreen
 import it.fotofesta.tv.ui.SurfaceRaised
 import it.fotofesta.tv.ui.TextPrimary
+import it.fotofesta.tv.ui.WhoTookItScreen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -140,12 +144,12 @@ class MainActivity : ComponentActivity() {
                 // collegamento a Google il QR e il codice devono restare visibili mentre si usa il telefono.
                 val keepScreenOn = when (state.destination) {
                     Destination.SLIDESHOW -> state.isPlaying
-                    Destination.MEMORY, Destination.MYSTERY, Destination.PUZZLE -> true
+                    Destination.MEMORY, Destination.MYSTERY, Destination.PUZZLE, Destination.WHO_TOOK_IT -> true
                     Destination.GOOGLE_CONNECT ->
                         state.google !is GoogleConnectState.Error && state.google !is GoogleConnectState.Complete
                     // Durante la festa il QR deve restare visibile mentre gli invitati lo inquadrano.
                     Destination.GUESTS -> state.guests.active
-                    Destination.GUEST_REVIEW -> true
+                    Destination.GUEST_REVIEW, Destination.AWARDS -> true
                     else -> false
                 }
                 DisposableEffect(keepScreenOn) {
@@ -200,10 +204,12 @@ class MainActivity : ComponentActivity() {
                         )
                         Destination.GAMES -> GamesScreen(
                             photoCount = state.photos.size,
+                            whoTookItPlayable = WhoTookIt.canPlay(state.photos),
                             onBack = { viewModel.navigate(Destination.HOME) },
                             onMemory = { viewModel.navigate(Destination.MEMORY) },
                             onMystery = { viewModel.navigate(Destination.MYSTERY) },
                             onPuzzle = { viewModel.navigate(Destination.PUZZLE) },
+                            onWhoTookIt = { viewModel.navigate(Destination.WHO_TOOK_IT) },
                         )
                         // Le partite usano le foto presenti all'apertura del gioco: quelle che arrivano
                         // dagli invitati durante la partita non la fanno ricominciare.
@@ -218,6 +224,10 @@ class MainActivity : ComponentActivity() {
                         Destination.PUZZLE -> {
                             val photos = remember { state.photos }
                             PuzzleGameScreen(photos) { viewModel.navigate(Destination.GAMES) }
+                        }
+                        Destination.WHO_TOOK_IT -> {
+                            val photos = remember { state.photos }
+                            WhoTookItScreen(photos) { viewModel.navigate(Destination.GAMES) }
                         }
                         Destination.GOOGLE_CONNECT -> GoogleConnectScreen(
                             state = state.google,
@@ -235,8 +245,13 @@ class MainActivity : ComponentActivity() {
                             onEnd = viewModel::endGuestParty,
                             onPlay = viewModel::playCurrent,
                             onReview = { viewModel.navigate(Destination.GUEST_REVIEW) },
+                            onAwards = { viewModel.navigate(Destination.AWARDS) },
                             onApproval = viewModel::setGuestApproval,
                             onWifi = viewModel::openGuestWifi,
+                        )
+                        Destination.AWARDS -> AwardsScreen(
+                            awards = remember(state.photos) { PartyAwards.from(state.photos) },
+                            onBack = { viewModel.navigate(Destination.GUESTS) },
                         )
                         Destination.GUEST_REVIEW -> GuestReviewScreen(
                             pending = state.guests.pending,

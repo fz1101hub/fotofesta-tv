@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,11 +14,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.PhotoCamera
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -26,17 +29,30 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import it.fotofesta.tv.R
 
 /** Numero minimo di foto perché i giochi abbiano senso (almeno due coppie / due risposte). */
 const val MIN_GAME_PHOTOS = 2
 
+/** Larghezza delle schede dei giochi: nella fila, che scorre di lato, se ne vedono tre. */
+private val GAME_TILE_WIDTH = 290.dp
+
 @Composable
-fun GamesScreen(photoCount: Int, onBack: () -> Unit, onMemory: () -> Unit, onMystery: () -> Unit, onPuzzle: () -> Unit) {
+fun GamesScreen(
+    photoCount: Int,
+    whoTookItPlayable: Boolean,
+    onBack: () -> Unit,
+    onMemory: () -> Unit,
+    onMystery: () -> Unit,
+    onPuzzle: () -> Unit,
+    onWhoTookIt: () -> Unit,
+) {
     val playable = photoCount >= MIN_GAME_PHOTOS
-    Column(Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 40.dp), verticalArrangement = Arrangement.spacedBy(30.dp)) {
+    Column(Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 40.dp), verticalArrangement = Arrangement.spacedBy(26.dp)) {
         Row(Modifier.fillMaxWidth()) {
             SectionTitle(
                 stringResource(R.string.games_kicker),
@@ -52,31 +68,54 @@ fun GamesScreen(photoCount: Int, onBack: () -> Unit, onMemory: () -> Unit, onMys
                 icon = Icons.AutoMirrored.Rounded.ArrowBack,
             )
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(22.dp)) {
-            GameTile(
-                stringResource(R.string.games_memory_title),
-                stringResource(R.string.games_memory_body),
-                Icons.Rounded.GridView,
-                onMemory,
-                Modifier.weight(1f).then(if (playable) Modifier.initialFocus() else Modifier),
-                enabled = playable,
-            )
-            GameTile(
-                stringResource(R.string.games_mystery_title),
-                stringResource(R.string.games_mystery_body),
-                Icons.Rounded.Visibility,
-                onMystery,
-                Modifier.weight(1f),
-                enabled = playable,
-            )
-            GameTile(
-                stringResource(R.string.games_puzzle_title),
-                stringResource(R.string.games_puzzle_body),
-                Icons.Rounded.Extension,
-                onPuzzle,
-                Modifier.weight(1f),
-                enabled = playable,
-            )
+        // Fila che scorre di lato, come le file della TV. Si allarga oltre il margine quanto basta perché
+        // l'ingrandimento delle schede con il fuoco non venga tagliato, restando allineata al titolo.
+        LazyRow(
+            modifier = Modifier.fillMaxWidth().bleedHorizontally(TILE_BLEED),
+            horizontalArrangement = Arrangement.spacedBy(22.dp),
+            contentPadding = PaddingValues(horizontal = TILE_BLEED, vertical = 10.dp),
+        ) {
+            item {
+                GameTile(
+                    stringResource(R.string.games_memory_title),
+                    stringResource(R.string.games_memory_body),
+                    Icons.Rounded.GridView,
+                    onMemory,
+                    Modifier.width(GAME_TILE_WIDTH).then(if (playable) Modifier.initialFocus() else Modifier),
+                    enabled = playable,
+                )
+            }
+            item {
+                GameTile(
+                    stringResource(R.string.games_mystery_title),
+                    stringResource(R.string.games_mystery_body),
+                    Icons.Rounded.Visibility,
+                    onMystery,
+                    Modifier.width(GAME_TILE_WIDTH),
+                    enabled = playable,
+                )
+            }
+            item {
+                GameTile(
+                    stringResource(R.string.games_puzzle_title),
+                    stringResource(R.string.games_puzzle_body),
+                    Icons.Rounded.Extension,
+                    onPuzzle,
+                    Modifier.width(GAME_TILE_WIDTH),
+                    enabled = playable,
+                )
+            }
+            item {
+                // Si gioca solo con le foto della festa: senza, la scheda spiega cosa serve.
+                GameTile(
+                    stringResource(R.string.games_who_title),
+                    stringResource(if (whoTookItPlayable) R.string.games_who_body else R.string.games_who_unavailable),
+                    Icons.Rounded.PhotoCamera,
+                    onWhoTookIt,
+                    Modifier.width(GAME_TILE_WIDTH),
+                    enabled = whoTookItPlayable,
+                )
+            }
         }
         Text(
             if (playable) quantityStringResource(R.plurals.games_active_collection, photoCount)
@@ -84,6 +123,21 @@ fun GamesScreen(photoCount: Int, onBack: () -> Unit, onMemory: () -> Unit, onMys
             color = TextSecondary,
         )
     }
+}
+
+/** Margine in più ai lati della fila, per l'ingrandimento delle schede con il fuoco. */
+private val TILE_BLEED = 10.dp
+
+/** Allarga l'elemento di [amount] a destra e a sinistra oltre lo spazio che gli spetta. */
+private fun Modifier.bleedHorizontally(amount: Dp): Modifier = layout { measurable, constraints ->
+    val extra = amount.roundToPx()
+    val placeable = measurable.measure(
+        constraints.copy(
+            minWidth = constraints.minWidth + extra * 2,
+            maxWidth = if (constraints.hasBoundedWidth) constraints.maxWidth + extra * 2 else constraints.maxWidth,
+        ),
+    )
+    layout(placeable.width - extra * 2, placeable.height) { placeable.place(-extra, 0) }
 }
 
 /** Scheda grande di un gioco: icona, nome e descrizione. */

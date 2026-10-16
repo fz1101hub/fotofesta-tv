@@ -4,7 +4,7 @@ import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import it.fotofesta.tv.R
 
-enum class Destination { HOME, SETTINGS, SLIDESHOW, GAMES, MEMORY, MYSTERY, PUZZLE, GOOGLE_CONNECT, GUESTS, GUEST_REVIEW, GUEST_WIFI, FILE_BROWSER }
+enum class Destination { HOME, SETTINGS, SLIDESHOW, GAMES, MEMORY, MYSTERY, PUZZLE, WHO_TOOK_IT, GOOGLE_CONNECT, GUESTS, GUEST_REVIEW, AWARDS, GUEST_WIFI, FILE_BROWSER }
 
 enum class TransitionType(@StringRes val labelRes: Int) {
     FADE(R.string.transition_fade),

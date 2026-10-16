@@ -127,6 +127,24 @@
     <string name="puzzle_cell">Case %1$d</string>
     <string name="puzzle_cell_selected">Case %1$d, sélectionnée</string>
     <string name="puzzle_cell_correct">Case %1$d, pièce à la bonne place</string>
+    <string name="games_who_title">Qui l’a prise ?</string>
+    <string name="games_who_body">Devinez quel invité a envoyé la photo. Se joue avec les photos de la fête.</string>
+    <string name="games_who_unavailable">Il faut des photos de la fête signées par au moins deux invités.</string>
+    <string name="who_unavailable_title">Il faut les photos de la fête</string>
+    <string name="who_kicker">Qui l’a prise ? · points : %1$d sur %2$d</string>
+    <string name="who_question">Qui a envoyé cette photo ?</string>
+    <string name="who_correct">Bravo ! C’est %1$s qui l’a envoyée.</string>
+    <string name="who_wrong">Non : c’est %1$s qui l’a envoyée.</string>
+    <string name="who_next">Photo suivante</string>
+    <string name="who_photo">Photo à deviner</string>
+    <string name="guests_awards">Prix de la fête</string>
+    <string name="awards_kicker">Bilan de la fête</string>
+    <string name="awards_title">Les prix de la fête</string>
+    <string name="awards_golden_lens">Objectif d’or</string>
+    <string name="awards_first">Première photo de la fête</string>
+    <string name="awards_last">Grand final</string>
+    <string name="awards_anonymous">Un invité</string>
+    <string name="awards_at">à %1$s</string>
     <string name="dream_label">Photos FotoFesta TV</string>
     <string name="home_guests_title">Photos des invités</string>
     <string name="guests_kicker">Mode fête</string>
@@ -181,6 +199,16 @@
     <string name="browser_unreadable">Impossible de lire ce dossier.</string>
     <string name="browser_permission_photos">FotoFesta TV ne peut pas lire le périphérique sans accès aux photos. Autorisez-le dans Paramètres › Applications › FotoFesta TV › Autorisations.</string>
     <string name="browser_permission_music">FotoFesta TV ne peut pas lire les morceaux sans accès à la musique et à l’audio. Autorisez-le dans Paramètres › Applications › FotoFesta TV › Autorisations.</string>
+    <plurals name="awards_photo_count">
+        <item quantity="one">%1$d photo</item>
+        <item quantity="many">%1$d photos</item>
+        <item quantity="other">%1$d photos</item>
+    </plurals>
+    <plurals name="awards_guest_count">
+        <item quantity="one">%1$d invité</item>
+        <item quantity="many">%1$d invités</item>
+        <item quantity="other">%1$d invités</item>
+    </plurals>
     <plurals name="puzzle_pieces">
         <item quantity="one">%1$d pièce</item>
         <item quantity="many">%1$d pièces</item>

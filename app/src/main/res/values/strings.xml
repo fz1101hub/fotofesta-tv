@@ -128,6 +128,24 @@
     <string name="puzzle_cell">Square %1$d</string>
     <string name="puzzle_cell_selected">Square %1$d, selected</string>
     <string name="puzzle_cell_correct">Square %1$d, piece in the right place</string>
+    <string name="games_who_title">Who took it?</string>
+    <string name="games_who_body">Guess which guest sent the photo. Played with the party photos.</string>
+    <string name="games_who_unavailable">Needs party photos signed by at least two guests.</string>
+    <string name="who_unavailable_title">Party photos needed</string>
+    <string name="who_kicker">Who took it? · score: %1$d of %2$d</string>
+    <string name="who_question">Who sent this photo?</string>
+    <string name="who_correct">Right! %1$s sent it.</string>
+    <string name="who_wrong">No, %1$s sent it.</string>
+    <string name="who_next">Next photo</string>
+    <string name="who_photo">Photo to guess</string>
+    <string name="guests_awards">Party awards</string>
+    <string name="awards_kicker">Party wrap-up</string>
+    <string name="awards_title">The party awards</string>
+    <string name="awards_golden_lens">Golden lens</string>
+    <string name="awards_first">First photo of the party</string>
+    <string name="awards_last">Grand finale</string>
+    <string name="awards_anonymous">A guest</string>
+    <string name="awards_at">at %1$s</string>
     <string name="dream_label">FotoFesta TV photos</string>
     <string name="home_guests_title">Guest photos</string>
     <string name="guests_kicker">Party mode</string>
@@ -182,6 +200,14 @@
     <string name="browser_unreadable">This folder can’t be read.</string>
     <string name="browser_permission_photos">FotoFesta TV can’t read the drive without access to photos. Allow it in Settings › Apps › FotoFesta TV › Permissions.</string>
     <string name="browser_permission_music">FotoFesta TV can’t read tracks without access to music and audio. Allow it in Settings › Apps › FotoFesta TV › Permissions.</string>
+    <plurals name="awards_photo_count">
+        <item quantity="one">%1$d photo</item>
+        <item quantity="other">%1$d photos</item>
+    </plurals>
+    <plurals name="awards_guest_count">
+        <item quantity="one">%1$d guest</item>
+        <item quantity="other">%1$d guests</item>
+    </plurals>
     <plurals name="puzzle_pieces">
         <item quantity="one">%1$d piece</item>
         <item quantity="other">%1$d pieces</item>

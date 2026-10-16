@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.EmojiEvents
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.DoneAll
@@ -70,11 +71,12 @@ fun GuestsScreen(
     onEnd: () -> Unit,
     onPlay: () -> Unit,
     onReview: () -> Unit,
+    onAwards: () -> Unit,
     onApproval: (Boolean) -> Unit,
     onWifi: () -> Unit,
 ) {
     if (guests.active) {
-        PartyInProgress(guests, recent, onEnd, onPlay, onReview)
+        PartyInProgress(guests, recent, onEnd, onPlay, onReview, onAwards)
     } else {
         PartyIntro(guests, onStart, onApproval, onWifi)
     }
@@ -150,6 +152,7 @@ private fun PartyInProgress(
     onEnd: () -> Unit,
     onPlay: () -> Unit,
     onReview: () -> Unit,
+    onAwards: () -> Unit,
 ) {
     Row(Modifier.fillMaxSize().background(Background)) {
         Column(
@@ -194,6 +197,9 @@ private fun PartyInProgress(
                     )
                     if (guests.pending.isNotEmpty()) {
                         TvButton(quantityStringResource(R.plurals.guests_approve_photos, guests.pending.size), onReview)
+                    }
+                    if (guests.shown > 0) {
+                        TvButton(stringResource(R.string.guests_awards), onAwards, icon = Icons.Rounded.EmojiEvents)
                     }
                 }
             }

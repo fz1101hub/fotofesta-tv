@@ -127,6 +127,24 @@
     <string name="puzzle_cell">Casella %1$d</string>
     <string name="puzzle_cell_selected">Casella %1$d, scelta</string>
     <string name="puzzle_cell_correct">Casella %1$d, pezzo al posto giusto</string>
+    <string name="games_who_title">Chi l\'ha scattata?</string>
+    <string name="games_who_body">Indovina quale invitato ha mandato la foto. Si gioca con le foto della festa.</string>
+    <string name="games_who_unavailable">Servono le foto della festa, firmate da almeno due invitati.</string>
+    <string name="who_unavailable_title">Servono le foto della festa</string>
+    <string name="who_kicker">Chi l\'ha scattata? · punti: %1$d su %2$d</string>
+    <string name="who_question">Chi ha mandato questa foto?</string>
+    <string name="who_correct">Giusto! L\'ha mandata %1$s.</string>
+    <string name="who_wrong">No: l\'ha mandata %1$s.</string>
+    <string name="who_next">Prossima foto</string>
+    <string name="who_photo">Foto da indovinare</string>
+    <string name="guests_awards">Premi della festa</string>
+    <string name="awards_kicker">Fine festa</string>
+    <string name="awards_title">I premi della festa</string>
+    <string name="awards_golden_lens">Obiettivo d\'oro</string>
+    <string name="awards_first">Prima foto della festa</string>
+    <string name="awards_last">Gran finale</string>
+    <string name="awards_anonymous">Un invitato</string>
+    <string name="awards_at">alle %1$s</string>
     <string name="dream_label">Foto di FotoFesta TV</string>
     <string name="home_guests_title">Foto degli invitati</string>
     <string name="guests_kicker">Modalità festa</string>
@@ -181,6 +199,16 @@
     <string name="browser_unreadable">Questa cartella non si può leggere.</string>
     <string name="browser_permission_photos">Senza l’accesso alle foto FotoFesta TV non può leggere il disco. Consentilo in Impostazioni › App › FotoFesta TV › Autorizzazioni.</string>
     <string name="browser_permission_music">Senza l’accesso a musica e audio FotoFesta TV non può leggere i brani. Consentilo in Impostazioni › App › FotoFesta TV › Autorizzazioni.</string>
+    <plurals name="awards_photo_count">
+        <item quantity="one">%1$d foto</item>
+        <item quantity="many">%1$d foto</item>
+        <item quantity="other">%1$d foto</item>
+    </plurals>
+    <plurals name="awards_guest_count">
+        <item quantity="one">%1$d invitato</item>
+        <item quantity="many">%1$d invitati</item>
+        <item quantity="other">%1$d invitati</item>
+    </plurals>
     <plurals name="puzzle_pieces">
         <item quantity="one">%1$d pezzo</item>
         <item quantity="many">%1$d pezzi</item>
