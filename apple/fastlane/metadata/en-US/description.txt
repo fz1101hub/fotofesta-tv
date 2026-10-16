@@ -13,7 +13,7 @@ SLIDESHOW
 • Clock and sleep timer after 30, 60 or 120 minutes
 
 PHOTO GAMES
-• Memory match: find the pairs
+• Find the pair: match identical photos
 • Mystery photo: guess the blurred picture
 
 PRIVACY

@@ -18,10 +18,10 @@ L’audit ha riguardato codice Kotlin, manifest, build Gradle, script e document
 | 7 | Media | Navigazione | Il tasto Indietro durante il collegamento Google tornava alla home lasciando attivo il polling in background, che poteva poi sostituire la raccolta senza preavviso. La sessione Picker non veniva eliminata in caso di errore o annullamento, e un errore nella sua eliminazione invalidava un download riuscito. | Corretto: Indietro annulla il flusso, la sessione viene sempre chiusa (best effort). |
 | 8 | Media | Coroutine | `runCatching` intercettava anche `CancellationException`, e le chiamate OkHttp bloccanti non si interrompevano annullando la coroutine. | Corretto: chiamate HTTP annullabili e cancellazione propagata. |
 | 9 | Media | Shuffle | L’ordine casuale estraeva una foto a caso a ogni passo: ripetizioni frequenti e “Precedente” non tornava alla foto vista prima. | Corretto: permutazione completa per giro, senza ripetere subito l’ultima foto. |
-| 10 | Media | Cast | Il comando `SETTINGS` reimpostava ai valori predefiniti tutti i campi non inviati. I comandi arrivati prima che la UI fosse pronta (es. `LOAD` subito dopo l’avvio) andavano persi perché lo `SharedFlow` senza iscritti li scartava. Id foto duplicati dal sender rompevano Memory e animazioni. | Corretto: aggiornamento parziale, coda dei comandi, id univoci. |
+| 10 | Media | Cast | Il comando `SETTINGS` reimpostava ai valori predefiniti tutti i campi non inviati. I comandi arrivati prima che la UI fosse pronta (es. `LOAD` subito dopo l’avvio) andavano persi perché lo `SharedFlow` senza iscritti li scartava. Id foto duplicati dal sender rompevano il gioco delle coppie e le animazioni. | Corretto: aggiornamento parziale, coda dei comandi, id univoci. |
 | 11 | Media | Cast | La `MediaSession` non era collegata a Cast Connect (`setSessionCompatToken`), quindi i comandi multimediali standard dei sender non raggiungevano l’app. | Corretto. |
 | 12 | Bassa | Google Foto | `pageToken` e `sessionId` venivano concatenati negli URL senza codifica. Dopo un riavvio i titoli delle foto in cache diventavano nomi file tecnici e l’ordine di selezione andava perso. Il parametro `state` inviato all’endpoint device code non fa parte del flusso OAuth per TV. | Corretto: URL costruiti con `HttpUrl`, manifest con titoli e ordine. |
-| 13 | Bassa | Giochi | Con una sola foto i giochi erano banali; la stessa foto poteva essere riproposta subito nella “Foto misteriosa”. | Corretto: minimo due foto, nessuna ripetizione immediata, contatore mosse nel Memory. |
+| 13 | Bassa | Giochi | Con una sola foto i giochi erano banali; la stessa foto poteva essere riproposta subito nella “Foto misteriosa”. | Corretto: minimo due foto, nessuna ripetizione immediata, contatore mosse in Trova la coppia. |
 | 14 | Bassa | Script | `setup_android_sdk.sh` sovrascriveva `local.properties`, cancellando le credenziali OAuth già configurate. | Corretto: aggiorna solo `sdk.dir`. |
 
 ## Sicurezza e privacy
@@ -46,7 +46,7 @@ L’audit ha riguardato codice Kotlin, manifest, build Gradle, script e document
 
 - Le foto non leggibili (USB scollegato, file corrotto) mostrano un segnaposto “Foto non disponibile” invece di uno schermo nero.
 - La home assegna subito il focus ad “Avvia slideshow”, così la prima pressione del telecomando non va persa; durante l’indicizzazione USB appare una barra di avanzamento.
-- Le carte del Memory hanno descrizioni per TalkBack (“Carta coperta 3”, “Coppia trovata: …”).
+- Le carte di Trova la coppia hanno descrizioni per TalkBack (“Carta coperta 3”, “Coppia trovata: …”).
 - I titoli delle foto USB non mostrano più l’estensione del file.
 
 ## Strumenti e build
@@ -111,7 +111,7 @@ App Apple TV (nessun errore di compilazione trovato leggendo il codice riga per 
 - **Build senza client Google**: il file di esempio conteneva valori finti, quindi l'app mostrava Google Foto e falliva con un errore di Google. Ora i valori di esempio sono vuoti, senza client la scheda Google non compare, il messaggio è comprensibile per l'utente e fastlane rifiuta un client di esempio.
 - **Simbolo iCloud** usato per Google Foto: Apple riserva quei simboli a iCloud. Sostituito.
 - **Note per i revisori**: citavano un account di test anche quando non veniva inviato. Ora la frase si aggiunge solo se l'account è fornito.
-- **Memory**: una nuova partita durante il controllo di una coppia rovinava il nuovo tavolo. Ora il controllo è legato alla partita.
+- **Trova la coppia**: una nuova partita durante il controllo di una coppia rovinava il nuovo tavolo. Ora il controllo è legato alla partita.
 - **Informativa nell'app**: tvOS non apre link, quindi le impostazioni mostrano l'informativa come QR. Aggiunto anche il testo breve dell'informativa per Apple TV nei metadati.
 - **Cache svuotata da tvOS mentre l'app è sospesa**: problema superato dallo streaming (vedi sotto), perché le foto non si salvano più in Caches.
 - **Movimento lento dopo una pausa**: alla ripresa il cambio foto aspettava di nuovo l'intervallo intero, con l'immagine ferma. Ora aspetta solo il tempo restante.
@@ -139,7 +139,7 @@ Su richiesta, le foto di Google Foto non vengono più scaricate: le smart TV han
 
 - Sul dispositivo resta solo un piccolo elenco: sessione Picker, sua scadenza, identificativi e nomi delle foto. Su Android è un file JSON in `no_backup`, su Apple TV sta in UserDefaults.
 - Ogni foto si carica da Google già ridotta alla dimensione mostrata e resta solo nella cache in RAM. Su Android passa da un Fetcher Coil dedicato, su Apple TV da una sessione di rete effimera, senza cache su disco.
-- Gli indirizzi della Picker API valgono circa 60 minuti. L'app li rinnova richiedendo di nuovo l'elenco della sessione ogni 50 minuti, o subito dopo un 401/403; le foto che ricevono lo stesso errore in parallelo condividono un solo rinnovo di token ed elenco. La cache in RAM distingue le dimensioni, così una miniatura del Memory non viene riusata a tutto schermo.
+- Gli indirizzi della Picker API valgono circa 60 minuti. L'app li rinnova richiedendo di nuovo l'elenco della sessione ogni 50 minuti, o subito dopo un 401/403; le foto che ricevono lo stesso errore in parallelo condividono un solo rinnovo di token ed elenco. La cache in RAM distingue le dimensioni, così una miniatura di Trova la coppia non viene riusata a tutto schermo.
 - Dopo un elenco rifiutato per altri motivi l'app aspetta un minuto prima di richiederlo, invece di ripetere la richiesta a ogni foto. Un token rifiutato durante un nuovo collegamento si prova prima a rinnovare, così le foto mostrate restano raggiungibili.
 - Su Apple TV una selezione è limitata a 1000 foto, perché l'elenco sta nelle preferenze, che su tvOS hanno spazio ridotto.
 - La sessione resta aperta finché Google la tiene valida (`expireTime`, la data è mostrata a fine collegamento). Quando Google conferma che non esiste più (404, oppure 400/403 confermati da `sessions.get` o dopo la scadenza indicata da Google), l'app torna alle foto demo e chiede di scegliere di nuovo le foto; se l'accesso è stato revocato chiede un nuovo collegamento. La scadenza della sessione appena sostituita non tocca la selezione nuova, e l'orologio della TV da solo non cancella nulla.

@@ -16,7 +16,7 @@ FotoFesta TV turns your television into a digital photo frame for parties, famil
 • Screensaver with your photos when the TV is idle
 
 <b>Photo games</b>
-• Memory match: find the pairs
+• Find the pair: match identical photos
 • Mystery photo: guess the blurred picture
 
 <b>Built for the remote</b>

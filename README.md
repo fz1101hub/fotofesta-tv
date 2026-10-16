@@ -26,7 +26,7 @@ Il repository contiene anche la versione per **Apple TV** (cartella [`apple/`](a
 | Accessibilità | Focus visibile, D-pad, tasti media, riduzione movimento, contrasto elevato | Pronta |
 | Audio | Brano locale selezionato dall’utente, loop e volume | Pronta |
 | Salvaschermo | Foto dell’ultima raccolta quando la TV è inattiva, con dissolvenza, movimento lento e orologio che cambia angolo | Pronta |
-| Giochi | Memory dei ricordi | Pronta |
+| Giochi | Trova la coppia | Pronta |
 | Giochi | Foto misteriosa | Pronta |
 | Privacy | Nessuna pubblicità, analisi o SDK che inviano dati; token AES-GCM in Android Keystore ([DATA_SAFETY.md](docs/DATA_SAFETY.md)) | Pronta |
 | Lingue | Italiano, inglese, francese, spagnolo e tedesco, anche nella pagina per i telefoni degli invitati, che segue la lingua del telefono; inglese per le altre lingue | Pronta |
