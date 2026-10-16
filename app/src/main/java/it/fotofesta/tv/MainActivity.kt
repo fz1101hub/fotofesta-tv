@@ -120,7 +120,7 @@ class MainActivity : ComponentActivity() {
                     val kind = pendingBrowser ?: return@rememberLauncherForActivityResult
                     pendingBrowser = null
                     when {
-                        result.values.all { it } -> viewModel.openBrowser(kind, systemPickerAvailable(kind))
+                        StoragePermissions.granted(this@MainActivity, kind) -> viewModel.openBrowser(kind, systemPickerAvailable(kind))
                         // Le foto dei server della rete di casa non chiedono permessi: il browser si apre lo stesso.
                         kind == BrowserKind.PHOTOS -> {
                             viewModel.openBrowser(kind, systemPickerAvailable(kind))
