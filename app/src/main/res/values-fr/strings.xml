@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Testi francesi. Le chiavi devono coincidere con values/strings.xml. -->
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="action_back">Retour</string>
     <string name="action_start_slideshow">Lancer le diaporama</string>
     <string name="action_settings">Paramètres</string>
@@ -258,12 +258,12 @@
         <item quantity="many">Approuver les photos (%1$d)</item>
         <item quantity="other">Approuver les photos (%1$d)</item>
     </plurals>
-    <plurals name="guests_stat_pending">
+    <plurals name="guests_stat_pending" tools:ignore="ImpliedQuantity">
         <item quantity="one">à approuver</item>
         <item quantity="many">à approuver</item>
         <item quantity="other">à approuver</item>
     </plurals>
-    <plurals name="guests_stat_received">
+    <plurals name="guests_stat_received" tools:ignore="ImpliedQuantity">
         <item quantity="one">photo reçue</item>
         <item quantity="many">photos reçues</item>
         <item quantity="other">photos reçues</item>
