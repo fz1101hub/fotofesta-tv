@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -113,7 +114,9 @@ fun FileBrowserScreen(
         }
         // Il primo elemento prende il fuoco a ogni cambio di cartella: la prima pressione del
         // telecomando non va persa.
-        LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        // Ogni cartella parte dall'inizio dell'elenco, dove si trova l'elemento che prende il fuoco.
+        val listState = remember(focusKey) { LazyListState() }
+        LazyColumn(Modifier.fillMaxSize(), state = listState, verticalArrangement = Arrangement.spacedBy(10.dp)) {
             if (state.directory == null) {
                 itemsIndexed(state.roots, key = { _, root -> root.path }) { index, root ->
                     BrowserRow(
