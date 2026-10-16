@@ -69,8 +69,10 @@ for scenario in "${SCENARIOS[@]}"; do
   SIMCTL_CHILD_FOTOFESTA_SCREENSHOT="$scenario" xcrun simctl launch "$DEVICE" "$BUNDLE_ID" \
     -AppleLanguages "($LANGUAGE)" -AppleLocale "$LOCALE"
   sleep 10
-  # Se l'app si è chiusa da sola, è un crash: il passo fallisce.
-  if ! xcrun simctl spawn "$DEVICE" launchctl list | grep -q "UIKitApplication:$BUNDLE_ID"; then
+  # Se l'app si è chiusa da sola, è un crash: il passo fallisce. L'elenco si legge tutto prima di
+  # cercarlo: con pipefail, grep -q che smette di leggere farebbe fallire launchctl (SIGPIPE).
+  running=$(xcrun simctl spawn "$DEVICE" launchctl list)
+  if ! grep -q "UIKitApplication:$BUNDLE_ID" <<<"$running"; then
     echo "::error::L'app si è chiusa nello scenario $scenario"
     exit 1
   fi
