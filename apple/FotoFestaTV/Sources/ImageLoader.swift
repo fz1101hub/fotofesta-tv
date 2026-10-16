@@ -107,7 +107,10 @@ struct PhotoImage: View {
     @State private var failed = false
 
     var body: some View {
-        ZStack {
+        // Lo spazio lo decide chi contiene la foto. Con .frame(maxWidth: .infinity) la foto ritagliata
+        // (.fill) restava più grande dello spazio proposto e spingeva fuori ciò che le stava intorno,
+        // per esempio la didascalia dello slideshow sopra lo sfondo sfocato di una foto verticale.
+        Color.clear.overlay {
             if let image {
                 Image(uiImage: image)
                     .resizable()
@@ -126,7 +129,6 @@ struct PhotoImage: View {
                 ProgressView()
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipped()
         .task(id: "\(photo.id)#\(maxPixelSize)") {
             failed = false

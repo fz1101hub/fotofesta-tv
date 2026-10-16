@@ -165,8 +165,10 @@ struct MysteryGameView: View {
 
             VStack(alignment: .leading, spacing: 24) {
                 Text(L("games.mystery_title")).font(.headline).foregroundStyle(Theme.secondaryText)
-                Text(revealed ? L("mystery.solved", answer?.title ?? "") : L("mystery.question")).font(.title2.bold())
-                Text(feedback).font(.title3.bold())
+                Text(revealed ? L("mystery.solved", answer?.title ?? "") : L("mystery.question"))
+                    .font(.title2.bold())
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(feedback).font(.title3.bold()).fixedSize(horizontal: false, vertical: true)
                 ForEach(choices) { choice in
                     Button(choice.title) { choose(choice) }
                         .disabled(revealed)
