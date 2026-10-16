@@ -328,7 +328,7 @@
     <string name="home_tile_demo_body">Pour essayer l’app</string>
     <string name="home_tile_games">Jeux</string>
     <string name="home_tile_google_body">Choisissez sur le téléphone</string>
-    <string name="home_tile_guests_body">Photos du téléphone, avec un QR</string>
+    <string name="home_tile_guests_body">Photos du téléphone par QR</string>
     <string name="home_tile_guests_title">Invités</string>
     <string name="home_tile_usb_body">USB, réseau local et iCloud</string>
     <string name="settings_cat_music">Musique</string>

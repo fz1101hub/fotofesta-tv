@@ -72,6 +72,7 @@ object ScreenshotScenario {
         private val smbShare = intent.getStringExtra("fotofesta.smb_share") ?: "Foto"
         private val dlnaLocation = intent.getStringExtra("fotofesta.dlna") ?: "http://10.0.2.2:8200/rootDesc.xml"
         private val dlnaUdn = intent.getStringExtra("fotofesta.dlna_udn") ?: "uuid:fotofesta-nas-di-prova"
+        private var uploads = 0
 
         suspend fun play(scenario: String) {
             when (scenario) {
@@ -251,7 +252,7 @@ object ScreenshotScenario {
          */
         private suspend fun upload(sender: String, portrait: Boolean) {
             val url = vm.state.value.guests.url ?: error("La festa non ha un indirizzo")
-            val bytes = withContext(Dispatchers.Default) { guestPhoto(sender, portrait) }
+            val bytes = guestPhoto(portrait)
             withContext(Dispatchers.IO) {
                 val headers = mapOf("X-FotoFesta-Key" to key(url), "X-FotoFesta-Sender" to sender, "Content-Type" to "image/jpeg")
                 services.lanHttp.post(base(url) + "/photos", headers, bytes).use { response ->
@@ -260,10 +261,10 @@ object ScreenshotScenario {
             }
         }
 
-        /** Foto demo diversa per ogni invitato; verticale come quelle dei telefoni, o orizzontale. */
-        private fun guestPhoto(sender: String, portrait: Boolean): ByteArray {
-            val pictures = listOf(R.drawable.demo_birthday, R.drawable.demo_picnic, R.drawable.demo_mountains, R.drawable.demo_coast)
-            val picture = pictures[Math.floorMod(sender.hashCode() + if (portrait) 0 else 1, pictures.size)]
+        /** Foto demo diversa a ogni invio; verticale come quelle dei telefoni, o orizzontale. */
+        private fun guestPhoto(portrait: Boolean): ByteArray {
+            val pictures = listOf(R.drawable.demo_birthday, R.drawable.demo_mountains, R.drawable.demo_picnic, R.drawable.demo_coast)
+            val picture = pictures[uploads++ % pictures.size]
             val source = BitmapFactory.decodeResource(activity.resources, picture)
             val bitmap = if (portrait) {
                 val width = minOf(source.width, source.height * 3 / 4)

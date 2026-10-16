@@ -313,9 +313,9 @@
     <string name="home_tile_demo_body">To try the app</string>
     <string name="home_tile_games">Games</string>
     <string name="home_tile_google_body">Pick on your phone</string>
-    <string name="home_tile_guests_body">Photos from phones, with a QR code</string>
+    <string name="home_tile_guests_body">Photos from phones via QR</string>
     <string name="home_tile_guests_title">Guests</string>
-    <string name="home_tile_usb_body">USB, home network and iCloud</string>
+    <string name="home_tile_usb_body">USB, home network, iCloud</string>
     <string name="settings_cat_music">Music</string>
     <string name="settings_cat_party">Party</string>
     <string name="settings_cat_privacy">Account and privacy</string>

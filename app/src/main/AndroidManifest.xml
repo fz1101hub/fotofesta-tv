@@ -52,6 +52,7 @@
             android:icon="@mipmap/ic_launcher"
             android:launchMode="singleTask"
             android:screenOrientation="landscape"
+            android:windowSoftInputMode="stateHidden"
             tools:ignore="DiscouragedApi">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

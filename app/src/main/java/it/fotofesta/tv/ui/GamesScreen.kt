@@ -69,12 +69,14 @@ fun GamesScreen(
                 icon = Icons.AutoMirrored.Rounded.ArrowBack,
             )
         }
-        // Fila che scorre di lato, come le file della TV. Si allarga oltre il margine quanto basta perché
-        // l'ingrandimento delle schede con il fuoco non venga tagliato, restando allineata al titolo.
+        // Fila che scorre di lato, come le file della TV: a sinistra si allarga oltre il margine quanto
+        // basta perché l'ingrandimento delle schede con il fuoco non venga tagliato, restando allineata
+        // al titolo; a destra arriva al bordo dello schermo, così la scheda successiva si intravede
+        // invece di finire tagliata di netto sul margine.
         LazyRow(
-            modifier = Modifier.fillMaxWidth().bleedHorizontally(TILE_BLEED),
+            modifier = Modifier.fillMaxWidth().bleedHorizontally(start = TILE_BLEED, end = SCREEN_MARGIN),
             horizontalArrangement = Arrangement.spacedBy(22.dp),
-            contentPadding = PaddingValues(horizontal = TILE_BLEED, vertical = 10.dp),
+            contentPadding = PaddingValues(start = TILE_BLEED, end = SCREEN_MARGIN, top = 10.dp, bottom = 10.dp),
         ) {
             item {
                 GameTile(
@@ -126,19 +128,23 @@ fun GamesScreen(
     }
 }
 
-/** Margine in più ai lati della fila, per l'ingrandimento delle schede con il fuoco. */
+/** Margine in più a sinistra della fila, per l'ingrandimento delle schede con il fuoco. */
 private val TILE_BLEED = 10.dp
 
-/** Allarga l'elemento di [amount] a destra e a sinistra oltre lo spazio che gli spetta. */
-private fun Modifier.bleedHorizontally(amount: Dp): Modifier = layout { measurable, constraints ->
-    val extra = amount.roundToPx()
+/** Margine laterale della schermata: a destra la fila lo attraversa fino al bordo dello schermo. */
+private val SCREEN_MARGIN = 48.dp
+
+/** Allarga l'elemento di [start] a sinistra e di [end] a destra oltre lo spazio che gli spetta. */
+private fun Modifier.bleedHorizontally(start: Dp, end: Dp): Modifier = layout { measurable, constraints ->
+    val left = start.roundToPx()
+    val extra = left + end.roundToPx()
     val placeable = measurable.measure(
         constraints.copy(
-            minWidth = constraints.minWidth + extra * 2,
-            maxWidth = if (constraints.hasBoundedWidth) constraints.maxWidth + extra * 2 else constraints.maxWidth,
+            minWidth = constraints.minWidth + extra,
+            maxWidth = if (constraints.hasBoundedWidth) constraints.maxWidth + extra else constraints.maxWidth,
         ),
     )
-    layout(placeable.width - extra * 2, placeable.height) { placeable.place(-extra, 0) }
+    layout(placeable.width - extra, placeable.height) { placeable.place(-left, 0) }
 }
 
 /** Scheda grande di un gioco: icona, nome e descrizione. */

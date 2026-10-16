@@ -311,8 +311,8 @@
     <string name="home_start_party">Party starten</string>
     <string name="home_tile_demo_body">Zum Ausprobieren</string>
     <string name="home_tile_games">Spiele</string>
-    <string name="home_tile_google_body">Auf dem Smartphone wählen</string>
-    <string name="home_tile_guests_body">Fotos vom Smartphone per QR‑Code</string>
+    <string name="home_tile_google_body">Auf dem Handy wählen</string>
+    <string name="home_tile_guests_body">Fotos vom Handy per QR‑Code</string>
     <string name="home_tile_guests_title">Gäste</string>
     <string name="home_tile_usb_body">USB, Heimnetz und iCloud</string>
     <string name="settings_cat_music">Musik</string>

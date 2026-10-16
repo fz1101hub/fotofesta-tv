@@ -35,10 +35,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -86,18 +84,24 @@ fun FocusSurface(
     val interactionSource = remember { MutableInteractionSource() }
     val focused by interactionSource.collectIsFocusedAsState()
     val scale by animateFloatAsState(if (focused) focusScale else 1f, label = "focusScale")
+    // Ombra e trasparenza stanno in livelli sempre presenti: shadow(0.dp) e alpha(1f) toglierebbero il
+    // loro livello dalla catena, e nell'emulatore dopo il cambio lo sfondo del pulsante spariva
+    // (pulsanti riabilitati, come "Connetti" dopo un errore o "Mostra la foto" a foto caricata).
+    val surfaceShape = shape
     var base = modifier
         .graphicsLayer {
             scaleX = scale
             scaleY = scale
+            shadowElevation = if (focused) 14.dp.toPx() else 0f
+            this.shape = surfaceShape
+            clip = false
         }
-        .shadow(if (focused) 14.dp else 0.dp, shape, clip = false)
         .clip(shape)
         .background(if (focused) FocusWhite else color, shape)
     if (border != null && !focused) base = base.border(border, shape)
     Box(
         base
-            .alpha(if (enabled) 1f else .45f)
+            .graphicsLayer { alpha = if (enabled) 1f else .45f }
             // Nessun effetto "ripple": su TV il fuoco bianco è già il segnale.
             .clickable(interactionSource = interactionSource, indication = null, enabled = enabled, role = role, onClick = onClick),
         propagateMinConstraints = true,
