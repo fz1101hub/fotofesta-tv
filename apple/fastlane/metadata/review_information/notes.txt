@@ -1,2 +1,3 @@
 The app works without an account: choose "Try it now" on the home screen to see the slideshow, settings and games with bundled demo photos.
+Guest photos need no account either: choose "Guest photos" › "Start receiving photos", then scan the QR code with an iPhone connected to the same Wi‑Fi network as the Apple TV and send a few photos from the web page that opens. The Apple TV runs a small local web server only while the party is active and the app is in the foreground.
 Google Photos is optional and uses Google's OAuth flow for TVs: the TV shows a QR code and a code to enter on a phone, then a second QR code to pick photos in Google Photos.

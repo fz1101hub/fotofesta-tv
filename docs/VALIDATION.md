@@ -3,7 +3,7 @@
 **Data:** 7 settembre 2026  
 **Versione app:** 1.0.0 (`versionCode 1`)
 
-> Questo rapporto descrive la build 1.0.0. Le correzioni successive all’audit del 6 ottobre 2026 sono documentate in [AUDIT.md](AUDIT.md) e verificate dalla CI GitHub Actions.
+> Questo rapporto descrive la build 1.0.0. Le correzioni successive all’audit del 6 ottobre 2026 e le versioni 1.2.0 e 1.3.0 sono documentate in [AUDIT.md](AUDIT.md) e verificate dalla CI GitHub Actions. Dalla 1.3.0 Google Cast è stato rimosso e sostituito dalle foto degli invitati.
 
 ## Risultati
 
@@ -21,7 +21,7 @@
 | Traffico in chiaro | Manifest e Network Security Config | Disabilitato |
 | Segreti repository | `.gitignore` e archivio sorgente | `local.properties`, keystore e build esclusi |
 
-I test unitari verificano i comandi Cast play/next, il parsing e i limiti delle impostazioni, l’accettazione esclusiva di URL HTTPS pubblici, il rifiuto di host locali o credenziali incorporate e il rifiuto di versioni protocollo non supportate.
+Nella 1.0.0 i test unitari verificavano il protocollo Cast, poi rimosso. I test attuali sono descritti nel [README](../README.md#verifica-effettuata).
 
 ## Artefatti e checksum
 
@@ -34,6 +34,6 @@ Il checksum dell’archivio sorgente è riportato nel file `dist/SHA256SUMS.txt`
 
 ## Test ancora necessari prima della pubblicazione
 
-La sandbox non dispone di un account OAuth Photos API del titolare, di una Cast Application ID registrata né di un televisore fisico. Pertanto, prima di pubblicare, occorre completare una prova end-to-end su almeno due dispositivi Google TV/Android TV reali: login QR, selezione Picker, rete intermittente, hard disk USB reale, rimozione USB durante lo slideshow, audio, standby/ripresa, sender Cast, TalkBack e focus D-pad. Occorre inoltre caricare l’AAB su una traccia di test Play Console ed eseguire il Pre-launch Report.
+La sandbox non dispone di un account OAuth Photos API del titolare né di un televisore fisico. Pertanto, prima di pubblicare, occorre completare una prova end-to-end su almeno due dispositivi Google TV/Android TV reali: login QR, selezione Picker, rete intermittente, hard disk USB reale, rimozione USB durante lo slideshow, audio, standby/ripresa, foto degli invitati da telefoni Android e iPhone sulla stessa Wi‑Fi (approvazione, QR della Wi‑Fi, uscita e ritorno nell’app, fine festa), TalkBack e focus D-pad. Occorre inoltre caricare l’AAB su una traccia di test Play Console ed eseguire il Pre-launch Report.
 
 Il file AAB consegnato è intenzionalmente **non firmato con una chiave di produzione**. Deve essere firmato/configurato con la upload key del proprietario oppure gestito con Play App Signing.

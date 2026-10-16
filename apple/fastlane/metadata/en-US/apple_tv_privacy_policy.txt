@@ -2,6 +2,8 @@ FotoFesta TV shows on your TV the photos you choose. It contains no ads, analyti
 
 Google Photos (optional): the Apple TV talks directly to Google over encrypted connections. The app only requests access to the photos you pick on your phone, not to the rest of your library. Picked photos are not copied to the Apple TV: they load from Google while they are shown and are kept only in memory. The Apple TV keeps the list of chosen photos in the app's preferences and the Google tokens (access and refresh) in the Keychain.
 
+Guest photos (optional): during the party the Apple TV receives, over your home network and without passing through the internet, the photos guests send from their phones, with the name they choose to give. The page on the phone resizes them and removes metadata such as location. Photos are kept in memory and in a temporary folder on the Apple TV and are deleted with "End party and delete photos", or at the first launch after 12 hours without new photos. If you set up the Wi‑Fi QR code, the network name and password stay on this Apple TV.
+
 Settings › "Disconnect and delete" removes the list of photos and the token, closes the selection at Google and revokes access. You can also revoke access at myaccount.google.com/permissions. The list is also deleted when you choose another source or when Google closes the selection.
 
 The full privacy policy is available at the privacy policy URL of this app and as a QR code in the app's Settings.

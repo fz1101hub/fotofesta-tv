@@ -26,7 +26,7 @@ Entrambi gli store chiedono l'URL di un'informativa privacy. App Store chiede an
 
 ### Client OAuth Google (facoltativo, serve solo per Google Foto)
 
-Le due app funzionano anche senza Google Foto, con le foto demo (e su Android con le cartelle USB).
+Le due app funzionano anche senza Google Foto, con le foto demo, le foto degli invitati e, su Android, le cartelle USB.
 
 1. In [Google Cloud Console](https://console.cloud.google.com/) abilita **Google Photos Picker API**.
 2. Configura la **OAuth consent screen** (Google Auth Platform › Branding):
@@ -58,20 +58,20 @@ Le due app funzionano anche senza Google Foto, con le foto demo (e su Android co
 
 Hai due modi:
 - **In locale**: `./scripts/build.sh`. Produce `dist/FotoFesta-TV-release.aab` ed esegue test e lint.
-- **Con GitHub Actions**: avvia **Actions › Android release › Run workflow** e scarica l'artefatto `FotoFesta-TV-release`, che contiene AAB e `mapping.txt`. Anche un tag `v*`, ad esempio `v1.2.0`, avvia il workflow, ma produce solo l'artefatto e non carica nulla su Play.
+- **Con GitHub Actions**: avvia **Actions › Android release › Run workflow** e scarica l'artefatto `FotoFesta-TV-release`, che contiene AAB e `mapping.txt`. Anche un tag `v*`, ad esempio `v1.3.0`, avvia il workflow, ma produce solo l'artefatto e non carica nulla su Play.
 
-La versione 1.2.0 non è ancora stata compilata con l'Android SDK. Alla prima build controlla che test e Lint passino; in caso di errori, correggili prima di caricare.
+La versione 1.3.0 compila e supera test e Lint nella CI (`.github/workflows/android.yml`); la build di release firmata va comunque provata su una TV prima di caricarla.
 
 ### Creare l'app in Play Console
 
 1. **Crea app**: nome "FotoFesta TV", lingua predefinita, tipo "App", gratuita. Indica l'**email di contatto** pubblica, obbligatoria, e se vuoi il sito della pagina di supporto (**Presenza nello store › Dettagli di contatto**).
 2. **Configura app**: compila le sezioni nell'ordine proposto.
-   - **Accesso all'app**: tutte le funzioni sono disponibili senza login tramite "Prova subito". Per Google Foto fornisci l'account di test e la procedura dei due QR.
+   - **Accesso all'app**: tutte le funzioni sono disponibili senza login tramite "Prova subito" e "Foto degli invitati" (basta un telefono sulla stessa rete della TV). Per Google Foto fornisci l'account di test e la procedura dei due QR.
    - **Annunci**: no.
    - **ID pubblicità**: no. Il manifest rimuove il permesso `AD_ID`.
-   - **Classificazione dei contenuti**: questionario. Nessuna violenza, nessuna interazione tra utenti, nessun contenuto generato condiviso.
+   - **Classificazione dei contenuti**: questionario. Nessuna violenza, nessuna interazione tra utenti attraverso l'app. Le foto degli invitati restano sulla TV dell'organizzatore, che può approvarle prima che compaiano e cancellarle in ogni momento: non vengono pubblicate né condivise ([DATA_SAFETY.md](DATA_SAFETY.md#altre-sezioni-di-play-console)).
    - **Pubblico di destinazione**: 13+ oppure 18+. Scegliendo fasce di età più basse si applicano le norme Families.
-   - **Sicurezza dei dati**: usa le risposte di [DATA_SAFETY.md](DATA_SAFETY.md). Il Cast SDK di Google raccoglie dati di utilizzo e diagnostica, quindi la risposta non è "nessun dato".
+   - **Sicurezza dei dati**: usa le risposte di [DATA_SAFETY.md](DATA_SAFETY.md). Dalla 1.3.0 l'app non include SDK che raccolgono dati, quindi la risposta è "nessun dato raccolto".
    - **Informativa privacy**: l'URL del punto 0.
 3. **Scheda dello store principale**:
    - Testi da `fastlane/metadata/android/<lingua>/`.
@@ -102,10 +102,6 @@ Questi passaggi funzionano solo dopo il primo caricamento manuale.
    3. avvia **Android release** con **Carica su Google Play** attivo.
 
    L'AAB arriva come bozza nel test interno; da lì si promuove con `bundle exec fastlane android promote_production` o dalla console.
-
-### Cast Connect (facoltativo)
-
-Serve solo se pubblichi anche un'app sender che comanda la TV. Registra il ricevitore nella [Google Cast SDK Developer Console](https://cast.google.com/publish) con il package `it.fotofesta.tv`. I dettagli sono in [CONFIGURATION.md](CONFIGURATION.md).
 
 ## 2. App Store (Apple TV)
 
@@ -156,8 +152,9 @@ Serve solo se pubblichi anche un'app sender che comanda la TV. Registra il ricev
 
 Note per la revisione Apple:
 - **Sign in with Apple** non è richiesto: Google si usa solo per accedere ai contenuti dell'utente su Google Foto (eccezione della linea guida 4.8).
-- **Crittografia**: l'app usa solo HTTPS. `ITSAppUsesNonExemptEncryption` è già impostato a `false`.
-- **Funzione dimostrativa**: senza account, "Prova subito" mostra tutte le funzioni.
+- **Crittografia**: l'app usa solo la crittografia di sistema (HTTPS verso Google). `ITSAppUsesNonExemptEncryption` è già impostato a `false`.
+- **Funzione dimostrativa**: senza account, "Prova subito" mostra tutte le funzioni. Le foto degli invitati si provano con un iPhone sulla stessa rete della Apple TV: nelle note per i revisori spiega di inquadrare il QR in "Foto degli invitati".
+- **Rete locale**: la Apple TV apre un server sulla rete di casa solo durante la festa; `NSLocalNetworkUsageDescription` ne spiega il motivo.
 
 ## 3. Verifiche finali prima di inviare
 
@@ -171,4 +168,5 @@ Note per la revisione Apple:
 | Musica, salvaschermo, pausa automatica | ☐ | pausa automatica |
 | Lingua del dispositivo in inglese e in italiano | ☐ | ☐ |
 | Rete assente all'avvio e durante il collegamento | ☐ | ☐ |
+| Foto degli invitati: invio da Android e iPhone, approvazione, QR della Wi‑Fi, uscita e ritorno nell'app, fine festa | ☐ | ☐ |
 | Informativa privacy pubblicata e URL inseriti negli store | ☐ | ☐ |

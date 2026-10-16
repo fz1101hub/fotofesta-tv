@@ -1,6 +1,6 @@
 # Configurazione di FotoFesta TV
 
-Questa guida porta il progetto dalla build dimostrativa a una versione collegata al proprio account Google Photos API e registrata per Cast Connect.
+Questa guida porta il progetto dalla build dimostrativa a una versione collegata al proprio account Google Photos API e spiega come funzionano le foto degli invitati.
 
 ## 1. Prerequisiti locali
 
@@ -57,21 +57,21 @@ Se l’utente revoca l’accesso dall’account Google, al collegamento successi
 
 Il `client_secret` di un client installato/TV è un identificatore distribuito nell’app e non deve essere considerato una credenziale server realmente segreta. La sicurezza dell’utente dipende da consenso OAuth, scope minimo, refresh token cifrato e possibilità di revoca. Non riutilizzare queste credenziali in un backend riservato.
 
-## 3. Configurare Google Cast Connect
+## 3. Foto degli invitati
 
-Cast usa un’architettura Sender/Receiver. Per una soluzione completa, Google raccomanda sender Android/iOS/Web e ricevitore Android TV, con un Web Receiver come fallback per dispositivi Chromecast senza l’app nativa.[4]
+Le foto degli invitati non richiedono configurazione né account: funzionano con la build così com’è, su Android TV e Apple TV.
 
-1. Accedere alla [Google Cast SDK Developer Console](https://cast.google.com/publish).
-2. Registrare l’account sviluppatore. La documentazione Google indica una quota di registrazione di 5 USD.[5]
-3. Creare un’applicazione ricevitore e annotare il **Receiver Application ID**.
-4. Nei dettagli sender/receiver associare il package Android TV `it.fotofesta.tv`.[5]
-5. Registrare il seriale software Cast della TV di test e attendere lo stato **Ready for Testing**.
-6. Riavviare il dispositivo Cast/Google TV.
-7. Configurare ogni sender con lo stesso Receiver Application ID.
-8. Usare il namespace `urn:x-cast:it.fotofesta.tv` e il formato descritto in [CAST_PROTOCOL.md](CAST_PROTOCOL.md).
-9. Prima della distribuzione, pubblicare l’applicazione nella Cast Console.
+**Come funziona.** “Foto degli invitati › Inizia a ricevere foto” avvia un server HTTP sulla rete di casa. La TV mostra un QR con l’indirizzo `http://<IP della TV>:8765/?k=<chiave>`; se la porta 8765 è occupata ne usa un’altra libera. La chiave è casuale (128 bit), resta la stessa per tutta la festa, così il QR stampato o fotografato continua a funzionare, e cambia alla festa successiva. Il telefono apre la pagina [`shared/assets/guest/index.html`](../shared/assets/guest/index.html), servita dalla TV con i valori dello schermo: la pagina riduce ogni foto alla risoluzione della TV con un margine del 10% per il movimento lento, rispettando l’adattamento scelto (foto intera o riempimento). La ricodifica in JPEG di qualità 0,88 senza metadati e la invia con `POST /photos`. Su Android TV la stessa pagina è inclusa come asset, su Apple TV come risorsa del bundle.
 
-Il receiver è già dichiarato nel manifest tramite `com.google.android.gms.cast.tv.action.LAUNCH`, `RECEIVER_OPTIONS_PROVIDER_CLASS_NAME` e `CastReceiverContext`. Il protocollo valida versione, quantità di foto e HTTPS; non deve ricevere token Google.
+**Dove restano le foto.** In RAM finché c’è posto: su Android un quarto della memoria concessa all’app, tra 16 e 64 MB; su Apple TV 64 MB. Quando la memoria non basta, quando il sistema chiede di liberarne o quando l’app va in background, le più vecchie passano in una cartella temporanea: `noBackupFilesDir/guest_photos` su Android, `Caches/guest_photos` su Apple TV. La cartella non supera 100 MB (300 MB sulle TV che disegnano in 4K e su Apple TV) né il 10% dello spazio libero; se si riempie, le foto più vecchie vengono cancellate per far posto alle nuove. “Termina la festa e cancella le foto” cancella RAM e cartella. Se l’app viene chiusa durante la festa, al riavvio riprende le foto della cartella, a meno che l’ultima foto sia arrivata più di 12 ore prima: in quel caso la festa si chiude e la cartella viene svuotata.
+
+**Approvazione.** Con “Approvazione delle foto” attiva, le foto nuove restano in attesa finché l’organizzatore non le approva con il telecomando (Mostra, Scarta, Approva tutte). Disattivandola, le foto in attesa vengono approvate.
+
+**QR della Wi‑Fi.** Facoltativo: l’organizzatore scrive nome e password della rete e la TV mostra un secondo QR nel formato `WIFI:T:WPA;S:…;P:…;;`, riconosciuto dalle fotocamere di Android e iPhone. La password è cifrata con Android Keystore o salvata nel Portachiavi della Apple TV, e non lascia il dispositivo.
+
+**Sicurezza.** Il server è acceso solo mentre l’app è in primo piano e la festa è in corso. Su Android ascolta solo sull’indirizzo IPv4 della rete di casa; su Apple TV accetta solo indirizzi privati, link-local o loopback. Richiede la chiave sia per la pagina sia per l’invio e confronta l’intestazione `Host` con l’indirizzo del QR, contro il DNS rebinding. Accetta solo JPEG, PNG e WebP riconosciuti dai primi byte e decodificabili, con lati fino a 10.000 pixel e file fino a 12 MB. Rifiuta trasferimenti chunked e `Content-Length` ambigui e limita intestazioni (16 KB), tempi di lettura (20 s) e connessioni contemporanee. La pagina è servita con `Content-Security-Policy: default-src 'none'` più gli script e gli stili inline necessari, `Cache-Control: no-store` e `Referrer-Policy: no-referrer`. Il traffico tra telefono e TV è HTTP sulla rete locale: chi controlla la rete può vederlo, come per qualsiasi dispositivo di casa senza HTTPS.
+
+**Rete.** Telefono e TV devono essere sulla stessa rete. Le reti “ospiti” e l’isolamento dei client (AP isolation) di alcuni router bloccano il traffico tra dispositivi: in quel caso la pagina non si apre e gli invitati vanno collegati alla rete principale. Sui router con più reti (2,4 e 5 GHz) di solito il traffico passa tra le due. Su Apple TV la descrizione `NSLocalNetworkUsageDescription` è già in `Info.plist`.
 
 ## 4. Installare su Google TV
 
@@ -113,7 +113,7 @@ Non aggiungere `.jks`, password o `local.properties` al repository. La soluzione
 | Area | Azione |
 | --- | --- |
 | Google Foto | Verifica OAuth completata e account di test fornito ai reviewer |
-| Cast | Receiver Application ID pubblicato; dispositivi e sender testati |
+| Foto degli invitati | Prova con due telefoni (Android e iPhone) sulla stessa Wi‑Fi della TV, approvazione, QR della Wi‑Fi, fine festa |
 | Privacy | Informativa (`site/privacy/`) su URL pubblico e Data Safety coerente ([DATA_SAFETY.md](DATA_SAFETY.md)) |
 | Sicurezza | Nessun segreto server, token o keystore nel repository |
 | Store | AAB firmato, icona 512×512, grafica 1024×500, banner TV 1280×720 e screenshot reali |
@@ -127,5 +127,3 @@ Non aggiungere `.jks`, password o `local.properties` al repository. La soluzione
 [1]: https://developers.google.com/photos/support/updates "Updates to the Google Photos APIs"
 [2]: https://developers.google.com/photos/overview/authorization "Google Photos API authorization scopes"
 [3]: https://developers.google.com/identity/protocols/oauth2/limited-input-device "OAuth 2.0 for TV and Limited-Input Device Applications"
-[4]: https://developers.google.com/cast/docs/overview "Google Cast overview"
-[5]: https://developers.google.com/cast/docs/registration "Google Cast application registration"

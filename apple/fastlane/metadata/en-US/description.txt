@@ -1,6 +1,7 @@
 FotoFesta TV turns your Apple TV into a digital photo frame for parties, family dinners and evenings with friends.
 
 WHERE YOUR PHOTOS COME FROM
+• Guest photos: guests scan a QR code on the TV and send photos from their own phones, over your home network and with no app to install. New photos appear right away in the slideshow with the sender's name; if you like, you approve them first with the remote.
 • Google Photos: scan a QR code with your phone, sign in and choose the photos to show. No passwords to type with the remote, and access only to the photos you select.
 • Four demo photos to try the app right away.
 
@@ -16,6 +17,6 @@ PHOTO GAMES
 • Mystery photo: guess the blurred picture
 
 PRIVACY
-No ads, no analytics and no developer server. Selected photos are shown straight from Google Photos and never copied to your Apple TV, and “Disconnect and delete” revokes access.
+No ads, no analytics and no developer server. Selected photos are shown straight from Google Photos and never copied to your Apple TV, and “Disconnect and delete” revokes access. Guest photos go from the phone to the Apple TV without passing through the internet and are deleted when the party ends.
 
 Google Photos doesn't let apps read your whole library: you choose the photos from your phone each time.

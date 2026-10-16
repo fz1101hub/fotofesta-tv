@@ -1,1 +1,1 @@
-photos,slideshow,photo frame,digital frame,album,pictures,party,family,memories,games
+photos,slideshow,photo frame,digital frame,album,party,family,memories,games,guests,QR

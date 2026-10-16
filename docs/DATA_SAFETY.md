@@ -1,40 +1,30 @@
 # Risposte per Google Play Data safety e App Store Privacy
 
-Queste risposte descrivono la build attuale (Android 1.2.0, Apple TV 1.0). Vanno ricontrollate a ogni nuova versione e ogni volta che si aggiunge un SDK.
+Queste risposte descrivono la build attuale (Android 1.3.0, Apple TV 1.1.0). Vanno ricontrollate a ogni nuova versione e ogni volta che si aggiunge un SDK.
 
 ## Google Play – Sicurezza dei dati
 
-Il codice dell'app non invia nulla allo sviluppatore. Le foto e i token restano sul dispositivo. Le chiamate a Google Foto partono su richiesta dell'utente per leggere il suo stesso account, quindi non contano come raccolta.
+Dalla versione 1.3.0 l'app per Android TV non include più Google Cast né altri SDK che inviano dati: le dipendenze sono AndroidX, Jetpack Compose, Coil, OkHttp, kotlinx.coroutines e ZXing, che lavorano solo sul dispositivo. Il codice dell'app non invia nulla allo sviluppatore. Google considera "raccolti" i dati trasmessi fuori dal dispositivo; qui non ce ne sono:
 
-L'app per Android TV include però il **Cast SDK** di Google (`play-services-cast-tv`, `play-services-cast`), che serve a ricevere i comandi da un telefono. Google dichiara che questo SDK invia dati di utilizzo e diagnostica, cifrati in transito, che né lo sviluppatore né l'utente possono disattivare o cancellare. Per questo il modulo va compilato con **Sì, raccoglie dati**.
-
-Prima di inviare il modulo, apri la pagina ufficiale [Cast SDK Google Play Data Safety Section](https://developers.google.com/cast/docs/android_sender/data_disclosure) e riporta i tipi di dati elencati per il Cast TV SDK. Qui sotto c'è la compilazione attesa, da confermare con quella pagina, che Google aggiorna a ogni versione dell'SDK.
+- **Google Foto**: le chiamate a Google partono su richiesta dell'utente per leggere il suo stesso account e mostrargli le foto scelte. Le foto passano da Google alla TV solo per essere mostrate, senza essere salvate.
+- **Foto degli invitati**: vanno dal telefono dell'invitato alla TV attraverso la rete di casa, senza passare da internet né da server dello sviluppatore. Restano sulla TV solo durante la festa (in memoria, con una cartella temporanea di riserva) e vengono cancellate alla fine. Nome facoltativo dell'invitato: mostrato sulla TV accanto alle sue foto e cancellato con esse.
+- **Token Google e password della Wi‑Fi** per il QR degli invitati: cifrati sul dispositivo, mai trasmessi allo sviluppatore.
 
 | Domanda di Play Console | Risposta |
 | --- | --- |
-| L'app raccoglie o condivide uno dei tipi di dati richiesti? | **Sì** (solo tramite il Cast SDK) |
-| Tutti i dati raccolti sono criptati in transito? | Sì |
-| Gli utenti possono richiedere l'eliminazione dei dati? | No: Google non consente di eliminare i dati raccolti dal Cast SDK. Le foto e i token si cancellano dall'app con “Disconnetti e cancella” |
+| L'app raccoglie o condivide uno dei tipi di dati richiesti? | **No** |
+| Tutti i dati raccolti sono criptati in transito? | Non applicabile (nessun dato raccolto) |
+| Gli utenti possono richiedere l'eliminazione dei dati? | Non applicabile. Sul dispositivo: "Disconnetti e cancella" per Google Foto, "Termina la festa e cancella le foto" per le foto degli invitati |
 | Metodi di creazione account | **Nessun account**: l'app non crea account, e il login Google serve solo ad accedere a Google Foto |
 
-Tipi di dati attesi, tutti **raccolti, non condivisi, raccolta obbligatoria** (non disattivabile), elaborazione non temporanea, scopo **Analisi**:
-
-| Categoria | Tipo di dati |
-| --- | --- |
-| Attività nell'app | Interazioni con l'app |
-| Informazioni e prestazioni dell'app | Log degli arresti anomali, Diagnostica |
-| ID dispositivo o altri ID | ID dispositivo o altri ID |
-
-Se la pagina di Google indica categorie diverse, vale quella. Se un giorno l'app non avrà più bisogno di Google Cast, togliendo le due dipendenze da `app/build.gradle.kts` (insieme a `cast/` e `CastReceiverOptionsProvider`) si potrà rispondere **No**.
-
-Foto e token non vanno dichiarati: le foto passano da Google al dispositivo solo per essere mostrate, senza essere salvate, e nulla viene trasmesso allo sviluppatore o a terzi. Se il revisore chiede comunque di dichiarare le foto di Google Foto, la risposta coerente è: *Foto e video › Foto — raccolta, non condivisa, raccolta facoltativa, scopo Funzionalità dell'app*.
+Se il revisore chiede comunque di dichiarare le foto (di Google Foto o degli invitati), la risposta coerente è: *Foto e video › Foto: raccolta, non condivisa, elaborata solo temporaneamente, raccolta facoltativa, scopo Funzionalità dell'app*.
 
 ### Altre sezioni di Play Console
 
-- **Accesso all'app**: “Prova subito” mostra tutte le funzioni senza login. Per Google Foto fornisci un account Google di test e descrivi la procedura dei due QR. La schermata di consenso OAuth deve essere **In produzione**: in modalità test l'account andrebbe aggiunto agli utenti di test e i suoi token scadrebbero dopo 7 giorni.
+- **Accesso all'app**: “Prova subito” mostra tutte le funzioni senza login. Le foto degli invitati si provano con un telefono sulla stessa rete della TV, senza account. Per Google Foto fornisci un account Google di test e descrivi la procedura dei due QR. La schermata di consenso OAuth deve essere **In produzione**: in modalità test l'account andrebbe aggiunto agli utenti di test e i suoi token scadrebbero dopo 7 giorni.
 - **Annunci**: l'app non contiene annunci.
 - **ID pubblicità**: l'app non usa l'ID pubblicità. Rispondi **No** nella dichiarazione. Il manifest rimuove esplicitamente il permesso `com.google.android.gms.permission.AD_ID`, anche se una libreria lo aggiungesse.
-- **Classificazione dei contenuti**: categoria Utilità/Produttività/Altro. Nessun contenuto generato da altri utenti condiviso, nessuna interazione tra utenti.
+- **Classificazione dei contenuti**: categoria Utilità/Produttività/Altro. Alla domanda sui contenuti generati dagli utenti: le foto degli invitati restano sulla TV di chi organizza la festa, non vengono pubblicate né condivise con altri utenti dell'app, e l'organizzatore può attivare l'approvazione prima che compaiano e cancellarle in ogni momento. Nessuna interazione tra utenti attraverso l'app.
 - **Pubblico di destinazione**: 13+ o 18+. L'app non è progettata per bambini, e con fasce sotto i 13 anni si applicano i requisiti Families.
 - **Android TV**: attiva la distribuzione su Android TV in *Impostazioni avanzate › Form factor* e carica banner TV e screenshot TV.
 
@@ -44,7 +34,7 @@ Foto e token non vanno dichiarati: le foto passano da Google al dispositivo solo
 | --- | --- |
 | Raccogli dati da questa app? | **No, non raccogliamo dati** |
 
-L'app per Apple TV non include Google Cast né SDK di terze parti. Apple considera raccolta la trasmissione di dati fuori dal dispositivo quando lo sviluppatore o i suoi partner possono accedervi più a lungo del tempo necessario a gestire la richiesta. Le foto scelte in Google Foto passano direttamente da Google al dispositivo solo per essere mostrate, senza essere salvate.
+L'app per Apple TV non include SDK di terze parti. Apple considera raccolta la trasmissione di dati fuori dal dispositivo quando lo sviluppatore o i suoi partner possono accedervi più a lungo del tempo necessario a gestire la richiesta. Le foto scelte in Google Foto passano direttamente da Google al dispositivo solo per essere mostrate, senza essere salvate; le foto degli invitati vanno dal telefono alla Apple TV sulla rete di casa e vengono cancellate a fine festa. Il manifest `PrivacyInfo.xcprivacy` dichiara UserDefaults (CA92.1) e lo spazio libero su disco (E174.1, per il limite della cartella temporanea).
 
 ## Informativa privacy
 

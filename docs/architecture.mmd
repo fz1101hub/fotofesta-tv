@@ -2,32 +2,32 @@ flowchart LR
     subgraph Sources["Sorgenti dati"]
         GP["Google Photos Picker API"]
         USB["USB / Storage Access Framework"]
-        CAST["Sender Google Cast"]
+        PHONES["Telefoni degli invitati<br/>stessa rete di casa"]
         MUSIC["File audio locale"]
     end
 
     subgraph Security["Confine privato sul televisore"]
-        AUTH["OAuth 2.0 Device Flow\nScope minimo"]
-        KEY["Android Keystore\nAES-GCM"]
-        CACHE["Cache foto privata\ntemporanea 4K"]
-        INDEX["Indice URI USB\nnessuna copia"]
-        PROTOCOL["Protocollo Cast v1\nsolo HTTPS, max 500"]
+        AUTH["OAuth 2.0 Device Flow<br/>Scope minimo"]
+        KEY["Android Keystore<br/>AES-GCM"]
+        STREAM["Foto Google in streaming<br/>solo cache in RAM"]
+        INDEX["Indice URI USB<br/>nessuna copia"]
+        SERVER["Server locale per gli invitati<br/>chiave nel QR, solo immagini"]
+        STORE["Archivio della festa<br/>RAM, poi cartella temporanea<br/>cancellato a fine festa"]
     end
 
     subgraph App["FotoFesta TV"]
         VM["ViewModel / stato"]
-        SHOW["Slideshow Compose\nD-pad + transizioni"]
+        SHOW["Slideshow Compose<br/>D-pad + transizioni"]
         AUDIO["Musica in loop"]
         GAMES["Memory + Foto misteriosa"]
-        MEDIA["MediaSession + Cast Connect"]
+        MEDIA["MediaSession<br/>tasti del telecomando"]
     end
 
     GP --> AUTH --> KEY
-    AUTH --> CACHE --> VM
+    AUTH --> STREAM --> VM
     USB --> INDEX --> VM
-    CAST --> PROTOCOL --> VM
+    PHONES --> SERVER --> STORE --> VM
     MUSIC --> AUDIO
     VM --> SHOW
     VM --> GAMES
-    VM --> MEDIA
-    MEDIA --> SHOW
+    MEDIA --> VM

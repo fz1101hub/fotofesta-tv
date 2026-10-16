@@ -15,25 +15,25 @@ Riepilogo dei requisiti di qualità. I passaggi operativi, nell'ordine in cui es
 | Target API TV | `targetSdk 35` | Supera il minimo TV API 34 in vigore nel 2026.[2] |
 | Android App Bundle | Generato | Firmare e caricare AAB release |
 | 32/64 bit | ARM e x86, 32/64 | Verificare report Play Console |
-| 16 KB | `zipalign -P 16` superato dalla 1.0.0 | Ripetere sull'AAB 1.2.0 e leggere il Rapporto pre-lancio |
-| Android Lint | 0 problemi nella 1.0.0 | Eseguire `./scripts/build.sh` o la CI sulla 1.2.0 prima del caricamento |
-| Test unitari | 67 superati (JVM) | Aggiungere test strumentali su TV reale |
+| 16 KB | `zipalign -P 16` superato dalla 1.0.0 | Ripetere sull'AAB 1.3.0 e leggere il Rapporto pre-lancio |
+| Android Lint | Nessun errore nella CI della 1.3.0 | Ripetere con `./scripts/build.sh` o la CI prima di ogni caricamento |
+| Test unitari | 99 superati (JVM) | Aggiungere test strumentali su TV reale |
 
 ## Scheda Store
 
 Preparare almeno uno screenshot reale ad alta risoluzione della UI TV. Non usare mockup che mostrino funzioni diverse dalla build. La categoria proposta è **Fotografia**; la sezione giochi è secondaria e non richiede che l’app compaia nella riga Giochi, perché il suo scopo principale rimane lo slideshow.
 
-La descrizione deve spiegare che Google Foto richiede selezione esplicita, che USB funziona senza account e che la musica è locale. Il salvaschermo è incluso, ma alcune Google TV ne nascondono la scelta: la scheda non deve promettere che sia sempre selezionabile dalle impostazioni. Non promettere sincronizzazione dell’intera libreria o video.
+La descrizione deve spiegare che Google Foto richiede selezione esplicita, che USB e le foto degli invitati funzionano senza account, che per le foto degli invitati i telefoni devono essere sulla stessa rete della TV e che la musica è locale. Il salvaschermo è incluso, ma alcune Google TV ne nascondono la scelta: la scheda non deve promettere che sia sempre selezionabile dalle impostazioni. Non promettere sincronizzazione dell’intera libreria o video.
 
 ## App access e verifica
 
-Google Play richiede istruzioni di accesso per le funzioni protette da login.[1] Fornire al team di revisione un account di test Google autorizzato nell’OAuth consent screen e una procedura breve per completare i due QR. Fornire anche una modalità demo, già presente, così la UI può essere verificata senza dati personali.
+Google Play richiede istruzioni di accesso per le funzioni protette da login.[1] Fornire al team di revisione un account di test Google autorizzato nell’OAuth consent screen e una procedura breve per completare i due QR. Fornire anche una modalità demo, già presente, così la UI può essere verificata senza dati personali. Le foto degli invitati si provano senza account, con un telefono sulla stessa rete della TV.
 
-La Google Photos API richiede una verifica OAuth separata.[3] La Cast Console richiede registrazione, associazione del package e pubblicazione del Receiver Application ID.[4]
+La Google Photos API richiede una verifica OAuth separata.[3]
 
 ## Data Safety
 
-La versione corrente non invia dati al server dello sviluppatore e non contiene annunci. Il Cast SDK di Google invia però a Google dati di utilizzo e diagnostica, che vanno dichiarati. Le risposte da dare sono in [DATA_SAFETY.md](DATA_SAFETY.md). L’informativa pubblica (`site/privacy/index.html`) deve restare coerente con il modulo.
+La versione corrente non invia dati allo sviluppatore, non contiene annunci e non include più SDK che raccolgono dati (Google Cast è stato rimosso nella 1.3.0): la risposta è "nessun dato raccolto". Le foto degli invitati restano sulla rete di casa e sulla TV. Le risposte da dare sono in [DATA_SAFETY.md](DATA_SAFETY.md). L’informativa pubblica (`site/privacy/index.html`) deve restare coerente con il modulo.
 
 ## Accessibilità europea
 
@@ -44,4 +44,3 @@ Mantenere focus evidente, contrasto elevato, testi da distanza, riduzione movime
 [1]: https://developer.android.com/docs/quality-guidelines/tv-app-quality "Android TV app quality"
 [2]: https://support.google.com/googleplay/android-developer/answer/11926878 "Target API level requirements for Google Play apps"
 [3]: https://developers.google.com/photos/overview/authorization "Google Photos API authorization scopes"
-[4]: https://developers.google.com/cast/docs/registration "Google Cast application registration"
