@@ -151,6 +151,28 @@ Su richiesta, le foto di Google Foto non vengono più scaricate: le smart TV han
 
 Test JVM: 67, tutti superati, e la CI Android (build, test, Lint, APK) è verde. I test XCTest equivalenti sono stati aggiornati, ma vanno eseguiti su un Mac.
 
+## Foto degli invitati e rimozione di Google Cast (Android 1.3.0, Apple TV 1.1.0)
+
+Su richiesta, le app dei telefoni non possono trasmettere foto dentro FotoFesta con Google Cast o AirPlay: entrambi mostrano le foto con il ricevitore di sistema, fuori dall'app. Al loro posto gli invitati inquadrano un QR e mandano le foto da una pagina servita dalla TV, sulla rete di casa. Google Cast è stato rimosso (SDK, ricevitore, protocollo, cache su disco di Coil), quindi l'app Android non raccoglie più dati. Il funzionamento è descritto in [CONFIGURATION.md](CONFIGURATION.md#3-foto-degli-invitati).
+
+Due revisioni indipendenti (Android e Swift) hanno trovato questi problemi, tutti corretti:
+
+| Gravità | Problema | Correzione |
+| --- | --- | --- |
+| Alta | Android: lo spazio libero si misurava su una cartella non ancora creata (0 byte), quindi le foto non passavano mai su disco e venivano cancellate appena finita la RAM | Si misura la prima cartella esistente del percorso; test con lo spazio reale |
+| Alta | Apple TV: due errori di compilazione (capacità del volume non disponibile su tvOS; variabile modificata in una closure `@Sendable`) | API disponibile su tvOS; indicatore senza variabile catturata |
+| Media | Lo slideshow si fermava sulla stessa foto mentre arrivavano foto nuove (il conteggio ripartiva a ogni spostamento dell'indice) | Il cambio automatico segue `slideTick`, che cresce solo a un cambio voluto |
+| Media | Dopo una foto nuova in fondo all'elenco la stessa foto compariva due volte di seguito | Dopo le foto nuove si riprende saltando quelle appena viste |
+| Media | In ordine casuale ogni foto nuova rimescolava tutto il giro | `PlaybackOrder.remap`: le foto nuove si inseriscono tra quelle non ancora viste |
+| Media | Server fermato dal sistema (rete tolta) con il QR ancora sullo schermo | Avviso al coordinatore e riavvio automatico; avvio non riuscito ritentato |
+| Media | Una connessione lentissima poteva occupare il server; con molti invii insieme le connessioni venivano chiuse senza risposta | Tempi totali per intestazioni (15 s) e corpo (120 s), 3 connessioni e 60 invii al minuto per telefono, 24 MB in arrivo, risposta 503/429 con `Retry-After` |
+| Media | La pagina sul telefono si bloccava per sempre dopo un errore temporaneo | Nuovi tentativi per circa un minuto, poi "Riprova"; una nuova scelta di foto riprende la coda |
+| Media | Un invitato poteva far cancellare le foto approvate mandando molte foto | Prima si sacrificano le foto in attesa, una foto in attesa non fa mai cancellare foto approvate, massimo 100 foto in attesa |
+| Media | Apple TV: lo slideshow avviato dalla festa poteva lasciar partire il salvaschermo | Schermo acceso deciso in un solo punto in base alla schermata |
+| Bassa | Foto aggiunta dopo la fine della festa; errori inattesi nel server che chiudevano l'app; foto ripetute dopo un nuovo tentativo; foto lette mentre venivano approvate; QR di rete aperta se la password non era leggibile; password da riscrivere modificando la rete; salvaschermo che partiva prima della ripresa della festa; anteprime a piena risoluzione nella pagina; foto HEIC senza spiegazione | `stop()` che aspetta le richieste; errori intercettati; identificativo per invio; lettura con il lock; controllo della password; campo già compilato; attesa della ripresa; miniature; messaggio dedicato |
+
+Verifiche: 113 test JVM superati e CI Android verde (build, test, Lint, APK). La pagina per i telefoni è stata provata in Chromium (profili Pixel 7 e iPhone 13) contro il server della TV: riduzione e rotazione corrette, metadati rimossi, file non immagine rifiutati, TV spenta e riaccesa con "Riprova" che completa gli invii. Il codice Swift ha avuto una seconda revisione dopo le correzioni, ma non è ancora stato compilato.
+
 ## Raccomandazioni aperte
 
 | Priorità | Raccomandazione |
@@ -158,4 +180,6 @@ Test JVM: 67, tutti superati, e la CI Android (build, test, Lint, APK) è verde.
 | Alta | Eseguire sulla TV i flussi modificati: collegamento Google (incluso annullamento e token revocato), USB con migliaia di foto, Indietro e barra dei comandi nello slideshow, Foto misteriosa su Android 9–11, salvaschermo, movimento lento e pausa automatica. |
 | Bassa | I titoli predefiniti generati per le foto senza nome (“Foto N”) e i messaggi interni di log restano in italiano. |
 | Bassa | Adottare `androidx.tv:tv-material` per componenti con focus e indicazioni TV native. |
-| Bassa | Aggiungere un Web Receiver di fallback per dispositivi Cast senza l’app installata. |
+| Media | Provare le foto degli invitati su TV reali con telefoni Android e iPhone: rete Wi‑Fi e via cavo, rete ospiti del router, uscita e ritorno nell'app, festa lunga con centinaia di foto. |
+| Bassa | Prima di portare `targetSdk` oltre 35, verificare se Android richiede il nuovo permesso per la rete locale anche per un server in ascolto. |
+| Bassa | Valutare l'approvazione delle foto attiva per impostazione predefinita, se le prove mostrano invii indesiderati. |
