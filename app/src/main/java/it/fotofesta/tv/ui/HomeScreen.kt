@@ -15,12 +15,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Cloud
+import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.SportsEsports
-import androidx.compose.material.icons.rounded.Usb
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -158,17 +158,19 @@ fun HomeScreen(
                         badge = inUse.takeIf { collection.source == SourceType.GOOGLE_PHOTOS },
                     )
                 }
+                // Cartelle di un disco USB o di un server della rete di casa, dal browser di cartelle.
+                val folders = collection.source == SourceType.USB || collection.source == SourceType.NETWORK
                 SourceTile(
-                    stringResource(R.string.home_usb_title),
-                    if (collection.source == SourceType.USB) {
+                    stringResource(R.string.home_folders_title),
+                    if (folders) {
                         quantityStringResource(R.plurals.home_collection_count, collection.count)
                     } else {
                         stringResource(R.string.home_tile_usb_body)
                     },
-                    Icons.Rounded.Usb,
+                    Icons.Rounded.FolderOpen,
                     onUsb,
                     Modifier.weight(1f),
-                    badge = inUse.takeIf { collection.source == SourceType.USB },
+                    badge = inUse.takeIf { folders },
                 )
                 SourceTile(
                     stringResource(R.string.collection_demo),
@@ -192,6 +194,7 @@ private fun collectionDetail(state: AppState): String {
     val parts = mutableListOf(quantityStringResource(R.plurals.home_collection_count, collection.count))
     parts += when (collection.source) {
         SourceType.USB -> stringResource(R.string.home_usb_title)
+        SourceType.NETWORK -> stringResource(R.string.home_network_title)
         SourceType.GOOGLE_PHOTOS -> stringResource(R.string.home_google_title)
         SourceType.DEMO -> stringResource(R.string.home_tile_demo_body)
         SourceType.GUESTS -> stringResource(R.string.home_tile_guests_body)

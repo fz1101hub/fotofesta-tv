@@ -10,6 +10,7 @@ import coil.ImageLoaderFactory
 import it.fotofesta.tv.google.GooglePhotosPickerRepository
 import it.fotofesta.tv.ui.GooglePhotoFetcher
 import it.fotofesta.tv.ui.GuestPhotoFetcher
+import it.fotofesta.tv.ui.NetworkPhotoFetcher
 import kotlin.concurrent.thread
 
 class FotoFestaApplication : Application(), ImageLoaderFactory {
@@ -38,7 +39,8 @@ class FotoFestaApplication : Application(), ImageLoaderFactory {
     }
 
     // Nessuna cache su disco: le foto Google arrivano da un Fetcher personalizzato (mai salvate),
-    // quelle degli invitati dall'archivio della festa e le altre dalla TV o dalla chiavetta.
+    // quelle degli invitati dall'archivio della festa, quelle in rete dal server di casa e le altre
+    // dalla TV o dalla chiavetta.
     override fun newImageLoader(): ImageLoader = ImageLoader.Builder(this)
         .okHttpClient(services.http)
         .diskCache(null)
@@ -47,6 +49,8 @@ class FotoFestaApplication : Application(), ImageLoaderFactory {
             add(GooglePhotoFetcher.Key())
             add(GuestPhotoFetcher.Factory(services.guests.store))
             add(GuestPhotoFetcher.Key())
+            add(NetworkPhotoFetcher.Factory(services.lanHttp))
+            add(NetworkPhotoFetcher.Key())
         }
         .build()
 }

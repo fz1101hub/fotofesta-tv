@@ -191,7 +191,7 @@
     <string name="wifi_error_name">Introduce el nombre de la red.</string>
     <string name="wifi_error_name_long">El nombre de la red es demasiado largo.</string>
     <string name="wifi_error_password">La contraseña debe tener entre 8 y 63 caracteres.</string>
-    <string name="browser_kicker_photos">Unidad USB</string>
+    <string name="browser_kicker_photos">Carpetas</string>
     <string name="browser_kicker_music">Música de fondo</string>
     <string name="browser_title_photos">Elige una carpeta de fotos</string>
     <string name="browser_title_music">Elige una canción o una carpeta</string>
@@ -330,7 +330,7 @@
     <string name="home_tile_google_body">Elige desde el teléfono</string>
     <string name="home_tile_guests_body">Fotos desde el teléfono, con un QR</string>
     <string name="home_tile_guests_title">Invitados</string>
-    <string name="home_tile_usb_body">Memoria o disco</string>
+    <string name="home_tile_usb_body">USB o red local</string>
     <string name="settings_cat_music">Música</string>
     <string name="settings_cat_party">Fiesta</string>
     <string name="settings_cat_privacy">Cuenta y privacidad</string>
@@ -378,5 +378,21 @@
         <item quantity="one">%1$d segundo</item>
         <item quantity="many">%1$d segundos</item>
         <item quantity="other">%1$d segundos</item>
+    </plurals>
+    <string name="home_folders_title">Carpetas</string>
+    <string name="home_network_title">Red local</string>
+    <string name="browser_roots_hint_photos">Unidades conectadas a la TV y servidores multimedia de la red local.</string>
+    <string name="browser_section_drives">Unidades</string>
+    <string name="browser_section_network">Red local (DLNA)</string>
+    <string name="browser_no_usb">No hay ninguna unidad USB conectada.</string>
+    <string name="browser_network_searching">Buscando servidores multimedia…</string>
+    <string name="browser_network_none">No se ha encontrado ningún servidor. Activa el uso compartido multimedia (DLNA) en el NAS, el router o el PC, en la misma red que la TV.</string>
+    <string name="browser_network_retry">Buscar de nuevo</string>
+    <string name="message_network_indexing">Buscando fotos en la red…</string>
+    <string name="message_network_unavailable">No se puede acceder al servidor: comprueba que esté encendido y en la misma red que la TV.</string>
+    <plurals name="source_network">
+        <item quantity="one">Red local · %1$d foto</item>
+        <item quantity="many">Red local · %1$d fotos</item>
+        <item quantity="other">Red local · %1$d fotos</item>
     </plurals>
 </resources>

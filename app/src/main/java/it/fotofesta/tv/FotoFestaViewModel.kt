@@ -30,6 +30,7 @@ import it.fotofesta.tv.media.BackgroundMusicPlayer
 import it.fotofesta.tv.model.AppState
 import it.fotofesta.tv.model.BrowserEntry
 import it.fotofesta.tv.model.BrowserKind
+import it.fotofesta.tv.model.BrowserServer
 import it.fotofesta.tv.model.BrowserState
 import it.fotofesta.tv.model.CollectionInfo
 import it.fotofesta.tv.model.Destination
@@ -43,6 +44,9 @@ import it.fotofesta.tv.model.SlideshowSettings
 import it.fotofesta.tv.model.SourceType
 import it.fotofesta.tv.model.UserFacingException
 import it.fotofesta.tv.model.combineWithGuests
+import it.fotofesta.tv.network.NetworkFolder
+import it.fotofesta.tv.network.NetworkMedia
+import it.fotofesta.tv.network.NetworkPath
 import kotlin.coroutines.resume
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -68,6 +72,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private val usbRepository = UsbPhotoRepository(context)
     private val fileBrowser = FileBrowser(FileBrowser.imageExtensions(Build.VERSION.SDK_INT))
     private var browserJob: Job? = null
+    private var discoveryJob: Job? = null
     private val musicPlayer = BackgroundMusicPlayer(context) {
         showMessage(context.getString(R.string.message_music_error))
     }
@@ -78,6 +83,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private val googleStream = services.googleStream
     private val googleImport = GoogleImportFlow(googleAuth, googlePicker)
     private val guests = services.guests
+    private val networkMedia = services.networkMedia
     /** Gioco con i telefoni, per "Foto misteriosa" e "Chi l'ha scattata?" durante la festa. */
     val phoneGame = services.phoneGame
     private val playbackOrder = PlaybackOrder()
@@ -159,6 +165,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             val folder = settingsRepository.loadUsbFolder()
             if (folder != null) loadUsbFolder(folder) else settingsRepository.loadUsbTree()?.let { stored -> loadUsb(Uri.parse(stored)) }
         }
+        if (lastSource == "NETWORK") settingsRepository.loadNetworkFolder()?.let { loadNetworkFolder(it) }
         viewModelScope.launch {
             googleStream.gone.collect { gone -> if (gone != null) onGoogleSelectionGone(gone) }
         }
@@ -374,11 +381,37 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         browserJob = viewModelScope.launch {
             val roots = withContext(Dispatchers.IO) { runCatching { StorageRoots.list(context) }.getOrDefault(emptyList()) }
             _state.update { it.copy(browser = it.browser.copy(roots = roots, loading = false)) }
-            if (kind == BrowserKind.PHOTOS && roots.none { it.removable }) showMessage(context.getString(R.string.browser_no_drive))
+        }
+        // Le foto si possono scegliere anche dai server multimediali della rete di casa.
+        if (kind == BrowserKind.PHOTOS) browserSearchNetwork() else discoveryJob?.cancel()
+    }
+
+    /** Cerca i server multimediali (DLNA) della rete di casa; dura qualche secondo. */
+    fun browserSearchNetwork() {
+        discoveryJob?.cancel()
+        _state.update { it.copy(browser = it.browser.copy(searchingNetwork = true)) }
+        discoveryJob = viewModelScope.launch {
+            val servers = withContext(Dispatchers.IO) {
+                runCatching { networkMedia.discover() }
+                    .onFailure { Log.w(TAG, "Ricerca dei server in rete non riuscita", it) }
+                    .getOrDefault(emptyList())
+            }
+            _state.update {
+                it.copy(
+                    browser = it.browser.copy(
+                        searchingNetwork = false,
+                        servers = servers.map { server -> BrowserServer(server.name, NetworkPath.of(server.udn, NetworkMedia.ROOT)) },
+                    ),
+                )
+            }
         }
     }
 
     fun browserOpen(path: String) {
+        NetworkPath.parse(path)?.let { (udn, containerId) ->
+            browserOpenNetwork(path, udn, containerId)
+            return
+        }
         val browser = _state.value.browser
         val root = browser.roots.firstOrNull { it.path == path } ?: browser.root
         browserJob?.cancel()
@@ -413,34 +446,143 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    /** Cartella superiore; dalla cartella principale di un disco si torna all'elenco dei dischi. */
-    fun browserUp() {
+    /**
+     * Cartella di un server della rete di casa. [trail] tiene le cartelle aperte, per tornare
+     * indietro: UPnP non dice qual è la cartella superiore.
+     */
+    private fun browserOpenNetwork(path: String, udn: String, containerId: String) {
         val browser = _state.value.browser
-        val directory = browser.directory ?: return
-        val root = browser.root
-        val parent = File(directory).parentFile
-        if (root == null || File(directory).absolutePath == File(root.path).absolutePath || parent == null) {
-            browserJob?.cancel()
+        val server = networkMedia.known(udn)
+        val opened = browser.trail.indexOfFirst { it.path == path }
+        val trail = when {
+            containerId == NetworkMedia.ROOT -> listOf(BrowserEntry(server?.name ?: udn, path))
+            opened >= 0 -> browser.trail.take(opened + 1)
+            else -> browser.trail + BrowserEntry(browser.folders.firstOrNull { it.path == path }?.name ?: containerId, path)
+        }
+        browserJob?.cancel()
+        _state.update { it.copy(browser = it.browser.copy(loading = true)) }
+        browserJob = viewModelScope.launch {
+            val page = withContext(Dispatchers.IO) {
+                runCatching { server?.let { networkMedia.list(it, containerId) } }
+                    .onFailure { Log.w(TAG, "Cartella di rete non leggibile", it) }
+                    .getOrNull()
+            }
+            if (page == null) {
+                _state.update { it.copy(browser = it.browser.copy(loading = false)) }
+                showMessage(context.getString(R.string.message_network_unavailable))
+                return@launch
+            }
             _state.update {
                 it.copy(
                     browser = it.browser.copy(
                         root = null,
-                        directory = null,
-                        folders = emptyList(),
+                        directory = path,
+                        trail = trail,
+                        folders = page.containers.map { folder -> BrowserEntry(folder.title, NetworkPath.of(udn, folder.id)) },
                         files = emptyList(),
-                        photosHere = 0,
+                        photosHere = page.files.size,
                         loading = false,
                     ),
                 )
             }
+        }
+    }
+
+    /**
+     * Cartella superiore; dalla cartella principale di un disco o di un server si torna all'elenco
+     * dei dischi e dei server.
+     */
+    fun browserUp() {
+        val browser = _state.value.browser
+        val directory = browser.directory ?: return
+        if (browser.trail.isNotEmpty()) {
+            if (browser.trail.size > 1) browserOpen(browser.trail[browser.trail.size - 2].path) else browserShowRoots()
+            return
+        }
+        val root = browser.root
+        val parent = File(directory).parentFile
+        if (root == null || File(directory).absolutePath == File(root.path).absolutePath || parent == null) {
+            browserShowRoots()
         } else {
             browserOpen(parent.absolutePath)
         }
     }
 
+    private fun browserShowRoots() {
+        browserJob?.cancel()
+        _state.update {
+            it.copy(
+                browser = it.browser.copy(
+                    root = null,
+                    directory = null,
+                    folders = emptyList(),
+                    files = emptyList(),
+                    photosHere = 0,
+                    trail = emptyList(),
+                    loading = false,
+                ),
+            )
+        }
+    }
+
     fun browserUseFolder() {
-        val path = _state.value.browser.directory ?: return
-        loadUsbFolder(path, fromBrowser = true)
+        val browser = _state.value.browser
+        val path = browser.directory ?: return
+        val network = NetworkPath.parse(path)
+        if (network == null) {
+            loadUsbFolder(path, fromBrowser = true)
+            return
+        }
+        val (udn, containerId) = network
+        val server = networkMedia.known(udn) ?: return
+        // La cartella principale prende il nome del server, le altre il proprio.
+        val title = browser.trail.lastOrNull()?.name ?: server.name
+        loadNetworkFolder(NetworkFolder(udn, server.location, containerId, title), fromBrowser = true)
+    }
+
+    /**
+     * Foto di una cartella di un server della rete di casa, con le sottocartelle. Se il server ha
+     * cambiato indirizzo lo si ritrova in rete. Con [fromBrowser], se si è ancora nel browser, alla
+     * fine si torna alla schermata iniziale.
+     */
+    private fun loadNetworkFolder(folder: NetworkFolder, fromBrowser: Boolean = false) {
+        cancelPendingSources()
+        usbJob = viewModelScope.launch {
+            _state.update { it.copy(busy = true, message = context.getString(R.string.message_network_indexing)) }
+            try {
+                val photos = withContext(Dispatchers.IO) {
+                    val server = networkMedia.find(folder.udn, folder.location) ?: return@withContext null
+                    networkMedia.scanPhotos(server, folder.containerId) { ensureActive() }
+                }
+                val message = when {
+                    photos == null -> context.getString(R.string.message_network_unavailable)
+                    photos.isEmpty() -> context.getString(R.string.message_usb_empty)
+                    else -> {
+                        val location = networkMedia.known(folder.udn)?.location ?: folder.location
+                        settingsRepository.saveNetworkFolder(folder.copy(location = location))
+                        showPhotos(photos, quantityString(R.plurals.source_network, photos.size), SourceType.NETWORK, folder.title)
+                        discardGoogleSelection()
+                        quantityString(R.plurals.message_usb_ready, photos.size)
+                    }
+                }
+                _state.update {
+                    it.copy(
+                        busy = false,
+                        message = message,
+                        destination = if (fromBrowser && it.destination == Destination.FILE_BROWSER && photos?.isNotEmpty() == true) {
+                            Destination.HOME
+                        } else {
+                            it.destination
+                        },
+                    )
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                Log.w(TAG, "Lettura della cartella di rete non riuscita", failure)
+                _state.update { it.copy(busy = false, message = context.getString(R.string.message_network_unavailable)) }
+            }
+        }
     }
 
     fun browserChooseTrack(entry: BrowserEntry) {
@@ -476,6 +618,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun closeBrowser() {
         browserJob?.cancel()
+        discoveryJob?.cancel()
         navigate(if (_state.value.browser.kind == BrowserKind.MUSIC) Destination.SETTINGS else Destination.HOME)
     }
 

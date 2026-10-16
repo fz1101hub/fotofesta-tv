@@ -191,7 +191,7 @@
     <string name="wifi_error_name">Saisissez le nom du réseau.</string>
     <string name="wifi_error_name_long">Le nom du réseau est trop long.</string>
     <string name="wifi_error_password">Le mot de passe doit comporter entre 8 et 63 caractères.</string>
-    <string name="browser_kicker_photos">Clé ou disque USB</string>
+    <string name="browser_kicker_photos">Dossiers</string>
     <string name="browser_kicker_music">Musique de fond</string>
     <string name="browser_title_photos">Choisissez un dossier de photos</string>
     <string name="browser_title_music">Choisissez un morceau ou un dossier</string>
@@ -330,7 +330,7 @@
     <string name="home_tile_google_body">Choisissez sur le téléphone</string>
     <string name="home_tile_guests_body">Photos du téléphone, avec un QR</string>
     <string name="home_tile_guests_title">Invités</string>
-    <string name="home_tile_usb_body">Clé ou disque</string>
+    <string name="home_tile_usb_body">Clé USB ou réseau local</string>
     <string name="settings_cat_music">Musique</string>
     <string name="settings_cat_party">Fête</string>
     <string name="settings_cat_privacy">Compte et confidentialité</string>
@@ -378,5 +378,21 @@
         <item quantity="one">%1$d seconde</item>
         <item quantity="many">%1$d secondes</item>
         <item quantity="other">%1$d secondes</item>
+    </plurals>
+    <string name="home_folders_title">Dossiers</string>
+    <string name="home_network_title">Réseau local</string>
+    <string name="browser_roots_hint_photos">Disques branchés au téléviseur et serveurs multimédias du réseau local.</string>
+    <string name="browser_section_drives">Disques</string>
+    <string name="browser_section_network">Réseau local (DLNA)</string>
+    <string name="browser_no_usb">Aucune clé ni disque USB branché.</string>
+    <string name="browser_network_searching">Recherche des serveurs multimédias…</string>
+    <string name="browser_network_none">Aucun serveur trouvé. Activez le partage multimédia (DLNA) sur le NAS, la box ou le PC, sur le même réseau que le téléviseur.</string>
+    <string name="browser_network_retry">Rechercher à nouveau</string>
+    <string name="message_network_indexing">Recherche des photos sur le réseau…</string>
+    <string name="message_network_unavailable">Serveur injoignable : vérifiez qu’il est allumé et sur le même réseau que le téléviseur.</string>
+    <plurals name="source_network">
+        <item quantity="one">Réseau local · %1$d photo</item>
+        <item quantity="many">Réseau local · %1$d photos</item>
+        <item quantity="other">Réseau local · %1$d photos</item>
     </plurals>
 </resources>

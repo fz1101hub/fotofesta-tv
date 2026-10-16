@@ -121,6 +121,11 @@ class MainActivity : ComponentActivity() {
                     pendingBrowser = null
                     when {
                         result.values.all { it } -> viewModel.openBrowser(kind, systemPickerAvailable(kind))
+                        // Le foto dei server della rete di casa non chiedono permessi: il browser si apre lo stesso.
+                        kind == BrowserKind.PHOTOS -> {
+                            viewModel.openBrowser(kind, systemPickerAvailable(kind))
+                            viewModel.showStoragePermissionDenied(kind)
+                        }
                         // Senza permesso resta il selettore di sistema, se la TV lo ha.
                         systemPickerAvailable(kind) -> launchSystemPicker(kind, { usbPicker.launch(null) }, { musicPicker.launch(arrayOf("audio/*")) })
                         else -> {
@@ -273,6 +278,7 @@ class MainActivity : ComponentActivity() {
                             onSystemPicker = {
                                 launchSystemPicker(state.browser.kind, { usbPicker.launch(null) }, { musicPicker.launch(arrayOf("audio/*")) })
                             },
+                            onSearchNetwork = viewModel::browserSearchNetwork,
                             onBack = viewModel::closeBrowser,
                         )
                         Destination.GUEST_WIFI -> GuestWifiScreen(

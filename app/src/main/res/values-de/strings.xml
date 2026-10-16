@@ -191,7 +191,7 @@
     <string name="wifi_error_name">Gib den Netzwerknamen ein.</string>
     <string name="wifi_error_name_long">Der Netzwerkname ist zu lang.</string>
     <string name="wifi_error_password">Das Passwort muss 8 bis 63 Zeichen lang sein.</string>
-    <string name="browser_kicker_photos">USB-Speicher</string>
+    <string name="browser_kicker_photos">Ordner</string>
     <string name="browser_kicker_music">Hintergrundmusik</string>
     <string name="browser_title_photos">Wähle einen Fotoordner</string>
     <string name="browser_title_music">Wähle einen Titel oder einen Ordner</string>
@@ -314,7 +314,7 @@
     <string name="home_tile_google_body">Auf dem Smartphone wählen</string>
     <string name="home_tile_guests_body">Fotos vom Smartphone per QR‑Code</string>
     <string name="home_tile_guests_title">Gäste</string>
-    <string name="home_tile_usb_body">Stick oder Festplatte</string>
+    <string name="home_tile_usb_body">USB oder Heimnetz</string>
     <string name="settings_cat_music">Musik</string>
     <string name="settings_cat_party">Party</string>
     <string name="settings_cat_privacy">Konto und Datenschutz</string>
@@ -355,5 +355,20 @@
     <plurals name="settings_interval_value">
         <item quantity="one">%1$d Sekunde</item>
         <item quantity="other">%1$d Sekunden</item>
+    </plurals>
+    <string name="home_folders_title">Ordner</string>
+    <string name="home_network_title">Heimnetz</string>
+    <string name="browser_roots_hint_photos">Mit dem Fernseher verbundene Laufwerke und Medienserver im Heimnetz.</string>
+    <string name="browser_section_drives">Laufwerke</string>
+    <string name="browser_section_network">Heimnetz (DLNA)</string>
+    <string name="browser_no_usb">Kein USB-Speicher verbunden.</string>
+    <string name="browser_network_searching">Suche nach Medienservern…</string>
+    <string name="browser_network_none">Kein Server gefunden. Aktiviere die Medienfreigabe (DLNA) auf NAS, Router oder PC im selben Netzwerk wie der Fernseher.</string>
+    <string name="browser_network_retry">Erneut suchen</string>
+    <string name="message_network_indexing">Fotos im Netzwerk werden gesucht…</string>
+    <string name="message_network_unavailable">Server nicht erreichbar: Prüfe, ob er eingeschaltet und im selben Netzwerk wie der Fernseher ist.</string>
+    <plurals name="source_network">
+        <item quantity="one">Heimnetz · %1$d Foto</item>
+        <item quantity="other">Heimnetz · %1$d Fotos</item>
     </plurals>
 </resources>

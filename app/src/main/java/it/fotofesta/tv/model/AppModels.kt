@@ -44,7 +44,7 @@ data class CollectionInfo(
 /** Errore da mostrare all'utente con un testo localizzato. */
 class UserFacingException(@StringRes val messageRes: Int) : Exception()
 
-enum class SourceType { DEMO, USB, GOOGLE_PHOTOS, GUESTS }
+enum class SourceType { DEMO, USB, NETWORK, GOOGLE_PHOTOS, GUESTS }
 
 sealed interface PhotoRef {
     data class Resource(@DrawableRes val drawable: Int) : PhotoRef
@@ -56,6 +56,9 @@ sealed interface PhotoRef {
 
     /** Foto mandata da un invitato, tenuta da GuestPhotoStore solo per la durata della festa. */
     data class GuestPhoto(val id: String) : PhotoRef
+
+    /** Foto di un server multimediale della rete di casa, caricata al momento (NetworkPhotoFetcher). */
+    data class NetworkPhoto(val url: String) : PhotoRef
 }
 
 data class PhotoItem(
@@ -135,9 +138,12 @@ data class BrowserRoot(val path: String, val label: String, val removable: Boole
 /** Cartella o file mostrato nel browser. */
 data class BrowserEntry(val name: String, val path: String)
 
+/** Server multimediale (DLNA) della rete di casa; [path] apre la sua cartella principale. */
+data class BrowserServer(val name: String, val path: String)
+
 /**
  * Browser di cartelle interno, usato al posto del selettore di documenti di Android, che molte TV
- * non hanno. Con [directory] null mostra l'elenco dei dischi.
+ * non hanno. Con [directory] null mostra l'elenco dei dischi e, per le foto, dei server in rete.
  */
 data class BrowserState(
     val kind: BrowserKind = BrowserKind.PHOTOS,
@@ -151,6 +157,11 @@ data class BrowserState(
     val loading: Boolean = false,
     /** Il selettore di documenti di Android è disponibile, come alternativa. */
     val systemPickerAvailable: Boolean = false,
+    /** Server multimediali trovati nella rete di casa (solo per le foto). */
+    val servers: List<BrowserServer> = emptyList(),
+    val searchingNetwork: Boolean = false,
+    /** Su un server di rete: le cartelle aperte, dalla principale a quella mostrata. */
+    val trail: List<BrowserEntry> = emptyList(),
 )
 
 data class MemoryCard(

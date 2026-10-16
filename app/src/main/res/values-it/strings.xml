@@ -191,7 +191,7 @@
     <string name="wifi_error_name">Scrivi il nome della rete.</string>
     <string name="wifi_error_name_long">Il nome della rete è troppo lungo.</string>
     <string name="wifi_error_password">La password deve avere da 8 a 63 caratteri.</string>
-    <string name="browser_kicker_photos">Hard disk USB</string>
+    <string name="browser_kicker_photos">Cartelle</string>
     <string name="browser_kicker_music">Musica di sottofondo</string>
     <string name="browser_title_photos">Scegli una cartella di foto</string>
     <string name="browser_title_music">Scegli un brano o una cartella</string>
@@ -330,7 +330,7 @@
     <string name="home_tile_google_body">Scegli dal telefono</string>
     <string name="home_tile_guests_body">Foto dal telefono, con un QR</string>
     <string name="home_tile_guests_title">Invitati</string>
-    <string name="home_tile_usb_body">Chiavetta o disco</string>
+    <string name="home_tile_usb_body">Disco USB o rete di casa</string>
     <string name="settings_cat_music">Musica</string>
     <string name="settings_cat_party">Festa</string>
     <string name="settings_cat_privacy">Account e privacy</string>
@@ -378,5 +378,21 @@
         <item quantity="one">%1$d secondo</item>
         <item quantity="many">%1$d secondi</item>
         <item quantity="other">%1$d secondi</item>
+    </plurals>
+    <string name="home_folders_title">Cartelle</string>
+    <string name="home_network_title">Rete di casa</string>
+    <string name="browser_roots_hint_photos">Dischi collegati alla TV e server multimediali della rete di casa.</string>
+    <string name="browser_section_drives">Dischi</string>
+    <string name="browser_section_network">Rete di casa (DLNA)</string>
+    <string name="browser_no_usb">Nessun disco USB collegato.</string>
+    <string name="browser_network_searching">Cerco i server multimediali in rete…</string>
+    <string name="browser_network_none">Nessun server trovato. Attiva la condivisione multimediale (DLNA) sul NAS, sul router o sul PC, nella stessa rete della TV.</string>
+    <string name="browser_network_retry">Cerca di nuovo</string>
+    <string name="message_network_indexing">Cerco le foto in rete…</string>
+    <string name="message_network_unavailable">Server non raggiungibile: controlla che sia acceso e nella stessa rete della TV.</string>
+    <plurals name="source_network">
+        <item quantity="one">Rete di casa · %1$d foto</item>
+        <item quantity="many">Rete di casa · %1$d foto</item>
+        <item quantity="other">Rete di casa · %1$d foto</item>
     </plurals>
 </resources>

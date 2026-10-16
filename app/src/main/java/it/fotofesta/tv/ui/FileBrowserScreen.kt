@@ -21,8 +21,10 @@ import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.FolderOpen
+import androidx.compose.material.icons.rounded.Lan
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.QueueMusic
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.SdStorage
 import androidx.compose.material.icons.rounded.Usb
 import androidx.compose.material3.CircularProgressIndicator
@@ -55,6 +57,7 @@ fun FileBrowserScreen(
     onChooseTrack: (BrowserEntry) -> Unit,
     onUseMusicFolder: () -> Unit,
     onSystemPicker: () -> Unit,
+    onSearchNetwork: () -> Unit,
     onBack: () -> Unit,
 ) {
     val photos = state.kind == BrowserKind.PHOTOS
@@ -62,7 +65,8 @@ fun FileBrowserScreen(
     // Cartella senza elementi da scegliere: il fuoco va ai pulsanti sopra l'elenco.
     val listEmpty = state.directory != null && !state.loading && state.folders.isEmpty() && (photos || state.files.isEmpty())
     // Nessun disco e nessun selettore di sistema: resta solo "Indietro", che deve avere il fuoco.
-    val nothingToOpen = state.directory == null && !state.loading && state.roots.isEmpty() && !state.systemPickerAvailable
+    // Per le foto c'è sempre almeno la riga della rete di casa.
+    val nothingToOpen = state.directory == null && !state.loading && state.roots.isEmpty() && !state.systemPickerAvailable && !photos
     Column(
         Modifier.fillMaxSize().background(Background).padding(horizontal = 48.dp, vertical = 27.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -71,7 +75,11 @@ fun FileBrowserScreen(
             SectionTitle(
                 stringResource(if (photos) R.string.browser_kicker_photos else R.string.browser_kicker_music),
                 stringResource(if (photos) R.string.browser_title_photos else R.string.browser_title_music),
-                state.directory ?: stringResource(R.string.browser_roots_hint),
+                when {
+                    // Su un server di rete il percorso sono i nomi delle cartelle aperte.
+                    state.trail.isNotEmpty() -> state.trail.joinToString(" › ") { it.name }
+                    else -> state.directory ?: stringResource(if (photos) R.string.browser_roots_hint_photos else R.string.browser_roots_hint)
+                },
                 modifier = Modifier.weight(1f),
             )
             Spacer(Modifier.width(16.dp))
@@ -130,6 +138,7 @@ fun FileBrowserScreen(
         val listState = remember(focusKey) { LazyListState() }
         LazyColumn(Modifier.fillMaxSize(), state = listState, verticalArrangement = Arrangement.spacedBy(10.dp)) {
             if (state.directory == null) {
+                if (photos) item(key = "drives") { SectionLabel(stringResource(R.string.browser_section_drives)) }
                 itemsIndexed(state.roots, key = { _, root -> root.path }) { index, root ->
                     BrowserRow(
                         label = root.label,
@@ -138,6 +147,9 @@ fun FileBrowserScreen(
                         onClick = { onOpen(root.path) },
                         modifier = if (index == 0) Modifier.initialFocus(focusKey) else Modifier,
                     )
+                }
+                if (photos && state.roots.none { it.removable }) {
+                    item(key = "no-usb") { EmptyText(stringResource(R.string.browser_no_usb)) }
                 }
                 if (state.systemPickerAvailable) {
                     item(key = "system-picker") {
@@ -149,8 +161,36 @@ fun FileBrowserScreen(
                         )
                     }
                 }
-                if (state.roots.isEmpty() && !state.systemPickerAvailable) {
+                if (state.roots.isEmpty() && !state.systemPickerAvailable && !photos) {
                     item(key = "no-drive") { EmptyText(stringResource(R.string.browser_no_drive)) }
+                }
+                if (photos) {
+                    // Server multimediali (DLNA) della rete di casa: NAS, router, PC, Plex, Jellyfin.
+                    item(key = "network") { SectionLabel(stringResource(R.string.browser_section_network)) }
+                    val firstFocus = state.roots.isEmpty() && !state.systemPickerAvailable
+                    itemsIndexed(state.servers, key = { _, server -> server.path }) { index, server ->
+                        BrowserRow(
+                            label = server.name,
+                            icon = Icons.Rounded.Lan,
+                            onClick = { onOpen(server.path) },
+                            modifier = if (index == 0 && firstFocus) Modifier.initialFocus(focusKey) else Modifier,
+                        )
+                    }
+                    if (state.searchingNetwork) {
+                        item(key = "network-searching") { EmptyText(stringResource(R.string.browser_network_searching)) }
+                    } else {
+                        if (state.servers.isEmpty()) {
+                            item(key = "network-none") { EmptyText(stringResource(R.string.browser_network_none)) }
+                        }
+                        item(key = "network-retry") {
+                            BrowserRow(
+                                label = stringResource(R.string.browser_network_retry),
+                                icon = Icons.Rounded.Refresh,
+                                onClick = onSearchNetwork,
+                                modifier = if (firstFocus && state.servers.isEmpty()) Modifier.initialFocus(focusKey) else Modifier,
+                            )
+                        }
+                    }
                 }
             } else {
                 itemsIndexed(state.folders, key = { _, folder -> "folder:" + folder.path }) { index, folder ->
@@ -179,6 +219,11 @@ fun FileBrowserScreen(
             }
         }
     }
+}
+
+@Composable
+private fun SectionLabel(text: String) {
+    Text(text, style = MaterialTheme.typography.titleSmall, color = TextSecondary, modifier = Modifier.padding(top = 6.dp))
 }
 
 @Composable

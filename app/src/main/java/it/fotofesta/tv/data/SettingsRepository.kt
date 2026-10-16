@@ -2,12 +2,13 @@ package it.fotofesta.tv.data
 
 import android.annotation.SuppressLint
 import android.content.Context
+import it.fotofesta.tv.model.Countdown
+import it.fotofesta.tv.model.CountdownEvent
 import it.fotofesta.tv.model.FitMode
 import it.fotofesta.tv.model.SlideshowLayout
 import it.fotofesta.tv.model.SlideshowSettings
 import it.fotofesta.tv.model.TransitionType
-import it.fotofesta.tv.model.Countdown
-import it.fotofesta.tv.model.CountdownEvent
+import it.fotofesta.tv.network.NetworkFolder
 
 /**
  * Preferenze dell'app, divise in due file:
@@ -89,6 +90,24 @@ class SettingsRepository(context: Context) {
     }
 
     fun loadUsbFolder(): String? = sources.getString("usb_folder", null)
+
+    /** Cartella di un server multimediale della rete di casa. */
+    fun saveNetworkFolder(folder: NetworkFolder) {
+        sources.edit()
+            .putString("network_udn", folder.udn)
+            .putString("network_location", folder.location)
+            .putString("network_container", folder.containerId)
+            .putString("network_title", folder.title)
+            .putString("last_source", "NETWORK")
+            .apply()
+    }
+
+    fun loadNetworkFolder(): NetworkFolder? {
+        val udn = sources.getString("network_udn", null) ?: return null
+        val location = sources.getString("network_location", null) ?: return null
+        val container = sources.getString("network_container", null) ?: return null
+        return NetworkFolder(udn, location, container, sources.getString("network_title", null).orEmpty())
+    }
 
     fun saveLastSource(source: String) {
         sources.edit().putString("last_source", source).apply()

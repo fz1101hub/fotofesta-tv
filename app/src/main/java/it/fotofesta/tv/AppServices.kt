@@ -2,6 +2,7 @@ package it.fotofesta.tv
 
 import android.app.ActivityManager
 import android.content.Context
+import android.os.Build
 import it.fotofesta.tv.google.GoogleDeviceAuthRepository
 import it.fotofesta.tv.google.GooglePhotosPickerRepository
 import it.fotofesta.tv.google.GooglePhotosStream
@@ -10,6 +11,8 @@ import it.fotofesta.tv.google.SecureTokenStore
 import it.fotofesta.tv.guests.GuestParty
 import it.fotofesta.tv.guests.PhoneGame
 import it.fotofesta.tv.guests.GuestPhotoStore
+import it.fotofesta.tv.network.LanHttp
+import it.fotofesta.tv.network.NetworkMedia
 import okhttp3.OkHttpClient
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -42,6 +45,12 @@ class AppServices(context: Context) {
     val googleSelection = GoogleSelectionStore(File(context.noBackupFilesDir, "google_selection.json"))
 
     val googleStream = GooglePhotosStream(googlePicker, googleAuth, googleSelection)
+
+    /** HTTP in chiaro, solo verso i server multimediali della rete di casa. */
+    val lanHttp = LanHttp()
+
+    /** Cartelle dei server multimediali (DLNA) della rete di casa. */
+    val networkMedia = NetworkMedia(lanHttp, NetworkMedia.imageMimeTypes(Build.VERSION.SDK_INT))
 
     /** Gioco con i telefoni: la TV fa le domande, gli invitati rispondono dalla pagina della festa. */
     val phoneGame = PhoneGame()
