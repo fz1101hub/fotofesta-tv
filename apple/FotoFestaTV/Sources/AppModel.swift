@@ -7,12 +7,12 @@ import Observation
 private let slideshowSettingsKey = "slideshowSettings"
 
 enum Route: Hashable {
-    case slideshow, settings, games, memory, mystery, puzzle, whoTookIt, googleConnect, guests, guestReview, guestWifi, awards
+    case slideshow, settings, games, memory, mystery, puzzle, whoTookIt, googleConnect, guests, guestReview, guestWifi, awards, library
 }
 
 /// Da dove vengono le foto della raccolta mostrata nella home.
 enum CollectionSource: Equatable {
-    case demo, google, guests
+    case demo, google, guests, library
 }
 
 enum GoogleState: Equatable {
@@ -46,6 +46,10 @@ final class AppModel {
     private(set) var sleepAt: Date?
     private(set) var message: String?
     private(set) var settings: SlideshowSettings
+    /// Libreria Foto (Foto di iCloud): permesso, album e lettura in corso.
+    private(set) var libraryAccess: PhotoLibrary.Access = PhotoLibrary.access
+    private(set) var libraryAlbums: [LibraryAlbum] = []
+    private(set) var libraryLoading = false
 
     static let demoPhotos: [Photo] = [
         Photo(id: "demo:coast", title: L("demo.coast"), source: .bundled(fileName: "demo_coast.jpg")),
@@ -62,6 +66,12 @@ final class AppModel {
     @ObservationIgnored private var basePhotos: [Photo]
     @ObservationIgnored private var baseLabel: String
     @ObservationIgnored private var baseIsDemo: Bool
+    /// Sorgente e nome della raccolta scelta, per la home.
+    @ObservationIgnored private var baseSource: CollectionSource = .demo
+    @ObservationIgnored private var baseTitle = ""
+    @ObservationIgnored private var libraryTask: Task<Void, Never>?
+    @ObservationIgnored private var libraryReload: Task<Void, Never>?
+    @ObservationIgnored private var libraryWatcher: PhotoLibraryWatcher?
     @ObservationIgnored private var guestPhotos: [Photo] = []
     @ObservationIgnored private var guestPartyActive = false
     @ObservationIgnored private let freshPhotos = FreshPhotos()
@@ -77,6 +87,8 @@ final class AppModel {
 
     private static let settingsKey = slideshowSettingsKey
     private static let sourceKey = "lastSource"
+    private static let libraryAlbumKey = "libraryAlbumID"
+    private static let libraryTitleKey = "libraryAlbumTitle"
 
     init() {
         settings = Self.storedSettings()
@@ -101,6 +113,8 @@ final class AppModel {
         basePhotos = initialPhotos
         baseLabel = initialLabel
         baseIsDemo = initialPhotos == Self.demoPhotos
+        baseSource = baseIsDemo ? .demo : .google
+        baseTitle = baseIsDemo ? L("collection.demo") : L("home.google_title")
         order.reset(count: initialPhotos.count, shuffle: settings.shuffle)
         updateCollectionInfo()
         if let initialMessage { showMessage(initialMessage) }
@@ -120,6 +134,7 @@ final class AppModel {
         }
         guests.onChange = { [weak self] in self?.guestsChanged() }
         guestsChanged()
+        if UserDefaults.standard.string(forKey: Self.sourceKey) == "library" { restoreLibraryAlbum() }
     }
 
     /// Impostazioni salvate; usate anche dalla coda del server degli invitati (adattamento delle foto).
@@ -173,6 +188,7 @@ final class AppModel {
 
     func startDemo() {
         cancelGoogle()
+        cancelLibraryLoad()
         defaults.set("demo", forKey: Self.sourceKey)
         show(Self.demoPhotos, label: L("source.demo"), isDemo: true)
         discardGoogleSelection()
@@ -259,6 +275,7 @@ final class AppModel {
     /// Nessuna sospensione: "Disconnetti e cancella" non può inserirsi a metà. Lo stream si accorge da
     /// solo del cambio di sessione.
     private func applyImport(_ result: GoogleImportFlow.Result) {
+        cancelLibraryLoad()
         let previous = google.selections.current()
         google.selections.save(result.selection)
         defaults.set("google", forKey: Self.sourceKey)
@@ -357,6 +374,121 @@ final class AppModel {
         googleTask?.cancel()
     }
 
+    // MARK: - Libreria Foto (Foto di iCloud)
+
+    /// Album della libreria in uso, per il segno "In uso".
+    var libraryAlbumInUse: String? {
+        collectionSource == .library ? defaults.string(forKey: Self.libraryAlbumKey) : nil
+    }
+
+    func openLibrary() {
+        if path.last != .library { path.append(.library) }
+        refreshLibrary()
+    }
+
+    /// Rilegge permesso e album, ad esempio tornando dalle Impostazioni.
+    func refreshLibrary() {
+        libraryAccess = PhotoLibrary.access
+        guard libraryAccess == .authorized else {
+            libraryAlbums = []
+            return
+        }
+        libraryLoading = true
+        libraryTask?.cancel()
+        libraryTask = Task { [weak self] in
+            let albums = await Task.detached(priority: .userInitiated) { PhotoLibrary.albums() }.value
+            guard let self, !Task.isCancelled else { return }
+            self.libraryAlbums = albums
+            self.libraryLoading = false
+        }
+    }
+
+    /// La prima volta tvOS chiede all'utente se l'app può vedere le foto.
+    func requestLibraryAccess() {
+        Task { [weak self] in
+            let access = await PhotoLibrary.requestAccess()
+            guard let self else { return }
+            self.libraryAccess = access
+            if access == .authorized { self.refreshLibrary() }
+        }
+    }
+
+    /// "Usa questo album": diventa la raccolta e si aggiorna da solo quando l'album cambia.
+    func useLibraryAlbum(_ album: LibraryAlbum) {
+        libraryTask?.cancel()
+        libraryLoading = true
+        libraryTask = Task { [weak self] in
+            let photos = await Task.detached(priority: .userInitiated) { PhotoLibrary.photos(albumID: album.id) }.value
+            guard let self, !Task.isCancelled else { return }
+            self.libraryLoading = false
+            guard let photos, !photos.isEmpty else {
+                self.showMessage(L("library.empty_album"))
+                return
+            }
+            self.cancelGoogle()
+            self.defaults.set("library", forKey: Self.sourceKey)
+            self.defaults.set(album.id, forKey: Self.libraryAlbumKey)
+            self.defaults.set(album.title, forKey: Self.libraryTitleKey)
+            self.showLibrary(photos, title: album.title)
+            self.discardGoogleSelection()
+            self.showMessage(L("message.library_ready"))
+            if self.path.last == .library { self.path.removeLast() }
+        }
+    }
+
+    /// Un album in lettura non serve più: è stata scelta un'altra sorgente.
+    private func cancelLibraryLoad() {
+        libraryTask?.cancel()
+        libraryLoading = false
+    }
+
+    /// All'avvio: l'album salvato, se il permesso c'è ancora e l'album esiste.
+    private func restoreLibraryAlbum() {
+        guard let albumID = defaults.string(forKey: Self.libraryAlbumKey) else { return }
+        let title = defaults.string(forKey: Self.libraryTitleKey) ?? L("home.library_title")
+        libraryTask = Task { [weak self] in
+            var photos: [Photo]?
+            if PhotoLibrary.access == .authorized {
+                photos = await Task.detached(priority: .userInitiated) { PhotoLibrary.photos(albumID: albumID) }.value
+            }
+            guard let self, !Task.isCancelled else { return }
+            guard let photos, !photos.isEmpty else {
+                self.defaults.set("demo", forKey: Self.sourceKey)
+                self.showMessage(L("library.unavailable"))
+                return
+            }
+            // Nel frattempo è stata scelta un'altra sorgente: l'album salvato non serve più.
+            guard self.defaults.string(forKey: Self.sourceKey) == "library", self.baseIsDemo else { return }
+            self.showLibrary(photos, title: title)
+        }
+    }
+
+    private func showLibrary(_ photos: [Photo], title: String) {
+        show(photos, label: L("source.library", photos.count), isDemo: false, source: .library, title: title)
+        if libraryWatcher == nil {
+            libraryWatcher = PhotoLibraryWatcher { [weak self] in
+                Task { @MainActor [weak self] in self?.libraryChanged() }
+            }
+        }
+    }
+
+    /// Foto aggiunte o tolte dall'album (anche dagli altri, negli album condivisi): la raccolta si
+    /// aggiorna senza ricominciare. Più cambi ravvicinati si leggono una volta sola.
+    private func libraryChanged() {
+        guard baseSource == .library, let albumID = defaults.string(forKey: Self.libraryAlbumKey) else { return }
+        libraryReload?.cancel()
+        libraryReload = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            guard !Task.isCancelled else { return }
+            let photos = await Task.detached(priority: .utility) { PhotoLibrary.photos(albumID: albumID) }.value
+            guard let self, !Task.isCancelled, self.baseSource == .library,
+                  let photos, !photos.isEmpty, photos != self.basePhotos else { return }
+            self.basePhotos = photos
+            self.baseLabel = L("source.library", photos.count)
+            self.applyCollection(restart: false)
+        }
+    }
+
     // MARK: - Foto degli invitati
 
     /// Foto in attesa di approvazione, dalla più vecchia.
@@ -446,10 +578,17 @@ final class AppModel {
     // MARK: - Interni
 
     /// Sostituisce la raccolta scelta ripartendo dalla prima foto dell'ordine di riproduzione.
-    private func show(_ newPhotos: [Photo], label: String, isDemo: Bool) {
+    private func show(_ newPhotos: [Photo], label: String, isDemo: Bool, source: CollectionSource? = nil, title: String? = nil) {
         basePhotos = newPhotos
         baseLabel = label
         baseIsDemo = isDemo
+        baseSource = source ?? (isDemo ? .demo : .google)
+        baseTitle = title ?? (isDemo ? L("collection.demo") : L("home.google_title"))
+        // Fuori dalla libreria Foto non serve sapere quando cambia.
+        if baseSource != .library {
+            libraryReload?.cancel()
+            libraryWatcher = nil
+        }
         applyCollection(restart: true)
     }
 
@@ -494,8 +633,8 @@ final class AppModel {
             collectionTitle = L("home.guests_title")
             collectionCount = guestPhotos.count
         } else {
-            collectionSource = baseIsDemo ? .demo : .google
-            collectionTitle = baseIsDemo ? L("collection.demo") : L("home.google_title")
+            collectionSource = baseSource
+            collectionTitle = baseTitle
             collectionCount = basePhotos.count
         }
     }

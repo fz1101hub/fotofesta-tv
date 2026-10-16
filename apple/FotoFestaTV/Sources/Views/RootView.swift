@@ -23,6 +23,7 @@ struct RootView: View {
                     case .guestReview: GuestReviewView()
                     case .guestWifi: GuestWifiView()
                     case .awards: AwardsView()
+                    case .library: LibraryView()
                     }
                 }
         }

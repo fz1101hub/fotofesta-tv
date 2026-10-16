@@ -239,6 +239,8 @@ struct SlideshowView: View {
         switch photo.source {
         case .guest, .bundled: return photo.title
         case .google: return PhotoCaption.title(photo.title)
+        // La libreria Foto non dà un nome utile da mostrare.
+        case .library: return nil
         }
     }
 

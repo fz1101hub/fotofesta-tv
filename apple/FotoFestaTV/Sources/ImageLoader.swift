@@ -6,7 +6,7 @@ import UIKit
 /// Decodifica le foto ridimensionate alla risoluzione dello schermo, fuori dal thread principale,
 /// con una piccola cache in memoria per la foto corrente e le successive. Le foto di Google Foto
 /// arrivano da Google già ridotte e non vengono mai salvate su disco (sessione di rete effimera);
-/// quelle degli invitati arrivano dall'archivio della festa.
+/// quelle degli invitati arrivano dall'archivio della festa, quelle della libreria Foto da PhotoKit.
 actor ImageLoader {
     static let shared = ImageLoader()
 
@@ -44,6 +44,13 @@ actor ImageLoader {
             guard let data = GuestStorage.store.read(id),
                   let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
             decoded = Self.thumbnail(source, maxPixelSize: maxPixelSize)
+        case let .library(localIdentifier):
+            // PhotoKit la dà già ridotta (e la scarica da iCloud se serve). Si tiene la UIImage così
+            // com'è: porta con sé l'orientamento della foto, che il solo CGImage perderebbe.
+            guard let image = await PhotoLibrary.image(localIdentifier: localIdentifier, maxPixelSize: maxPixelSize) else { return nil }
+            let cost = image.cgImage.map { $0.bytesPerRow * $0.height } ?? maxPixelSize * maxPixelSize * 4
+            cache.setObject(image, forKey: key, cost: cost)
+            return image
         }
         guard let decoded else { return nil }
         let image = UIImage(cgImage: decoded)

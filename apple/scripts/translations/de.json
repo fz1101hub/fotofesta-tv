@@ -248,9 +248,32 @@
     "guests.approve_photos.one": "Foto freigeben (%ld)",
     "guests.approve_photos.other": "Fotos freigeben (%ld)",
     "settings.subtitle_local": "Die Einstellungen bleiben nur auf diesem Apple TV.",
-    "home.tile_settings_body": "Diashow, Party und Datenschutz"
+    "home.tile_settings_body": "Diashow, Party und Datenschutz",
+    "home.library_title": "iCloud-Fotos",
+    "home.tile_library_body": "Alben und geteilte Alben",
+    "library.kicker": "Fotos auf dem Apple TV",
+    "library.title": "iCloud-Fotos",
+    "library.subtitle": "Wähle ein Album aus der Fotomediathek dieses Apple TV: iCloud-Fotos, Favoriten, deine Alben und geteilte Alben. Die Fotos werden beim Anzeigen aus iCloud geladen.",
+    "library.ask": "FotoFesta TV braucht Zugriff auf die Fotos dieses Apple TV, um deine Alben anzuzeigen. Sie bleiben in deiner Mediathek: Die App kopiert sie nicht und sendet sie nirgendwohin.",
+    "library.allow": "Zugriff erlauben",
+    "library.denied": "FotoFesta TV kann die Fotos dieses Apple TV nicht sehen. Erlaube den Zugriff in den Einstellungen des Apple TV unter Datenschutz & Sicherheit › Fotos und komm dann hierher zurück.",
+    "library.retry": "Erneut versuchen",
+    "library.none": "Keine Fotos gefunden. Aktiviere auf dem Apple TV iCloud-Fotos oder Geteilte Alben unter Einstellungen › Benutzer und Accounts › iCloud.",
+    "library.all": "Alle Fotos",
+    "library.favorites": "Favoriten",
+    "library.untitled": "Album ohne Namen",
+    "library.section_library": "Mediathek",
+    "library.section_albums": "Meine Alben",
+    "library.section_shared": "Geteilte Alben",
+    "library.count.one": "%ld Objekt",
+    "library.count.other": "%ld Objekte",
+    "library.empty_album": "Dieses Album enthält keine Fotos oder Videos.",
+    "library.unavailable": "Das Album aus iCloud-Fotos ist nicht mehr verfügbar: Wähle ein anderes.",
+    "source.library": "iCloud-Fotos · Objekte: %ld",
+    "message.library_ready": "iCloud-Fotos sind bereit für die Diashow."
   },
   "infoPlist": {
-    "NSLocalNetworkUsageDescription": "FotoFesta TV empfängt die Fotos, die deine Gäste von ihren Smartphones über dein Heimnetz senden."
+    "NSLocalNetworkUsageDescription": "FotoFesta TV empfängt die Fotos, die deine Gäste von ihren Smartphones über dein Heimnetz senden.",
+    "NSPhotoLibraryUsageDescription": "FotoFesta TV zeigt die Alben deiner Fotomediathek in der Diashow. Die Fotos bleiben in deiner Mediathek und werden nirgendwohin gesendet."
   }
 }

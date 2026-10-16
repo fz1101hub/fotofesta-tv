@@ -87,6 +87,14 @@ struct HomeView: View {
                                 badge: inUse(.google)
                             ) { model.startGoogleConnect() }
                         }
+                        // Foto di iCloud e album condivisi, dalla libreria Foto della Apple TV.
+                        ShelfCard(
+                            title: L("home.library_title"),
+                            subtitle: L("home.tile_library_body"),
+                            systemImage: "icloud.fill",
+                            artwork: "demo_coast.jpg",
+                            badge: inUse(.library)
+                        ) { model.openLibrary() }
                         ShelfCard(
                             title: L("collection.demo"),
                             subtitle: L("home.tile_demo_body"),
@@ -122,6 +130,9 @@ struct HomeView: View {
         switch model.collectionSource {
         case .google:
             parts.append(L("home.google_title"))
+            if model.approvedGuestCount > 0 { parts.append(LP("home.collection_guests", model.approvedGuestCount)) }
+        case .library:
+            parts.append(L("home.library_title"))
             if model.approvedGuestCount > 0 { parts.append(LP("home.collection_guests", model.approvedGuestCount)) }
         case .demo: parts.append(L("home.tile_demo_body"))
         case .guests: parts.append(L("home.tile_guests_body"))

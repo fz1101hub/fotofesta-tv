@@ -125,3 +125,15 @@ final class SlideshowSettingsTests: XCTestCase {
         XCTAssertNil(HTTPStatusError.from(code: 502, body: Data("<html>".utf8)).serverMessage)
     }
 }
+
+final class PhotoSourceTests: XCTestCase {
+    /// Le foto della libreria Foto si salvano e si rileggono come le altre (ultima raccolta, selezioni).
+    func testLibraryPhotosSurviveEncoding() throws {
+        let photos = [
+            Photo(id: "library:9F1C-22/L0/001", title: "", source: .library(localIdentifier: "9F1C-22/L0/001"), isVideo: true),
+            Photo(id: "demo:coast", title: "Costa", source: .bundled(fileName: "demo_coast.jpg")),
+        ]
+        let decoded = try JSONDecoder().decode([Photo].self, from: JSONEncoder().encode(photos))
+        XCTAssertEqual(decoded, photos)
+    }
+}

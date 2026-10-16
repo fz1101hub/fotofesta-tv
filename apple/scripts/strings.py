@@ -15,10 +15,16 @@ ROOT = Path(__file__).resolve().parents[1]
 TRANSLATIONS = Path(__file__).resolve().parent / "translations"
 EXTRA_LANGUAGES = ("fr", "es", "de")
 
-# Testi di Info.plist mostrati dal sistema (richiesta di accesso alla rete locale).
+# Testi di Info.plist mostrati dal sistema (richieste di accesso alla rete locale e alle foto).
 INFO_PLIST = {
-    "en": {"NSLocalNetworkUsageDescription": "FotoFesta TV receives the photos your guests send from their phones over your home network."},
-    "it": {"NSLocalNetworkUsageDescription": "FotoFesta TV riceve le foto che gli invitati mandano dal telefono attraverso la rete di casa."},
+    "en": {
+        "NSLocalNetworkUsageDescription": "FotoFesta TV receives the photos your guests send from their phones over your home network.",
+        "NSPhotoLibraryUsageDescription": "FotoFesta TV shows the albums of your Photos library in the slideshow. Photos stay in your library and aren’t sent anywhere.",
+    },
+    "it": {
+        "NSLocalNetworkUsageDescription": "FotoFesta TV riceve le foto che gli invitati mandano dal telefono attraverso la rete di casa.",
+        "NSPhotoLibraryUsageDescription": "FotoFesta TV mostra nello slideshow gli album della tua libreria Foto. Le foto restano nella libreria e non vengono inviate altrove.",
+    },
 }
 
 # chiave: (inglese, italiano)
@@ -272,6 +278,28 @@ STRINGS = {
     "guests.approve_photos.other": ("Approve photos (%ld)", "Approva le foto (%ld)"),
     "settings.subtitle_local": ("Settings are saved only on this Apple TV.", "Le impostazioni restano solo su questa Apple TV."),
     "home.tile_settings_body": ("Slideshow, party and privacy", "Slideshow, festa e privacy"),
+    "home.library_title": ("iCloud Photos", "Foto di iCloud"),
+    "home.tile_library_body": ("Albums and shared albums", "Album e album condivisi"),
+    "library.kicker": ("Photos on Apple TV", "Foto della Apple TV"),
+    "library.title": ("iCloud Photos", "Foto di iCloud"),
+    "library.subtitle": ("Choose an album from the Photos library of this Apple TV: iCloud Photos, favorites, your albums and shared albums. Photos load from iCloud as they’re shown.", "Scegli un album dalla libreria Foto di questa Apple TV: Foto di iCloud, preferiti, i tuoi album e gli album condivisi. Le foto si caricano da iCloud quando vengono mostrate."),
+    "library.ask": ("FotoFesta TV needs access to the photos on this Apple TV to show your albums. They stay in your library: the app doesn’t copy them or send them anywhere.", "FotoFesta TV ha bisogno di accedere alle foto di questa Apple TV per mostrare i tuoi album. Restano nella tua libreria: l’app non le copia e non le manda da nessuna parte."),
+    "library.allow": ("Allow access", "Consenti l’accesso"),
+    "library.denied": ("FotoFesta TV can’t see the photos on this Apple TV. Allow access in the Apple TV Settings, under Privacy & Security › Photos, then come back here.", "FotoFesta TV non può vedere le foto di questa Apple TV. Consenti l’accesso nelle Impostazioni della Apple TV, in Privacy e sicurezza › Foto, poi torna qui."),
+    "library.retry": ("Try again", "Riprova"),
+    "library.none": ("No photos found. On Apple TV, turn on iCloud Photos or Shared Albums in Settings › Users and Accounts › iCloud.", "Nessuna foto trovata. Sulla Apple TV attiva Foto di iCloud o Album condivisi in Impostazioni › Utenti e account › iCloud."),
+    "library.all": ("All photos", "Tutte le foto"),
+    "library.favorites": ("Favorites", "Preferiti"),
+    "library.untitled": ("Untitled album", "Album senza nome"),
+    "library.section_library": ("Library", "Libreria"),
+    "library.section_albums": ("My albums", "I miei album"),
+    "library.section_shared": ("Shared albums", "Album condivisi"),
+    "library.count.one": ("%ld item", "%ld elemento"),
+    "library.count.other": ("%ld items", "%ld elementi"),
+    "library.empty_album": ("This album has no photos or videos.", "Questo album non ha foto né video."),
+    "library.unavailable": ("The iCloud Photos album is no longer available: choose another one.", "L’album di Foto di iCloud non è più disponibile: scegline un altro."),
+    "source.library": ("iCloud Photos · items: %ld", "Foto di iCloud · elementi: %ld"),
+    "message.library_ready": ("iCloud Photos ready for the slideshow.", "Foto di iCloud pronte per lo slideshow."),
 }
 
 PLACEHOLDER = re.compile(r"%(?:ld|@|d|lld)")

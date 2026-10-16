@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- Manifest privacy richiesto da App Store Connect: nessun tracciamento, nessun dato raccolto,
-     solo le API con motivazione obbligatoria effettivamente usate. -->
+<!-- Manifest privacy richiesto da App Store Connect: nessun tracciamento, nessun dato raccolto
+     (le foto della libreria Foto restano sul dispositivo e non vengono inviate), solo le API con
+     motivazione obbligatoria effettivamente usate. -->
 <plist version="1.0">
 <dict>
     <key>NSPrivacyTracking</key>
@@ -13,7 +14,7 @@
     <key>NSPrivacyAccessedAPITypes</key>
     <array>
         <dict>
-            <!-- UserDefaults: impostazioni dello slideshow e della festa, ultima sorgente ed elenco delle foto Google scelte. -->
+            <!-- UserDefaults: impostazioni dello slideshow e della festa, ultima sorgente, elenco delle foto Google scelte e album della libreria Foto in uso. -->
             <key>NSPrivacyAccessedAPIType</key>
             <string>NSPrivacyAccessedAPICategoryUserDefaults</string>
             <key>NSPrivacyAccessedAPITypeReasons</key>

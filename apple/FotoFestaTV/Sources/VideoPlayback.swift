@@ -177,18 +177,31 @@ final class VideoPlayback {
     @ObservationIgnored var onEnded: () -> Void = {}
     @ObservationIgnored var loop = false
     @ObservationIgnored private var loader: GoogleVideoLoader?
+    @ObservationIgnored private var loading: Task<Void, Never>?
+    @ObservationIgnored private var playRequested = false
     @ObservationIgnored private var endObserver: NSObjectProtocol?
     @ObservationIgnored private var statusObservation: NSKeyValueObservation?
 
     init(photo: Photo) {
-        guard case let .google(mediaID) = photo.source else {
-            failed = true
-            return
-        }
-        let loader = GoogleVideoLoader(mediaID: mediaID, stream: GoogleServices.shared.stream)
-        self.loader = loader
-        let item = AVPlayerItem(asset: loader.makeAsset())
         player.actionAtItemEnd = .pause
+        switch photo.source {
+        case let .google(mediaID):
+            let loader = GoogleVideoLoader(mediaID: mediaID, stream: GoogleServices.shared.stream)
+            self.loader = loader
+            attach(AVPlayerItem(asset: loader.makeAsset()))
+        case let .library(localIdentifier):
+            // PhotoKit prepara il video (da iCloud, se serve) e poi lo dà al lettore.
+            loading = Task { [weak self] in
+                let item = await PhotoLibrary.playerItem(localIdentifier: localIdentifier)
+                guard let self, !Task.isCancelled else { return }
+                if let item { self.attach(item) } else { self.failed = true }
+            }
+        case .bundled, .guest:
+            failed = true
+        }
+    }
+
+    private func attach(_ item: AVPlayerItem) {
         player.replaceCurrentItem(with: item)
         endObserver = NotificationCenter.default.addObserver(forName: AVPlayerItem.didPlayToEndTimeNotification, object: item, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.ended() }
@@ -197,6 +210,13 @@ final class VideoPlayback {
             guard item.status == .failed else { return }
             DispatchQueue.main.async { self?.failed = true }
         }
+        if playRequested { player.play() }
+    }
+
+    /// Avvia o mette in pausa; un video ancora in preparazione parte appena è pronto.
+    func setPlaying(_ playing: Bool) {
+        playRequested = playing
+        if playing { player.play() } else { player.pause() }
     }
 
     private func ended() {
@@ -210,6 +230,9 @@ final class VideoPlayback {
 
     /// Ferma il video e chiude le connessioni: va chiamato quando il video esce di scena.
     func stop() {
+        loading?.cancel()
+        loading = nil
+        playRequested = false
         player.pause()
         player.replaceCurrentItem(with: nil)
         if let endObserver { NotificationCenter.default.removeObserver(endObserver) }
@@ -278,7 +301,7 @@ struct VideoSlideView: View {
             playback.onEnded = onEnded
             playback.loop = loop
             playback.player.isMuted = !settings.videoSound
-            if playing { playback.player.play() }
+            playback.setPlaying(playing)
             self.playback = playback
         }
         .onDisappear {
@@ -286,7 +309,7 @@ struct VideoSlideView: View {
             playback = nil
         }
         .onChange(of: playing) { _, nowPlaying in
-            if nowPlaying { playback?.player.play() } else { playback?.player.pause() }
+            playback?.setPlaying(nowPlaying)
         }
         .onChange(of: settings.videoSound) { _, sound in playback?.player.isMuted = !sound }
         .onChange(of: loop) { _, value in playback?.loop = value }
