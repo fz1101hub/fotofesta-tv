@@ -55,11 +55,22 @@ fun PhonePlayPanel(play: PhonePlay, revealed: Boolean, modifier: Modifier = Modi
         modifier.background(SurfaceDark, RoundedCornerShape(16.dp)).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            QrCode(play.url, stringResource(R.string.phone_scan), size = 96.dp, padding = 6.dp)
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(stringResource(R.string.phone_title), style = MaterialTheme.typography.titleMedium, color = TextPrimary)
-                Text(stringResource(R.string.phone_scan), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+        // Con la classifica il QR lascia il posto ai punti: nella colonna stretta, sotto quattro risposte,
+        // QR, spiegazione e cinque nomi non starebbero (in spagnolo la classifica finiva tagliata).
+        val leaderboard = status.leaderboard.take(LEADERBOARD_ROWS).takeIf { revealed && it.isNotEmpty() }
+        if (leaderboard == null) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                QrCode(play.url, stringResource(R.string.phone_scan), size = 84.dp, padding = 6.dp)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(stringResource(R.string.phone_title), style = MaterialTheme.typography.titleSmall, color = TextPrimary)
+                    Text(
+                        stringResource(R.string.phone_scan),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary,
+                        maxLines = 4,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
         Text(
@@ -67,9 +78,9 @@ fun PhonePlayPanel(play: PhonePlay, revealed: Boolean, modifier: Modifier = Modi
             style = MaterialTheme.typography.titleSmall,
             color = TextPrimary,
         )
-        if (revealed && status.leaderboard.isNotEmpty()) {
+        if (leaderboard != null) {
             Kicker(stringResource(R.string.phone_leaderboard))
-            status.leaderboard.forEachIndexed { index, score ->
+            leaderboard.forEachIndexed { index, score ->
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         "${index + 1}. ${score.name}",
@@ -87,6 +98,9 @@ fun PhonePlayPanel(play: PhonePlay, revealed: Boolean, modifier: Modifier = Modi
     }
 }
 
+/** Nomi della classifica nel pannello: i primi tre. */
+private const val LEADERBOARD_ROWS = 3
+
 /** Risposta mostrata sulla TV durante il gioco con i telefoni; [highlighted] è quella giusta. */
 @Composable
 fun ChoiceLabel(text: String, highlighted: Boolean, modifier: Modifier = Modifier) {
@@ -94,7 +108,7 @@ fun ChoiceLabel(text: String, highlighted: Boolean, modifier: Modifier = Modifie
         text,
         modifier = modifier.fillMaxWidth()
             .background(if (highlighted) Accent else SurfaceRaised, RoundedCornerShape(50))
-            .padding(horizontal = 22.dp, vertical = 11.dp),
+            .padding(horizontal = 22.dp, vertical = 9.dp),
         style = MaterialTheme.typography.labelLarge,
         color = if (highlighted) OnAccent else TextPrimary,
         maxLines = 1,

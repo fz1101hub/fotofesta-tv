@@ -29,8 +29,6 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,7 +41,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -439,18 +436,6 @@ fun GuestWifiScreen(
     var ssid by rememberSaveable { mutableStateOf(initialName.orEmpty()) }
     // Anche la password è già compilata: con il campo vuoto la rete diventerebbe "aperta".
     var password by rememberSaveable { mutableStateOf(initialPassword.orEmpty()) }
-    val keyboard = LocalSoftwareKeyboardController.current
-    val fieldColors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = FocusWhite,
-        unfocusedBorderColor = Outline,
-        focusedLabelColor = TextPrimary,
-        unfocusedLabelColor = TextSecondary,
-        focusedTextColor = TextPrimary,
-        unfocusedTextColor = TextPrimary,
-        focusedContainerColor = SurfaceDark,
-        unfocusedContainerColor = SurfaceDark,
-        cursorColor = Accent,
-    )
     Column(
         Modifier.fillMaxSize().background(Background).padding(horizontal = 48.dp, vertical = 27.dp).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(18.dp),
@@ -462,27 +447,21 @@ fun GuestWifiScreen(
             stringResource(R.string.wifi_subtitle),
             modifier = Modifier.padding(top = 18.dp).widthIn(max = 640.dp),
         )
-        OutlinedTextField(
+        TvTextField(
             value = ssid,
             onValueChange = { ssid = it.take(64) },
-            label = { Text(stringResource(R.string.wifi_name)) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next, showKeyboardOnFocus = false),
-            colors = fieldColors,
-            textStyle = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth().keyboardOnSelect(keyboard).initialFocus(),
+            label = stringResource(R.string.wifi_name),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+            modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth().initialFocus(),
         )
         // La password resta visibile: con il telecomando gli errori di battitura sono facili, e il QR
         // la mostra comunque a chi lo inquadra.
-        OutlinedTextField(
+        TvTextField(
             value = password,
             onValueChange = { password = it.take(64) },
-            label = { Text(stringResource(R.string.wifi_password)) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done, showKeyboardOnFocus = false),
-            colors = fieldColors,
-            textStyle = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth().keyboardOnSelect(keyboard),
+            label = stringResource(R.string.wifi_password),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+            modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth(),
         )
         Row {
             TvButton(stringResource(R.string.wifi_save), { onSave(ssid, password) }, icon = Icons.Rounded.Save)

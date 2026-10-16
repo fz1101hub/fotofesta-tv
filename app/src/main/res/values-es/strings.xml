@@ -287,7 +287,7 @@
         <item quantity="many">%1$d fotos en esta carpeta, más las subcarpetas</item>
         <item quantity="other">%1$d fotos en esta carpeta, más las subcarpetas</item>
     </plurals>
-    <string name="collection_demo">Fotos de demostración</string>
+    <string name="collection_demo">Fotos demo</string>
     <string name="fit_blur">Fondo desenfocado</string>
     <string name="fit_blur_body">Llenan la pantalla con un fondo desenfocado</string>
     <string name="fit_contain_body">Foto completa, con bandas negras a los lados</string>

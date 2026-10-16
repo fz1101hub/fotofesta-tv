@@ -22,8 +22,6 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -32,7 +30,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -53,18 +50,6 @@ fun ICloudLinkScreen(
     onBack: () -> Unit,
 ) {
     var input by rememberSaveable { mutableStateOf("") }
-    val keyboard = LocalSoftwareKeyboardController.current
-    val fieldColors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = FocusWhite,
-        unfocusedBorderColor = Outline,
-        focusedLabelColor = TextPrimary,
-        unfocusedLabelColor = TextSecondary,
-        focusedTextColor = TextPrimary,
-        unfocusedTextColor = TextPrimary,
-        focusedContainerColor = SurfaceDark,
-        unfocusedContainerColor = SurfaceDark,
-        cursorColor = Accent,
-    )
     Column(
         Modifier.fillMaxSize().background(Background).padding(horizontal = 48.dp, vertical = 27.dp).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(18.dp),
@@ -93,16 +78,13 @@ fun ICloudLinkScreen(
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text(stringResource(R.string.icloud_steps), style = MaterialTheme.typography.bodyLarge, color = TextPrimary)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
+                    TvTextField(
                         value = input,
                         onValueChange = { input = it.take(300) },
-                        label = { Text(stringResource(R.string.icloud_field)) },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go, showKeyboardOnFocus = false),
+                        label = stringResource(R.string.icloud_field),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
                         keyboardActions = KeyboardActions(onGo = { onSubmit(input) }),
-                        colors = fieldColors,
-                        textStyle = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.widthIn(max = 460.dp).weight(1f, fill = false).keyboardOnSelect(keyboard)
+                        modifier = Modifier.widthIn(max = 460.dp).weight(1f, fill = false)
                             .then(if (state.token == null) Modifier.initialFocus("field") else Modifier),
                     )
                     TvButton(stringResource(R.string.icloud_open), { onSubmit(input) }, icon = Icons.Rounded.Search, enabled = !state.loading)

@@ -22,8 +22,6 @@ import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -33,7 +31,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -61,19 +58,7 @@ fun SmbLoginScreen(
     var password by remember(state.address) { mutableStateOf("") }
     var share by rememberSaveable(state.address) { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
-    val keyboard = LocalSoftwareKeyboardController.current
     val connect = { if (!state.loading) onConnect(address, user, password, if (state.askShare) share else "") }
-    val fieldColors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = FocusWhite,
-        unfocusedBorderColor = Outline,
-        focusedLabelColor = TextPrimary,
-        unfocusedLabelColor = TextSecondary,
-        focusedTextColor = TextPrimary,
-        unfocusedTextColor = TextPrimary,
-        focusedContainerColor = SurfaceDark,
-        unfocusedContainerColor = SurfaceDark,
-        cursorColor = Accent,
-    )
     val fieldModifier = Modifier.widthIn(max = 560.dp).fillMaxWidth()
     Column(
         Modifier.fillMaxSize().background(Background).padding(horizontal = 48.dp, vertical = 27.dp).verticalScroll(rememberScrollState()),
@@ -89,44 +74,34 @@ fun SmbLoginScreen(
             Spacer(Modifier.width(16.dp))
             TvButton(stringResource(R.string.action_back), onBack, icon = Icons.AutoMirrored.Rounded.ArrowBack)
         }
-        OutlinedTextField(
+        TvTextField(
             value = address,
             onValueChange = { address = it.take(300) },
-            label = { Text(stringResource(R.string.smb_address)) },
-            placeholder = { Text(stringResource(R.string.smb_address_hint)) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Next, showKeyboardOnFocus = false),
-            colors = fieldColors,
-            textStyle = MaterialTheme.typography.bodyLarge,
-            modifier = fieldModifier.keyboardOnSelect(keyboard).then(if (state.address.isEmpty()) Modifier.initialFocus("address") else Modifier),
+            label = stringResource(R.string.smb_address),
+            placeholder = stringResource(R.string.smb_address_hint),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Next),
+            modifier = fieldModifier.then(if (state.address.isEmpty()) Modifier.initialFocus("address") else Modifier),
         )
-        OutlinedTextField(
+        TvTextField(
             value = user,
             onValueChange = { user = it.take(256) },
-            label = { Text(stringResource(R.string.smb_user)) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next, showKeyboardOnFocus = false),
-            colors = fieldColors,
-            textStyle = MaterialTheme.typography.bodyLarge,
-            modifier = fieldModifier.keyboardOnSelect(keyboard)
+            label = stringResource(R.string.smb_user),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
+            modifier = fieldModifier
                 .then(if (state.address.isNotEmpty() && !state.askShare) Modifier.initialFocus(state.address) else Modifier),
         )
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedTextField(
+            TvTextField(
                 value = password,
                 onValueChange = { password = it.take(256) },
-                label = { Text(stringResource(R.string.smb_password)) },
-                singleLine = true,
+                label = stringResource(R.string.smb_password),
                 visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Password,
                     imeAction = if (state.askShare) ImeAction.Next else ImeAction.Go,
-                    showKeyboardOnFocus = false,
                 ),
                 keyboardActions = KeyboardActions(onGo = { connect() }),
-                colors = fieldColors,
-                textStyle = MaterialTheme.typography.bodyLarge,
-                modifier = fieldModifier.weight(1f, fill = false).keyboardOnSelect(keyboard),
+                modifier = fieldModifier.weight(1f, fill = false),
             )
             // Con il telecomando gli errori di battitura sono facili: la password si può controllare.
             TvButton(
@@ -137,17 +112,14 @@ fun SmbLoginScreen(
         }
         if (state.askShare) {
             Text(stringResource(R.string.smb_share_explain), style = MaterialTheme.typography.bodyLarge, color = TextPrimary, modifier = Modifier.widthIn(max = 760.dp))
-            OutlinedTextField(
+            TvTextField(
                 value = share,
                 onValueChange = { share = it.take(300) },
-                label = { Text(stringResource(R.string.smb_share)) },
-                placeholder = { Text(stringResource(R.string.smb_share_hint)) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go, showKeyboardOnFocus = false),
+                label = stringResource(R.string.smb_share),
+                placeholder = stringResource(R.string.smb_share_hint),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
                 keyboardActions = KeyboardActions(onGo = { connect() }),
-                colors = fieldColors,
-                textStyle = MaterialTheme.typography.bodyLarge,
-                modifier = fieldModifier.keyboardOnSelect(keyboard).initialFocus("share"),
+                modifier = fieldModifier.initialFocus("share"),
             )
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {

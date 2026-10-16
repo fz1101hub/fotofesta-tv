@@ -108,6 +108,11 @@ else
   shoot browser 3
   shoot icloud 3
   shoot smb_login 2
+  # OK sul campo con il fuoco: solo ora si scrive, con la tastiera aperta.
+  adb shell input keyevent KEYCODE_DPAD_CENTER
+  sleep 3
+  adb exec-out screencap -p > "$OUT/smb_keyboard.png"
+  SHOTS+=(smb_keyboard)
   shoot smb_error 2
   shoot smb_shares 2
   shoot smb_folder 2

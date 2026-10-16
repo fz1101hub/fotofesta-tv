@@ -22,22 +22,29 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Size
@@ -45,18 +52,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -429,12 +431,56 @@ fun Modifier.initialFocus(key: Any? = Unit): Modifier {
 }
 
 /**
- * Campo di testo con il telecomando: la tastiera si apre premendo OK sul campo e non appena il campo
- * riceve il fuoco, che coprirebbe metà schermata (errori e pulsanti compresi) anche a chi la sta solo
- * attraversando con le frecce. Va con KeyboardOptions(showKeyboardOnFocus = false).
+ * Campo di testo per il telecomando. Con le frecce il fuoco si ferma sul campo senza aprire la
+ * tastiera, che coprirebbe metà schermata (errori, pulsanti, la didascalia del QR): si scrive dopo
+ * aver premuto OK, che dà il fuoco al campo vero e apre la tastiera. Spostandosi su un'altra voce si
+ * torna come prima. Compose apre la tastiera appena un campo riceve il fuoco, anche con
+ * KeyboardOptions(showKeyboardOnFocus = false) e la tastiera nascosta nell'attività.
  */
-fun Modifier.keyboardOnSelect(keyboard: SoftwareKeyboardController?): Modifier = onPreviewKeyEvent { event ->
-    val select = event.key == Key.DirectionCenter || event.key == Key.Enter || event.key == Key.NumPadEnter
-    if (select && event.type == KeyEventType.KeyUp) keyboard?.show()
-    select
+@Composable
+fun TvTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    placeholder: String? = null,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
+) {
+    var editing by remember { mutableStateOf(false) }
+    val field = remember { FocusRequester() }
+    val interactionSource = remember { MutableInteractionSource() }
+    val selected by interactionSource.collectIsFocusedAsState()
+    LaunchedEffect(editing) { if (editing) runCatching { field.requestFocus() } }
+    // Con il fuoco sulla cornice il campo appare selezionato come quando si scrive.
+    val colors = OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = FocusWhite,
+        unfocusedBorderColor = if (selected) FocusWhite else Outline,
+        focusedLabelColor = TextPrimary,
+        unfocusedLabelColor = if (selected) TextPrimary else TextSecondary,
+        focusedTextColor = TextPrimary,
+        unfocusedTextColor = TextPrimary,
+        focusedContainerColor = SurfaceDark,
+        unfocusedContainerColor = SurfaceDark,
+        cursorColor = Accent,
+    )
+    Box(modifier.clickable(interactionSource = interactionSource, indication = null) { editing = true }) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            label = { Text(label) },
+            placeholder = if (placeholder != null) { { Text(placeholder) } } else null,
+            singleLine = true,
+            keyboardOptions = keyboardOptions,
+            keyboardActions = keyboardActions,
+            visualTransformation = visualTransformation,
+            colors = colors,
+            textStyle = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.fillMaxWidth()
+                .focusRequester(field)
+                .focusProperties { canFocus = editing }
+                .onFocusChanged { if (!it.hasFocus) editing = false },
+        )
+    }
 }

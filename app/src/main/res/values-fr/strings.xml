@@ -287,7 +287,7 @@
         <item quantity="many">%1$d photos dans ce dossier, plus les sous-dossiers</item>
         <item quantity="other">%1$d photos dans ce dossier, plus les sous-dossiers</item>
     </plurals>
-    <string name="collection_demo">Photos de démo</string>
+    <string name="collection_demo">Photos démo</string>
     <string name="fit_blur">Fond flouté</string>
     <string name="fit_blur_body">Elles remplissent l’écran avec un fond flouté</string>
     <string name="fit_contain_body">Photo entière, avec des bandes noires sur les côtés</string>
