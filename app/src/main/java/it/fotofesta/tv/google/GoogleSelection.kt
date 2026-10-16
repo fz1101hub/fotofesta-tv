@@ -17,7 +17,7 @@ data class GoogleSelection(
     val expiresAtMillis: Long?,
     val items: List<Item>,
 ) {
-    data class Item(val id: String, val filename: String)
+    data class Item(val id: String, val filename: String, val video: Boolean = false)
 
     fun isExpired(nowMillis: Long): Boolean = expiresAtMillis != null && nowMillis >= expiresAtMillis
 
@@ -27,6 +27,7 @@ data class GoogleSelection(
             title = item.filename,
             ref = PhotoRef.GooglePhoto(item.id),
             source = SourceType.GOOGLE_PHOTOS,
+            video = item.video,
         )
     }
 }
@@ -56,7 +57,9 @@ class GoogleSelectionStore(private val file: File) {
         val json = JSONObject()
             .put("sessionId", selection.sessionId)
             .put("items", JSONArray().apply {
-                selection.items.forEach { put(JSONObject().put("id", it.id).put("filename", it.filename)) }
+                selection.items.forEach { item ->
+                    put(JSONObject().put("id", item.id).put("filename", item.filename).apply { if (item.video) put("video", true) })
+                }
             })
         selection.expiresAtMillis?.let { json.put("expiresAt", it) }
         file.parentFile?.mkdirs()
@@ -93,7 +96,7 @@ class GoogleSelectionStore(private val file: File) {
         val items = (0 until array.length()).mapNotNull { index ->
             val entry = array.getJSONObject(index)
             val id = entry.optString("id").takeIf(String::isNotBlank) ?: return@mapNotNull null
-            GoogleSelection.Item(id, entry.optString("filename").ifBlank { id })
+            GoogleSelection.Item(id, entry.optString("filename").ifBlank { id }, video = entry.optBoolean("video", false))
         }
         GoogleSelection(
             sessionId = json.getString("sessionId"),

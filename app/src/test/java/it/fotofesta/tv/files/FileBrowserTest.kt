@@ -69,6 +69,20 @@ class FileBrowserTest {
     }
 
     @Test
+    fun scanIncludesVideosButTheListCountsOnlyPhotos() {
+        file("Festa/torta.MP4")
+        file("Festa/a.jpg")
+        file("Festa/b.mkv")
+        file("Festa/._c.mov")
+        file("Festa/note.txt")
+
+        val found = browser.scanPhotos(temp.root)
+        assertEquals(listOf("a.jpg", "b.mkv", "torta.MP4"), found.map { it.name })
+        assertEquals(listOf(false, true, true), found.map { it.toUsbPhotoItem().video })
+        assertEquals(listOf("a.jpg"), browser.list(File(temp.root, "Festa"), BrowserKind.PHOTOS).files.map { it.name })
+    }
+
+    @Test
     fun scanStopsAtTheLimit() {
         repeat(12) { file("foto_$it.jpg") }
         assertEquals(5, browser.scanPhotos(temp.root, limit = 5).size)
@@ -130,5 +144,6 @@ class FileBrowserTest {
         assertEquals("Torta di compleanno", item.title)
         assertEquals(PhotoRef.LocalFile(photo.path), item.ref)
         assertEquals(SourceType.USB, item.source)
+        assertEquals(false, item.video)
     }
 }

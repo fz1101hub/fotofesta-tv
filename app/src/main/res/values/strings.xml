@@ -253,8 +253,8 @@
         <item quantity="other">%1$d photos ready.</item>
     </plurals>
     <plurals name="message_google_skipped">
-        <item quantity="one">%1$d item skipped: only photos are shown, not videos.</item>
-        <item quantity="other">%1$d items skipped: only photos are shown, not videos.</item>
+        <item quantity="one">%1$d item skipped: only photos and videos are shown.</item>
+        <item quantity="other">%1$d items skipped: only photos and videos are shown.</item>
     </plurals>
     <plurals name="guests_pending">
         <item quantity="one">%1$d photo to approve</item>
@@ -372,4 +372,9 @@
         <item quantity="one">Home network · %1$d photo</item>
         <item quantity="other">Home network · %1$d photos</item>
     </plurals>
+    <string name="settings_videos">Videos</string>
+    <string name="settings_videos_body">Shown with the photos, from start to finish. Games and the screensaver use photos only.</string>
+    <string name="settings_video_sound">Video sound</string>
+    <string name="settings_video_sound_body">While a video plays its sound, the background music pauses.</string>
+    <string name="video_unsupported">This video can’t be played on this TV.</string>
 </resources>

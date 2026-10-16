@@ -11,6 +11,7 @@ import java.io.IOException
 
 class NetworkMediaTest {
     private val mimeTypes = NetworkMedia.imageMimeTypes(34)
+    private val photosAndVideos: (String) -> Boolean = { it in mimeTypes || it.startsWith("video/") }
 
     private fun description(controlUrl: String, udn: String = "uuid:nas-1", name: String = "NAS di casa") = """
         <?xml version="1.0"?>
@@ -69,7 +70,8 @@ class NetworkMediaTest {
     fun choosesTheOriginalPhotoAndSkipsOtherFiles() {
         val content = didl(
             container("10", "Vacanze &amp; mare") + photo("p1", "IMG_0001.jpg", "/media/1.jpg") +
-                """<item id="v1"><dc:title>Film</dc:title><res protocolInfo="http-get:*:video/mp4:*">/media/v.mp4</res></item>""" +
+                """<item id="a1"><dc:title>Canzone</dc:title><upnp:class>object.item.audioItem.musicTrack</upnp:class>""" +
+                """<res protocolInfo="http-get:*:audio/mpeg:*">/media/a.mp3</res><res protocolInfo="http-get:*:image/jpeg:*">/media/cover.jpg</res></item>""" +
                 """<item id="r1"><dc:title>Raw</dc:title><res protocolInfo="http-get:*:image/x-canon-cr2:*">/media/r.cr2</res></item>""" +
                 """<item id="p2"><dc:title>Senza risoluzione</dc:title><res protocolInfo="http-get:*:image/png:*">http://192.168.1.10:8200/media/2.png</res></item>""",
         )
@@ -83,6 +85,21 @@ class NetworkMediaTest {
             page.files,
         )
         assertEquals(5, page.total)
+    }
+
+    @Test
+    fun videosKeepTheirVideoVersionAndCoversAreNotPhotos() {
+        val content = didl(
+            """<item id="v1"><dc:title>Torta.mp4</dc:title><upnp:class>object.item.videoItem</upnp:class>""" +
+                """<res protocolInfo="http-get:*:image/jpeg:*" resolution="3840x2160">/media/v.jpg</res>""" +
+                """<res protocolInfo="http-get:*:video/mp4:*" resolution="1920x1080">/media/v.mp4</res></item>""" +
+                """<item id="a1"><dc:title>Canzone</dc:title><upnp:class>object.item.audioItem.musicTrack</upnp:class>""" +
+                """<res protocolInfo="http-get:*:image/jpeg:*">/media/cover.jpg</res></item>""",
+        )
+        val page = UpnpXml.parseBrowseResponse(browseResponse(content, 2, 2).toByteArray(), "http://192.168.1.10:8200/ctl", photosAndVideos)
+        assertEquals(listOf(MediaFile("v1", "Torta.mp4", "http://192.168.1.10:8200/media/v.mp4", "video/mp4")), page.files)
+        // Senza video la stessa voce non diventa una foto.
+        assertEquals(emptyList<MediaFile>(), UpnpXml.parseBrowseResponse(browseResponse(content, 2, 2).toByteArray(), "http://192.168.1.10:8200/ctl", mimeTypes::contains).files)
     }
 
     @Test
@@ -146,7 +163,8 @@ class NetworkMediaTest {
                         )
                         // Un album di musica non si apre mai durante la ricerca delle foto.
                         "M" -> error("Album di musica aperto")
-                        "A" -> (1..3).map { photo("a$it", "a$it.jpg", "/m/a$it.jpg") }
+                        "A" -> (1..3).map { photo("a$it", "a$it.jpg", "/m/a$it.jpg") } +
+                            """<item id="va"><dc:title>festa.mov</dc:title><upnp:class>object.item.videoItem</upnp:class><res protocolInfo="http-get:*:video/quicktime:*">/m/festa.mov</res></item>"""
                         // 600 elementi: due pagine da 500.
                         "B" -> (1..600).map { photo("b$it", "b$it.jpg", "/m/b$it.jpg") }
                         else -> emptyList()
@@ -174,8 +192,9 @@ class NetworkMediaTest {
             assertEquals(600, media.list(servers[0], "B").files.size)
 
             val photos = media.scanPhotos(servers[0], NetworkMedia.ROOT)
-            assertEquals(604, photos.size)
-            assertEquals(listOf("copertina", "a1", "a2", "a3", "b1"), photos.take(5).map { it.title })
+            assertEquals(605, photos.size)
+            assertEquals(listOf("copertina", "a1", "a2", "a3", "festa", "b1"), photos.take(6).map { it.title })
+            assertEquals(listOf(false, false, false, false, true, false), photos.take(6).map { it.video })
             assertEquals(PhotoRef.NetworkPhoto("${nas.base}/m/a1.jpg"), photos[1].ref)
             assertEquals("net:uuid:nas-1:a1", photos[1].id)
             assertTrue(photos.all { it.source == SourceType.NETWORK })
@@ -189,7 +208,7 @@ class NetworkMediaTest {
         fakeNas(failing = setOf("B")).use { nas ->
             val media = NetworkMedia(LanHttp(allowLoopback = true), mimeTypes, search = { emptyList() })
             val server = media.find("uuid:nas-1", "${nas.base}/rootDesc.xml")!!
-            assertEquals(4, media.scanPhotos(server, NetworkMedia.ROOT).size)
+            assertEquals(5, media.scanPhotos(server, NetworkMedia.ROOT).size)
             try {
                 media.scanPhotos(server, "B")
                 fail("La cartella scelta deve leggersi")

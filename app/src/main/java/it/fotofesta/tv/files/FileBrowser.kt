@@ -8,12 +8,13 @@ import it.fotofesta.tv.model.SourceType
 import java.io.File
 import java.io.IOException
 
-/** Foto di un disco letta dal suo percorso, come elemento dello slideshow. */
+/** Foto o video di un disco letto dal suo percorso, come elemento dello slideshow. */
 fun File.toUsbPhotoItem(): PhotoItem = PhotoItem(
     id = "usb:file:$path",
     title = nameWithoutExtension.ifBlank { name },
     ref = PhotoRef.LocalFile(path),
     source = SourceType.USB,
+    video = extension.lowercase() in FileBrowser.VIDEO_EXTENSIONS,
 )
 
 /**
@@ -24,6 +25,7 @@ fun File.toUsbPhotoItem(): PhotoItem = PhotoItem(
 class FileBrowser(
     private val imageExtensions: Set<String>,
     private val audioExtensions: Set<String> = AUDIO_EXTENSIONS,
+    private val videoExtensions: Set<String> = VIDEO_EXTENSIONS,
 ) {
     /** Contenuto di una cartella: sottocartelle e file del tipo cercato, in ordine naturale. */
     data class Listing(val folders: List<File>, val files: List<File>)
@@ -43,7 +45,7 @@ class FileBrowser(
     }
 
     /**
-     * Foto della cartella e delle sottocartelle, al massimo [limit], ordinate per nome come prima.
+     * Foto e video della cartella e delle sottocartelle, al massimo [limit], ordinati per nome come prima.
      * [checkCancelled] viene chiamato a ogni cartella e può lanciare un'eccezione per interrompere.
      * I collegamenti simbolici che riportano a una cartella già vista vengono ignorati.
      */
@@ -65,7 +67,7 @@ class FileBrowser(
                 when {
                     // Esclude file nascosti, come i "._IMG.jpg" creati da macOS sui dischi esterni.
                     entry.name.startsWith(".") -> Unit
-                    matches(entry, BrowserKind.PHOTOS) && entry.isFile -> found += entry
+                    (matches(entry, BrowserKind.PHOTOS) || entry.extension.lowercase() in videoExtensions) && entry.isFile -> found += entry
                     entry.isDirectory -> queue.addLast(entry)
                 }
             }
@@ -84,6 +86,14 @@ class FileBrowser(
     companion object {
         /** Formati audio che il lettore di Android riproduce su tutte le versioni supportate. */
         val AUDIO_EXTENSIONS = setOf("mp3", "m4a", "aac", "ogg", "oga", "opus", "flac", "wav", "mid", "midi", "amr", "3gp")
+
+        /**
+         * Contenitori video che il lettore dell'app (Media3) sa aprire; i codec dipendono dalla TV, e un
+         * video che la TV non sa decodificare viene saltato.
+         */
+        val VIDEO_EXTENSIONS = setOf(
+            "mp4", "m4v", "mov", "3gp", "3g2", "mkv", "webm", "ts", "mts", "m2ts", "mpg", "mpeg", "avi", "flv", "ogv",
+        )
 
         /**
          * Formati di immagine decodificabili dalla versione di Android indicata: RAW, TIFF e PSD

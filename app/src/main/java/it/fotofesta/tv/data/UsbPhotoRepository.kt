@@ -15,7 +15,7 @@ import java.util.ArrayDeque
 
 class UsbPhotoRepository(private val context: Context) {
     /**
-     * Indicizza la cartella scelta e le sottocartelle con una sola query per cartella.
+     * Indicizza foto e video della cartella scelta e delle sottocartelle con una sola query per cartella.
      * `DocumentFile.listFiles()` farebbe invece tre query per ogni file (tipo, nome, cartella),
      * troppo lento su dischi USB con migliaia di foto.
      */
@@ -23,7 +23,8 @@ class UsbPhotoRepository(private val context: Context) {
         val resolver = context.contentResolver
         val queue = ArrayDeque<String>().apply { add(DocumentsContract.getTreeDocumentId(treeUri)) }
         val visited = HashSet<String>()
-        val found = mutableListOf<Pair<String, String>>()
+        // Identificativo, nome e se è un video.
+        val found = mutableListOf<Triple<String, String, Boolean>>()
 
         while (queue.isNotEmpty() && found.size < limit) {
             ensureActive()
@@ -39,20 +40,21 @@ class UsbPhotoRepository(private val context: Context) {
                         // Esclude file nascosti, come i "._IMG.jpg" creati da macOS sui dischi esterni.
                         id == null || name.startsWith(".") -> Unit
                         mime == Document.MIME_TYPE_DIR -> queue.addLast(id)
-                        mime in SUPPORTED_IMAGE_TYPES -> found += id to name
+                        mime in SUPPORTED_IMAGE_TYPES || mime.startsWith("video/") -> found += Triple(id, name, mime.startsWith("video/"))
                     }
                 }
             }
         }
 
         found.sortedWith(compareBy(NaturalOrder) { it.second })
-            .map { (id, name) ->
+            .map { (id, name, video) ->
                 val uri = DocumentsContract.buildDocumentUriUsingTree(treeUri, id)
                 PhotoItem(
                     id = "usb:$uri",
                     title = name.substringBeforeLast('.').ifBlank { name },
                     ref = PhotoRef.LocalUri(uri.toString()),
                     source = SourceType.USB,
+                    video = video,
                 )
             }
     }

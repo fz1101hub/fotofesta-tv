@@ -263,9 +263,9 @@
         <item quantity="other">%1$d foto pronte.</item>
     </plurals>
     <plurals name="message_google_skipped">
-        <item quantity="one">%1$d elemento ignorato: vengono mostrate solo le foto, non i video.</item>
-        <item quantity="many">%1$d elementi ignorati: vengono mostrate solo le foto, non i video.</item>
-        <item quantity="other">%1$d elementi ignorati: vengono mostrate solo le foto, non i video.</item>
+        <item quantity="one">%1$d elemento ignorato: si mostrano solo foto e video.</item>
+        <item quantity="many">%1$d elementi ignorati: si mostrano solo foto e video.</item>
+        <item quantity="other">%1$d elementi ignorati: si mostrano solo foto e video.</item>
     </plurals>
     <plurals name="guests_pending">
         <item quantity="one">%1$d foto da approvare</item>
@@ -395,4 +395,9 @@
         <item quantity="many">Rete di casa · %1$d foto</item>
         <item quantity="other">Rete di casa · %1$d foto</item>
     </plurals>
+    <string name="settings_videos">Video</string>
+    <string name="settings_videos_body">Insieme alle foto, dall\'inizio alla fine. I giochi e il salvaschermo usano solo le foto.</string>
+    <string name="settings_video_sound">Audio dei video</string>
+    <string name="settings_video_sound_body">Mentre un video suona, la musica di sottofondo si ferma.</string>
+    <string name="video_unsupported">Questo video non si può riprodurre su questa TV.</string>
 </resources>

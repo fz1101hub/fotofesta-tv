@@ -123,6 +123,7 @@ fun SlideshowScreen(
     onNext: () -> Unit,
     onPrevious: () -> Unit,
     onSettings: () -> Unit,
+    onVideoAudible: (String, Boolean) -> Unit,
 ) {
     val photo = state.photos.getOrNull(state.currentIndex)
     val screenFocus = remember { FocusRequester() }
@@ -140,7 +141,8 @@ fun SlideshowScreen(
         if (previous != null && previous != photo?.id) recentIds = (listOf(previous) + recentIds).distinct().take(MOSAIC_HISTORY)
         lastShownId[0] = photo?.id
     }
-    val mosaic = state.settings.layout == SlideshowLayout.MOSAIC && state.photos.size > 1
+    // I video si guardano a schermo intero anche con il mosaico.
+    val mosaic = state.settings.layout == SlideshowLayout.MOSAIC && state.photos.size > 1 && photo?.video != true
 
     fun showControls(focusBar: Boolean) {
         controlsVisible = true
@@ -164,14 +166,16 @@ fun SlideshowScreen(
     }
     // Il conteggio riparte solo a un cambio di foto voluto (slideTick), non quando l'indice si sposta
     // o il numero di foto cambia perché arrivano o spariscono foto degli invitati.
+    // Un video si guarda fino alla fine: lo slideshow va avanti quando finisce (VideoSlide).
     val canAdvance = state.photos.size > 1
-    LaunchedEffect(state.isPlaying, state.slideTick, state.settings.intervalSeconds, canAdvance) {
-        if (state.isPlaying && canAdvance) {
+    val showingVideo = photo?.video == true
+    LaunchedEffect(state.isPlaying, state.slideTick, state.settings.intervalSeconds, canAdvance, showingVideo) {
+        if (state.isPlaying && canAdvance && !showingVideo) {
             delay(state.settings.intervalSeconds * 1_000L)
             onNext()
         }
     }
-    PrefetchPhoto(upcoming, state.settings.fitMode, viewport)
+    PrefetchPhoto(upcoming?.takeUnless { it.video }, state.settings.fitMode, viewport)
     // Indietro dai pulsanti riporta prima il focus sulla foto (nascondendo i controlli); poi esce.
     BackHandler(enabled = !screenFocused) { hideControls() }
 
@@ -230,14 +234,29 @@ fun SlideshowScreen(
                 label = "slideTransition",
                 modifier = Modifier.fillMaxSize(),
             ) { item ->
-                SlidePhoto(
-                    item,
-                    state.settings,
-                    playing = state.isPlaying,
-                    // Copre anche la transizione verso la foto successiva, così il movimento non si ferma.
-                    durationMillis = state.settings.intervalSeconds * 1_000 + 800,
-                    modifier = Modifier.fillMaxSize(),
-                )
+                if (item.video) {
+                    VideoSlide(
+                        item,
+                        state.settings.fitMode,
+                        active = item.id == photo.id,
+                        playing = state.isPlaying,
+                        sound = state.settings.videoSound,
+                        // Unico elemento della raccolta: il video ricomincia da capo.
+                        loop = !canAdvance,
+                        onEnded = { if (canAdvance) onNext() },
+                        onAudible = { audible -> onVideoAudible(item.id, audible) },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    SlidePhoto(
+                        item,
+                        state.settings,
+                        playing = state.isPlaying,
+                        // Copre anche la transizione verso la foto successiva, così il movimento non si ferma.
+                        durationMillis = state.settings.intervalSeconds * 1_000 + 800,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
             }
         } else if (state.guests.active) {
             WaitingForGuests(state.guests, Modifier.align(Alignment.Center))
@@ -305,8 +324,11 @@ fun SlideshowScreen(
             }
             if (photo != null) {
                 Caption(photo, state)
-                Spacer(Modifier.height(10.dp))
-                SlideProgress(state)
+                // La barra misura il tempo di una foto; un video dura quanto dura.
+                if (!photo.video) {
+                    Spacer(Modifier.height(10.dp))
+                    SlideProgress(state)
+                }
             }
         }
     }

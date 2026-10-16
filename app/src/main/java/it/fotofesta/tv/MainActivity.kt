@@ -209,9 +209,11 @@ class MainActivity : ComponentActivity() {
                             onNext = viewModel::next,
                             onPrevious = viewModel::previous,
                             onSettings = { viewModel.pause(); viewModel.navigate(Destination.SETTINGS) },
+                            onVideoAudible = viewModel::setVideoAudible,
                         )
                         Destination.GAMES -> GamesScreen(
-                            photoCount = state.photos.size,
+                            // I giochi usano solo le foto: i video si guardano nello slideshow.
+                            photoCount = state.photos.count { !it.video },
                             whoTookItPlayable = WhoTookIt.canPlay(state.photos),
                             onBack = { viewModel.navigate(Destination.HOME) },
                             onMemory = { viewModel.navigate(Destination.MEMORY) },
@@ -222,15 +224,15 @@ class MainActivity : ComponentActivity() {
                         // Le partite usano le foto presenti all'apertura del gioco: quelle che arrivano
                         // dagli invitati durante la partita non la fanno ricominciare.
                         Destination.MEMORY -> {
-                            val photos = remember { state.photos }
+                            val photos = remember { state.photos.filterNot { it.video } }
                             MemoryGameScreen(photos) { viewModel.navigate(Destination.GAMES) }
                         }
                         Destination.MYSTERY -> {
-                            val photos = remember { state.photos }
+                            val photos = remember { state.photos.filterNot { it.video } }
                             MysteryGameScreen(photos, phonePlay(state)) { viewModel.navigate(Destination.GAMES) }
                         }
                         Destination.PUZZLE -> {
-                            val photos = remember { state.photos }
+                            val photos = remember { state.photos.filterNot { it.video } }
                             PuzzleGameScreen(photos) { viewModel.navigate(Destination.GAMES) }
                         }
                         Destination.WHO_TOOK_IT -> {

@@ -70,6 +70,8 @@ data class PhotoItem(
     val sender: String? = null,
     /** Quando la foto è arrivata alla TV (epoch ms), per le foto degli invitati. */
     val receivedAtMillis: Long? = null,
+    /** È un video: nello slideshow si guarda fino alla fine; giochi e salvaschermo lo saltano. */
+    val video: Boolean = false,
 )
 
 data class SlideshowSettings(
@@ -89,6 +91,10 @@ data class SlideshowSettings(
     val countdown: Boolean = false,
     val countdownMinutes: Int = 0,
     val countdownEvent: CountdownEvent = CountdownEvent.MIDNIGHT,
+    /** Video della raccolta nello slideshow, insieme alle foto. */
+    val videos: Boolean = true,
+    /** Audio dei video: mentre suona, la musica di sottofondo si ferma. */
+    val videoSound: Boolean = true,
 )
 
 sealed interface GoogleConnectState {

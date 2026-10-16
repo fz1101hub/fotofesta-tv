@@ -42,9 +42,11 @@ class ActiveCollection(private val context: Context) {
         val guests = party.store.photos.value
             .filter { it.approved }
             .map { it.toPhotoItem(context) }
+        // Il salvaschermo mostra solo le foto: un video acceso da solo nella notte non è un salvaschermo.
+        val stills = photos.filterNot { it.video }
         combineWithGuests(
-            base = photos.ifEmpty { DemoPhotos.load(context) },
-            baseIsDemo = photos.isEmpty(),
+            base = stills.ifEmpty { DemoPhotos.load(context) },
+            baseIsDemo = stills.isEmpty(),
             guests = guests,
             partyActive = false,
         )

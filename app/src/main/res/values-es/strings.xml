@@ -263,9 +263,9 @@
         <item quantity="other">%1$d fotos listas.</item>
     </plurals>
     <plurals name="message_google_skipped">
-        <item quantity="one">%1$d elemento omitido: solo se muestran fotos, no vídeos.</item>
-        <item quantity="many">%1$d elementos omitidos: solo se muestran fotos, no vídeos.</item>
-        <item quantity="other">%1$d elementos omitidos: solo se muestran fotos, no vídeos.</item>
+        <item quantity="one">%1$d elemento omitido: solo se muestran fotos y vídeos.</item>
+        <item quantity="many">%1$d elementos omitidos: solo se muestran fotos y vídeos.</item>
+        <item quantity="other">%1$d elementos omitidos: solo se muestran fotos y vídeos.</item>
     </plurals>
     <plurals name="guests_pending">
         <item quantity="one">%1$d foto por aprobar</item>
@@ -395,4 +395,9 @@
         <item quantity="many">Red local · %1$d fotos</item>
         <item quantity="other">Red local · %1$d fotos</item>
     </plurals>
+    <string name="settings_videos">Vídeos</string>
+    <string name="settings_videos_body">Junto a las fotos, de principio a fin. Los juegos y el salvapantallas solo usan fotos.</string>
+    <string name="settings_video_sound">Sonido de los vídeos</string>
+    <string name="settings_video_sound_body">Mientras suena un vídeo, la música de fondo se detiene.</string>
+    <string name="video_unsupported">Este vídeo no se puede reproducir en esta TV.</string>
 </resources>

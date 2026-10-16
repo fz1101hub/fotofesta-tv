@@ -263,9 +263,9 @@
         <item quantity="other">%1$d photos prêtes.</item>
     </plurals>
     <plurals name="message_google_skipped">
-        <item quantity="one">%1$d élément ignoré : seules les photos sont affichées, pas les vidéos.</item>
-        <item quantity="many">%1$d éléments ignorés : seules les photos sont affichées, pas les vidéos.</item>
-        <item quantity="other">%1$d éléments ignorés : seules les photos sont affichées, pas les vidéos.</item>
+        <item quantity="one">%1$d élément ignoré : seules les photos et les vidéos sont affichées.</item>
+        <item quantity="many">%1$d éléments ignorés : seules les photos et les vidéos sont affichées.</item>
+        <item quantity="other">%1$d éléments ignorés : seules les photos et les vidéos sont affichées.</item>
     </plurals>
     <plurals name="guests_pending">
         <item quantity="one">%1$d photo à approuver</item>
@@ -395,4 +395,9 @@
         <item quantity="many">Réseau local · %1$d photos</item>
         <item quantity="other">Réseau local · %1$d photos</item>
     </plurals>
+    <string name="settings_videos">Vidéos</string>
+    <string name="settings_videos_body">Avec les photos, du début à la fin. Les jeux et l’économiseur d’écran n’utilisent que les photos.</string>
+    <string name="settings_video_sound">Son des vidéos</string>
+    <string name="settings_video_sound_body">Pendant le son d’une vidéo, la musique de fond s’arrête.</string>
+    <string name="video_unsupported">Cette vidéo ne peut pas être lue sur ce téléviseur.</string>
 </resources>

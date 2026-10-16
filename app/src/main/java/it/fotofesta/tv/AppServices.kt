@@ -11,6 +11,7 @@ import it.fotofesta.tv.google.SecureTokenStore
 import it.fotofesta.tv.guests.GuestParty
 import it.fotofesta.tv.guests.PhoneGame
 import it.fotofesta.tv.guests.GuestPhotoStore
+import it.fotofesta.tv.media.VideoDataSources
 import it.fotofesta.tv.network.LanHttp
 import it.fotofesta.tv.network.NetworkMedia
 import okhttp3.OkHttpClient
@@ -51,6 +52,9 @@ class AppServices(context: Context) {
 
     /** Cartelle dei server multimediali (DLNA) della rete di casa. */
     val networkMedia = NetworkMedia(lanHttp, NetworkMedia.imageMimeTypes(Build.VERSION.SDK_INT))
+
+    /** Da dove il lettore legge i video: TV e disco USB, rete di casa, Google Foto. */
+    val videoDataSources = VideoDataSources(context.applicationContext, lanHttp, googleStream, http)
 
     /** Gioco con i telefoni: la TV fa le domande, gli invitati rispondono dalla pagina della festa. */
     val phoneGame = PhoneGame()

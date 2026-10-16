@@ -54,7 +54,7 @@ class LanHttp(
     /** Solo per i test: permette 127.0.0.1. */
     private val allowLoopback: Boolean = false,
 ) {
-    fun get(url: String): LanResponse = request("GET", url, emptyMap(), null)
+    fun get(url: String, headers: Map<String, String> = emptyMap()): LanResponse = request("GET", url, headers, null)
 
     fun post(url: String, headers: Map<String, String>, body: ByteArray): LanResponse = request("POST", url, headers, body)
 

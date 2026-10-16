@@ -47,6 +47,7 @@ class GooglePhotosPickerRepository(
         val mimeType: String,
     ) {
         val isPhoto: Boolean get() = mimeType.startsWith("image/")
+        val isVideo: Boolean get() = mimeType.startsWith("video/")
     }
 
     suspend fun createSession(token: String): PickingSession {

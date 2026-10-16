@@ -208,7 +208,7 @@ private fun collectionDetail(state: AppState): String {
 /** Sfondo: le foto della raccolta in uso, una alla volta, con una dissolvenza lenta. */
 @Composable
 private fun HomeBackdrop(state: AppState) {
-    val photos = remember(state.photos) { state.photos.take(BACKDROP_PHOTOS) }
+    val photos = remember(state.photos) { state.photos.asSequence().filterNot { it.video }.take(BACKDROP_PHOTOS).toList() }
     if (photos.isEmpty()) return
     var index by remember(photos) { mutableIntStateOf(0) }
     LaunchedEffect(photos) {

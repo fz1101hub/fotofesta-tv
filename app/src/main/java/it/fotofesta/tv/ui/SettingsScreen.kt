@@ -243,6 +243,22 @@ fun SettingsScreen(
                                 value = stringResource(settings.layout.labelRes),
                             )
                             SettingsItem(
+                                stringResource(R.string.settings_videos),
+                                { onChange(settings.copy(videos = !settings.videos)) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_videos_body),
+                                checked = settings.videos,
+                            )
+                            if (settings.videos) {
+                                SettingsItem(
+                                    stringResource(R.string.settings_video_sound),
+                                    { onChange(settings.copy(videoSound = !settings.videoSound)) },
+                                    toCategory,
+                                    subtitle = stringResource(R.string.settings_video_sound_body),
+                                    checked = settings.videoSound,
+                                )
+                            }
+                            SettingsItem(
                                 stringResource(R.string.settings_shuffle),
                                 { onChange(settings.copy(shuffle = !settings.shuffle)) },
                                 toCategory,

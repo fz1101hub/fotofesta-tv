@@ -25,6 +25,12 @@ class MosaicTest {
     }
 
     @Test
+    fun `videos never go in the small tiles`() {
+        val mixed = photos.map { if (it.id == "p1" || it.id == "p3") it.copy(video = true) else it }
+        assertEquals(listOf("p0", "p4"), ids(mosaicSidePhotos(mixed, 2, listOf("p1", "p0"))))
+    }
+
+    @Test
     fun `small collections show fewer side photos`() {
         assertEquals(listOf("p1"), ids(mosaicSidePhotos(photos.take(2), 0, emptyList())))
         assertEquals(emptyList<String>(), ids(mosaicSidePhotos(photos.take(1), 0, listOf("p0"))))

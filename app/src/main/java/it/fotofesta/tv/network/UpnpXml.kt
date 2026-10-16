@@ -107,7 +107,16 @@ object UpnpXml {
         }
         val files = didl.children("item").mapNotNull { item ->
             val id = item.getAttribute("id").takeIf { it.isNotEmpty() } ?: return@mapNotNull null
-            val resource = bestResource(item, acceptsMime) ?: return@mapNotNull null
+            // La classe dice cos'è: un brano o un video può avere fra le versioni la copertina in JPEG,
+            // che non va presa per una foto.
+            val upnpClass = item.child("class")?.text().orEmpty()
+            val kind: (String) -> Boolean = when {
+                upnpClass.startsWith("object.item.audioItem") -> return@mapNotNull null
+                upnpClass.startsWith("object.item.videoItem") -> { mime -> mime.startsWith("video/") }
+                upnpClass.startsWith("object.item.imageItem") -> { mime -> mime.startsWith("image/") }
+                else -> { _ -> true }
+            }
+            val resource = bestResource(item) { acceptsMime(it) && kind(it) } ?: return@mapNotNull null
             val url = resolve(baseUrl, resource.first) ?: return@mapNotNull null
             MediaFile(id, item.child("title")?.text().orEmpty().ifEmpty { id }, url, resource.second)
         }

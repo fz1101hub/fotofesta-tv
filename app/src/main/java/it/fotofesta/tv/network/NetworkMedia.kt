@@ -77,7 +77,7 @@ class NetworkMedia(
     }
 
     /**
-     * Foto della cartella e delle sottocartelle, al massimo [limit], nell'ordine del server.
+     * Foto e video della cartella e delle sottocartelle, al massimo [limit], nell'ordine del server.
      * [checkCancelled] viene chiamato a ogni cartella e può lanciare un'eccezione per interrompere.
      */
     fun scanPhotos(server: MediaServer, containerId: String, limit: Int = MAX_PHOTOS, checkCancelled: () -> Unit = {}): List<PhotoItem> {
@@ -116,19 +116,21 @@ class NetworkMedia(
         return http.post(server.controlUrl, headers, body).use { response ->
             // Gli errori SOAP arrivano con 500 e un Fault nel corpo, che parseBrowseResponse spiega.
             if (!response.isSuccessful && response.status != 500) throw IOException("Browse: HTTP ${response.status}")
-            val page = UpnpXml.parseBrowseResponse(response.bytes(MAX_BROWSE_BYTES), server.controlUrl, ::acceptsImage)
+            val page = UpnpXml.parseBrowseResponse(response.bytes(MAX_BROWSE_BYTES), server.controlUrl, ::acceptsMedia)
             // Solo file raggiungibili dalla TV: un indirizzo fuori dalla rete di casa non si carica.
             page.copy(files = page.files.filter { http.accepts(it.url) })
         }
     }
 
-    private fun acceptsImage(mime: String): Boolean = mime in imageMimeTypes
+    /** Foto che la TV sa decodificare e video (il lettore salta quelli che la TV non sa riprodurre). */
+    private fun acceptsMedia(mime: String): Boolean = mime in imageMimeTypes || mime.startsWith("video/")
 
     private fun MediaFile.toPhotoItem(server: MediaServer) = PhotoItem(
         id = "net:${server.udn}:$id",
         title = title.substringBeforeLast('.').ifBlank { title },
         ref = PhotoRef.NetworkPhoto(url),
         source = SourceType.NETWORK,
+        video = mimeType.startsWith("video/"),
     )
 
     companion object {

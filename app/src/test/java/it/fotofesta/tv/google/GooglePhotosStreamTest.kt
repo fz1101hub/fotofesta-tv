@@ -233,15 +233,20 @@ class GoogleSelectionStoreTest {
     @Test
     fun `selection survives a restart and becomes photos without copies`() {
         val file = File(temp.root, "selection.json")
-        val selection = GoogleSelection("s1", 1_234L, listOf(GoogleSelection.Item("a", "Mare.jpg"), GoogleSelection.Item("b", "Monti \"2\".png")))
+        val selection = GoogleSelection(
+            "s1",
+            1_234L,
+            listOf(GoogleSelection.Item("a", "Mare.jpg"), GoogleSelection.Item("b", "Monti \"2\".png"), GoogleSelection.Item("c", "Torta.mp4", video = true)),
+        )
 
         GoogleSelectionStore(file).save(selection)
         val restored = GoogleSelectionStore(file).current()
 
         assertEquals(selection, restored)
         val photos = restored!!.toPhotos()
-        assertEquals(listOf("google:a", "google:b"), photos.map { it.id })
+        assertEquals(listOf("google:a", "google:b", "google:c"), photos.map { it.id })
         assertEquals(PhotoRef.GooglePhoto("b"), photos[1].ref)
+        assertEquals(listOf(false, false, true), photos.map { it.video })
         assertEquals(listOf("selection.json"), temp.root.list()!!.toList())
     }
 

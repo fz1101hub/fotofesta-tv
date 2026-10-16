@@ -44,6 +44,8 @@ class SettingsRepository(context: Context) {
         countdown = prefs.getBoolean("countdown", false),
         countdownMinutes = prefs.getInt("countdown_minutes", 0).takeIf { it in Countdown.TIME_OPTIONS } ?: 0,
         countdownEvent = enumValueOrDefault(prefs.getString("countdown_event", null), CountdownEvent.MIDNIGHT),
+        videos = prefs.getBoolean("videos", true),
+        videoSound = prefs.getBoolean("video_sound", true),
     )
 
     fun save(value: SlideshowSettings) {
@@ -61,6 +63,8 @@ class SettingsRepository(context: Context) {
             .putBoolean("countdown", value.countdown)
             .putInt("countdown_minutes", value.countdownMinutes)
             .putString("countdown_event", value.countdownEvent.name)
+            .putBoolean("videos", value.videos)
+            .putBoolean("video_sound", value.videoSound)
             .apply()
     }
 

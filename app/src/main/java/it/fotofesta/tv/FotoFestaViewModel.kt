@@ -94,6 +94,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private var disconnectJob: Job? = null
     private var sleepJob: Job? = null
     private var sleepJobMinutes = 0
+    /** Video che stanno suonando: intanto la musica di sottofondo si ferma. */
+    private val audibleVideos = mutableSetOf<String>()
     private val savedMusic = settingsRepository.loadMusic()
     /** Brani da suonare: quello scelto, o quelli della cartella scelta (letti all'avvio). */
     private var musicTracks: List<String> = savedMusic?.takeIf { !it.folder }?.let { listOf(it.uri) } ?: emptyList()
@@ -261,6 +263,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         }
         musicPlayer.setVolume(value.musicVolume)
         if (previous.sleepTimerMinutes != value.sleepTimerMinutes) syncSleepTimer()
+        if (previous.videos != value.videos) applyCollection(restart = false)
     }
 
     fun loadUsb(treeUri: Uri) {
@@ -480,7 +483,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                         trail = trail,
                         folders = page.containers.map { folder -> BrowserEntry(folder.title, NetworkPath.of(udn, folder.id)) },
                         files = emptyList(),
-                        photosHere = page.files.size,
+                        photosHere = page.files.count { file -> file.mimeType.startsWith("image/") },
                         loading = false,
                     ),
                 )
@@ -950,7 +953,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
      */
     private fun applyCollection(restart: Boolean) {
         val current = _state.value
-        val photos = combineWithGuests(basePhotos, baseIsDemo, guestPhotos, guestPartyActive)
+        val base = if (current.settings.videos) basePhotos else basePhotos.filterNot { it.video }
+        val photos = combineWithGuests(base, baseIsDemo, guestPhotos, guestPartyActive)
         val shuffle = current.settings.shuffle
         if (restart) {
             val index = if (shuffle && photos.isNotEmpty()) photos.indices.random() else 0
@@ -1000,9 +1004,15 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
 
     private fun syncMusic() {
         val current = _state.value
-        if (current.isPlaying) musicPlayer.play(musicTracks, current.settings.musicVolume)
+        if (current.isPlaying && audibleVideos.isEmpty()) musicPlayer.play(musicTracks, current.settings.musicVolume)
         else musicPlayer.pause()
         syncSleepTimer()
+    }
+
+    /** Un video dello slideshow inizia o smette di suonare. */
+    fun setVideoAudible(id: String, audible: Boolean) {
+        val changed = if (audible) audibleVideos.add(id) else audibleVideos.remove(id)
+        if (changed) syncMusic()
     }
 
     /**

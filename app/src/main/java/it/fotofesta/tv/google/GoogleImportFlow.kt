@@ -21,7 +21,7 @@ class GoogleImportFlow(
     private val auth: GoogleDeviceAuthRepository,
     private val picker: GooglePhotosPickerRepository,
 ) {
-    /** [skipped] conta gli elementi scelti che non sono foto (ad esempio i video). */
+    /** [skipped] conta gli elementi scelti che non sono né foto né video. */
     data class Result(val selection: GoogleSelection, val skipped: Int)
 
     suspend fun run(onState: (GoogleConnectState) -> Unit): Result {
@@ -52,14 +52,14 @@ class GoogleImportFlow(
             onState(GoogleConnectState.WaitingForPhotos(session.pickerUri))
             val completed = picker.awaitSelection(tokens, session)
             val picked = picker.listPickedMedia(tokens, completed.id)
-            val photos = picked.filter { it.isPhoto }
-            if (photos.isEmpty()) throw UserFacingException(R.string.error_google_nothing_selected)
+            val media = picked.filter { it.isPhoto || it.isVideo }
+            if (media.isEmpty()) throw UserFacingException(R.string.error_google_nothing_selected)
             val selection = GoogleSelection(
                 sessionId = completed.id,
                 expiresAtMillis = completed.expiresAtMillis ?: session.expiresAtMillis,
-                items = photos.map { GoogleSelection.Item(it.id, it.filename) },
+                items = media.map { GoogleSelection.Item(it.id, it.filename, video = it.isVideo) },
             )
-            return Result(selection, skipped = picked.size - photos.size)
+            return Result(selection, skipped = picked.size - media.size)
         } catch (failure: Throwable) {
             withContext(NonCancellable) { picker.deleteSession(tokens, session.id) }
             throw failure

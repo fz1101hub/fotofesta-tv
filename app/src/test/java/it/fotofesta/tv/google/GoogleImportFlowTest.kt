@@ -101,24 +101,30 @@ class GoogleImportFlowTest {
     }
 
     @Test
-    fun `videos are skipped and counted`() = runTest {
+    fun `videos are kept and other types are skipped and counted`() = runTest {
         tokens.accessToken = "ok"
         tokens.expiresAtEpochSeconds = now / 1_000 + 3_000
         pickerSessionReady()
-        server.enqueue("GET", "/v1/mediaItems", json("""{"mediaItems":[${mediaItem("ok")},${mediaItem("film", "video/mp4")}]}"""))
+        server.enqueue(
+            "GET",
+            "/v1/mediaItems",
+            json("""{"mediaItems":[${mediaItem("ok")},${mediaItem("film", "video/mp4")},${mediaItem("doc", "application/pdf")}]}"""),
+        )
 
         val result = flow().run { }
 
-        assertEquals(listOf("ok"), result.selection.items.map { it.id })
+        assertEquals(listOf("ok", "film"), result.selection.items.map { it.id })
+        assertEquals(listOf(false, true), result.selection.items.map { it.video })
+        assertEquals(listOf(false, true), result.selection.toPhotos().map { it.video })
         assertEquals(1, result.skipped)
     }
 
     @Test
-    fun `only videos are reported as nothing selected`() = runTest {
+    fun `only unsupported items are reported as nothing selected`() = runTest {
         tokens.accessToken = "ok"
         tokens.expiresAtEpochSeconds = now / 1_000 + 3_000
         pickerSessionReady()
-        server.enqueue("GET", "/v1/mediaItems", json("""{"mediaItems":[${mediaItem("film", "video/mp4")}]}"""))
+        server.enqueue("GET", "/v1/mediaItems", json("""{"mediaItems":[${mediaItem("doc", "application/pdf")}]}"""))
 
         try {
             flow().run { }

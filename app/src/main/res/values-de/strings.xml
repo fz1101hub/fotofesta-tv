@@ -252,8 +252,8 @@
         <item quantity="other">%1$d Fotos bereit.</item>
     </plurals>
     <plurals name="message_google_skipped">
-        <item quantity="one">%1$d Element übersprungen: Es werden nur Fotos angezeigt, keine Videos.</item>
-        <item quantity="other">%1$d Elemente übersprungen: Es werden nur Fotos angezeigt, keine Videos.</item>
+        <item quantity="one">%1$d Element übersprungen: Es werden nur Fotos und Videos angezeigt.</item>
+        <item quantity="other">%1$d Elemente übersprungen: Es werden nur Fotos und Videos angezeigt.</item>
     </plurals>
     <plurals name="guests_pending">
         <item quantity="one">%1$d Foto zur Freigabe</item>
@@ -371,4 +371,9 @@
         <item quantity="one">Heimnetz · %1$d Foto</item>
         <item quantity="other">Heimnetz · %1$d Fotos</item>
     </plurals>
+    <string name="settings_videos">Videos</string>
+    <string name="settings_videos_body">Zusammen mit den Fotos, von Anfang bis Ende. Spiele und Bildschirmschoner verwenden nur Fotos.</string>
+    <string name="settings_video_sound">Ton der Videos</string>
+    <string name="settings_video_sound_body">Während ein Video Ton hat, pausiert die Hintergrundmusik.</string>
+    <string name="video_unsupported">Dieses Video kann auf diesem Fernseher nicht abgespielt werden.</string>
 </resources>
