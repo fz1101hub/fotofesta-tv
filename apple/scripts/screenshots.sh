@@ -104,6 +104,30 @@ upload() {
   echo
 }
 
+# Risponde dal telefono di due invitati, come la pagina della festa: GET /game e POST /game/answer.
+answer_phones() {
+  local url key base round=""
+  url=$(cat "$URL_FILE")
+  key=$(sed 's|.*?k=||' <<<"$url")
+  base=$(sed 's|/?k=.*||' <<<"$url")
+  for _ in $(seq 60); do
+    round=$(curl -fsS --max-time 5 -H "X-FotoFesta-Key: $key" "$base/game" \
+      | python3 -c 'import json, sys; print(json.load(sys.stdin).get("round") or "")' || true)
+    [ -n "$round" ] && break
+    sleep 0.5
+  done
+  if [ -z "$round" ]; then
+    echo "::error::Nessuna domanda per i telefoni"
+    exit 1
+  fi
+  curl -fsS --max-time 10 -H "X-FotoFesta-Key: $key" \
+    --data "round=$round&choice=0&player=telefono-giulia&name=Giulia" "$base/game/answer"
+  echo
+  curl -fsS --max-time 10 -H "X-FotoFesta-Key: $key" \
+    --data "round=$round&choice=1&player=telefono-marco&name=Marco" "$base/game/answer"
+  echo
+}
+
 for scenario in "${SCENARIOS[@]}"; do
   launch "$scenario"
   capture "$scenario" 10
@@ -122,6 +146,11 @@ launch who_game
 upload "$OUT/guest_portrait.jpg" Giulia
 upload "$OUT/guest_landscape.jpg" Marco
 capture who_game 6
+launch who_phone
+upload "$OUT/guest_portrait.jpg" Giulia
+upload "$OUT/guest_landscape.jpg" Marco
+answer_phones
+capture who_phone 6
 launch awards
 upload "$OUT/guest_portrait.jpg" Giulia
 upload "$OUT/guest_landscape.jpg" Marco

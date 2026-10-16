@@ -70,6 +70,9 @@ final class GuestParty {
         static let wifiHasPassword = "guests.wifiHasPassword"
     }
 
+    /// Gioco con i telefoni, servito dalla stessa pagina della festa.
+    let phoneGame = PhoneGame()
+
     init() {
         let defaults = UserDefaults.standard
         active = defaults.bool(forKey: Keys.active)
@@ -266,7 +269,8 @@ final class GuestParty {
                 Task { @MainActor [weak self] in
                     if let server = failure.server { self?.serverFailed(server) }
                 }
-            }
+            },
+            game: phoneGame
         )
         failure.server = candidate
         do {

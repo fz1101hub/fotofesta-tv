@@ -148,6 +148,17 @@
 "who.wrong" = "No, %@ sent it.";
 "who.next" = "Next photo";
 "who.photo" = "Photo to guess";
+"phone.title" = "Answer on your phone";
+"phone.scan" = "Scan the party QR code: the question appears on the page.";
+"phone.leaderboard" = "Leaderboard";
+"phone.mode_phones" = "With phones";
+"phone.mode_remote" = "With the remote";
+"phone.reveal" = "Show the answer";
+"phone.reveal_who" = "%@ sent it.";
+"phone.answers.one" = "%ld answer";
+"phone.answers.other" = "%ld answers";
+"phone.points.one" = "%ld point";
+"phone.points.other" = "%ld points";
 "guests.awards" = "Party awards";
 "awards.title" = "The party awards";
 "awards.golden_lens" = "Golden lens";

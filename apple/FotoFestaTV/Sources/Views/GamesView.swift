@@ -175,42 +175,94 @@ struct MysteryGameView: View {
     @State private var revealed = false
     @State private var hintLevel = 0
     @State private var feedback = L("mystery.prompt")
+    /// Con i telefoni rispondono gli invitati: la foto si fa più nitida da sola ogni tanto e il
+    /// telecomando mostra la risposta.
+    @State private var phoneMode = false
+    @FocusState private var newPhotoFocused: Bool
+
+    private static let phoneHintDelay: Duration = .seconds(8)
+
+    /// Indirizzo della pagina della festa: il gioco con i telefoni c'è solo durante la festa.
+    private var phoneURL: String? { model.guests.active ? model.guests.url : nil }
+    private var phoneGame: PhoneGame { model.guests.phoneGame }
 
     var body: some View {
         HStack(spacing: 56) {
-            ZStack {
-                Color(white: 0.12)
-                if let answer {
-                    PhotoImage(photo: answer, fitMode: .crop, maxPixelSize: 1600, accessibilityLabel: revealed ? answer.title : L("mystery.hidden_photo"))
-                        .blur(radius: revealed ? 0 : CGFloat(40 - hintLevel * 12))
+            VStack(spacing: 28) {
+                ZStack {
+                    Color(white: 0.12)
+                    if let answer {
+                        PhotoImage(photo: answer, fitMode: .crop, maxPixelSize: 1600, accessibilityLabel: revealed ? answer.title : L("mystery.hidden_photo"))
+                            .blur(radius: revealed ? 0 : CGFloat(40 - hintLevel * 12))
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 28))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                if phoneMode, let phoneURL {
+                    PhonePlayPanel(game: phoneGame, url: phoneURL, revealed: revealed)
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 28))
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             VStack(alignment: .leading, spacing: 24) {
                 Text(L("games.mystery_title")).font(.headline).foregroundStyle(Theme.secondaryText)
                 Text(revealed ? L("mystery.solved", answer?.title ?? "") : L("mystery.question"))
                     .font(.title2.bold())
                     .fixedSize(horizontal: false, vertical: true)
-                Text(feedback).font(.title3.bold()).fixedSize(horizontal: false, vertical: true)
-                ForEach(choices) { choice in
-                    Button(choice.title) { choose(choice) }
-                        .disabled(revealed)
+                if phoneMode {
+                    VStack(spacing: 12) {
+                        ForEach(choices) { choice in
+                            ChoiceLabel(text: choice.title, highlighted: revealed && choice.id == answer?.id)
+                        }
+                    }
+                    if !revealed {
+                        Button(L("phone.reveal")) {
+                            phoneGame.reveal()
+                            revealed = true
+                            newPhotoFocused = true
+                        }
+                    }
+                } else {
+                    Text(feedback).font(.title3.bold()).fixedSize(horizontal: false, vertical: true)
+                    ForEach(choices) { choice in
+                        Button(choice.title) { choose(choice) }
+                            .disabled(revealed)
+                    }
                 }
                 Button(L("mystery.new_photo")) { newRound() }
+                    .focused($newPhotoFocused)
+                if phoneURL != nil {
+                    Button(phoneMode ? L("phone.mode_remote") : L("phone.mode_phones")) { togglePhoneMode() }
+                }
             }
-            .frame(width: 640)
+            .frame(width: 640, alignment: .leading)
         }
         .padding(64)
         .background(Theme.background.ignoresSafeArea())
         .onAppear { if answer == nil { newRound() } }
+        .onDisappear {
+            if phoneMode { phoneGame.stop() }
+        }
+        // Se la festa finisce durante la partita si torna al telecomando.
+        .onChange(of: phoneURL) { _, url in
+            if url == nil, phoneMode { togglePhoneMode() }
+        }
+        // Con i telefoni nessuno sbaglia dal telecomando: la foto si fa più nitida col tempo.
+        .task(id: "\(answer?.id ?? "")|\(phoneMode)") {
+            guard phoneMode else { return }
+            for _ in 0..<2 {
+                try? await Task.sleep(for: Self.phoneHintDelay)
+                guard !Task.isCancelled else { return }
+                if !revealed { hintLevel = min(hintLevel + 1, 2) }
+            }
+        }
     }
 
     private func choose(_ choice: Photo) {
         if choice.id == answer?.id {
             revealed = true
             feedback = L("mystery.correct")
+            // Le scelte si disattivano: il fuoco passa a "Nuova foto".
+            newPhotoFocused = true
         } else {
             hintLevel = min(hintLevel + 1, 2)
             feedback = L("mystery.wrong")
@@ -227,5 +279,28 @@ struct MysteryGameView: View {
         revealed = false
         hintLevel = 0
         feedback = L("mystery.prompt")
+        if phoneMode { ask() }
+    }
+
+    /// Cambiando modalità a foto già indovinata si passa alla prossima.
+    private func togglePhoneMode() {
+        let resolved = revealed
+        phoneMode.toggle()
+        if phoneMode {
+            phoneGame.resetScores()
+        } else {
+            phoneGame.stop()
+        }
+        if resolved {
+            newRound()
+        } else if phoneMode {
+            ask()
+        }
+    }
+
+    /// La domanda va alla pagina della festa: i telefoni mostrano i titoli tra cui scegliere.
+    private func ask() {
+        guard let answer, let correct = choices.firstIndex(where: { $0.id == answer.id }) else { return }
+        phoneGame.ask(question: L("mystery.question"), choices: choices.map(\.title), correct: correct)
     }
 }

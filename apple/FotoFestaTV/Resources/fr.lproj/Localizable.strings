@@ -148,6 +148,17 @@
 "who.wrong" = "Non : c’est %@ qui l’a envoyée.";
 "who.next" = "Photo suivante";
 "who.photo" = "Photo à deviner";
+"phone.title" = "Répondez depuis le téléphone";
+"phone.scan" = "Scannez le QR de la fête : la question s’affiche sur la page.";
+"phone.leaderboard" = "Classement";
+"phone.mode_phones" = "Avec les téléphones";
+"phone.mode_remote" = "Avec la télécommande";
+"phone.reveal" = "Voir la réponse";
+"phone.reveal_who" = "C’est %@ qui l’a envoyée.";
+"phone.answers.one" = "%ld réponse";
+"phone.answers.other" = "%ld réponses";
+"phone.points.one" = "%ld point";
+"phone.points.other" = "%ld points";
 "guests.awards" = "Prix de la fête";
 "awards.title" = "Les prix de la fête";
 "awards.golden_lens" = "Objectif d’or";

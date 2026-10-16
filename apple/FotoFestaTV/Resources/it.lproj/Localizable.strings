@@ -148,6 +148,17 @@
 "who.wrong" = "No: l'ha mandata %@.";
 "who.next" = "Prossima foto";
 "who.photo" = "Foto da indovinare";
+"phone.title" = "Rispondi dal telefono";
+"phone.scan" = "Inquadra il QR della festa: la domanda compare sulla pagina.";
+"phone.leaderboard" = "Classifica";
+"phone.mode_phones" = "Con i telefoni";
+"phone.mode_remote" = "Con il telecomando";
+"phone.reveal" = "Mostra la risposta";
+"phone.reveal_who" = "L'ha mandata %@.";
+"phone.answers.one" = "%ld risposta";
+"phone.answers.other" = "%ld risposte";
+"phone.points.one" = "%ld punto";
+"phone.points.other" = "%ld punti";
 "guests.awards" = "Premi della festa";
 "awards.title" = "I premi della festa";
 "awards.golden_lens" = "Obiettivo d'oro";

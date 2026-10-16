@@ -29,7 +29,8 @@ extension AppModel {
                 try? await Task.sleep(nanoseconds: 10_000_000_000)
                 self.path = [.guests]
             }
-        case "who_game":
+        // "who_phone" gioca anche con i telefoni (vedi WhoTookItView).
+        case "who_game", "who_phone":
             // Lo script manda due foto firmate; quando ci sono, si apre "Chi l'ha scattata?".
             startGuestParty()
             shareGuestURL()

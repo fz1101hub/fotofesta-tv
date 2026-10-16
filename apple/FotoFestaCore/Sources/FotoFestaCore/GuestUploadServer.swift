@@ -52,6 +52,10 @@ public final class GuestUploadServer: @unchecked Sendable {
     private let onPhoto: @Sendable (Data, String?) -> UploadResult
     /// Chiamato sulla coda del server: non deve chiamare `start()` o `stop()` direttamente.
     private let onFailure: @Sendable () -> Void
+    /// Gioco con i telefoni: domanda in corso (GET /game) e risposte (POST /game/answer).
+    private let game: PhoneGame?
+    /// Risposte dei telefoni: poche decine di byte, con margine per nomi lunghi.
+    static let maxAnswerBytes = 1_024
     private let queue = DispatchQueue(label: "it.fotofesta.guest-upload")
 
     // Usati solo sulla coda `queue`.
@@ -74,7 +78,8 @@ public final class GuestUploadServer: @unchecked Sendable {
         maxUploadsPerMinute: Int = 60,
         page: @escaping @Sendable () -> String,
         onPhoto: @escaping @Sendable (Data, String?) -> UploadResult,
-        onFailure: @escaping @Sendable () -> Void = {}
+        onFailure: @escaping @Sendable () -> Void = {},
+        game: PhoneGame? = nil
     ) {
         self.key = key
         self.maxUploadBytes = maxUploadBytes
@@ -84,6 +89,7 @@ public final class GuestUploadServer: @unchecked Sendable {
         self.page = page
         self.onPhoto = onPhoto
         self.onFailure = onFailure
+        self.game = game
     }
 
     /// Avvia il server, preferibilmente sulla porta `preferredPort` (così il QR resta uguale tra un
@@ -198,6 +204,7 @@ public final class GuestUploadServer: @unchecked Sendable {
     /// Chiamato sulla coda del server.
     func prepare(_ request: GuestHTTPRequest, client: String) throws -> (bodyLength: Int, cached: GuestHTTPResponse?) {
         try checkHost(request)
+        if request.path == "/game/answer" { return (try answerLength(request), nil) }
         guard request.path == "/photos" else { return (0, nil) }
         guard request.method == "POST" else { throw GuestHTTPError(status: 405, code: "method") }
         guard keyMatches(request.headers["x-fotofesta-key"]) else { throw GuestHTTPError(status: 401, code: "key") }
@@ -230,6 +237,12 @@ public final class GuestUploadServer: @unchecked Sendable {
                 guard request.method == "GET" || request.method == "HEAD" else { throw GuestHTTPError(status: 405, code: "method") }
                 guard keyMatches(request.query["k"]) else { return .html(403, Self.expiredPage) }
                 return .html(200, page(), head: request.method == "HEAD")
+            case "/game":
+                guard request.method == "GET" else { throw GuestHTTPError(status: 405, code: "method") }
+                guard keyMatches(request.headers["x-fotofesta-key"]) else { throw GuestHTTPError(status: 401, code: "key") }
+                return .json(200, gameJSON(game?.current(), player: request.query["player"]))
+            case "/game/answer":
+                return try receiveAnswer(body)
             case "/photos":
                 let response = try receivePhoto(request, body: body)
                 if let id = Self.uploadID(request) { remember(id, response) }
@@ -242,6 +255,70 @@ public final class GuestUploadServer: @unchecked Sendable {
         } catch {
             return .json(400, #"{"error":"request"}"#)
         }
+    }
+
+    /// Controlli sulla risposta di un telefono prima di leggerne il corpo, piccolo.
+    private func answerLength(_ request: GuestHTTPRequest) throws -> Int {
+        guard request.method == "POST" else { throw GuestHTTPError(status: 405, code: "method") }
+        guard keyMatches(request.headers["x-fotofesta-key"]) else { throw GuestHTTPError(status: 401, code: "key") }
+        if request.headers["transfer-encoding"] != nil { throw GuestHTTPError(status: 411, code: "length") }
+        guard let text = request.headers["content-length"], let length = Int(text.trimmingCharacters(in: .whitespaces)) else {
+            throw GuestHTTPError(status: 411, code: "length")
+        }
+        guard length > 0 else { throw GuestHTTPError(status: 400, code: "empty") }
+        guard length <= Self.maxAnswerBytes else { throw GuestHTTPError(status: 413, code: "too_large") }
+        return length
+    }
+
+    /// Risposta di un telefono, in un piccolo modulo: round, choice, player e name.
+    private func receiveAnswer(_ body: Data) throws -> GuestHTTPResponse {
+        guard let game else { throw GuestHTTPError(status: 404, code: "not_found") }
+        let form = try Self.parseForm(String(decoding: body, as: UTF8.self))
+        guard let round = form["round"], let choice = form["choice"].flatMap({ Int($0) }), let player = form["player"] else {
+            throw GuestHTTPError(status: 400, code: "invalid")
+        }
+        switch game.answer(round: round, choice: choice, player: player, name: form["name"].flatMap(GuestSender.clean)) {
+        case .accepted: return .json(200, #"{"status":"ok"}"#)
+        case .closed: throw GuestHTTPError(status: 409, code: "closed")
+        case .invalid: throw GuestHTTPError(status: 400, code: "invalid")
+        }
+    }
+
+    /// Domanda in corso per la pagina dei telefoni, con i punti del telefono che la chiede.
+    private func gameJSON(_ snapshot: PhoneGame.Snapshot?, player: String?) -> String {
+        guard let snapshot else { return #"{"round":null}"# }
+        let points = player.flatMap { PhoneGame.isValidPlayer($0) ? game?.points(of: $0) : nil } ?? 0
+        let state = GameState(round: snapshot.round, question: snapshot.question, choices: snapshot.choices,
+                              open: snapshot.open, answer: snapshot.answer, points: points)
+        guard let data = try? JSONEncoder().encode(state) else { return #"{"round":null}"# }
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    private struct GameState: Encodable {
+        let round: String
+        let question: String
+        let choices: [String]
+        let open: Bool
+        let answer: Int?
+        let points: Int
+    }
+
+    /// Campi di un modulo "a=1&b=2"; i valori malformati fanno rifiutare la richiesta.
+    static func parseForm(_ body: String) throws -> [String: String] {
+        func decode(_ value: Substring) throws -> String {
+            guard let text = value.replacingOccurrences(of: "+", with: " ").removingPercentEncoding else {
+                throw GuestHTTPError(status: 400, code: "invalid")
+            }
+            return text
+        }
+        var result: [String: String] = [:]
+        for pair in body.split(separator: "&") where !pair.isEmpty {
+            let parts = pair.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+            let name = try decode(parts[0])
+            let value = parts.count > 1 ? parts[1] : Substring("")
+            result[name] = try decode(value)
+        }
+        return result
     }
 
     private func receivePhoto(_ request: GuestHTTPRequest, body: Data) throws -> GuestHTTPResponse {
@@ -440,6 +517,7 @@ struct GuestHTTPResponse {
         case 403: return "Forbidden"
         case 404: return "Not Found"
         case 405: return "Method Not Allowed"
+        case 409: return "Conflict"
         case 411: return "Length Required"
         case 413: return "Payload Too Large"
         case 415: return "Unsupported Media Type"

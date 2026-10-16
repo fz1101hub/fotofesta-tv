@@ -148,6 +148,17 @@
 "who.wrong" = "Nein, %@ hat es geschickt.";
 "who.next" = "Nächstes Foto";
 "who.photo" = "Foto zum Raten";
+"phone.title" = "Antworte am Handy";
+"phone.scan" = "Scanne den Party-QR-Code: Die Frage erscheint auf der Seite.";
+"phone.leaderboard" = "Rangliste";
+"phone.mode_phones" = "Mit Handys";
+"phone.mode_remote" = "Mit der Fernbedienung";
+"phone.reveal" = "Antwort zeigen";
+"phone.reveal_who" = "%@ hat es geschickt.";
+"phone.answers.one" = "%ld Antwort";
+"phone.answers.other" = "%ld Antworten";
+"phone.points.one" = "%ld Punkt";
+"phone.points.other" = "%ld Punkte";
 "guests.awards" = "Party-Preise";
 "awards.title" = "Die Party-Preise";
 "awards.golden_lens" = "Goldene Linse";
