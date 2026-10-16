@@ -1,6 +1,7 @@
 #if DEBUG
 import FotoFestaCore
 import Foundation
+import Network
 
 /// Solo nelle build di debug: apre una schermata scelta con la variabile d'ambiente
 /// FOTOFESTA_SCREENSHOT, per le schermate fatte dal simulatore in CI (vedi .github/workflows/apple.yml).
@@ -92,7 +93,9 @@ extension AppModel {
                         report += "direct error=\(error)\n"
                     }
                 }
-                try? await Task.sleep(nanoseconds: 9_000_000_000)
+                let tcp = await AppModel.probeTCP(host: host, port: 8200)
+                report += "tcp=\(tcp)\n"
+                try? await Task.sleep(nanoseconds: 4_000_000_000)
                 report += "servers=\(self.networkServers.map(\.name)) browse=\(self.networkBrowse?.trail.map(\.title) ?? []) message=\(self.message ?? "")\n"
                 let file = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
                     .appendingPathComponent("screenshot-network.txt")
@@ -131,6 +134,46 @@ extension AppModel {
                 .appendingPathComponent("screenshot-guest-url.txt")
             try? url.write(to: file, atomically: true, encoding: .utf8)
         }
+    }
+
+    /// Connessione TCP diretta con Network.framework: riporta gli stati, compreso il motivo di un'attesa.
+    private static func probeTCP(host: String, port: UInt16) async -> String {
+        final class Probe: @unchecked Sendable {
+            let lock = NSLock()
+            var states: [String] = []
+            var continuation: CheckedContinuation<String, Never>?
+
+            func add(_ state: String) {
+                lock.lock()
+                states.append(state)
+                lock.unlock()
+            }
+
+            func finish() {
+                lock.lock()
+                let pending = continuation
+                continuation = nil
+                let text = states.joined(separator: " > ")
+                lock.unlock()
+                pending?.resume(returning: text)
+            }
+        }
+        let probe = Probe()
+        let connection = NWConnection(host: NWEndpoint.Host(host), port: NWEndpoint.Port(rawValue: port) ?? .http, using: .tcp)
+        let text = await withCheckedContinuation { (continuation: CheckedContinuation<String, Never>) in
+            probe.continuation = continuation
+            connection.stateUpdateHandler = { state in
+                probe.add("\(state)")
+                switch state {
+                case .ready, .failed: probe.finish()
+                default: break
+                }
+            }
+            connection.start(queue: .global())
+            DispatchQueue.global().asyncAfter(deadline: .now() + 4) { probe.finish() }
+        }
+        connection.cancel()
+        return text
     }
 
     /// Attende al massimo un minuto che la condizione sia vera.
