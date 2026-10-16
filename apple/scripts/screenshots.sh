@@ -166,17 +166,14 @@ launch network
 capture network 8
 # Il server gira in loopback, che lo scenario ammette solo nelle build di debug: così non serve il
 # permesso della rete locale né l'indirizzo di rete del Mac.
-# Nella CI il firewall del Mac lascia scadere le connessioni verso Python: lo si spegne (macchina usa e getta).
-if [ -n "${CI:-}" ]; then
-  sudo -n /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate off || true
-  /usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate || true
-fi
 python3 scripts/fake_dlna.py 127.0.0.1 FotoFestaTV/Resources/Demo > "$OUT/fake_dlna.log" 2>&1 &
 DLNA_PID=$!
-sleep 2
-# Diagnosi: il server risponde dal Mac?
-curl -sS -m 5 -o /dev/null -w "curl dal Mac: %{http_code}\n" http://127.0.0.1:8200/rootDesc.xml || echo "curl dal Mac non riuscito"
-lsof -nP -iTCP:8200 -sTCP:LISTEN || true
+# Si aspetta che il server risponda dal Mac, prima di aprire l'app.
+for _ in $(seq 20); do
+  curl -fsS -m 2 -o /dev/null http://127.0.0.1:8200/rootDesc.xml && break
+  sleep 0.5
+done
+curl -sS -m 5 -o /dev/null -w "curl dal Mac: %{http_code}\n" http://127.0.0.1:8200/rootDesc.xml || echo "::warning::Server DLNA finto non raggiungibile dal Mac"
 SIMCTL_CHILD_FOTOFESTA_NETWORK_HOST=127.0.0.1 launch network_folder
 capture network_folder 14
 cat "$(dirname "$URL_FILE")/screenshot-network.txt" || echo "::warning::Nessuna diagnosi delle cartelle di rete"

@@ -4,6 +4,7 @@ Uso: python3 scripts/fake_dlna.py <indirizzo> <cartella con le foto>
 Risponde sulla porta 8200 come MiniDLNA (/rootDesc.xml e Browse su /ctl/ContentDir).
 """
 import html
+import socketserver
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -73,4 +74,14 @@ class Handler(BaseHTTPRequestHandler):
         self.reply(200, browse(object_id).encode(), 'text/xml; charset="utf-8"')
 
 
-ThreadingHTTPServer((HOST, 8200), Handler).serve_forever()
+class Server(ThreadingHTTPServer):
+    def server_bind(self):
+        # HTTPServer cerca il nome del computer con il DNS inverso, che sul runner può bloccarsi
+        # prima che il server si metta in ascolto.
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
+
+
+server = Server((HOST, 8200), Handler)
+print("Server DLNA finto pronto su", HOST, flush=True)
+server.serve_forever()
