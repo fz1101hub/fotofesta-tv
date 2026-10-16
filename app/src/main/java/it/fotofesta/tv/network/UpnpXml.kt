@@ -18,8 +18,11 @@ data class MediaServer(
     val controlUrl: String,
 )
 
-/** Cartella di un server multimediale. */
-data class MediaContainer(val id: String, val title: String)
+/**
+ * Cartella di un server multimediale. [musicOrVideo]: album, artisti, generi e playlist, che non
+ * contengono foto; la ricerca delle foto li salta.
+ */
+data class MediaContainer(val id: String, val title: String, val musicOrVideo: Boolean = false)
 
 /** File di un server multimediale, con l'indirizzo da cui scaricarlo e il tipo MIME. */
 data class MediaFile(val id: String, val title: String, val url: String, val mimeType: String)
@@ -35,6 +38,14 @@ data class BrowsePage(
 /** XML di UPnP: descrizione del dispositivo, richiesta e risposta Browse, elenco DIDL-Lite. */
 object UpnpXml {
     private const val CONTENT_DIRECTORY_PREFIX = "urn:schemas-upnp-org:service:ContentDirectory:"
+
+    /** Classi UPnP delle cartelle senza foto (gli album di foto sono object.container.album.photoAlbum). */
+    private val NOT_PHOTO_CONTAINERS = listOf(
+        "object.container.album.musicAlbum",
+        "object.container.person",
+        "object.container.genre",
+        "object.container.playlistContainer",
+    )
 
     /** Descrizione del dispositivo: nome, UDN e indirizzo del ContentDirectory; null se non ce l'ha. */
     fun parseDevice(xml: ByteArray, location: String): MediaServer? {
@@ -87,7 +98,12 @@ object UpnpXml {
         val didl = parse(result.toByteArray(Charsets.UTF_8))
         val containers = didl.children("container").mapNotNull { container ->
             val id = container.getAttribute("id").takeIf { it.isNotEmpty() } ?: return@mapNotNull null
-            MediaContainer(id, container.child("title")?.text().orEmpty().ifEmpty { id })
+            val upnpClass = container.child("class")?.text().orEmpty()
+            MediaContainer(
+                id,
+                container.child("title")?.text().orEmpty().ifEmpty { id },
+                musicOrVideo = NOT_PHOTO_CONTAINERS.any { upnpClass.startsWith(it) },
+            )
         }
         val files = didl.children("item").mapNotNull { item ->
             val id = item.getAttribute("id").takeIf { it.isNotEmpty() } ?: return@mapNotNull null

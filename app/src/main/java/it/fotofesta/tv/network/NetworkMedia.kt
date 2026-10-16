@@ -101,7 +101,8 @@ class NetworkMedia(
                 if (photos.size >= limit) break
                 photos.putIfAbsent(file.url, file.toPhotoItem(server))
             }
-            page.containers.forEach { queue.addLast(it.id) }
+            // Sui NAS con molta musica gli album e gli artisti sono migliaia: senza foto, si saltano.
+            page.containers.filterNot { it.musicOrVideo }.forEach { queue.addLast(it.id) }
         }
         return photos.values.toList()
     }

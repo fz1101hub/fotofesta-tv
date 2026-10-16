@@ -138,7 +138,14 @@ class NetworkMediaTest {
                     val start = Regex("<StartingIndex>(\\d+)</StartingIndex>").find(request.text)!!.groupValues[1].toInt()
                     if (id in failing) return@FakeLanServer FakeResponse(500, browseResponse("", 0, 0).replace("<Result></Result>", "<s:Fault><errorCode>720</errorCode></s:Fault>").toByteArray())
                     val all = when (id) {
-                        "0" -> listOf(container("A", "Compleanno"), container("B", "Mare"), photo("p0", "copertina.jpg", "/m/0.jpg"))
+                        "0" -> listOf(
+                            container("A", "Compleanno"),
+                            container("B", "Mare"),
+                            photo("p0", "copertina.jpg", "/m/0.jpg"),
+                            container("M", "Musica").replace("object.container.storageFolder", "object.container.album.musicAlbum"),
+                        )
+                        // Un album di musica non si apre mai durante la ricerca delle foto.
+                        "M" -> error("Album di musica aperto")
                         "A" -> (1..3).map { photo("a$it", "a$it.jpg", "/m/a$it.jpg") }
                         // 600 elementi: due pagine da 500.
                         "B" -> (1..600).map { photo("b$it", "b$it.jpg", "/m/b$it.jpg") }
@@ -161,7 +168,8 @@ class NetworkMediaTest {
             val servers = media.discover()
             assertEquals(listOf("NAS di casa"), servers.map { it.name })
             val root = media.list(servers[0], NetworkMedia.ROOT)
-            assertEquals(listOf("Compleanno", "Mare"), root.containers.map { it.title })
+            assertEquals(listOf("Compleanno", "Mare", "Musica"), root.containers.map { it.title })
+            assertEquals(listOf(false, false, true), root.containers.map { it.musicOrVideo })
             assertEquals(1, root.files.size)
             assertEquals(600, media.list(servers[0], "B").files.size)
 
@@ -172,6 +180,7 @@ class NetworkMediaTest {
             assertEquals("net:uuid:nas-1:a1", photos[1].id)
             assertTrue(photos.all { it.source == SourceType.NETWORK })
             assertEquals(5, media.scanPhotos(servers[0], NetworkMedia.ROOT, limit = 5).size)
+            assertTrue(synchronized(nas.requests) { nas.requests.none { it.text.contains("<ObjectID>M</ObjectID>") } })
         }
     }
 
