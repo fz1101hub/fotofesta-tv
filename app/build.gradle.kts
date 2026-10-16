@@ -60,6 +60,7 @@ android {
             "META-INF/NOTICE.txt",
             "META-INF/DEPENDENCIES",
             "META-INF/versions/9/module-info.class",
+            "META-INF/versions/9/OSGI-INF/MANIFEST.MF",
             // Classi per Java 9+ di BouncyCastle: Android usa quelle normali.
             "META-INF/versions/9/org/bouncycastle/**",
             "META-INF/versions/11/**",
