@@ -4,7 +4,8 @@ FotoFesta TV trasforma il televisore in una cornice digitale per feste, cene in 
 • Google Foto: inquadri un QR con il telefono, accedi e scegli le foto da mostrare. Nessuna password da digitare con il telecomando e accesso solo alle foto che selezioni.
 • Foto degli invitati: gli ospiti inquadrano un QR sulla TV e mandano le foto dal loro telefono, attraverso la rete di casa e senza app da installare. Le foto nuove compaiono subito nello slideshow, con il nome di chi le ha mandate; se vuoi, le approvi prima con il telecomando.
 • Hard disk o chiavetta USB: scegli una cartella, anche senza internet. Foto e video restano sul disco e non vengono copiati.
-• Cartelle di rete: NAS, router con un disco USB, PC con la condivisione multimediale attiva, Plex e Jellyfin. I server multimediali della rete di casa (DLNA/UPnP) si trovano da soli, senza password: sfogli le cartelle con il telecomando e ne scegli una. Foto e video si caricano al momento: niente viene copiato sulla TV e niente passa da internet.
+• Rete di casa: cartelle condivise di PC, Mac e NAS (SMB, con nome utente e password o come ospite) e server multimediali DLNA di NAS, router, Plex e Jellyfin. Sfogli le cartelle con il telecomando; foto e video si leggono al momento, senza copie sulla TV e senza passare da internet.
+• Album condivisi di iCloud: sull'iPhone attiva «Sito web pubblico», inquadra il QR sulla TV e incolla il link dal telefono. Le foto aggiunte all'album compaiono da sole.
 • Quattro foto dimostrative per provare subito l'app.
 
 <b>Slideshow</b>
@@ -19,7 +20,7 @@ FotoFesta TV trasforma il televisore in una cornice digitale per feste, cene in 
 • Salvaschermo con le tue foto quando la TV è inattiva
 
 <b>Anche i video</b>
-• I video delle cartelle USB, delle cartelle di rete e di Google Foto entrano nello slideshow e si vedono dall'inizio alla fine. Preferisci solo foto? Li escludi con l'impostazione “Video”.
+• I video di USB, rete di casa, iCloud e Google Foto entrano nello slideshow e si vedono dall'inizio alla fine. Preferisci solo foto? Li escludi con l'impostazione “Video”.
 • Audio dei video: mentre un video suona, la musica di sottofondo va in pausa.
 • Tanti formati: MP4, MOV, MKV, WebM, AVI e altri. I codec riproducibili dipendono dalla TV; un video che la TV non sa riprodurre viene saltato.
 • Giochi e salvaschermo usano solo le foto.

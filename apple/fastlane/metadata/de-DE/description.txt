@@ -3,6 +3,8 @@ FotoFesta TV verwandelt dein Apple TV in einen digitalen Bilderrahmen für Party
 WOHER DEINE FOTOS KOMMEN
 • Gästefotos: Gäste scannen einen QR-Code auf dem Fernseher und senden Fotos von ihrem eigenen Smartphone – über dein Heimnetz und ohne App-Installation. Neue Fotos erscheinen sofort in der Diashow, mit dem Namen des Absenders; wenn du möchtest, gibst du sie vorher mit der Fernbedienung frei.
 • Google Fotos: Scanne einen QR-Code mit deinem Smartphone, melde dich an und wähle die Fotos aus, die gezeigt werden sollen. Keine Passworteingabe mit der Fernbedienung und Zugriff nur auf die Fotos, die du auswählst.
+• iCloud-Fotos: die Alben der Fotomediathek des Apple TV, auch Favoriten und geteilte Alben. Neue Fotos im Album erscheinen von selbst.
+• Netzwerkordner: Fotos und Videos von Medienservern (DLNA) im Heimnetz, etwa NAS, PC, Plex oder Jellyfin.
 • Vier Demofotos, um die App sofort auszuprobieren.
 
 DIASHOW
@@ -12,7 +14,7 @@ DIASHOW
 • Ganzes Foto, bildschirmfüllend oder mit unscharfen Rändern, zufällige Reihenfolge ohne Wiederholungen
 • Mosaik: das aktuelle Foto groß, daneben die zuletzt gezeigten
 • Countdown bis zu einer Uhrzeit deiner Wahl, für Mitternacht, Torte, Anstoßen oder Überraschung: In den letzten Sekunden füllen große Zahlen den Bildschirm, danach erscheint eine Nachricht
-• In Google Fotos ausgewählte Videos laufen von Anfang bis Ende, in Formaten, die Apple TV unterstützt, etwa MP4 und MOV. Mit der Einstellung „Videos“ lässt du sie weg, mit „Ton der Videos“ schaltest du sie stumm
+• Videos aus Google Fotos, iCloud-Fotos und Netzwerkordnern laufen von Anfang bis Ende, in Formaten, die Apple TV unterstützt, etwa MP4 und MOV. Mit der Einstellung „Videos“ lässt du sie weg, mit „Ton der Videos“ schaltest du sie stumm
 • Uhr und Sleep-Timer nach 30, 60 oder 120 Minuten
 
 FOTOSPIELE
@@ -26,6 +28,6 @@ FÜR DIE PARTY
 • Party-Preise: Am Ende gibt es die Goldene Linse für den Gast, der die meisten Fotos geschickt hat, das erste Foto der Party und das Große Finale mit dem letzten Foto.
 
 DATENSCHUTZ
-Keine Werbung, keine Analysetools und kein Server des Entwicklers. Ausgewählte Fotos werden direkt aus Google Fotos angezeigt und nie auf dein Apple TV kopiert, und „Trennen und löschen“ widerruft den Zugriff. Gästefotos gelangen vom Smartphone zum Apple TV, ohne über das Internet zu gehen, und werden am Ende der Party gelöscht.
+Keine Werbung, keine Analysetools und kein Server des Entwicklers. Ausgewählte Fotos werden direkt aus Google Fotos angezeigt und nie auf dein Apple TV kopiert, und „Trennen und löschen“ widerruft den Zugriff. Gästefotos gelangen vom Smartphone zum Apple TV, ohne über das Internet zu gehen, und werden am Ende der Party gelöscht. iCloud-Fotos und Netzwerkordner werden direkt gelesen, ohne Kopien.
 
 Google Fotos erlaubt Apps nicht, deine gesamte Fotosammlung zu lesen: Du wählst die Fotos jedes Mal auf deinem Smartphone aus.

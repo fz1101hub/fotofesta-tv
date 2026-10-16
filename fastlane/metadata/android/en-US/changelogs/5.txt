@@ -1,7 +1,7 @@
-• Network folders: photos and videos from a NAS, PC or router on your home network (DLNA)
-• Videos in the slideshow from USB, network and Google Photos; can be turned off
+• Shared folders on PCs, Macs and NAS drives (SMB) and DLNA media servers
+• iCloud shared albums with the public link
+• Videos in the slideshow from USB, network, iCloud and Google Photos; can be turned off
 • New games: Puzzle with three levels and “Who took it?”
-• Guests answer from their phones, with a leaderboard on the TV
-• Party awards: Golden lens, first photo and Grand finale
-• Mosaic layout and countdown in the slideshow
+• Guests answer from their phones, with a leaderboard
+• Party awards, Mosaic layout and countdown
 • Background music from a whole folder

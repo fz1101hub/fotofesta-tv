@@ -1,10 +1,11 @@
 FotoFesta TV transforme votre téléviseur en cadre photo numérique pour les fêtes, les dîners en famille et les soirées entre amis.
 
 <b>D’où viennent vos photos</b>
-• Google Photos : scannez un code QR avec votre téléphone, connectez-vous et choisissez les photos à afficher. Aucun mot de passe à saisir avec la télécommande, et un accès limité aux photos que vous sélectionnez.
+• Google Photos : scannez un code QR avec votre téléphone, connectez-vous et choisissez les photos. Aucun mot de passe à saisir, accès limité aux photos choisies.
 • Photos des invités : vos invités scannent un code QR sur le téléviseur et envoient des photos depuis leur propre téléphone, via votre réseau domestique et sans application à installer. Les nouvelles photos apparaissent aussitôt dans le diaporama avec le nom de l’expéditeur ; si vous le souhaitez, vous les approuvez d’abord avec la télécommande.
 • Disque dur ou clé USB : choisissez un dossier, même sans Internet. Photos et vidéos restent sur le support et ne sont jamais copiées.
-• Dossiers réseau : NAS, box ou routeur avec un disque USB, PC avec le partage multimédia activé, Plex et Jellyfin. Les serveurs multimédias du réseau local (DLNA/UPnP) sont détectés tout seuls, sans mot de passe : parcourez leurs dossiers à la télécommande et choisissez-en un. Photos et vidéos se chargent à la volée, sans copie sur le téléviseur ni passage par Internet.
+• Réseau local : dossiers partagés de PC, Mac et NAS (SMB, avec identifiant et mot de passe ou en invité) et serveurs multimédias DLNA de NAS, box, Plex et Jellyfin. Parcourez les dossiers à la télécommande ; photos et vidéos se chargent à la volée, sans copie sur le téléviseur ni passage par Internet.
+• Albums partagés iCloud : activez « Site web public » sur l’iPhone, scannez le QR code du téléviseur et collez le lien depuis le téléphone. Les photos ajoutées à l’album apparaissent toutes seules.
 • Quatre photos de démonstration pour essayer l’application tout de suite.
 
 <b>Diaporama</b>
@@ -19,8 +20,8 @@ FotoFesta TV transforme votre téléviseur en cadre photo numérique pour les f�
 • Économiseur d’écran avec vos photos quand le téléviseur est inactif
 
 <b>Les vidéos aussi</b>
-• Les vidéos (dossiers USB, dossiers réseau, Google Photos) sont lues du début à la fin dans le diaporama. Uniquement des photos ? Excluez-les avec le réglage « Vidéos ».
-• Son des vidéos : quand une vidéo est lue avec le son, la musique de fond se met en pause.
+• Les vidéos (USB, réseau local, iCloud, Google Photos) sont lues du début à la fin dans le diaporama. Uniquement des photos ? Excluez-les avec le réglage « Vidéos ».
+• Quand une vidéo a du son, la musique de fond se met en pause.
 • Nombreux formats : MP4, MOV, MKV, WebM, AVI, etc. Les codecs lus dépendent du téléviseur ; une vidéo illisible est ignorée.
 • Les jeux et l’économiseur d’écran n’utilisent que les photos.
 

@@ -4,7 +4,8 @@ FotoFesta TV convierte tu televisor en un marco digital de fotos para fiestas, c
 • Google Fotos: escanea un código QR con tu teléfono, inicia sesión y elige las fotos que quieres mostrar. Sin escribir contraseñas con el mando y con acceso solo a las fotos que selecciones.
 • Fotos de invitados: los invitados escanean un código QR en la TV y envían fotos desde su propio teléfono, a través de tu red doméstica y sin instalar ninguna app. Las fotos nuevas aparecen al momento en la presentación con el nombre de quien las envía; si quieres, primero las apruebas con el mando.
 • Disco o memoria USB: elige una carpeta, incluso sin internet. Las fotos y los vídeos se quedan en la unidad y nunca se copian.
-• Carpetas de red: NAS, routers con un disco USB, ordenadores con el uso compartido multimedia activado, Plex y Jellyfin. Los servidores multimedia de tu red local (DLNA/UPnP) se detectan solos, sin contraseña: recorre sus carpetas con el mando y elige una. Las fotos y los vídeos se cargan al momento: no se copia nada en la TV y nada pasa por internet.
+• Red de casa: carpetas compartidas de PC, Mac y NAS (SMB, con usuario y contraseña o como invitado) y servidores multimedia DLNA de NAS, routers, Plex y Jellyfin. Recorre las carpetas con el mando; las fotos y los vídeos se cargan al momento, sin copias en la TV y sin pasar por internet.
+• Álbumes compartidos de iCloud: activa “Sitio web público” en el iPhone, escanea el QR de la TV y pega el enlace desde el móvil. Las fotos añadidas al álbum aparecen solas.
 • Cuatro fotos de demostración para probar la app al momento.
 
 <b>Presentación</b>
@@ -19,7 +20,7 @@ FotoFesta TV convierte tu televisor en un marco digital de fotos para fiestas, c
 • Salvapantallas con tus fotos cuando la TV está inactiva
 
 <b>También vídeos</b>
-• Los vídeos de las carpetas USB, de las carpetas de red y de Google Fotos entran en la presentación y se reproducen de principio a fin. ¿Prefieres solo fotos? Exclúyelos con el ajuste “Vídeos”.
+• Los vídeos de USB, de la red de casa, de iCloud y de Google Fotos entran en la presentación y se reproducen de principio a fin. ¿Prefieres solo fotos? Exclúyelos con el ajuste “Vídeos”.
 • Sonido de los vídeos: mientras suena un vídeo, la música de fondo se pausa.
 • Muchos formatos: MP4, MOV, MKV, WebM, AVI y más. Los códecs compatibles dependen de la TV; si no puede reproducir un vídeo, lo salta.
 • Los juegos y el salvapantallas solo usan fotos.

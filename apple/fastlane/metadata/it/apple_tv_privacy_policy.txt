@@ -4,6 +4,10 @@ Google Foto (facoltativo): la Apple TV comunica direttamente con Google tramite 
 
 Foto degli invitati (facoltativo): durante la festa la Apple TV riceve, sulla rete di casa e senza passare da internet, le foto che gli invitati mandano dal telefono, con il nome che scelgono di indicare. La pagina sul telefono le riduce e toglie i metadati, come la posizione. Le foto restano in memoria e in una cartella temporanea della Apple TV e vengono cancellate con "Termina la festa e cancella le foto", o al primo avvio dopo 12 ore senza foto nuove. Se imposti il QR della Wi‑Fi, nome e password della rete restano su questa Apple TV. Se durante la festa gli invitati rispondono ai giochi dal telefono, risposte e nomi restano solo in memoria sulla Apple TV e si cancellano alla fine del gioco o della festa.
 
+Foto di iCloud (facoltativo): con il tuo permesso, dato a tvOS, l'app legge gli album della libreria Foto di questa Apple TV, compresi gli album condivisi, e mostra le foto che contengono. Le foto non vengono copiate né inviate altrove; nelle preferenze dell'app resta solo l'identificativo dell'album scelto. Puoi togliere il permesso nelle impostazioni della Apple TV.
+
+Cartelle di rete (facoltativo): la Apple TV legge foto e video dai server multimediali della rete di casa che scegli (NAS, PC), senza passare da internet e senza copiarli. Nelle preferenze dell'app restano il nome della cartella e l'identificativo del server.
+
 Impostazioni › "Disconnetti e cancella" elimina l'elenco delle foto e il token, chiude la selezione presso Google e revoca l'accesso. Puoi revocarlo anche da myaccount.google.com/permissions. L'elenco si cancella anche quando scegli un'altra sorgente o quando Google chiude la selezione.
 
 L'informativa completa è disponibile all'URL dell'informativa privacy di questa app e come codice QR nelle impostazioni dell'app.

@@ -4,7 +4,8 @@ FotoFesta TV turns your television into a digital photo frame for parties, famil
 • Google Photos: scan a QR code with your phone, sign in and choose the photos to show. No passwords to type with the remote, and access only to the photos you select.
 • Guest photos: guests scan a QR code on the TV and send photos from their own phones, over your home network and with no app to install. New photos appear right away in the slideshow with the sender's name; if you like, you approve them first with the remote.
 • USB drive or stick: choose a folder, even without internet. Photos and videos stay on the drive and are never copied.
-• Network folders: NAS drives, routers with a USB disk, PCs with media sharing turned on, Plex and Jellyfin. Media servers on your home network (DLNA/UPnP) are found automatically, with no password: browse their folders with the remote and pick one. Photos and videos load on the fly: nothing is copied to the TV and nothing goes through the internet.
+• Home network: shared folders on PCs, Macs and NAS drives (SMB, with user name and password or as a guest) and DLNA media servers on NAS drives, routers, Plex and Jellyfin. Browse folders with the remote; photos and videos load on the fly, with no copies on the TV and nothing going through the internet.
+• iCloud shared albums: turn on “Public Website” on iPhone, scan the QR code on the TV and paste the link on your phone. Photos added to the album appear by themselves.
 • Four demo photos to try the app right away.
 
 <b>Slideshow</b>
@@ -19,7 +20,7 @@ FotoFesta TV turns your television into a digital photo frame for parties, famil
 • Screensaver with your photos when the TV is idle
 
 <b>Videos too</b>
-• Videos from USB folders, network folders and Google Photos join the slideshow and play from start to finish. Prefer photos only? Turn them off with the “Videos” setting.
+• Videos from USB, your home network, iCloud and Google Photos join the slideshow and play from start to finish. Prefer photos only? Turn them off with the “Videos” setting.
 • Video sound: while a video plays its sound, the background music pauses.
 • Many formats: MP4, MOV, MKV, WebM, AVI and more. Which codecs play depends on your TV; a video it can't play is skipped.
 • Games and the screensaver use photos only.

@@ -160,6 +160,31 @@ capture awards 6
 launch review
 upload "$OUT/guest_portrait.jpg" Sara
 capture review 6
+# Cartelle di rete: un server DLNA finto sull'indirizzo del Mac, che il simulatore raggiunge come un
+# NAS della rete di casa. Si aggiunge con l'indirizzo, come senza l'entitlement multicast.
+launch network
+capture network 8
+HOST_IP=$(ipconfig getifaddr en0 || ipconfig getifaddr en1 || true)
+if [[ "$HOST_IP" =~ ^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.) ]]; then
+  python3 scripts/fake_dlna.py "$HOST_IP" FotoFestaTV/Resources/Demo > "$OUT/fake_dlna.log" 2>&1 &
+  DLNA_PID=$!
+  sleep 1
+  SIMCTL_CHILD_FOTOFESTA_NETWORK_HOST="$HOST_IP" launch network_folder
+  capture network_folder 14
+  SIMCTL_CHILD_FOTOFESTA_NETWORK_HOST="$HOST_IP" launch network_slideshow
+  capture network_slideshow 20
+  kill "$DLNA_PID" 2>/dev/null || true
+  cat "$OUT/fake_dlna.log"
+else
+  echo "::warning::Indirizzo del Mac non privato ($HOST_IP): schermate delle cartelle di rete saltate"
+fi
+# Libreria Foto: permesso concesso e foto demo aggiunte alla libreria del simulatore, se lo consente.
+xcrun simctl privacy "$DEVICE" grant photos "$BUNDLE_ID" || echo "::warning::Permesso delle foto non concesso"
+xcrun simctl addmedia "$DEVICE" FotoFestaTV/Resources/Demo/*.jpg || echo "::warning::Foto non aggiunte alla libreria"
+launch library
+capture library 8
+launch library_slideshow
+capture library_slideshow 14
 # Mosaico per ultimo: cambia l'impostazione salvata. Dopo due cambi di foto le caselle sono piene.
 launch mosaic
 capture mosaic 20

@@ -3,6 +3,8 @@ FotoFesta TV trasforma la Apple TV in una cornice digitale per feste, cene in fa
 DA DOVE ARRIVANO LE FOTO
 • Foto degli invitati: gli ospiti inquadrano un QR sulla TV e mandano le foto dal loro telefono, attraverso la rete di casa e senza app da installare. Le foto nuove compaiono subito nello slideshow, con il nome di chi le ha mandate; se vuoi, le approvi prima con il telecomando.
 • Google Foto: inquadri un QR con il telefono, accedi e scegli le foto da mostrare. Nessuna password da digitare con il telecomando e accesso solo alle foto che selezioni.
+• Foto di iCloud: gli album della libreria Foto della Apple TV, compresi preferiti e album condivisi. Le foto aggiunte all'album compaiono da sole.
+• Cartelle di rete: foto e video dei server multimediali (DLNA) della rete di casa, come NAS, PC, Plex e Jellyfin.
 • Quattro foto dimostrative per provare subito l'app.
 
 SLIDESHOW
@@ -12,7 +14,7 @@ SLIDESHOW
 • Foto intera, a tutto schermo o con i lati sfocati, ordine casuale senza ripetizioni
 • Mosaico: la foto attuale in grande e, accanto, le ultime mostrate
 • Conto alla rovescia fino all'orario che scegli, per Mezzanotte, Torta, Brindisi o Sorpresa: negli ultimi secondi numeri giganti riempiono lo schermo, poi compare un messaggio
-• Video scelti in Google Foto, dall'inizio alla fine, nei formati supportati da Apple TV come MP4 e MOV. Con l'impostazione “Video” li escludi, con “Audio dei video” li guardi senza audio
+• Video di Google Foto, Foto di iCloud e cartelle di rete, dall'inizio alla fine, nei formati supportati da Apple TV come MP4 e MOV. Con l'impostazione “Video” li escludi, con “Audio dei video” li guardi senza audio
 • Orologio e pausa automatica dopo 30, 60 o 120 minuti
 
 GIOCHI CON LE FOTO
@@ -26,6 +28,6 @@ PER LA FESTA
 • Premi della festa: alla fine arrivano l'Obiettivo d'oro per chi ha mandato più foto, la prima foto della festa e il Gran finale, l'ultima.
 
 PRIVACY
-Nessuna pubblicità, nessun sistema di analisi e nessun server dello sviluppatore. Le foto scelte si vedono direttamente da Google Foto senza essere copiate sulla tua Apple TV, e “Disconnetti e cancella” revoca l'accesso. Le foto degli invitati vanno dal telefono alla Apple TV senza passare da internet e si cancellano alla fine della festa.
+Nessuna pubblicità, nessun sistema di analisi e nessun server dello sviluppatore. Le foto scelte si vedono direttamente da Google Foto senza essere copiate sulla tua Apple TV, e “Disconnetti e cancella” revoca l'accesso. Le foto degli invitati vanno dal telefono alla Apple TV senza passare da internet e si cancellano alla fine della festa. Le Foto di iCloud e le cartelle di rete si leggono al momento, senza copie.
 
 Google Foto non consente alle app di leggere tutta la libreria: le foto vanno scelte di volta in volta dal telefono.

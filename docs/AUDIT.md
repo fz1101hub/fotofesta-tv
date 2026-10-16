@@ -193,6 +193,25 @@ Problemi trovati e corretti durante lo sviluppo:
 
 Verifiche: 184 test JVM (Android) e 104 test XCTest (Apple TV) superati; CI Android (build, test, Lint, APK) e CI Apple TV verdi. Il client delle cartelle di rete è stato provato contro un vero server MiniDLNA; la pagina per i telefoni con il gioco in Chromium contro una TV simulata. Le schermate dal simulatore tvOS (`[screenshots]`) mostrano puzzle, giochi, festa, premi, mosaico, conto alla rovescia e il gioco con due telefoni simulati che rispondono.
 
+## Nuove sorgenti: cartelle condivise, iCloud, cartelle di rete su Apple TV
+
+Aggiunti su Android TV: cartelle condivise SMB 2/3 di PC, Mac e NAS (ricerca Bonjour, indirizzo scritto, accesso con password o come ospite, password cifrata nel Keystore), album condivisi di iCloud con il link pubblico (link incollato dal telefono con un QR servito dalla TV, aggiornamento ogni 5 minuti) e foto dei server DLNA nella versione più leggera che copre lo schermo. Su Apple TV: Foto di iCloud dalla libreria Foto con PhotoKit e cartelle di rete DLNA (nucleo portato da Android, con test).
+
+Problemi trovati e corretti durante lo sviluppo:
+
+| Gravità | Problema | Correzione |
+| --- | --- | --- |
+| Alta | SMB: se il NAS chiude la connessione (standby, riavvio), smbj continua a considerarla aperta e ogni lettura successiva falliva con “DiskShare has already been closed” | Una condivisione chiusa dal server fa ripartire anche sessione e connessione; gli errori di smbj senza stato SMB contano come connessione caduta e si riprova una volta. Provato uccidendo il processo di Samba durante l'uso |
+| Alta | Release Android: R8 si fermava sulle classi `java.rmi` (dcerpc) e `javax.el` (MBassador), assenti su Android | Regole `-dontwarn` mirate e regole `-keep` per smbj, MBassador e dcerpc; l'errore di collegamento possibile su una risposta DCE/RPC malformata è gestito. La CI ora compila anche la release con R8 |
+| Media | Pacchetto Android: file doppi (`META-INF/versions/9/OSGI-INF/MANIFEST.MF` di Bouncy Castle e jspecify, licenze) | Esclusi nel `packaging`; le licenze delle librerie sono in `assets/licenses/THIRD_PARTY_NOTICES.txt` |
+| Media | smbj apre le connessioni senza limite di tempo: verso un indirizzo spento si aspettavano minuti | `SocketFactory` con 8 s per collegarsi |
+| Media | NAS Synology: le miniature in `@eaDir` sarebbero diventate foto doppie | Saltati file nascosti e di sistema, `@…`, `#…`, `$…`, `~…`, “System Volume Information” |
+| Media | Apple TV: con PhotoKit l'orientamento delle foto si perdeva convertendo in `CGImage` | La `UIImage` di PhotoKit si tiene così com'è |
+| Media | Apple TV: la ricerca SSDP in multicast richiede un entitlement concesso da Apple | Domanda SSDP diretta e porte dei server più diffusi per l'indirizzo scritto; entitlement attivabile da `App.xcconfig` dopo l'approvazione |
+| Bassa | La password delle cartelle condivise poteva finire nei log tramite `toString()` | `SmbLogin.toString()` la omette |
+
+Verifiche: 215 test JVM (Android; 8 contro un vero server Samba 4 con `FOTOFESTA_SMB_TEST`) e 114 test XCTest (Apple TV); CI Android (test, Lint, APK debug, release con R8) e CI Apple TV. Il servizio dell'album iCloud non era raggiungibile dall'ambiente di sviluppo (rete bloccata): il client è scritto sul comportamento documentato da progetti open source e provato contro un server finto, e va provato con un album reale.
+
 ## Raccomandazioni aperte
 
 | Priorità | Raccomandazione |

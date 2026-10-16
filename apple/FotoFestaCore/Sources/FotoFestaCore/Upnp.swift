@@ -97,7 +97,8 @@ public enum UpnpXML {
         guard let service = root.descendants("service").first(where: {
             $0.child("serviceType")?.text.hasPrefix(contentDirectoryPrefix) == true
         }), let control = service.child("controlURL")?.text, !control.isEmpty else { return nil }
-        let base = root.child("URLBase")?.text.flatMap { $0.isEmpty ? nil : URL(string: $0) } ?? location
+        let baseText = root.child("URLBase")?.text ?? ""
+        let base = baseText.isEmpty ? location : URL(string: baseText) ?? location
         guard let controlURL = resolve(control, against: base) else { return nil }
         return MediaServer(udn: udn, name: name.isEmpty ? udn : name, location: location, controlURL: controlURL)
     }

@@ -1,7 +1,7 @@
-• Netzwerkordner: Fotos und Videos von NAS, PC oder Router im Heimnetz (DLNA)
-• Videos in der Diashow von USB, Netzwerk und Google Fotos; abschaltbar
+• Freigegebene Ordner von PC, Mac und NAS (SMB) und DLNA-Medienserver
+• Geteilte iCloud-Alben mit öffentlichem Link
+• Videos in der Diashow von USB, Netzwerk, iCloud und Google Fotos; abschaltbar
 • Neue Spiele: Puzzle mit drei Stufen und „Wer hat’s geknipst?“
-• Gäste antworten am Handy, mit Rangliste auf dem Fernseher
-• Party-Preise: Goldene Linse, erstes Foto und Großes Finale
-• Mosaik-Ansicht und Countdown in der Diashow
+• Gäste antworten am Handy, mit Rangliste
+• Party-Preise, Mosaik und Countdown
 • Hintergrundmusik aus einem ganzen Ordner

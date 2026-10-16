@@ -4,6 +4,10 @@ Google Fotos (optional): Das Apple TV kommuniziert über verschlüsselte Verbind
 
 Gästefotos (optional): Während der Party empfängt das Apple TV über dein Heimnetz und ohne Umweg über das Internet die Fotos, die Gäste von ihren Smartphones senden, zusammen mit dem Namen, den sie angeben. Die Seite auf dem Smartphone verkleinert die Fotos und entfernt Metadaten wie den Standort. Die Fotos werden im Arbeitsspeicher und in einem temporären Ordner auf dem Apple TV gespeichert und gelöscht – mit „Party beenden und Fotos löschen“ oder beim ersten Start nach 12 Stunden ohne neue Fotos. Wenn du den WLAN-QR-Code einrichtest, bleiben Netzwerkname und Passwort auf diesem Apple TV. Wenn Gäste die Party-Spiele vom Smartphone aus beantworten, bleiben Antworten und Namen nur im Arbeitsspeicher des Apple TV und werden am Ende des Spiels oder der Party gelöscht.
 
+iCloud-Fotos (optional): Mit deiner Erlaubnis, die du tvOS erteilst, liest die App die Alben der Fotomediathek dieses Apple TV, auch geteilte Alben, und zeigt ihre Fotos. Die Fotos werden weder kopiert noch irgendwohin gesendet; in den Einstellungen der App bleibt nur die Kennung des gewählten Albums. Du kannst die Erlaubnis in den Einstellungen des Apple TV widerrufen.
+
+Netzwerkordner (optional): Das Apple TV liest Fotos und Videos von den Medienservern im Heimnetz, die du wählst (NAS, PC), ohne Umweg über das Internet und ohne sie zu kopieren. Der Ordnername und die Kennung des Servers bleiben in den Einstellungen der App.
+
 Einstellungen › „Trennen und löschen“ entfernt die Liste der Fotos und das Token, beendet die Auswahl bei Google und widerruft den Zugriff. Du kannst den Zugriff auch unter myaccount.google.com/permissions widerrufen. Die Liste wird außerdem gelöscht, wenn du eine andere Quelle wählst oder wenn Google die Auswahl beendet.
 
 Die vollständige Datenschutzerklärung findest du unter der Datenschutz-URL dieser App und als QR-Code in den Einstellungen der App.

@@ -3,6 +3,8 @@ FotoFesta TV transforme votre Apple TV en cadre photo numérique pour les fêtes
 D’OÙ VIENNENT VOS PHOTOS
 • Photos des invités : vos invités scannent un code QR sur le téléviseur et envoient des photos depuis leur propre téléphone, via votre réseau domestique et sans app à installer. Les nouvelles photos apparaissent aussitôt dans le diaporama avec le nom de l’expéditeur ; si vous le souhaitez, vous les approuvez d’abord avec la télécommande.
 • Google Photos : scannez un code QR avec votre téléphone, connectez-vous et choisissez les photos à afficher. Aucun mot de passe à saisir avec la télécommande, et un accès limité aux photos que vous sélectionnez.
+• Photos iCloud : les albums de la photothèque de l’Apple TV, y compris les favoris et les albums partagés. Les photos ajoutées à l’album apparaissent toutes seules.
+• Dossiers réseau : photos et vidéos des serveurs multimédias (DLNA) du réseau local, comme un NAS, un PC, Plex ou Jellyfin.
 • Quatre photos de démonstration pour essayer l’app tout de suite.
 
 DIAPORAMA
@@ -12,7 +14,7 @@ DIAPORAMA
 • Photo entière, plein écran ou bords floutés, ordre aléatoire sans répétition
 • Mosaïque : la photo en cours en grand, les dernières affichées à côté
 • Compte à rebours jusqu’à l’heure choisie, pour Minuit, Gâteau, Toast ou Surprise : dans les dernières secondes, de grands chiffres envahissent l’écran, puis un message
-• Vidéos choisies dans Google Photos, lues du début à la fin dans les formats pris en charge par l’Apple TV, comme MP4 et MOV. Le réglage « Vidéos » permet de les exclure et « Son des vidéos » de couper leur son
+• Vidéos de Google Photos, Photos iCloud et dossiers réseau, lues du début à la fin dans les formats pris en charge par l’Apple TV, comme MP4 et MOV. Le réglage « Vidéos » permet de les exclure et « Son des vidéos » de couper leur son
 • Horloge et minuteur de veille après 30, 60 ou 120 minutes
 
 JEUX PHOTO
@@ -26,6 +28,6 @@ POUR LA FÊTE
 • Prix de la fête : à la fin, l’Objectif d’or pour qui a envoyé le plus de photos, la première photo de la fête et le Grand final, la dernière.
 
 CONFIDENTIALITÉ
-Aucune publicité, aucun outil d’analyse et aucun serveur du développeur. Les photos sélectionnées s’affichent directement depuis Google Photos et ne sont jamais copiées sur votre Apple TV, et « Déconnecter et supprimer » révoque l’accès. Les photos des invités vont du téléphone à l’Apple TV sans passer par Internet et sont supprimées à la fin de la fête.
+Aucune publicité, aucun outil d’analyse et aucun serveur du développeur. Les photos sélectionnées s’affichent directement depuis Google Photos et ne sont jamais copiées sur votre Apple TV, et « Déconnecter et supprimer » révoque l’accès. Les photos des invités vont du téléphone à l’Apple TV sans passer par Internet et sont supprimées à la fin de la fête. Photos iCloud et dossiers réseau sont lus à la volée, sans copie.
 
 Google Photos ne permet pas aux apps de lire toute votre bibliothèque : vous choisissez les photos depuis votre téléphone à chaque fois.

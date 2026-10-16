@@ -24,7 +24,7 @@ Riepilogo dei requisiti di qualità. I passaggi operativi, nell'ordine in cui es
 
 Preparare almeno uno screenshot reale ad alta risoluzione della UI TV. Non usare mockup che mostrino funzioni diverse dalla build. La categoria proposta è **Fotografia**; la sezione giochi è secondaria e non richiede che l’app compaia nella riga Giochi, perché il suo scopo principale rimane lo slideshow.
 
-La descrizione deve spiegare che Google Foto richiede selezione esplicita, che USB e le foto degli invitati funzionano senza account, che per le foto degli invitati i telefoni devono essere sulla stessa rete della TV che la musica è locale e che le cartelle di rete richiedono un server multimediale DLNA sulla stessa rete. Il salvaschermo è incluso, ma alcune Google TV ne nascondono la scelta: la scheda non deve promettere che sia sempre selezionabile dalle impostazioni. Non promettere sincronizzazione dell’intera libreria; per i video precisare che i formati riproducibili dipendono dalla TV.
+La descrizione deve spiegare che Google Foto richiede selezione esplicita, che USB e le foto degli invitati funzionano senza account, che per le foto degli invitati i telefoni devono essere sulla stessa rete della TV, che la musica è locale, che le cartelle di rete richiedono un server multimediale DLNA sulla stessa rete, che le cartelle condivise richiedono SMB 2 o 3 (i PC Windows si aggiungono con l’indirizzo) e che l’album di iCloud deve avere “Sito web pubblico” attivo. Il salvaschermo è incluso, ma alcune Google TV ne nascondono la scelta: la scheda non deve promettere che sia sempre selezionabile dalle impostazioni. Non promettere sincronizzazione dell’intera libreria; per i video precisare che i formati riproducibili dipendono dalla TV.
 
 ## App access e verifica
 
@@ -34,7 +34,7 @@ La Google Photos API richiede una verifica OAuth separata.[3]
 
 ## Data Safety
 
-La versione corrente non invia dati allo sviluppatore, non contiene annunci e non include più SDK che raccolgono dati (Google Cast è stato rimosso nella 1.3.0): la risposta è "nessun dato raccolto". Le foto degli invitati e le cartelle di rete restano sulla rete di casa e sulla TV. Le risposte da dare sono in [DATA_SAFETY.md](DATA_SAFETY.md). L’informativa pubblica (`site/privacy/index.html`) deve restare coerente con il modulo.
+La versione corrente non invia dati allo sviluppatore, non contiene annunci e non include più SDK che raccolgono dati (Google Cast è stato rimosso nella 1.3.0): la risposta è "nessun dato raccolto". Le foto degli invitati, le cartelle di rete e quelle condivise restano sulla rete di casa e sulla TV; l’album di iCloud si legge da Apple su richiesta dell’utente, senza passare dallo sviluppatore. Le risposte da dare sono in [DATA_SAFETY.md](DATA_SAFETY.md). L’informativa pubblica (`site/privacy/index.html`) deve restare coerente con il modulo.
 
 ## Accessibilità europea
 

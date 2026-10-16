@@ -1,10 +1,11 @@
 FotoFesta TV verwandelt deinen Fernseher in einen digitalen Bilderrahmen für Partys, Familienessen und Abende mit Freunden.
 
 <b>Woher deine Fotos kommen</b>
-• Google Fotos: Scanne einen QR-Code mit deinem Smartphone, melde dich an und wähle die Fotos aus, die gezeigt werden sollen. Keine Passworteingabe mit der Fernbedienung und Zugriff nur auf die Fotos, die du auswählst.
+• Google Fotos: Scanne einen QR-Code mit dem Smartphone, melde dich an und wähle die Fotos aus. Keine Passworteingabe mit der Fernbedienung, Zugriff nur auf die gewählten Fotos.
 • Gästefotos: Gäste scannen einen QR-Code auf dem Fernseher und senden Fotos von ihrem eigenen Smartphone – über dein Heimnetz und ohne App-Installation. Neue Fotos erscheinen sofort in der Diashow, mit dem Namen des Absenders; wenn du möchtest, gibst du sie vorher mit der Fernbedienung frei.
 • USB-Festplatte oder USB-Stick: Wähle einen Ordner, auch ohne Internet. Fotos und Videos bleiben auf dem Speicher und werden nie kopiert.
-• Netzwerkordner: NAS, Router mit USB-Festplatte, PCs mit aktivierter Medienfreigabe, Plex und Jellyfin. Medienserver in deinem Heimnetz (DLNA/UPnP) werden automatisch gefunden, ganz ohne Passwort: Durchsuche ihre Ordner mit der Fernbedienung und wähle einen aus. Fotos und Videos werden direkt geladen: Nichts wird auf den Fernseher kopiert und nichts läuft über das Internet.
+• Heimnetz: freigegebene Ordner von PC, Mac und NAS (SMB, mit Benutzername und Passwort oder als Gast) und DLNA-Medienserver von NAS, Routern, Plex und Jellyfin. Durchsuche die Ordner mit der Fernbedienung; Fotos und Videos werden direkt geladen, ohne Kopien auf dem Fernseher und ohne Umweg über das Internet.
+• Geteilte iCloud-Alben: Aktiviere auf dem iPhone „Öffentliche Website“, scanne den QR-Code am Fernseher und füge den Link am Handy ein. Neue Fotos im Album erscheinen von selbst.
 • Vier Demofotos, um die App sofort auszuprobieren.
 
 <b>Diashow</b>
@@ -19,9 +20,9 @@ FotoFesta TV verwandelt deinen Fernseher in einen digitalen Bilderrahmen für Pa
 • Bildschirmschoner mit deinen Fotos, wenn der Fernseher nicht benutzt wird
 
 <b>Auch Videos</b>
-• Videos aus USB-Ordnern, Netzwerkordnern und Google Fotos laufen in der Diashow mit, von Anfang bis Ende. Lieber nur Fotos? Dann schalte sie mit der Einstellung „Videos“ aus.
-• Ton der Videos: Während ein Video mit Ton läuft, pausiert die Hintergrundmusik.
-• Viele Formate: MP4, MOV, MKV, WebM, AVI und mehr. Welche Codecs laufen, hängt vom Fernseher ab; ein Video, das er nicht abspielen kann, wird übersprungen.
+• Videos von USB, aus dem Heimnetz, aus iCloud und Google Fotos laufen in der Diashow mit, von Anfang bis Ende. Lieber nur Fotos? Dann schalte sie mit der Einstellung „Videos“ aus.
+• Läuft ein Video mit Ton, pausiert die Hintergrundmusik.
+• Viele Formate: MP4, MOV, MKV, WebM, AVI und mehr. Welche Codecs laufen, hängt vom Fernseher ab; nicht abspielbare Videos werden übersprungen.
 • Spiele und Bildschirmschoner verwenden nur Fotos.
 
 <b>Fotospiele</b>

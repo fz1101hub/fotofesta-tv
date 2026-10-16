@@ -109,7 +109,7 @@ Questi passaggi funzionano solo dopo il primo caricamento manuale.
 
 ### Una volta sola
 
-> **Stato:** il workflow `.github/workflows/apple.yml` compila l'app per tvOS con Xcode 26.3 ed esegue i 65 test del nucleo su un runner macOS, senza errori. L'archivio firmato e la prova su una Apple TV reale restano da fare; vedi [apple/README.md](../apple/README.md#stato-di-verifica).
+> **Stato:** il workflow `.github/workflows/apple.yml` compila l'app per tvOS con Xcode 26.3 ed esegue i 114 test del nucleo su un runner macOS, senza errori. L'archivio firmato e la prova su una Apple TV reale restano da fare; vedi [apple/README.md](../apple/README.md#stato-di-verifica).
 
 1. **Strumenti**:
    - iscrizione all'[Apple Developer Program](https://developer.apple.com/programs/) (abbonamento annuale);
@@ -128,7 +128,8 @@ Questi passaggi funzionano solo dopo il primo caricamento manuale.
 3. **App Store Connect › App › +**: piattaforma **tvOS**, nome "FotoFesta TV", lingua principale, bundle ID `it.fotofesta.tv` (registrato in automatico dalla firma di Xcode) e uno SKU a piacere.
 4. **Privacy dell'app**: scegli **Nessun dato raccolto** (motivazione in [DATA_SAFETY.md](DATA_SAFETY.md)) e inserisci l'URL dell'informativa.
 5. **Classificazione per età**: questionario, risultato atteso 4+.
-6. **Chiave API** per fastlane: crea la chiave in **Utenti e accessi › Integrazioni › Chiavi API App Store Connect**. Esporta `ASC_KEY_ID`, `ASC_ISSUER_ID` e `ASC_KEY_PATH`, dove `ASC_KEY_PATH` è il file `.p8`, da tenere fuori dal repository.
+6. **Entitlement multicast (facoltativo, per le cartelle di rete)**: perché la Apple TV trovi da sola i server DLNA serve `com.apple.developer.networking.multicast`. Si chiede ad Apple con il modulo [Multicast Networking Entitlement Request](https://developer.apple.com/contact/request/networking-multicast) (motivo: scoperta dei server multimediali DLNA/UPnP della rete di casa con SSDP). Dopo l'approvazione, in **Certificates, Identifiers & Profiles** attiva la capability per l'identificativo `it.fotofesta.tv`, imposta `FOTOFESTA_ENTITLEMENTS = FotoFestaTV/Multicast.entitlements` in `Config/App.xcconfig` (o in `Secrets.xcconfig`) e rigenera il progetto. Senza l'entitlement l'app funziona lo stesso: i server si aggiungono con l'indirizzo IP. Non attivarlo prima dell'approvazione: la firma fallirebbe.
+7. **Chiave API** per fastlane: crea la chiave in **Utenti e accessi › Integrazioni › Chiavi API App Store Connect**. Esporta `ASC_KEY_ID`, `ASC_ISSUER_ID` e `ASC_KEY_PATH`, dove `ASC_KEY_PATH` è il file `.p8`, da tenere fuori dal repository.
 
 ### Pubblicare una versione
 
@@ -156,7 +157,8 @@ Note per la revisione Apple:
 - **Sign in with Apple** non è richiesto: Google si usa solo per accedere ai contenuti dell'utente su Google Foto (eccezione della linea guida 4.8).
 - **Crittografia**: l'app usa solo la crittografia di sistema (HTTPS verso Google). `ITSAppUsesNonExemptEncryption` è già impostato a `false`.
 - **Funzione dimostrativa**: senza account, "Prova subito" mostra tutte le funzioni. Le foto degli invitati si provano con un iPhone sulla stessa rete della Apple TV: nelle note per i revisori spiega di inquadrare il QR in "Foto degli invitati".
-- **Rete locale**: la Apple TV apre un server sulla rete di casa solo durante la festa; `NSLocalNetworkUsageDescription` ne spiega il motivo.
+- **Rete locale**: la Apple TV apre un server sulla rete di casa solo durante la festa e legge le cartelle dei server multimediali; `NSLocalNetworkUsageDescription` ne spiega il motivo. L'http in chiaro è ammesso solo verso la rete locale (`NSAllowsLocalNetworking`).
+- **Libreria Foto**: “Foto di iCloud” chiede il permesso di tvOS con `NSPhotoLibraryUsageDescription`; le foto si mostrano e basta. Nelle note per i revisori è spiegato come provarla e come aggiungere un server DLNA con l'indirizzo.
 
 ## 3. Verifiche finali prima di inviare
 
@@ -172,4 +174,8 @@ Note per la revisione Apple:
 | Lingua del dispositivo in italiano, inglese, francese, spagnolo e tedesco (testi tagliati sui pulsanti) | ☐ | ☐ |
 | Rete assente all'avvio e durante il collegamento | ☐ | ☐ |
 | Foto degli invitati: invio da Android e iPhone, approvazione, QR della Wi‑Fi, uscita e ritorno nell'app, fine festa | ☐ | ☐ |
+| Cartelle di rete DLNA: NAS reale, server spento, cambio di indirizzo IP | ☐ | ☐ (aggiunto con l'indirizzo) |
+| Cartelle condivise SMB: Windows con password, NAS come ospite, NAS in standby, password sbagliata | ☐ | — |
+| Album condiviso iCloud con link pubblico: QR dal telefono, codice scritto, foto aggiunte, link reso privato | ☐ | — |
+| Foto di iCloud: permesso concesso e negato, album condiviso, foto aggiunte da un iPhone | — | ☐ |
 | Informativa privacy pubblicata e URL inseriti negli store | ☐ | ☐ |

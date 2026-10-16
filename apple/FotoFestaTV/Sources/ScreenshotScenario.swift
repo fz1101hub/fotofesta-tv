@@ -68,6 +68,33 @@ extension AppModel {
                 await waitUntil { !self.pendingGuestPhotos.isEmpty }
                 self.path = [.guests, .guestReview]
             }
+        case "network": openNetwork()
+        case "network_folder", "network_slideshow":
+            // Server DLNA finto avviato dallo script sull'indirizzo del Mac (FOTOFESTA_NETWORK_HOST):
+            // si aggiunge con l'indirizzo, si apre la prima cartella e, per lo slideshow, la si usa.
+            openNetwork()
+            guard let host = ProcessInfo.processInfo.environment["FOTOFESTA_NETWORK_HOST"] else { return }
+            addNetworkAddress(host)
+            Task {
+                await waitUntil { self.networkBrowse != nil && !self.networkLoading }
+                if let first = self.networkBrowse?.folders.first { self.openNetworkFolder(first) }
+                await waitUntil { (self.networkBrowse?.trail.count ?? 0) >= 2 && !self.networkLoading }
+                guard scenario == "network_slideshow" else { return }
+                self.useNetworkFolder()
+                await waitUntil { self.collectionSource == .network }
+                self.play()
+            }
+        case "library", "library_slideshow":
+            // Lo script concede il permesso e aggiunge le foto demo alla libreria del simulatore.
+            openLibrary()
+            guard scenario == "library_slideshow" else { return }
+            Task {
+                await waitUntil { !self.libraryAlbums.isEmpty }
+                guard let album = self.libraryAlbums.first else { return }
+                self.useLibraryAlbum(album)
+                await waitUntil { self.collectionSource == .library }
+                self.play()
+            }
         default: break
         }
     }
