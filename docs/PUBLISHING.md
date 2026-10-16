@@ -69,6 +69,7 @@ La versione 1.3.0 compila e supera test e Lint nella CI (`.github/workflows/andr
    - **Accesso all'app**: tutte le funzioni sono disponibili senza login tramite "Prova subito" e "Foto degli invitati" (basta un telefono sulla stessa rete della TV). Per Google Foto fornisci l'account di test e la procedura dei due QR.
    - **Annunci**: no.
    - **ID pubblicità**: no. Il manifest rimuove il permesso `AD_ID`.
+   - **Autorizzazioni per foto e video** (*Contenuti dell'app › Autorizzazioni per foto e video*): l'app chiede `READ_MEDIA_IMAGES` per leggere le foto dal disco USB. Usa la motivazione di [DATA_SAFETY.md](DATA_SAFETY.md#autorizzazioni-per-foto-e-video). `READ_MEDIA_AUDIO`, per il brano di sottofondo, non richiede dichiarazioni.
    - **Classificazione dei contenuti**: questionario. Nessuna violenza, nessuna interazione tra utenti attraverso l'app. Le foto degli invitati restano sulla TV dell'organizzatore, che può approvarle prima che compaiano e cancellarle in ogni momento: non vengono pubblicate né condivise ([DATA_SAFETY.md](DATA_SAFETY.md#altre-sezioni-di-play-console)).
    - **Pubblico di destinazione**: 13+ oppure 18+. Scegliendo fasce di età più basse si applicano le norme Families.
    - **Sicurezza dei dati**: usa le risposte di [DATA_SAFETY.md](DATA_SAFETY.md). Dalla 1.3.0 l'app non include SDK che raccolgono dati, quindi la risposta è "nessun dato raccolto".
@@ -107,7 +108,7 @@ Questi passaggi funzionano solo dopo il primo caricamento manuale.
 
 ### Una volta sola
 
-> **Attenzione:** il codice dell'app Apple TV è stato scritto senza Xcode e non è ancora stato compilato. La prima volta servono un Mac e un po' di tempo per correggere eventuali errori di compilazione; vedi [apple/README.md](../apple/README.md#stato-di-verifica). Il workflow `.github/workflows/apple.yml` compila l'app e ne esegue i test su un runner macOS.
+> **Stato:** il workflow `.github/workflows/apple.yml` compila l'app per tvOS ed esegue i 65 test del nucleo su un runner macOS, senza errori. La build firmata con Xcode 26 e la prova su una Apple TV reale restano da fare; vedi [apple/README.md](../apple/README.md#stato-di-verifica).
 
 1. **Strumenti**:
    - iscrizione all'[Apple Developer Program](https://developer.apple.com/programs/) (abbonamento annuale);
@@ -165,6 +166,7 @@ Note per la revisione Apple:
 | Prova subito, slideshow, impostazioni, giochi | ☐ | ☐ |
 | Google Foto: collegamento, annullamento, selezione, "Disconnetti e cancella" | ☐ | ☐ |
 | USB con molte foto, rimozione del disco durante lo slideshow | ☐ | — |
+| Browser delle cartelle: permesso concesso e negato, disco USB, scelta del brano, TV con e senza selettore di Android | ☐ | — |
 | Musica, salvaschermo, pausa automatica | ☐ | pausa automatica |
 | Lingua del dispositivo in inglese e in italiano | ☐ | ☐ |
 | Rete assente all'avvio e durante il collegamento | ☐ | ☐ |

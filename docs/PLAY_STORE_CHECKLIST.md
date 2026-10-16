@@ -17,7 +17,8 @@ Riepilogo dei requisiti di qualità. I passaggi operativi, nell'ordine in cui es
 | 32/64 bit | ARM e x86, 32/64 | Verificare report Play Console |
 | 16 KB | `zipalign -P 16` superato dalla 1.0.0 | Ripetere sull'AAB 1.3.0 e leggere il Rapporto pre-lancio |
 | Android Lint | Nessun errore nella CI della 1.3.0 | Ripetere con `./scripts/build.sh` o la CI prima di ogni caricamento |
-| Test unitari | 113 superati (JVM) | Aggiungere test strumentali su TV reale |
+| Test unitari | 122 superati (JVM) | Aggiungere test strumentali su TV reale |
+| Permessi foto e audio | `READ_MEDIA_IMAGES`/`READ_MEDIA_AUDIO` (Android 13+), `READ_EXTERNAL_STORAGE` fino ad Android 12, chiesti all'apertura del browser USB | Compilare la dichiarazione “Autorizzazioni per foto e video” ([DATA_SAFETY.md](DATA_SAFETY.md#autorizzazioni-per-foto-e-video)) |
 
 ## Scheda Store
 

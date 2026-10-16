@@ -59,10 +59,9 @@ La pubblicazione è descritta in [docs/PUBLISHING.md](../docs/PUBLISHING.md).
 
 ## Stato di verifica
 
-Il codice è stato scritto in un ambiente senza toolchain Swift, quindi **non è ancora stato compilato**. La logica è la stessa dell'app Android, dove è coperta da test JVM che passano. I test XCTest del nucleo replicano gli stessi casi. Il workflow `.github/workflows/apple.yml` esegue `swift test` e compila l'app per tvOS su un runner macOS; con un repository privato i minuti macOS sono a pagamento.
+Il workflow `.github/workflows/apple.yml` gira su un runner macOS 15: i 65 test XCTest del nucleo passano e l'app si compila per tvOS senza firma e senza errori. Con un repository privato i minuti macOS sono a pagamento. La logica è la stessa dell'app Android, coperta dai test JVM.
 
-Prima del primo invio servono quattro cose:
-- generare il progetto ed eseguire `swift test`;
-- compilare l'app in Xcode e correggere eventuali errori o avvisi;
+Prima del primo invio servono ancora tre cose:
+- compilare e firmare l'app in Xcode 26 (l'SDK richiesto da App Store Connect) e controllare gli avvisi;
 - provarla nel simulatore e su una Apple TV reale;
 - controllare in Xcode l'asset catalog dell'icona a livelli.

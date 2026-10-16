@@ -9,6 +9,7 @@ Dalla versione 1.3.0 l'app per Android TV non include più Google Cast né altri
 - **Google Foto**: le chiamate a Google partono su richiesta dell'utente per leggere il suo stesso account e mostrargli le foto scelte. Le foto passano da Google alla TV solo per essere mostrate, senza essere salvate.
 - **Foto degli invitati**: vanno dal telefono dell'invitato alla TV attraverso la rete di casa, senza passare da internet né da server dello sviluppatore. Restano sulla TV solo durante la festa (in memoria, con una cartella temporanea di riserva) e vengono cancellate alla fine. Nome facoltativo dell'invitato: mostrato sulla TV accanto alle sue foto e cancellato con esse.
 - **Token Google e password della Wi‑Fi** per il QR degli invitati: cifrati sul dispositivo, mai trasmessi allo sviluppatore.
+- **Foto e musica del disco USB**: lette dal disco con i permessi di lettura di foto e audio, solo per mostrarle e riprodurle sulla TV. Non vengono copiate né trasmesse; sulla TV resta solo il percorso della cartella e del brano scelti.
 
 | Domanda di Play Console | Risposta |
 | --- | --- |
@@ -27,6 +28,14 @@ Se il revisore chiede comunque di dichiarare le foto (di Google Foto o degli inv
 - **Classificazione dei contenuti**: categoria Utilità/Produttività/Altro. Alla domanda sui contenuti generati dagli utenti: le foto degli invitati restano sulla TV di chi organizza la festa, non vengono pubblicate né condivise con altri utenti dell'app, e l'organizzatore può attivare l'approvazione prima che compaiano e cancellarle in ogni momento. Nessuna interazione tra utenti attraverso l'app.
 - **Pubblico di destinazione**: 13+ o 18+. L'app non è progettata per bambini, e con fasce sotto i 13 anni si applicano i requisiti Families.
 - **Android TV**: attiva la distribuzione su Android TV in *Impostazioni avanzate › Form factor* e carica banner TV e screenshot TV.
+
+### Autorizzazioni per foto e video
+
+L'app dichiara `READ_MEDIA_IMAGES` (Android 13 e successivi; `READ_EXTERNAL_STORAGE` fino ad Android 12) e `READ_MEDIA_AUDIO`. Play Console chiede di motivare l'accesso alle foto: la funzione principale dell'app è mostrare in slideshow intere cartelle di foto di un disco USB collegato alla TV, e molte TV non hanno il selettore di documenti né il selettore di foto di Android. Testo proposto:
+
+> FotoFesta TV is a slideshow app for Android TV. Its core feature is showing every photo in a folder of a USB drive plugged into the TV, including subfolders, with the remote control. Many Android TV devices have no document picker or photo picker, so the app lists the mounted drives and reads the chosen folder directly. Photos are only displayed on the TV: they are not copied, uploaded or shared. The permission is requested only when the user opens the USB folder browser.
+
+Il permesso si chiede solo all'apertura del browser delle cartelle; se viene negato, l'app usa il selettore di sistema quando la TV lo ha.
 
 ## App Store – Privacy dell'app (etichetta nutrizionale)
 

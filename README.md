@@ -14,7 +14,7 @@ Il repository contiene anche la versione per **Apple TV** (cartella [`apple/`](a
 | --- | --- | --- |
 | Sorgenti | Foto demo incluse | Pronta |
 | Sorgenti | Foto degli invitati: QR sulla TV, pagina web servita dalla TV, foto ridotte sul telefono e inviate sulla rete di casa | Pronta; nessun account, nessun server esterno |
-| Sorgenti | Cartella su hard disk USB tramite Storage Access Framework | Pronta; nessuna copia delle foto |
+| Sorgenti | Cartella su hard disk USB scelta con il browser interno (o con il selettore di Android, se la TV lo ha) | Pronta; nessuna copia delle foto |
 | Sorgenti | Google Photos Picker API con autorizzazione TV e QR | Pronta nel codice; richiede credenziali OAuth del proprietario |
 | Festa | Foto nuove mostrate subito, nome del mittente, approvazione facoltativa, QR nell’angolo dello slideshow, QR della Wi‑Fi | Pronta |
 | Slideshow | Durata 3, 5, 8, 12 o 20 secondi | Pronta |
@@ -64,7 +64,7 @@ La guida [CONFIGURATION.md](docs/CONFIGURATION.md) descrive Google Foto, le foto
 
 ## Architettura e flussi dati
 
-La lettura USB usa `ACTION_OPEN_DOCUMENT_TREE`, che concede accesso solo alla cartella scelta e alle sue sottocartelle.[3] Google Foto usa il nuovo Picker, perché dal 31 marzo 2025 la Library API non consente più a un’app di elencare l’intera libreria dell’utente.[1] L’utente seleziona esplicitamente le foto dal telefono. L’app non le scarica: conserva solo identificativi e nomi e carica ogni foto da Google alla dimensione dello schermo, tenendola soltanto in memoria. Le `baseUrl` della Picker API scadono dopo circa 60 minuti, quindi l’app le rinnova richiedendo di nuovo l’elenco della sessione, finché Google la tiene aperta.[2]
+Cartella USB e brano si scelgono con un browser di cartelle interno, comandato dal telecomando, perché molte TV non hanno il selettore di documenti di Android (`ACTION_OPEN_DOCUMENT_TREE`) e mostrano “nessuna applicazione può gestire questa azione”. Il browser elenca i dischi montati e legge i file dal loro percorso con il permesso di lettura delle foto o della musica (`READ_MEDIA_IMAGES` e `READ_MEDIA_AUDIO` da Android 13, `READ_EXTERNAL_STORAGE` prima), chiesto solo quando si apre. Se la TV ha il selettore di sistema, resta disponibile come alternativa e concede accesso solo alla cartella scelta.[3] Google Foto usa il nuovo Picker, perché dal 31 marzo 2025 la Library API non consente più a un’app di elencare l’intera libreria dell’utente.[1] L’utente seleziona esplicitamente le foto dal telefono. L’app non le scarica: conserva solo identificativi e nomi e carica ogni foto da Google alla dimensione dello schermo, tenendola soltanto in memoria. Le `baseUrl` della Picker API scadono dopo circa 60 minuti, quindi l’app le rinnova richiedendo di nuovo l’elenco della sessione, finché Google la tiene aperta.[2]
 
 Il flusso OAuth usa il meccanismo Google per TV e dispositivi a input limitato: la TV mostra URL e codice e l’utente autorizza da un telefono.[7] Il solo scope richiesto è `photospicker.mediaitems.readonly`; una pubblicazione pubblica richiede la verifica OAuth di Google.[8]
 
@@ -72,7 +72,7 @@ Le **foto degli invitati** non passano da internet. Quando l’organizzatore avv
 
 ## Privacy e sicurezza
 
-L’app non integra pubblicità, analytics, crash reporting esterno, SDK di terze parti che inviano dati o un backend proprietario: le risposte per la scheda Sicurezza dei dati sono in [DATA_SAFETY.md](docs/DATA_SAFETY.md). Gli URI USB e del brano musicale rimangono sul televisore e sono esclusi dal backup. I token Google e la password della Wi‑Fi per il QR degli invitati sono cifrati con una chiave AES-GCM non esportabile conservata da Android Keystore. Le foto Google non vengono copiate sulla TV; “Disconnetti e cancella” rimuove l’elenco delle foto scelte, chiude la sessione Picker e revoca l’accesso. Il traffico HTTP in uscita in chiaro è disabilitato. Il server per gli invitati accetta solo chi conosce la chiave del QR, controlla l’intestazione `Host`, il formato e le dimensioni delle immagini, limita intestazioni, tempi e connessioni e serve la pagina con una Content Security Policy restrittiva. L’informativa privacy e la pagina di supporto da pubblicare sono in [`site/`](site/).
+L’app non integra pubblicità, analytics, crash reporting esterno, SDK di terze parti che inviano dati o un backend proprietario: le risposte per la scheda Sicurezza dei dati sono in [DATA_SAFETY.md](docs/DATA_SAFETY.md). Il percorso della cartella USB e del brano musicale rimangono sul televisore e sono esclusi dal backup. I token Google e la password della Wi‑Fi per il QR degli invitati sono cifrati con una chiave AES-GCM non esportabile conservata da Android Keystore. Le foto Google non vengono copiate sulla TV; “Disconnetti e cancella” rimuove l’elenco delle foto scelte, chiude la sessione Picker e revoca l’accesso. Il traffico HTTP in uscita in chiaro è disabilitato. Il server per gli invitati accetta solo chi conosce la chiave del QR, controlla l’intestazione `Host`, il formato e le dimensioni delle immagini, limita intestazioni, tempi e connessioni e serve la pagina con una Content Security Policy restrittiva. L’informativa privacy e la pagina di supporto da pubblicare sono in [`site/`](site/).
 
 Queste scelte applicano minimizzazione e privacy by design. Prima di una pubblicazione pubblica devono comunque essere completate l’informativa definitiva, la scheda Data Safety e la verifica OAuth in base al titolare effettivo e ai paesi di distribuzione.[6] [8]
 
@@ -99,7 +99,7 @@ Per tornare al salvaschermo predefinito basta scegliere un altro salvaschermo da
 
 ## Verifica effettuata
 
-**Android TV.** I 113 test unitari (ordine di riproduzione e foto nuove degli invitati, movimento lento, ordinamento dei file, coerenza delle traduzioni, flusso Google Foto e streaming contro un server finto, archivio delle foto degli invitati con RAM e cartella di riserva, server HTTP con richieste vere su loopback, limiti contro gli abusi, QR della Wi‑Fi) passano con Kotlin 2.0.21 su JVM 17. La pagina per i telefoni è stata provata in Chromium (profili Pixel 7 e iPhone 13) contro il server della TV: riduzione e rotazione corrette, metadati rimossi, file non immagine rifiutati, TV spenta e riaccesa con “Riprova” che completa gli invii. In GitHub Actions ogni push su `main` e ogni pull request eseguono test, Android Lint e build dell’APK debug (`.github/workflows/android.yml`). Gli audit e le correzioni sono descritti in [AUDIT.md](docs/AUDIT.md).
+**Android TV.** I 122 test unitari (ordine di riproduzione e foto nuove degli invitati, movimento lento, ordinamento dei file, browser delle cartelle USB, coerenza delle traduzioni, flusso Google Foto e streaming contro un server finto, archivio delle foto degli invitati con RAM e cartella di riserva, server HTTP con richieste vere su loopback, limiti contro gli abusi, QR della Wi‑Fi) passano con Kotlin 2.0.21 su JVM 17. La pagina per i telefoni è stata provata in Chromium (profili Pixel 7 e iPhone 13) contro il server della TV: riduzione e rotazione corrette, metadati rimossi, file non immagine rifiutati, TV spenta e riaccesa con “Riprova” che completa gli invii. In GitHub Actions ogni push su `main` e ogni pull request eseguono test, Android Lint e build dell’APK debug (`.github/workflows/android.yml`). Gli audit e le correzioni sono descritti in [AUDIT.md](docs/AUDIT.md).
 
 La versione 1.3.0 compila e supera test e Android Lint in GitHub Actions, che produce anche l’APK debug scaricabile dagli artefatti. Prima del primo caricamento servono la build di release firmata (`release.yml` o `./scripts/build.sh`) e la prova manuale su una TV reale descritta in [VALIDATION.md](docs/VALIDATION.md) e in [PUBLISHING.md](docs/PUBLISHING.md#3-verifiche-finali-prima-di-inviare).
 
@@ -115,7 +115,7 @@ Risultati della validazione locale della versione 1.0.0:
 | ABI | `armeabi-v7a`, `arm64-v8a`, `x86`, `x86_64` |
 | Allineamento 16 KB | Superato |
 
-**Apple TV.** Il codice Swift non è ancora stato compilato, perché l’ambiente di sviluppo non aveva Xcode. Il workflow `.github/workflows/apple.yml` esegue i test del nucleo e compila l’app su un runner macOS. In alternativa si seguono i passi di [apple/README.md](apple/README.md) su un Mac.
+**Apple TV.** Il workflow `.github/workflows/apple.yml` su un runner macOS (macOS 15) esegue i 65 test XCTest del nucleo, tutti superati, e compila l’app per tvOS senza firma, senza errori. Restano da fare la prova nel simulatore e su una Apple TV reale e la build firmata con Xcode 26 descritta in [apple/README.md](apple/README.md).
 
 ## Riferimenti
 

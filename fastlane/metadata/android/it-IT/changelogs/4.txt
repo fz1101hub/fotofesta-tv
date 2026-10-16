@@ -3,4 +3,5 @@
 • Approvazione delle foto dal telecomando e QR per entrare nella Wi‑Fi
 • Le foto della festa si cancellano con un tasto alla fine
 • Google Foto in streaming: nessuna foto copiata sulla TV
+• Disco USB e brano si scelgono dalla TV, anche senza gestore file
 • Rimosso Google Cast
