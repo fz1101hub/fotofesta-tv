@@ -1,7 +1,9 @@
 import SwiftUI
+import UIKit
 
 struct RootView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         @Bindable var model = model
@@ -15,6 +17,9 @@ struct RootView: View {
                     case .memory: MemoryGameView()
                     case .mystery: MysteryGameView()
                     case .googleConnect: GoogleConnectView()
+                    case .guests: GuestsView()
+                    case .guestReview: GuestReviewView()
+                    case .guestWifi: GuestWifiView()
                     }
                 }
         }
@@ -34,5 +39,13 @@ struct RootView: View {
             }
         }
         .animation(.easeInOut(duration: 0.3), value: model.message)
+        // Il server per le foto degli invitati resta acceso solo con l'app in primo piano. "Inattiva"
+        // (Centro di Controllo aperto sopra l'app) non conta come uscita.
+        .onChange(of: scenePhase, initial: true) { _, phase in
+            model.guests.setForeground(phase != .background)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
+            model.guests.lowMemory()
+        }
     }
 }

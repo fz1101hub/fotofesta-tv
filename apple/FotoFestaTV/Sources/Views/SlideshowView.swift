@@ -28,6 +28,8 @@ struct SlideshowView: View {
                     SlideView(photo: photo, settings: settings, playing: model.isPlaying)
                         .id(photo.id)
                         .transition(transition(for: settings))
+                } else if model.guests.active {
+                    WaitingForGuestsView(guests: model.guests)
                 } else {
                     Text(L("slideshow.empty")).font(.title2)
                 }
@@ -42,6 +44,25 @@ struct SlideshowView: View {
         }
         .overlay(alignment: .topTrailing) {
             if settings.showClock { ClockView().padding(48) }
+        }
+        // QR piccolo per gli invitati, che possono mandare foto in ogni momento.
+        .overlay(alignment: .topLeading) {
+            if model.guests.active, model.guests.qrInSlideshow, model.currentPhoto != nil, let url = model.guests.url {
+                SlideshowGuestQR(url: url).padding(48)
+            }
+        }
+        // Il nome di chi ha mandato la foto, finché le informazioni (che mostrano già il titolo) sono nascoste.
+        .overlay(alignment: .bottomLeading) {
+            if !(infoVisible || !model.isPlaying), let name = guestName {
+                Text(name)
+                    .font(.title3.bold())
+                    .lineLimit(1)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(.black.opacity(0.55), in: RoundedRectangle(cornerRadius: 16))
+                    .padding(48)
+                    .transition(.opacity)
+            }
         }
         .onMoveCommand { direction in
             switch direction {
@@ -59,8 +80,9 @@ struct SlideshowView: View {
             model.pause()
             dismiss()
         }
-        // Cambio foto automatico; si riavvia a ogni foto, pausa o cambio di durata.
-        .task(id: TimerKey(index: model.currentIndex, playing: model.isPlaying, interval: settings.intervalSeconds, count: model.photos.count)) {
+        // Cambio foto automatico; si riavvia a ogni foto, pausa o cambio di durata. Solo "più di una
+        // foto" e non il numero: le foto che arrivano dagli invitati non fanno ripartire il conteggio.
+        .task(id: TimerKey(index: model.currentIndex, playing: model.isPlaying, interval: settings.intervalSeconds, canAdvance: model.photos.count > 1)) {
             let photoID = model.currentPhoto?.id
             if photoID != shownPhotoID {
                 shownPhotoID = photoID
@@ -140,7 +162,13 @@ struct SlideshowView: View {
         let index: Int
         let playing: Bool
         let interval: Int
-        let count: Int
+        let canAdvance: Bool
+    }
+
+    /// Nome dell'invitato che ha mandato la foto corrente, se l'ha indicato.
+    private var guestName: String? {
+        guard let photo = model.currentPhoto, case .guest = photo.source, photo.title != L("guest.photo") else { return nil }
+        return photo.title
     }
 }
 

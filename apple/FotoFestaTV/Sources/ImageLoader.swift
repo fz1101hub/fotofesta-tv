@@ -5,7 +5,8 @@ import UIKit
 
 /// Decodifica le foto ridimensionate alla risoluzione dello schermo, fuori dal thread principale,
 /// con una piccola cache in memoria per la foto corrente e le successive. Le foto di Google Foto
-/// arrivano da Google già ridotte e non vengono mai salvate su disco (sessione di rete effimera).
+/// arrivano da Google già ridotte e non vengono mai salvate su disco (sessione di rete effimera);
+/// quelle degli invitati arrivano dall'archivio della festa.
 actor ImageLoader {
     static let shared = ImageLoader()
 
@@ -36,6 +37,17 @@ actor ImageLoader {
         case let .google(mediaID):
             guard let data = await googleData(mediaID: mediaID, maxPixelSize: maxPixelSize),
                   let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+            decoded = Self.thumbnail(source, maxPixelSize: maxPixelSize)
+        case let .guest(id):
+            // Dall'archivio della festa: in RAM o nella cartella di riserva. I byte si leggono subito,
+            // così una foto cancellata a metà caricamento mostra il segnaposto e non un'immagine rotta.
+            let data: Data?
+            switch GuestStorage.store.open(id) {
+            case let .data(bytes): data = bytes
+            case let .file(url): data = try? Data(contentsOf: url)
+            case nil: data = nil
+            }
+            guard let data, let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
             decoded = Self.thumbnail(source, maxPixelSize: maxPixelSize)
         }
         guard let decoded else { return nil }

@@ -34,6 +34,9 @@ struct HomeView: View {
                             model.startGoogleConnect()
                         }
                     }
+                    SourceCard(title: L("home.guests_title"), subtitle: L("home.guests_body"), systemImage: "person.3.fill", tint: Theme.amber) {
+                        model.openGuests()
+                    }
                     SourceCard(title: L("home.demo_title"), subtitle: L("home.demo_body"), systemImage: "sparkles", tint: Theme.coral) {
                         model.startDemo()
                     }
@@ -79,7 +82,7 @@ struct SourceCard: View {
                     .multilineTextAlignment(.leading)
             }
             .padding(36)
-            .frame(width: 620, height: 300, alignment: .topLeading)
+            .frame(width: 520, height: 300, alignment: .topLeading)
             .background(
                 LinearGradient(colors: [tint.opacity(0.35), Theme.navySoft], startPoint: .topLeading, endPoint: .bottomTrailing)
             )

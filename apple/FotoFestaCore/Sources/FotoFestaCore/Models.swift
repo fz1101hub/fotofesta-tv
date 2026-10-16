@@ -6,6 +6,8 @@ public enum PhotoSource: Codable, Hashable, Sendable {
     case bundled(fileName: String)
     /// Foto di Google Foto caricata al momento da Google: sul dispositivo non ne resta una copia.
     case google(mediaID: String)
+    /// Foto mandata da un invitato, tenuta da GuestPhotoStore solo per la durata della festa.
+    case guest(id: String)
 }
 
 public struct Photo: Identifiable, Hashable, Codable, Sendable {

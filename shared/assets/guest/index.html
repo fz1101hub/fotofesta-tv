@@ -17,7 +17,7 @@
   label.field { display: block; margin: 1.2rem 0 .3rem; font-weight: 600; }
   input[type=text] { width: 100%; font: inherit; color: var(--fg); background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
   input[type=text]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-  .pick { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; margin: 1.2rem 0 .4rem; padding: 18px; border: 0; border-radius: 16px; background: var(--accent); color: #1b1020; font: 700 1.15rem/1.2 inherit; cursor: pointer; }
+  .pick { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; margin: 1.2rem 0 .4rem; padding: 18px; border: 0; border-radius: 16px; background: var(--accent); color: #1b1020; font-family: inherit; font-size: 1.15rem; font-weight: 700; line-height: 1.2; cursor: pointer; }
   .pick:focus-within { outline: 3px solid #fff; outline-offset: 2px; }
   .pick input { position: absolute; width: 1px; height: 1px; opacity: 0; }
   .note { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-top: 1rem; }
@@ -124,7 +124,7 @@ if (CONFIG.approval) {
 const KEY = new URLSearchParams(location.search).get("k") || "";
 const senderInput = $("sender");
 try { senderInput.value = localStorage.getItem("fotofesta.sender") || ""; } catch (e) {}
-senderInput.addEventListener("change", () => {
+senderInput.addEventListener("input", () => {
   try { localStorage.setItem("fotofesta.sender", senderInput.value.trim()); } catch (e) {}
 });
 

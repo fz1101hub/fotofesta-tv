@@ -2,8 +2,12 @@ import FotoFestaCore
 import Foundation
 import Observation
 
+/// Chiave delle impostazioni in UserDefaults, fuori dalla classe: la legge anche la coda del server
+/// degli invitati.
+private let slideshowSettingsKey = "slideshowSettings"
+
 enum Route: Hashable {
-    case slideshow, settings, games, memory, mystery, googleConnect
+    case slideshow, settings, games, memory, mystery, googleConnect, guests, guestReview, guestWifi
 }
 
 enum GoogleState: Equatable {
@@ -19,6 +23,7 @@ enum GoogleState: Equatable {
 @Observable
 final class AppModel {
     var path: [Route] = []
+    /// Raccolta mostrata: quella scelta (demo o Google) più le foto approvate degli invitati.
     private(set) var photos: [Photo]
     private(set) var sourceLabel: String
     private(set) var currentIndex = 0
@@ -38,6 +43,17 @@ final class AppModel {
     private let defaults = UserDefaults.standard
     private let order = PlaybackOrder()
     private let google = GoogleServices.shared
+    /// Festa con le foto degli invitati.
+    let guests = GuestParty()
+    @ObservationIgnored private var basePhotos: [Photo]
+    @ObservationIgnored private var baseLabel: String
+    @ObservationIgnored private var baseIsDemo: Bool
+    @ObservationIgnored private var guestPhotos: [Photo] = []
+    @ObservationIgnored private var guestPartyActive = false
+    @ObservationIgnored private let freshPhotos = FreshPhotos()
+    @ObservationIgnored private var knownGuestIDs: Set<String>?
+    @ObservationIgnored private var knownPendingIDs: Set<String> = []
+    @ObservationIgnored private let createdAt = Date()
     @ObservationIgnored private var googleTask: Task<Void, Never>?
     @ObservationIgnored private var cleanupTask: Task<Void, Never>?
     /// Identifica il collegamento in corso: i passi di un collegamento annullato vengono ignorati.
@@ -46,12 +62,11 @@ final class AppModel {
     @ObservationIgnored private var sleepTaskMinutes = 0
     @ObservationIgnored private var messageTask: Task<Void, Never>?
 
-    private static let settingsKey = "slideshowSettings"
+    private static let settingsKey = slideshowSettingsKey
     private static let sourceKey = "lastSource"
 
     init() {
-        settings = (UserDefaults.standard.data(forKey: Self.settingsKey))
-            .flatMap { try? JSONDecoder().decode(SlideshowSettings.self, from: $0) } ?? SlideshowSettings()
+        settings = Self.storedSettings()
         var initialPhotos = Self.demoPhotos
         var initialLabel = L("source.demo")
         var initialMessage: String?
@@ -70,6 +85,9 @@ final class AppModel {
         }
         photos = initialPhotos
         sourceLabel = initialLabel
+        basePhotos = initialPhotos
+        baseLabel = initialLabel
+        baseIsDemo = initialPhotos == Self.demoPhotos
         order.reset(count: initialPhotos.count, shuffle: settings.shuffle)
         if let initialMessage { showMessage(initialMessage) }
         // Selezione rimasta da una sorgente abbandonata: non verrà più usata.
@@ -86,6 +104,14 @@ final class AppModel {
             // Una selezione persa prima che il gestore fosse registrato: si allinea subito la schermata.
             self?.reconcileLostSelection()
         }
+        guests.onChange = { [weak self] in self?.guestsChanged() }
+        guestsChanged()
+    }
+
+    /// Impostazioni salvate; usate anche dalla coda del server degli invitati (adattamento delle foto).
+    nonisolated static func storedSettings() -> SlideshowSettings {
+        UserDefaults.standard.data(forKey: slideshowSettingsKey)
+            .flatMap { try? JSONDecoder().decode(SlideshowSettings.self, from: $0) } ?? SlideshowSettings()
     }
 
     /// Modifica e salva le impostazioni, aggiornando ordine e pausa automatica se necessario.
@@ -110,7 +136,11 @@ final class AppModel {
 
     var currentPhoto: Photo? { photos.indices.contains(currentIndex) ? photos[currentIndex] : nil }
 
-    var upcomingPhoto: Photo? { order.peekNext(after: currentIndex).flatMap { photos.indices.contains($0) ? photos[$0] : nil } }
+    var upcomingPhoto: Photo? {
+        if let fresh = freshPhotos.peek(photos, currentIndex: currentIndex) { return photos[fresh] }
+        let from = freshPhotos.peekResume(photos) ?? currentIndex
+        return order.peekNext(after: from).flatMap { photos.indices.contains($0) ? photos[$0] : nil }
+    }
 
     var isGoogleConfigured: Bool { google.auth.isConfigured }
 
@@ -126,13 +156,14 @@ final class AppModel {
     func startDemo() {
         cancelGoogle()
         defaults.set("demo", forKey: Self.sourceKey)
-        show(Self.demoPhotos, label: L("source.demo"))
+        show(Self.demoPhotos, label: L("source.demo"), isDemo: true)
         discardGoogleSelection()
         play()
     }
 
     func play() {
-        guard !photos.isEmpty else {
+        // Durante la festa lo slideshow parte anche vuoto: mostra il QR in attesa della prima foto.
+        guard !photos.isEmpty || guests.active else {
             showMessage(L("message.choose_source"))
             return
         }
@@ -150,14 +181,19 @@ final class AppModel {
         isPlaying ? pause() : play()
     }
 
+    /// Le foto appena mandate dagli invitati passano davanti, poi si riprende dal punto lasciato.
     func next() {
         guard !photos.isEmpty else { return }
-        currentIndex = order.next(after: currentIndex)
+        if let fresh = freshPhotos.take(photos, currentIndex: currentIndex) {
+            currentIndex = fresh
+        } else {
+            currentIndex = order.next(after: freshPhotos.takeResume(photos) ?? currentIndex)
+        }
     }
 
     func previous() {
         guard !photos.isEmpty else { return }
-        currentIndex = order.previous(before: currentIndex)
+        currentIndex = freshPhotos.takeResume(photos) ?? order.previous(before: currentIndex)
     }
 
     // MARK: - Google Foto
@@ -204,7 +240,7 @@ final class AppModel {
         let previous = google.selections.current()
         google.selections.save(result.selection)
         defaults.set("google", forKey: Self.sourceKey)
-        show(result.selection.photos, label: L("source.google", result.selection.items.count))
+        show(result.selection.photos, label: L("source.google", result.selection.items.count), isDemo: false)
         googleState = .complete(result.selection.items.count, expiresAt: result.selection.expiresAt)
         showMessage(result.skipped > 0 ? L("message.google_skipped", result.skipped) : L("message.google_ready"))
         if let previous, previous.sessionID != result.selection.sessionID {
@@ -245,7 +281,7 @@ final class AppModel {
         // Nel frattempo è arrivata una selezione nuova: quella persa non è più mostrata.
         guard google.selections.current() == nil else { return }
         if defaults.string(forKey: Self.sourceKey) == "google" { defaults.set("demo", forKey: Self.sourceKey) }
-        if showingGooglePhotos { show(Self.demoPhotos, label: L("source.demo")) }
+        if showingGooglePhotos { show(Self.demoPhotos, label: L("source.demo"), isDemo: true) }
         showMessage(reason == .accessLost ? L("error.google_session_expired") : L("error.google_selection_gone"))
     }
 
@@ -255,7 +291,7 @@ final class AppModel {
     }
 
     private var showingGooglePhotos: Bool {
-        photos.contains { if case .google = $0.source { true } else { false } }
+        basePhotos.contains { if case .google = $0.source { true } else { false } }
     }
 
     func cancelGoogleConnect() {
@@ -270,7 +306,7 @@ final class AppModel {
         if wasShowingGoogle || defaults.string(forKey: Self.sourceKey) == "google" {
             defaults.set("demo", forKey: Self.sourceKey)
         }
-        if wasShowingGoogle { show(Self.demoPhotos, label: L("source.demo")) }
+        if wasShowingGoogle { show(Self.demoPhotos, label: L("source.demo"), isDemo: true) }
         googleState = .idle
         showMessage(L("message.google_removed"))
         // Sul dispositivo restano solo l'elenco delle foto e le immagini in memoria: spariscono subito.
@@ -299,14 +335,114 @@ final class AppModel {
         googleTask?.cancel()
     }
 
+    // MARK: - Foto degli invitati
+
+    /// Foto in attesa di approvazione, dalla più vecchia.
+    var pendingGuestPhotos: [Photo] {
+        guests.photos.filter { !$0.approved }.map(Self.photo(for:))
+    }
+
+    var approvedGuestCount: Int { guestPhotos.count }
+
+    func openGuests() {
+        if path.last != .guests { path.append(.guests) }
+    }
+
+    func startGuestParty() {
+        guests.start()
+    }
+
+    func endGuestParty() {
+        guests.end()
+        freshPhotos.clear()
+        showMessage(L("message.guests_ended"))
+    }
+
+    /// Salva la rete per il QR della Wi‑Fi; false (con un messaggio) se i dati non vanno bene.
+    @discardableResult
+    func saveGuestWifi(ssid: String, password: String) -> Bool {
+        if let problem = WifiNetwork.validate(ssid: ssid, password: password) {
+            switch problem {
+            case .missingName: showMessage(L("wifi.error_name"))
+            case .nameTooLong: showMessage(L("wifi.error_name_long"))
+            case .badPassword: showMessage(L("wifi.error_password"))
+            }
+            return false
+        }
+        guests.saveWifi(WifiNetwork(ssid: ssid.trimmingCharacters(in: .whitespaces), password: password))
+        if path.last == .guestWifi { path.removeLast() }
+        return true
+    }
+
+    func approveGuestPhoto(_ photo: Photo) {
+        if case let .guest(id) = photo.source { guests.approve(id) }
+    }
+
+    func discardGuestPhoto(_ photo: Photo) {
+        if case let .guest(id) = photo.source { guests.reject(id) }
+    }
+
+    /// Aggiorna la raccolta mostrata. Le foto approvate da poco (arrivate dopo l'apertura dell'app,
+    /// o appena approvate) passano davanti nello slideshow.
+    private func guestsChanged() {
+        let all = guests.photos
+        let approved = all.filter(\.approved)
+        if let known = knownGuestIDs {
+            let fresh = approved.filter { !known.contains($0.id) && ($0.receivedAt >= createdAt || knownPendingIDs.contains($0.id)) }
+            freshPhotos.add(fresh.map { "guest:\($0.id)" })
+        }
+        knownGuestIDs = Set(approved.map(\.id))
+        knownPendingIDs = Set(all.filter { !$0.approved }.map(\.id))
+        let items = approved.map(Self.photo(for:))
+        if items != guestPhotos || guests.active != guestPartyActive {
+            guestPhotos = items
+            guestPartyActive = guests.active
+            applyCollection(restart: false)
+        }
+        // Approvate o scartate tutte: si torna alla schermata della festa.
+        if path.last == .guestReview, all.allSatisfy(\.approved) { path.removeLast() }
+    }
+
+    private static func photo(for guest: GuestPhoto) -> Photo {
+        Photo(
+            id: "guest:\(guest.id)",
+            title: guest.sender.map { L("guest.photo_from", $0) } ?? L("guest.photo"),
+            source: .guest(id: guest.id)
+        )
+    }
+
     // MARK: - Interni
 
-    private func show(_ newPhotos: [Photo], label: String) {
-        let start = settings.shuffle && !newPhotos.isEmpty ? Int.random(in: 0..<newPhotos.count) : 0
-        order.reset(count: newPhotos.count, shuffle: settings.shuffle, current: start)
+    /// Sostituisce la raccolta scelta ripartendo dalla prima foto dell'ordine di riproduzione.
+    private func show(_ newPhotos: [Photo], label: String, isDemo: Bool) {
+        basePhotos = newPhotos
+        baseLabel = label
+        baseIsDemo = isDemo
+        applyCollection(restart: true)
+    }
+
+    /// Ricalcola la raccolta mostrata. Con `restart` riparte dall'inizio; altrimenti resta sulla foto
+    /// corrente (arrivano o spariscono foto degli invitati mentre lo slideshow va avanti).
+    private func applyCollection(restart: Bool) {
+        let newPhotos = combineWithGuests(base: basePhotos, baseIsDemo: baseIsDemo, guests: guestPhotos, partyActive: guestPartyActive)
+        let index: Int
+        if restart {
+            index = settings.shuffle && !newPhotos.isEmpty ? Int.random(in: 0..<newPhotos.count) : 0
+        } else if let currentID = currentPhoto?.id, let same = newPhotos.firstIndex(where: { $0.id == currentID }) {
+            index = same
+        } else {
+            index = max(min(currentIndex, newPhotos.count - 1), 0)
+        }
+        order.reset(count: newPhotos.count, shuffle: settings.shuffle, current: index)
         photos = newPhotos
-        currentIndex = start
-        sourceLabel = label
+        currentIndex = index
+        sourceLabel = collectionLabel()
+    }
+
+    private func collectionLabel() -> String {
+        if guestPhotos.isEmpty, !(baseIsDemo && guestPartyActive) { return baseLabel }
+        if baseIsDemo { return L("source.guests", guestPhotos.count) }
+        return L("source.with_guests", baseLabel, guestPhotos.count)
     }
 
     /// Pausa automatica: si avvia con la riproduzione e si azzera alla pausa o al cambio di durata.
