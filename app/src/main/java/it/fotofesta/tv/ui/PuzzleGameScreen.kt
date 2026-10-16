@@ -64,6 +64,7 @@ import coil.request.ImageRequest
 import coil.request.SuccessResult
 import coil.size.Scale
 import it.fotofesta.tv.R
+import it.fotofesta.tv.ScreenshotScenario
 import it.fotofesta.tv.model.PhotoItem
 import it.fotofesta.tv.model.PixelRect
 import it.fotofesta.tv.model.PuzzleBoard
@@ -86,7 +87,8 @@ fun PuzzleGameScreen(photos: List<PhotoItem>, onBack: () -> Unit) {
         NotEnoughPhotos(stringResource(R.string.games_puzzle_title), onBack)
         return
     }
-    var level by rememberSaveable { mutableStateOf<PuzzleLevel?>(null) }
+    // Nella schermata "puzzle_game" della CI (solo debug) il gioco parte con il livello medio.
+    var level by rememberSaveable { mutableStateOf(PuzzleLevel.MEDIUM.takeIf { ScreenshotScenario.name == "puzzle_game" }) }
     val chosen = level
     if (chosen == null) {
         PuzzleLevelPicker(onPick = { level = it }, onBack = onBack)

@@ -21,6 +21,8 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    outputs:
+      screenshots: ${{ steps.shots.outputs.run }}
     steps:
       - uses: actions/checkout@v4
 
@@ -62,3 +64,95 @@ jobs:
         with:
           name: FotoFesta-TV-debug
           path: app/build/outputs/apk/debug/app-debug.apk
+
+      # Schermate dall'emulatore, solo su richiesta: avvio a mano o "[screenshots]" nel messaggio
+      # dell'ultimo commit (vedi il job screenshots).
+      - name: Schermate richieste?
+        id: shots
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          message=$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA" --jq .commit.message)
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch || "$message" == *"[screenshots]"* ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Schermate nell'emulatore Android TV 1080p: quelle per Google Play in ogni lingua e, in italiano,
+  # tutte le schermate con cartelle condivise (Samba), cartelle di rete (DLNA) e video da server di
+  # prova sul runner. Fallisce se l'app si chiude da sola o se una schermata non si apre.
+  screenshots:
+    needs: build
+    if: needs.build.outputs.screenshots == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { language: it, set: checks }
+          - { language: it, set: store }
+          - { language: en, set: store }
+          - { language: fr, set: store }
+          - { language: es, set: store }
+          - { language: de, set: store }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: FotoFesta-TV-debug
+          path: app/build/outputs/apk/debug
+
+      - name: KVM per l'emulatore
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Strumenti
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -yq --no-install-recommends ffmpeg samba
+
+      - name: Server di prova
+        if: matrix.set == 'checks'
+        run: scripts/android_test_servers.sh
+
+      # Android 14 se c'è l'immagine TV, altrimenti la più recente da Android 13 in su: serve la
+      # lingua per singola app (cmd locale set-app-locales).
+      - name: Immagine Android TV
+        id: image
+        run: |
+          images=$("$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --list 2>/dev/null \
+            | grep -oE 'system-images;android-[0-9]+;android-tv;x86(_64)?' | sort -u || true)
+          echo "$images"
+          pick=$(echo "$images" | awk -F';' '{ sub("android-", "", $2); if ($2 + 0 >= 33) print $2 + 0, $4 }' \
+            | sort -k1,1n -k2,2 | awk '$1 == 34' | tail -1)
+          [ -n "$pick" ] || pick=$(echo "$images" | awk -F';' '{ sub("android-", "", $2); if ($2 + 0 >= 33) print $2 + 0, $4 }' \
+            | sort -k1,1n -k2,2 | tail -1)
+          [ -n "$pick" ] || pick="34 x86"
+          echo "Immagine scelta: $pick"
+          echo "api=${pick% *}" >> "$GITHUB_OUTPUT"
+          echo "arch=${pick#* }" >> "$GITHUB_OUTPUT"
+
+      - name: Schermate dall'emulatore Android TV
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ steps.image.outputs.api }}
+          target: android-tv
+          arch: ${{ steps.image.outputs.arch }}
+          profile: tv_1080p
+          disable-animations: true
+          emulator-boot-timeout: 900
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -camera-back none
+          script: scripts/android_screenshots.sh ${{ matrix.language }} ${{ matrix.set }}
+
+      - name: Carica le schermate
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: FotoFesta-TV-screenshots-${{ matrix.language }}-${{ matrix.set }}
+          path: build/screenshots/
+          retention-days: 14
+          if-no-files-found: ignore

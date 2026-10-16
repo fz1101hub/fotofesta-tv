@@ -6,10 +6,10 @@ name: Apple TV CI
 on:
   push:
     branches: [main]
-    paths: ["apple/**", "shared/**", ".github/workflows/apple.yml"]
+    paths: ["apple/**", "shared/**", "scripts/fake_dlna.py", ".github/workflows/apple.yml"]
   pull_request:
     branches: [main]
-    paths: ["apple/**", "shared/**", ".github/workflows/apple.yml"]
+    paths: ["apple/**", "shared/**", "scripts/fake_dlna.py", ".github/workflows/apple.yml"]
   workflow_dispatch:
 
 permissions:

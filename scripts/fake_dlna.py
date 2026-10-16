@@ -1,17 +1,24 @@
-"""Server DLNA minimo per le schermate nel simulatore: una cartella "Festa" con le foto demo.
+"""Server DLNA minimo per le schermate nel simulatore e nell'emulatore: una cartella "Festa di
+compleanno" con le foto (e i video .mp4) di una cartella, e una cartella "Musica" che va saltata.
 
-Uso: python3 scripts/fake_dlna.py <indirizzo> <cartella con le foto>
-Risponde sulla porta 8200 come MiniDLNA (/rootDesc.xml e Browse su /ctl/ContentDir).
+Uso: python3 scripts/fake_dlna.py <indirizzo> <cartella> [indirizzo pubblicato]
+Risponde sulla porta 8200 come MiniDLNA (/rootDesc.xml e Browse su /ctl/ContentDir). L'indirizzo
+pubblicato è quello scritto negli indirizzi dei file, se chi li legge vede il server con un altro
+indirizzo (l'emulatore Android raggiunge il computer che lo ospita con 10.0.2.2).
 """
 import html
 import socketserver
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import quote, unquote
 
 HOST = sys.argv[1]
-PHOTOS = sorted(Path(sys.argv[2]).glob("*.jpg"))
-BASE = f"http://{HOST}:8200"
+FOLDER = Path(sys.argv[2])
+PUBLISHED = sys.argv[3] if len(sys.argv) > 3 else HOST
+BASE = f"http://{PUBLISHED}:8200"
+KINDS = {".jpg": "image/jpeg", ".mp4": "video/mp4"}
+MEDIA = sorted(path for path in FOLDER.iterdir() if path.suffix.lower() in KINDS)
 
 DESCRIPTION = f"""<?xml version="1.0"?>
 <root xmlns="urn:schemas-upnp-org:device-1-0"><device>
@@ -26,6 +33,14 @@ def didl(content):
             f'xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/">{content}</DIDL-Lite>')
 
 
+def item(index, path):
+    kind = KINDS[path.suffix.lower()]
+    upnp_class = "object.item.videoItem" if kind.startswith("video/") else "object.item.imageItem.photo"
+    return (f'<item id="p{index}" parentID="1"><dc:title>{html.escape(path.name)}</dc:title>'
+            f'<upnp:class>{upnp_class}</upnp:class>'
+            f'<res protocolInfo="http-get:*:{kind}:*">{BASE}/media/{quote(path.name)}</res></item>')
+
+
 def browse(object_id):
     if object_id == "0":
         items = ['<container id="1" parentID="0"><dc:title>Festa di compleanno</dc:title>'
@@ -33,10 +48,7 @@ def browse(object_id):
                  '<container id="2" parentID="0"><dc:title>Musica</dc:title>'
                  '<upnp:class>object.container.album.musicAlbum</upnp:class></container>']
     elif object_id == "1":
-        items = [f'<item id="p{i}" parentID="1"><dc:title>{photo.name}</dc:title>'
-                 '<upnp:class>object.item.imageItem.photo</upnp:class>'
-                 f'<res protocolInfo="http-get:*:image/jpeg:*">{BASE}/media/{photo.name}</res></item>'
-                 for i, photo in enumerate(PHOTOS)]
+        items = [item(index, path) for index, path in enumerate(MEDIA)]
     else:
         items = []
     body = html.escape(didl("".join(items)), quote=False)
@@ -51,20 +63,43 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         print(self.address_string(), format % args, flush=True)
 
-    def reply(self, status, body, kind):
+    def reply(self, status, body, kind, headers=()):
         self.send_response(status)
         self.send_header("Content-Type", kind)
         self.send_header("Content-Length", str(len(body)))
+        for name, value in headers:
+            self.send_header(name, value)
         self.end_headers()
-        self.wfile.write(body)
+        if self.command != "HEAD":
+            self.wfile.write(body)
 
     def do_GET(self):
+        path = FOLDER / Path(unquote(self.path)).name
         if self.path == "/rootDesc.xml":
             self.reply(200, DESCRIPTION.encode(), "text/xml")
-        elif self.path.startswith("/media/") and (Path(sys.argv[2]) / Path(self.path).name).exists():
-            self.reply(200, (Path(sys.argv[2]) / Path(self.path).name).read_bytes(), "image/jpeg")
+        elif self.path.startswith("/media/") and path in MEDIA:
+            self.media(path)
         else:
             self.reply(404, b"", "text/plain")
+
+    do_HEAD = do_GET
+
+    def media(self, path):
+        """File intero o, per i lettori video, solo la parte chiesta con Range: bytes=inizio-fine."""
+        data = path.read_bytes()
+        kind = KINDS[path.suffix.lower()]
+        wanted = self.headers.get("Range", "")
+        if wanted.startswith("bytes=") and "," not in wanted:
+            first, _, last = wanted[6:].partition("-")
+            start = int(first) if first else max(0, len(data) - int(last or 0))
+            end = min(int(last), len(data) - 1) if first and last else len(data) - 1
+            if start >= len(data) or start > end:
+                self.reply(416, b"", "text/plain", [("Content-Range", f"bytes */{len(data)}")])
+                return
+            self.reply(206, data[start:end + 1], kind,
+                       [("Content-Range", f"bytes {start}-{end}/{len(data)}"), ("Accept-Ranges", "bytes")])
+        else:
+            self.reply(200, data, kind, [("Accept-Ranges", "bytes")])
 
     def do_POST(self):
         length = int(self.headers.get("Content-Length", "0"))
@@ -83,5 +118,5 @@ class Server(ThreadingHTTPServer):
 
 
 server = Server((HOST, 8200), Handler)
-print("Server DLNA finto pronto su", HOST, flush=True)
+print("Server DLNA finto pronto su", HOST, "con", len(MEDIA), "file, pubblicato come", PUBLISHED, flush=True)
 server.serve_forever()

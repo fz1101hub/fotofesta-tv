@@ -166,7 +166,7 @@ launch network
 capture network 8
 # Il server gira in loopback, che lo scenario ammette solo nelle build di debug: così non serve il
 # permesso della rete locale né l'indirizzo di rete del Mac.
-python3 scripts/fake_dlna.py 127.0.0.1 FotoFestaTV/Resources/Demo > "$OUT/fake_dlna.log" 2>&1 &
+python3 ../scripts/fake_dlna.py 127.0.0.1 FotoFestaTV/Resources/Demo > "$OUT/fake_dlna.log" 2>&1 &
 DLNA_PID=$!
 # Si aspetta che il server risponda dal Mac, prima di aprire l'app.
 for _ in $(seq 20); do

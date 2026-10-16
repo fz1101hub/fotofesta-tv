@@ -337,9 +337,10 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+        // Solo nelle build di debug: schermate automatiche nell'emulatore della CI (src/debug).
+        if (savedInstanceState == null) ScreenshotScenario.start(this, viewModel, intent)
     }
 
-    /** Alcune TV non hanno un selettore di documenti: senza questo controllo l'app andrebbe in crash. */
     /** Gioco con i telefoni: solo durante la festa, quando la pagina degli invitati è raggiungibile. */
     @Composable
     private fun phonePlay(state: AppState): PhonePlay? {
@@ -347,6 +348,7 @@ class MainActivity : ComponentActivity() {
         return remember(url) { url?.let { PhonePlay(viewModel.phoneGame, it) } }
     }
 
+    /** Alcune TV non hanno un selettore di documenti: senza questo controllo l'app andrebbe in crash. */
     private fun launchPicker(launch: () -> Unit) {
         try {
             launch()

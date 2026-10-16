@@ -48,8 +48,8 @@ apple/
 │   │                           libreria Foto con PhotoKit)
 │   └── Resources/              asset catalog, foto demo, testi it/en, PrivacyInfo.xcprivacy
 ├── fastlane/                   TestFlight, scheda e invio ad App Store Connect
-└── scripts/                    strings.py (testi localizzati e controllo delle chiavi), screenshots.sh e
-                                fake_dlna.py (schermate dal simulatore, con un server DLNA finto)
+└── scripts/                    strings.py (testi localizzati e controllo delle chiavi) e screenshots.sh
+                                (schermate dal simulatore, con il server DLNA finto di ../scripts/fake_dlna.py)
 ```
 
 ## Compilare ed eseguire

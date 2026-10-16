@@ -35,9 +35,11 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import it.fotofesta.tv.R
+import it.fotofesta.tv.ScreenshotScenario
 import it.fotofesta.tv.model.FitMode
 import it.fotofesta.tv.model.PhotoItem
 import it.fotofesta.tv.model.WhoTookIt
+import kotlinx.coroutines.delay
 
 /** "Chi l'ha scattata?": una foto della festa e i nomi degli invitati; si indovina chi l'ha mandata. */
 @Composable
@@ -64,7 +66,8 @@ fun WhoTookItScreen(photos: List<PhotoItem>, phones: PhonePlay?, onBack: () -> U
     var score by remember { mutableIntStateOf(0) }
     var played by remember { mutableIntStateOf(0) }
     // Con i telefoni rispondono gli invitati; il telecomando mostra la risposta e passa alla foto dopo.
-    var phoneMode by remember { mutableStateOf(false) }
+    // Nella schermata "who_phone" della CI (solo debug) rispondono subito i telefoni.
+    var phoneMode by remember { mutableStateOf(phones != null && ScreenshotScenario.name == "who_phone") }
     var revealed by remember(roundNumber, phoneMode) { mutableStateOf(false) }
     val nextFocus = remember { FocusRequester() }
     // Dopo la risposta i nomi si disattivano: il fuoco passa a "Prossima foto".
@@ -74,6 +77,18 @@ fun WhoTookItScreen(photos: List<PhotoItem>, phones: PhonePlay?, onBack: () -> U
         if (phoneMode && phones != null) phones.game.ask(question, round.choices, round.choices.indexOf(round.answer))
     }
     StopPhoneGameOnExit(phones, phoneMode)
+    // Schermata "who_phone": dopo le risposte dei due telefoni dello script si mostra quella giusta.
+    if (ScreenshotScenario.name == "who_phone") {
+        LaunchedEffect(round, phoneMode) {
+            while (phoneMode && phones != null && !revealed) {
+                if (phones.game.answerCount() >= 2) {
+                    phones.game.reveal()
+                    revealed = true
+                }
+                delay(300)
+            }
+        }
+    }
 
     val answered = chosen
     val title = when {
