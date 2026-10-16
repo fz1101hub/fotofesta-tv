@@ -9,12 +9,21 @@ SLIDESHOW
 • Durata di ogni foto da 3 a 20 secondi
 • Dissolvenza, scorrimento e zoom dolce
 • Movimento lento (effetto Ken Burns)
-• Foto intera o a tutto schermo, ordine casuale senza ripetizioni
+• Foto intera, a tutto schermo o con i lati sfocati, ordine casuale senza ripetizioni
+• Mosaico: la foto attuale in grande e, accanto, le ultime mostrate
+• Conto alla rovescia fino all'orario che scegli, per Mezzanotte, Torta, Brindisi o Sorpresa: negli ultimi secondi numeri giganti riempiono lo schermo, poi compare un messaggio
+• Video scelti in Google Foto, dall'inizio alla fine, nei formati supportati da Apple TV come MP4 e MOV. Con l'impostazione “Video” li escludi, con “Audio dei video” li guardi senza audio
 • Orologio e pausa automatica dopo 30, 60 o 120 minuti
 
 GIOCHI CON LE FOTO
 • Trova la coppia: abbina le foto uguali
 • Foto misteriosa: indovina la foto sfocata
+• Puzzle: ricomponi la foto in tre livelli, Facile (6 pezzi), Medio (12) e Difficile (24)
+• Chi l'ha scattata? Indovina quale invitato ha mandato la foto. Servono foto della festa firmate da almeno due invitati
+
+PER LA FESTA
+• Rispondi dal telefono: in “Foto misteriosa” e “Chi l'ha scattata?” gli invitati rispondono dal proprio telefono, sulla stessa pagina della festa che usano per mandare le foto, senza app. La TV mostra quanti hanno risposto, poi svela la soluzione e la classifica.
+• Premi della festa: alla fine arrivano l'Obiettivo d'oro per chi ha mandato più foto, la prima foto della festa e il Gran finale, l'ultima.
 
 PRIVACY
 Nessuna pubblicità, nessun sistema di analisi e nessun server dello sviluppatore. Le foto scelte si vedono direttamente da Google Foto senza essere copiate sulla tua Apple TV, e “Disconnetti e cancella” revoca l'accesso. Le foto degli invitati vanno dal telefono alla Apple TV senza passare da internet e si cancellano alla fine della festa.

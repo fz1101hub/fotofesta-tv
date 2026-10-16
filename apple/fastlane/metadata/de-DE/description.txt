@@ -9,12 +9,21 @@ DIASHOW
 • 3 bis 20 Sekunden pro Foto
 • Übergänge: Überblenden, Schieben und sanfter Zoom
 • Langsamer Schwenk und Zoom (Ken-Burns-Effekt)
-• Ganzes Foto oder bildschirmfüllend, zufällige Reihenfolge ohne Wiederholungen
+• Ganzes Foto, bildschirmfüllend oder mit unscharfen Rändern, zufällige Reihenfolge ohne Wiederholungen
+• Mosaik: das aktuelle Foto groß, daneben die zuletzt gezeigten
+• Countdown bis zu einer Uhrzeit deiner Wahl, für Mitternacht, Torte, Anstoßen oder Überraschung: In den letzten Sekunden füllen große Zahlen den Bildschirm, danach erscheint eine Nachricht
+• In Google Fotos ausgewählte Videos laufen von Anfang bis Ende, in Formaten, die Apple TV unterstützt, etwa MP4 und MOV. Mit der Einstellung „Videos“ lässt du sie weg, mit „Ton der Videos“ schaltest du sie stumm
 • Uhr und Sleep-Timer nach 30, 60 oder 120 Minuten
 
 FOTOSPIELE
 • Finde das Paar: Ordne gleiche Fotos zu
 • Rätselfoto: Errate das unscharfe Bild
+• Puzzle: Setze das Foto wieder zusammen, in drei Stufen – Leicht (6 Teile), Mittel (12) und Schwer (24)
+• Wer hat’s geknipst? Rate, welcher Gast das Foto geschickt hat. Dafür braucht es Partyfotos von mindestens zwei Gästen mit Namen
+
+FÜR DIE PARTY
+• Antworte am Handy: Bei „Rätselfoto“ und „Wer hat’s geknipst?“ antworten die Gäste auf ihrem eigenen Smartphone – auf derselben Partyseite, über die sie auch Fotos senden, ohne App. Der Fernseher zeigt, wie viele schon geantwortet haben, deckt dann die Lösung auf und zeigt die Rangliste.
+• Party-Preise: Am Ende gibt es die Goldene Linse für den Gast, der die meisten Fotos geschickt hat, das erste Foto der Party und das Große Finale mit dem letzten Foto.
 
 DATENSCHUTZ
 Keine Werbung, keine Analysetools und kein Server des Entwicklers. Ausgewählte Fotos werden direkt aus Google Fotos angezeigt und nie auf dein Apple TV kopiert, und „Trennen und löschen“ widerruft den Zugriff. Gästefotos gelangen vom Smartphone zum Apple TV, ohne über das Internet zu gehen, und werden am Ende der Party gelöscht.

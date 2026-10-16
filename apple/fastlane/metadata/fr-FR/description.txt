@@ -9,12 +9,21 @@ DIAPORAMA
 • De 3 à 20 secondes par photo
 • Transitions en fondu, glissement et zoom doux
 • Panoramique et zoom lents (effet Ken Burns)
-• Photo entière ou plein écran, ordre aléatoire sans répétition
+• Photo entière, plein écran ou bords floutés, ordre aléatoire sans répétition
+• Mosaïque : la photo en cours en grand, les dernières affichées à côté
+• Compte à rebours jusqu’à l’heure choisie, pour Minuit, Gâteau, Toast ou Surprise : dans les dernières secondes, de grands chiffres envahissent l’écran, puis un message
+• Vidéos choisies dans Google Photos, lues du début à la fin dans les formats pris en charge par l’Apple TV, comme MP4 et MOV. Le réglage « Vidéos » permet de les exclure et « Son des vidéos » de couper leur son
 • Horloge et minuteur de veille après 30, 60 ou 120 minutes
 
 JEUX PHOTO
 • Trouvez la paire : associez les photos identiques
 • Photo mystère : devinez l’image floutée
+• Puzzle : reconstituez la photo sur trois niveaux, Facile (6 pièces), Moyen (12) et Difficile (24)
+• Qui l’a prise ? Devinez quel invité a envoyé la photo. Il faut des photos de la fête signées par au moins deux invités
+
+POUR LA FÊTE
+• Répondez depuis le téléphone : dans « Photo mystère » et « Qui l’a prise ? », les invités répondent sur la page de la fête qui sert à envoyer les photos, sans app. Le téléviseur compte les réponses, puis révèle la solution et le classement.
+• Prix de la fête : à la fin, l’Objectif d’or pour qui a envoyé le plus de photos, la première photo de la fête et le Grand final, la dernière.
 
 CONFIDENTIALITÉ
 Aucune publicité, aucun outil d’analyse et aucun serveur du développeur. Les photos sélectionnées s’affichent directement depuis Google Photos et ne sont jamais copiées sur votre Apple TV, et « Déconnecter et supprimer » révoque l’accès. Les photos des invités vont du téléphone à l’Apple TV sans passer par Internet et sont supprimées à la fin de la fête.

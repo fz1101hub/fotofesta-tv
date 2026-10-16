@@ -9,12 +9,21 @@ SLIDESHOW
 • 3 to 20 seconds per photo
 • Fade, slide and gentle zoom transitions
 • Slow pan and zoom (Ken Burns effect)
-• Whole photo or fill screen, shuffle without repeats
+• Whole photo, fill screen or blurred sides, shuffle without repeats
+• Mosaic: the current photo large, with the last ones shown beside it
+• Countdown to a time you choose, for Midnight, Cake, Toast or Surprise: in the last seconds big numbers fill the screen, then a message appears
+• Videos you choose in Google Photos, played from start to finish in formats Apple TV supports, such as MP4 and MOV. Leave them out with the “Videos” setting, or mute them with “Video sound”
 • Clock and sleep timer after 30, 60 or 120 minutes
 
 PHOTO GAMES
 • Find the pair: match identical photos
 • Mystery photo: guess the blurred picture
+• Puzzle: put the photo back together, in three levels: Easy (6 pieces), Medium (12) and Hard (24)
+• Who took it? Guess which guest sent the photo. Needs party photos from at least two named guests
+
+FOR THE PARTY
+• Answer on your phone: in “Mystery photo” and “Who took it?” guests answer from their own phones, on the same party page they use to send photos, with no app. The TV shows how many have answered, then reveals the answer and the leaderboard.
+• Party awards: at the end come the Golden lens for the guest who sent the most photos, the first photo of the party and the Grand finale, the last one.
 
 PRIVACY
 No ads, no analytics and no developer server. Selected photos are shown straight from Google Photos and never copied to your Apple TV, and “Disconnect and delete” revokes access. Guest photos go from the phone to the Apple TV without passing through the internet and are deleted when the party ends.

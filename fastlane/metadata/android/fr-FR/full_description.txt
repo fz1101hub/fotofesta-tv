@@ -3,21 +3,36 @@ FotoFesta TV transforme votre téléviseur en cadre photo numérique pour les f�
 <b>D’où viennent vos photos</b>
 • Google Photos : scannez un code QR avec votre téléphone, connectez-vous et choisissez les photos à afficher. Aucun mot de passe à saisir avec la télécommande, et un accès limité aux photos que vous sélectionnez.
 • Photos des invités : vos invités scannent un code QR sur le téléviseur et envoient des photos depuis leur propre téléphone, via votre réseau domestique et sans application à installer. Les nouvelles photos apparaissent aussitôt dans le diaporama avec le nom de l’expéditeur ; si vous le souhaitez, vous les approuvez d’abord avec la télécommande.
-• Disque dur ou clé USB : choisissez un dossier, même sans Internet. Les photos restent sur le support et ne sont jamais copiées.
+• Disque dur ou clé USB : choisissez un dossier, même sans Internet. Photos et vidéos restent sur le support et ne sont jamais copiées.
+• Dossiers réseau : NAS, box ou routeur avec un disque USB, PC avec le partage multimédia activé, Plex et Jellyfin. Les serveurs multimédias du réseau local (DLNA/UPnP) sont détectés tout seuls, sans mot de passe : parcourez leurs dossiers à la télécommande et choisissez-en un. Photos et vidéos se chargent à la volée, sans copie sur le téléviseur ni passage par Internet.
 • Quatre photos de démonstration pour essayer l’application tout de suite.
 
 <b>Diaporama</b>
 • De 3 à 20 secondes par photo
 • Transitions en fondu, glissement et zoom doux
 • Panoramique et zoom lents (effet Ken Burns)
-• Photo entière ou plein écran, ordre aléatoire sans répétition
-• Horloge et musique de fond à partir d’un morceau présent sur votre téléviseur
+• Photo entière, plein écran ou bords floutés, ordre aléatoire sans répétition
+• Mosaïque : la photo en cours en grand, les dernières affichées à côté
+• Compte à rebours jusqu’à l’heure choisie, pour Minuit, Gâteau, Toast ou Surprise : dans les dernières secondes, de grands chiffres envahissent l’écran, puis un message
+• Horloge et musique de fond : un morceau ou tout un dossier en liste de lecture
 • Minuteur de veille après 30, 60 ou 120 minutes
 • Économiseur d’écran avec vos photos quand le téléviseur est inactif
+
+<b>Les vidéos aussi</b>
+• Les vidéos (dossiers USB, dossiers réseau, Google Photos) sont lues du début à la fin dans le diaporama. Uniquement des photos ? Excluez-les avec le réglage « Vidéos ».
+• Son des vidéos : quand une vidéo est lue avec le son, la musique de fond se met en pause.
+• Nombreux formats : MP4, MOV, MKV, WebM, AVI, etc. Les codecs lus dépendent du téléviseur ; une vidéo illisible est ignorée.
+• Les jeux et l’économiseur d’écran n’utilisent que les photos.
 
 <b>Jeux photo</b>
 • Trouvez la paire : associez les photos identiques
 • Photo mystère : devinez l’image floutée
+• Puzzle : reconstituez la photo sur trois niveaux, Facile (6 pièces), Moyen (12) et Difficile (24)
+• Qui l’a prise ? Devinez quel invité a envoyé la photo. Il faut des photos de la fête signées par au moins deux invités
+
+<b>Pour la fête</b>
+• Répondez depuis le téléphone : dans « Photo mystère » et « Qui l’a prise ? », les invités répondent sur la page de la fête qui sert à envoyer les photos, sans application. Le téléviseur compte les réponses, puis révèle la solution et le classement.
+• Prix de la fête : à la fin, l’Objectif d’or pour qui a envoyé le plus de photos, la première photo de la fête et le Grand final, la dernière.
 
 <b>Conçu pour la télécommande</b>
 Tout fonctionne avec les flèches de la télécommande, avec une sélection bien visible, des textes lisibles depuis le canapé et une option pour réduire les animations.

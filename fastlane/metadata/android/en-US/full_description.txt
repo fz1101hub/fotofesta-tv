@@ -3,21 +3,36 @@ FotoFesta TV turns your television into a digital photo frame for parties, famil
 <b>Where your photos come from</b>
 • Google Photos: scan a QR code with your phone, sign in and choose the photos to show. No passwords to type with the remote, and access only to the photos you select.
 • Guest photos: guests scan a QR code on the TV and send photos from their own phones, over your home network and with no app to install. New photos appear right away in the slideshow with the sender's name; if you like, you approve them first with the remote.
-• USB drive or stick: choose a folder, even without internet. Photos stay on the drive and are never copied.
+• USB drive or stick: choose a folder, even without internet. Photos and videos stay on the drive and are never copied.
+• Network folders: NAS drives, routers with a USB disk, PCs with media sharing turned on, Plex and Jellyfin. Media servers on your home network (DLNA/UPnP) are found automatically, with no password: browse their folders with the remote and pick one. Photos and videos load on the fly: nothing is copied to the TV and nothing goes through the internet.
 • Four demo photos to try the app right away.
 
 <b>Slideshow</b>
 • 3 to 20 seconds per photo
 • Fade, slide and gentle zoom transitions
 • Slow pan and zoom (Ken Burns effect)
-• Whole photo or fill screen, shuffle without repeats
-• Clock and background music from a track on your TV
+• Whole photo, fill screen or blurred sides, shuffle without repeats
+• Mosaic: the current photo large, with the last ones shown beside it
+• Countdown to a time you choose, for Midnight, Cake, Toast or Surprise: in the last seconds big numbers fill the screen, then a message appears
+• Clock and background music: a single track or a whole folder as a playlist
 • Sleep timer after 30, 60 or 120 minutes
 • Screensaver with your photos when the TV is idle
+
+<b>Videos too</b>
+• Videos from USB folders, network folders and Google Photos join the slideshow and play from start to finish. Prefer photos only? Turn them off with the “Videos” setting.
+• Video sound: while a video plays its sound, the background music pauses.
+• Many formats: MP4, MOV, MKV, WebM, AVI and more. Which codecs play depends on your TV; a video it can't play is skipped.
+• Games and the screensaver use photos only.
 
 <b>Photo games</b>
 • Find the pair: match identical photos
 • Mystery photo: guess the blurred picture
+• Puzzle: put the photo back together, in three levels: Easy (6 pieces), Medium (12) and Hard (24)
+• Who took it? Guess which guest sent the photo. Needs party photos from at least two named guests
+
+<b>For the party</b>
+• Answer on your phone: in “Mystery photo” and “Who took it?” guests answer from their own phones, on the same party page they use to send photos, with no app. The TV shows how many have answered, then reveals the answer and the leaderboard.
+• Party awards: at the end come the Golden lens for the guest who sent the most photos, the first photo of the party and the Grand finale, the last one.
 
 <b>Built for the remote</b>
 Everything works with the remote's arrow keys, with a clearly visible focus, text readable from the couch and an option to reduce motion.
