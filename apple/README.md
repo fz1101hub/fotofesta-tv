@@ -21,6 +21,8 @@ Le foto di Google Foto non vengono copiate sulla Apple TV: si caricano da Google
 
 Le foto degli invitati arrivano dai telefoni sulla rete di casa, come su Android ([CONFIGURATION.md](../docs/CONFIGURATION.md#3-foto-degli-invitati)). Restano in RAM fino a 64 MB, poi le più vecchie passano in `Caches/guest_photos`, che non supera 300 MB né il 10% dello spazio libero. “Termina la festa” cancella tutto. Il server è acceso solo con l'app in primo piano e accetta solo indirizzi della rete locale. La password della Wi‑Fi per il QR resta nel Portachiavi.
 
+AirPlay non è un modo per mandare foto alla festa: lo gestisce tvOS sopra l'app, e le app non possono riceverlo. Le foto trasmesse coprono lo slideshow e non entrano nella raccolta. La schermata della festa suggerisce di limitare l'accesso ad AirPlay alle persone di casa (Impostazioni › AirPlay e HomeKit).
+
 ## Struttura
 
 ```

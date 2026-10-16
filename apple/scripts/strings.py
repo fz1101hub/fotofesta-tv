@@ -116,6 +116,7 @@ STRINGS = {
     "guests.wifi_change": ("Change Wi‑Fi QR code", "Modifica il QR della Wi‑Fi"),
     "guests.wifi_remove": ("Remove Wi‑Fi QR code", "Rimuovi il QR della Wi‑Fi"),
     "guests.wifi_body": ("Lets guests join your Wi‑Fi without typing the password.", "Gli invitati entrano nella tua Wi‑Fi senza scrivere la password."),
+    "guests.airplay_tip": ("Photos sent with AirPlay cover the slideshow and don't join the party. To prevent this, in Settings › AirPlay and HomeKit limit AirPlay access to people sharing this home.", "Le foto mandate con AirPlay coprono lo slideshow e non entrano nella festa. Per evitarlo, in Impostazioni › AirPlay e HomeKit limita l'accesso ad AirPlay alle persone che condividono questa casa."),
     "guests.end": ("End party and delete photos", "Termina la festa e cancella le foto"),
     "guests.end_confirm_title": ("End the party?", "Terminare la festa?"),
     "guests.end_confirm_body": ("Photos received will be deleted from the Apple TV: %ld", "Le foto ricevute verranno cancellate dalla Apple TV: %ld"),

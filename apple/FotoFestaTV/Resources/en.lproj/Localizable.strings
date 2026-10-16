@@ -106,6 +106,7 @@
 "guests.wifi_change" = "Change Wi‑Fi QR code";
 "guests.wifi_remove" = "Remove Wi‑Fi QR code";
 "guests.wifi_body" = "Lets guests join your Wi‑Fi without typing the password.";
+"guests.airplay_tip" = "Photos sent with AirPlay cover the slideshow and don't join the party. To prevent this, in Settings › AirPlay and HomeKit limit AirPlay access to people sharing this home.";
 "guests.end" = "End party and delete photos";
 "guests.end_confirm_title" = "End the party?";
 "guests.end_confirm_body" = "Photos received will be deleted from the Apple TV: %ld";

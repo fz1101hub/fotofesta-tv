@@ -91,6 +91,11 @@ struct GuestsView: View {
                     Text(L("guests.wifi_body")).font(.callout).foregroundStyle(Theme.secondaryText)
                     Button(L("guests.end"), role: .destructive) { confirmingEnd = true }
                     Text(L("guests.intro")).font(.callout).foregroundStyle(Theme.secondaryText)
+                    // AirPlay lo gestisce tvOS sopra l'app: le foto trasmesse non entrano nella festa
+                    // e coprono lo slideshow.
+                    Label(L("guests.airplay_tip"), systemImage: "airplayvideo")
+                        .font(.callout)
+                        .foregroundStyle(Theme.amber)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }

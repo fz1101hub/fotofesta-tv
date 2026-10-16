@@ -106,6 +106,7 @@
 "guests.wifi_change" = "Modifica il QR della Wi‑Fi";
 "guests.wifi_remove" = "Rimuovi il QR della Wi‑Fi";
 "guests.wifi_body" = "Gli invitati entrano nella tua Wi‑Fi senza scrivere la password.";
+"guests.airplay_tip" = "Le foto mandate con AirPlay coprono lo slideshow e non entrano nella festa. Per evitarlo, in Impostazioni › AirPlay e HomeKit limita l'accesso ad AirPlay alle persone che condividono questa casa.";
 "guests.end" = "Termina la festa e cancella le foto";
 "guests.end_confirm_title" = "Terminare la festa?";
 "guests.end_confirm_body" = "Le foto ricevute verranno cancellate dalla Apple TV: %ld";
