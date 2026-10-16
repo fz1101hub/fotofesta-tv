@@ -98,7 +98,9 @@ struct GuestsView: View {
                             Label(LP("guests.approve_photos", model.pendingGuestPhotos.count), systemImage: "checkmark.circle")
                         }
                     }
-                    Button(role: .destructive) {
+                    // Senza ruolo "distruttivo": su tvOS 26 il pulsante rosso senza fuoco nasconde il
+                    // testo. La conferma, nel dialogo di sistema, resta rossa.
+                    Button {
                         confirmingEnd = true
                     } label: {
                         Label(L("guests.end_short"), systemImage: "xmark.circle")
@@ -136,7 +138,7 @@ private struct StepRow: View {
                 .font(.headline)
                 .frame(width: 52, height: 52)
                 .background(Circle().fill(.regularMaterial))
-            Text(text).font(.title3)
+            Text(text).font(.title3).fixedSize(horizontal: false, vertical: true)
         }
     }
 }
@@ -268,7 +270,7 @@ struct GuestReviewView: View {
                             Label(L("review.show"), systemImage: "checkmark")
                         }
                         .buttonStyle(.borderedProminent)
-                        Button(role: .destructive) {
+                        Button {
                             model.discardGuestPhoto(photo)
                         } label: {
                             Label(L("review.discard"), systemImage: "xmark")

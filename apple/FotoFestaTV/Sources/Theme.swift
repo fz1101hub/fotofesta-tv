@@ -3,7 +3,8 @@ import SwiftUI
 /// Colori dell'app su Apple TV. Il resto segue lo stile di tvOS: carattere di sistema, materiali,
 /// colori `.primary`/`.secondary` e gli effetti di fuoco dei controlli nativi.
 enum Theme {
-    /// Corallo del logo, usato come tinta dell'app (pulsante principale, interruttori, avanzamento).
+    /// Corallo del logo, solo per icone ed etichette. I controlli restano nei colori di sistema: su
+    /// tvOS 26 una tinta globale colora i pulsanti senza fuoco e ne nasconde il testo.
     static let accent = Color(hex: 0xFF7A57)
     static let onAccent = Color(hex: 0x1A0B06)
     static let background = Color.black

@@ -9,7 +9,6 @@ struct FotoFestaTVApp: App {
             RootView()
                 .environment(model)
                 .preferredColorScheme(.dark)
-                .tint(Theme.accent)
         }
     }
 }

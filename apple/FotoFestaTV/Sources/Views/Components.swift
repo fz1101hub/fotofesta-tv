@@ -92,7 +92,10 @@ struct ScreenTitle: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title).font(.largeTitle.bold())
             if let subtitle {
-                Text(subtitle).font(.title3).foregroundStyle(Theme.secondaryText)
+                Text(subtitle)
+                    .font(.title3)
+                    .foregroundStyle(Theme.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
