@@ -47,5 +47,23 @@ struct RootView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
             model.guests.lowMemory()
         }
+        // Schermo sempre acceso durante lo slideshow in riproduzione, mentre il QR della festa è
+        // visibile e durante l'approvazione. Deciso in un solo punto: con più schermate gli eventi di
+        // comparsa e scomparsa arrivano in ordine diverso e si annullerebbero a vicenda.
+        .onChange(of: keepAwake, initial: true) { _, keep in
+            UIApplication.shared.isIdleTimerDisabled = keep
+        }
+    }
+
+    private var keepAwake: Bool {
+        switch model.path.last {
+        case .slideshow: return model.isPlaying
+        case .guests: return model.guests.active
+        case .guestReview, .memory, .mystery: return true
+        case .googleConnect:
+            if case .working = model.googleState { return true }
+            return false
+        default: return false
+        }
     }
 }

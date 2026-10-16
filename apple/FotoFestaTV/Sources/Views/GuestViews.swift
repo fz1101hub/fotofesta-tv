@@ -37,10 +37,6 @@ struct GuestsView: View {
             }
             .padding(80)
         }
-        // Il QR resta visibile mentre gli invitati lo inquadrano.
-        .onAppear { UIApplication.shared.isIdleTimerDisabled = guests.active }
-        .onChange(of: guests.active) { _, active in UIApplication.shared.isIdleTimerDisabled = active }
-        .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
         .confirmationDialog(L("guests.end_confirm_title"), isPresented: $confirmingEnd, titleVisibility: .visible) {
             Button(L("guests.end"), role: .destructive) { model.endGuestParty() }
             Button(L("action.cancel"), role: .cancel) {}

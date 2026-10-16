@@ -27,6 +27,10 @@ final class AppModel {
     private(set) var photos: [Photo]
     private(set) var sourceLabel: String
     private(set) var currentIndex = 0
+    /// Cresce a ogni cambio di foto voluto (successiva, precedente, nuova raccolta). Il cambio
+    /// automatico si basa su questo e non sull'indice, che si sposta quando arrivano o spariscono
+    /// foto degli invitati anche se la foto mostrata resta la stessa.
+    private(set) var slideTick = 0
     private(set) var isPlaying = false
     private(set) var googleState: GoogleState = .idle
     private(set) var sleepAt: Date?
@@ -51,9 +55,8 @@ final class AppModel {
     @ObservationIgnored private var guestPhotos: [Photo] = []
     @ObservationIgnored private var guestPartyActive = false
     @ObservationIgnored private let freshPhotos = FreshPhotos()
+    /// Foto approvate già viste; nil finché le foto di una festa interrotta non sono state riprese.
     @ObservationIgnored private var knownGuestIDs: Set<String>?
-    @ObservationIgnored private var knownPendingIDs: Set<String> = []
-    @ObservationIgnored private let createdAt = Date()
     @ObservationIgnored private var googleTask: Task<Void, Never>?
     @ObservationIgnored private var cleanupTask: Task<Void, Never>?
     /// Identifica il collegamento in corso: i passi di un collegamento annullato vengono ignorati.
@@ -186,14 +189,18 @@ final class AppModel {
         guard !photos.isEmpty else { return }
         if let fresh = freshPhotos.take(photos, currentIndex: currentIndex) {
             currentIndex = fresh
+        } else if let resumed = freshPhotos.resume(photos, next: { [order] in order.next(after: $0) }) {
+            currentIndex = resumed
         } else {
-            currentIndex = order.next(after: freshPhotos.takeResume(photos) ?? currentIndex)
+            currentIndex = order.next(after: currentIndex)
         }
+        slideTick += 1
     }
 
     func previous() {
         guard !photos.isEmpty else { return }
         currentIndex = freshPhotos.takeResume(photos) ?? order.previous(before: currentIndex)
+        slideTick += 1
     }
 
     // MARK: - Google Foto
@@ -355,6 +362,7 @@ final class AppModel {
     func endGuestParty() {
         guests.end()
         freshPhotos.clear()
+        knownGuestIDs = nil
         showMessage(L("message.guests_ended"))
     }
 
@@ -382,17 +390,16 @@ final class AppModel {
         if case let .guest(id) = photo.source { guests.reject(id) }
     }
 
-    /// Aggiorna la raccolta mostrata. Le foto approvate da poco (arrivate dopo l'apertura dell'app,
-    /// o appena approvate) passano davanti nello slideshow.
+    /// Aggiorna la raccolta mostrata. Le foto approvate da poco (arrivate o approvate dopo la ripresa
+    /// della festa) passano davanti nello slideshow; quelle riprese da una festa interrotta no. Non si
+    /// usa l'orologio del dispositivo, che può cambiare all'improvviso.
     private func guestsChanged() {
         let all = guests.photos
         let approved = all.filter(\.approved)
-        if let known = knownGuestIDs {
-            let fresh = approved.filter { !known.contains($0.id) && ($0.receivedAt >= createdAt || knownPendingIDs.contains($0.id)) }
-            freshPhotos.add(fresh.map { "guest:\($0.id)" })
+        if guests.ready, let known = knownGuestIDs {
+            freshPhotos.add(approved.filter { !known.contains($0.id) }.map { "guest:\($0.id)" })
         }
-        knownGuestIDs = Set(approved.map(\.id))
-        knownPendingIDs = Set(all.filter { !$0.approved }.map(\.id))
+        knownGuestIDs = guests.ready ? Set(approved.map(\.id)) : nil
         let items = approved.map(Self.photo(for:))
         if items != guestPhotos || guests.active != guestPartyActive {
             guestPhotos = items
@@ -425,15 +432,29 @@ final class AppModel {
     /// corrente (arrivano o spariscono foto degli invitati mentre lo slideshow va avanti).
     private func applyCollection(restart: Bool) {
         let newPhotos = combineWithGuests(base: basePhotos, baseIsDemo: baseIsDemo, guests: guestPhotos, partyActive: guestPartyActive)
+        let oldPhotos = photos
+        let currentID = currentPhoto?.id
         let index: Int
         if restart {
             index = settings.shuffle && !newPhotos.isEmpty ? Int.random(in: 0..<newPhotos.count) : 0
-        } else if let currentID = currentPhoto?.id, let same = newPhotos.firstIndex(where: { $0.id == currentID }) {
-            index = same
+            order.reset(count: newPhotos.count, shuffle: settings.shuffle, current: index)
+            slideTick += 1
         } else {
-            index = max(min(currentIndex, newPhotos.count - 1), 0)
+            if let currentID, let same = newPhotos.firstIndex(where: { $0.id == currentID }) {
+                index = same
+            } else {
+                index = max(min(currentIndex, newPhotos.count - 1), 0)
+            }
+            // L'ordine del giro corrente resta: le foto nuove si inseriscono tra quelle non ancora viste.
+            var newIndexByID: [String: Int] = [:]
+            for (position, photo) in newPhotos.enumerated() { newIndexByID[photo.id] = position }
+            order.remap(count: newPhotos.count, current: index) { old in
+                oldPhotos.indices.contains(old) ? newIndexByID[oldPhotos[old].id] : nil
+            }
+            // La foto mostrata è sparita (ad esempio scartata): quella al suo posto conta come un cambio.
+            let shownID = newPhotos.indices.contains(index) ? newPhotos[index].id : nil
+            if shownID != currentID { slideTick += 1 }
         }
-        order.reset(count: newPhotos.count, shuffle: settings.shuffle, current: index)
         photos = newPhotos
         currentIndex = index
         sourceLabel = collectionLabel()

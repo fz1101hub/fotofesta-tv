@@ -82,7 +82,7 @@ struct SlideshowView: View {
         }
         // Cambio foto automatico; si riavvia a ogni foto, pausa o cambio di durata. Solo "più di una
         // foto" e non il numero: le foto che arrivano dagli invitati non fanno ripartire il conteggio.
-        .task(id: TimerKey(index: model.currentIndex, playing: model.isPlaying, interval: settings.intervalSeconds, canAdvance: model.photos.count > 1)) {
+        .task(id: TimerKey(tick: model.slideTick, playing: model.isPlaying, interval: settings.intervalSeconds, canAdvance: model.photos.count > 1)) {
             let photoID = model.currentPhoto?.id
             if photoID != shownPhotoID {
                 shownPhotoID = photoID
@@ -111,9 +111,6 @@ struct SlideshowView: View {
                 _ = await ImageLoader.shared.image(for: upcoming, maxPixelSize: 3840)
             }
         }
-        .onAppear { UIApplication.shared.isIdleTimerDisabled = model.isPlaying }
-        .onChange(of: model.isPlaying) { _, playing in UIApplication.shared.isIdleTimerDisabled = playing }
-        .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
     }
 
     private var effectiveSettings: SlideshowSettings {
@@ -159,7 +156,7 @@ struct SlideshowView: View {
     }
 
     private struct TimerKey: Hashable {
-        let index: Int
+        let tick: Int
         let playing: Bool
         let interval: Int
         let canAdvance: Bool

@@ -1,4 +1,3 @@
-import Network
 import XCTest
 @testable import FotoFestaCore
 
@@ -15,22 +14,29 @@ final class GuestPhotoStoreTests: XCTestCase {
         try? FileManager.default.removeItem(at: directory)
     }
 
-    private func makeStore(memory: Int = 300, disk: Int = 1_000, maxPhotos: Int = 1_000) -> GuestPhotoStore {
+    private func makeStore(memory: Int = 300, disk: Int = 1_000, maxPhotos: Int = 1_000, maxPending: Int = 100) -> GuestPhotoStore {
         let box = TestBox(now: clock, free: free)
-        boxes.append(box)
         return GuestPhotoStore(
             directory: directory,
             memoryBudget: memory,
             maxDiskBytes: disk,
             freeSpace: { box.free },
             maxPhotos: maxPhotos,
+            maxPending: maxPending,
             now: { box.tick() }
         )
     }
 
-    private var boxes: [TestBox] = []
-
     private func photo(_ size: Int, _ fill: UInt8 = 1) -> Data { Data(repeating: fill, count: size) }
+
+    @discardableResult
+    private func put(_ store: GuestPhotoStore, _ data: Data, sender: String? = nil, approved: Bool = true) -> GuestPhoto {
+        guard let photo = store.add(data, sender: sender, approved: approved).photo else {
+            XCTFail("Foto non aggiunta")
+            return GuestPhoto(id: "", sender: nil, receivedAt: Date(), sizeBytes: 0, approved: false)
+        }
+        return photo
+    }
 
     private func files() -> [URL] {
         (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
@@ -38,47 +44,80 @@ final class GuestPhotoStoreTests: XCTestCase {
 
     func testPhotosStayInMemoryWhileBudgetAllows() {
         let store = makeStore()
-        let first = store.add(photo(100), sender: "Anna", approved: true)!
-        store.add(photo(100), sender: nil, approved: true)
-        guard case .data = store.open(first.id) else { return XCTFail("Dovrebbe essere in RAM") }
+        let first = put(store, photo(100), sender: "Anna")
+        put(store, photo(100))
+        XCTAssertEqual(store.isOnDisk(first.id), false)
         XCTAssertEqual(store.memoryUsedBytes, 200)
         XCTAssertEqual(store.diskUsedBytes, 0)
         XCTAssertTrue(files().isEmpty)
     }
 
-    func testOldestPhotosMoveToDiskWhenMemoryRunsOut() throws {
+    func testOldestPhotosMoveToDiskWhenMemoryRunsOut() {
         let store = makeStore(memory: 250)
-        let first = store.add(photo(100, 1), sender: nil, approved: true)!
-        let second = store.add(photo(100, 2), sender: nil, approved: true)!
-        store.add(photo(100, 3), sender: nil, approved: true)
-        guard case let .file(url) = store.open(first.id) else { return XCTFail("Dovrebbe essere su disco") }
-        XCTAssertEqual(try Data(contentsOf: url), photo(100, 1))
-        guard case .data = store.open(second.id) else { return XCTFail("Dovrebbe essere in RAM") }
+        let first = put(store, photo(100, 1))
+        let second = put(store, photo(100, 2))
+        put(store, photo(100, 3))
+        XCTAssertEqual(store.isOnDisk(first.id), true)
+        XCTAssertEqual(store.read(first.id), photo(100, 1))
+        XCTAssertEqual(store.isOnDisk(second.id), false)
         XCTAssertEqual(store.memoryUsedBytes, 200)
         XCTAssertEqual(store.diskUsedBytes, 100)
     }
 
+    func testFallbackFolderWorksWithRealFreeSpaceBeforeItExists() {
+        let missing = directory.appendingPathComponent("not/yet/created")
+        let store = GuestPhotoStore(directory: missing, memoryBudget: 150, maxDiskBytes: 10_000)
+        let first = store.add(photo(100), sender: nil, approved: true).photo
+        store.add(photo(100), sender: nil, approved: true)
+        XCTAssertEqual(first.flatMap { store.isOnDisk($0.id) }, true)
+    }
+
     func testWhenDiskIsFullOldestPhotosMakeRoom() {
         let store = makeStore(memory: 100, disk: 200)
-        let ids = (1...5).map { store.add(photo(100, UInt8($0)), sender: nil, approved: true)!.id }
+        let ids = (1...5).map { put(store, photo(100, UInt8($0))).id }
         XCTAssertEqual(store.photos.map(\.id), Array(ids.dropFirst(2)))
-        XCTAssertNil(store.open(ids[0]))
+        XCTAssertNil(store.read(ids[0]))
         XCTAssertEqual(files().count, 2)
         XCTAssertEqual(store.diskUsedBytes, 200)
+    }
+
+    func testPendingPhotosAreSacrificedBeforeApprovedOnes() {
+        let store = makeStore(memory: 100, disk: 200)
+        let approved = put(store, photo(100, 1))
+        let pending = put(store, photo(100, 2), approved: false)
+        put(store, photo(100, 3))
+        put(store, photo(100, 4))
+        XCTAssertNil(store.read(pending.id))
+        XCTAssertEqual(store.read(approved.id), photo(100, 1))
+    }
+
+    func testPendingPhotoNeverPushesOutApprovedOnes() {
+        let store = makeStore(memory: 100, disk: 200)
+        let approved = (1...3).map { put(store, photo(100, UInt8($0))).id }
+        XCTAssertEqual(store.add(photo(100, 9), sender: nil, approved: false), .full)
+        XCTAssertEqual(store.photos.map(\.id), approved)
+    }
+
+    func testPendingPhotosAreCapped() {
+        let store = makeStore(memory: 10_000, maxPending: 2)
+        put(store, photo(10), approved: false)
+        put(store, photo(10), approved: false)
+        XCTAssertEqual(store.add(photo(10), sender: nil, approved: false), .tooManyPending)
+        XCTAssertNotNil(store.add(photo(10), sender: nil, approved: true).photo)
     }
 
     func testPhotoThatFitsNowhereIsRefused() {
         free = 0
         let store = makeStore(memory: 50)
-        XCTAssertNil(store.add(photo(100), sender: nil, approved: true))
+        XCTAssertEqual(store.add(photo(100), sender: nil, approved: true), .full)
         XCTAssertTrue(store.photos.isEmpty)
         XCTAssertEqual(store.memoryUsedBytes, 0)
     }
 
     func testSpillAllAndRestoreKeepSenderAndApproval() {
         let store = makeStore(memory: 1_000)
-        let first = store.add(photo(100, 7), sender: "Zia_Maria 🎉", approved: false)!
-        store.add(photo(50, 8), sender: nil, approved: true)
+        let first = put(store, photo(100, 7), sender: "Zia_Maria 🎉", approved: false)
+        put(store, photo(50, 8))
         store.spillAll()
         XCTAssertEqual(store.memoryUsedBytes, 0)
 
@@ -90,14 +129,16 @@ final class GuestPhotoStoreTests: XCTestCase {
         XCTAssertFalse(photos[0].approved)
         XCTAssertNil(photos[1].sender)
         XCTAssertTrue(photos[1].approved)
+        XCTAssertEqual(restored.read(first.id), photo(100, 7))
         XCTAssertEqual(restored.diskUsedBytes, 150)
     }
 
-    func testApprovingPhotoOnDiskSurvivesRestart() {
+    func testApprovingPhotoOnDiskSurvivesRestartAndStaysReadable() {
         let store = makeStore()
-        let added = store.add(photo(100), sender: "Anna", approved: false)!
+        let added = put(store, photo(100, 5), sender: "Anna", approved: false)
         store.spillAll()
         XCTAssertTrue(store.approve(added.id))
+        XCTAssertEqual(store.read(added.id), photo(100, 5))
         let restored = makeStore()
         restored.restore(maxAge: 60)
         XCTAssertEqual(restored.photos.first?.approved, true)
@@ -105,7 +146,7 @@ final class GuestPhotoStoreTests: XCTestCase {
 
     func testRestoreAfterLongPauseDeletesEverything() {
         let store = makeStore()
-        store.add(photo(100), sender: nil, approved: true)
+        put(store, photo(100))
         store.spillAll()
         clock = clock.addingTimeInterval(13 * 3600)
         let restored = makeStore()
@@ -124,13 +165,13 @@ final class GuestPhotoStoreTests: XCTestCase {
 
     func testRemoveAndClear() {
         let store = makeStore(memory: 100)
-        let first = store.add(photo(100), sender: nil, approved: true)!
-        let second = store.add(photo(100), sender: nil, approved: true)!
+        let first = put(store, photo(100))
+        let second = put(store, photo(100))
         store.remove(first.id)
-        XCTAssertNil(store.open(first.id))
+        XCTAssertNil(store.read(first.id))
         XCTAssertEqual(store.diskUsedBytes, 0)
         store.clear()
-        XCTAssertNil(store.open(second.id))
+        XCTAssertNil(store.read(second.id))
         XCTAssertTrue(store.photos.isEmpty)
         XCTAssertTrue(files().isEmpty)
     }
@@ -141,7 +182,7 @@ final class GuestPhotoStoreTests: XCTestCase {
         store.setOnChange { photos in
             if photos.count == 1 { reported.fulfill() }
         }
-        store.add(photo(10), sender: nil, approved: true)
+        put(store, photo(10))
         wait(for: [reported], timeout: 1)
     }
 }
@@ -217,6 +258,38 @@ final class GuestSupportTests: XCTestCase {
         XCTAssertEqual(fresh.takeResume(photos), 1)
         XCTAssertNil(fresh.takeResume(photos))
     }
+
+    func testAfterFreshPhotosPlaybackSkipsTheOnesJustShown() {
+        let photos = [photo("g1"), photo("g2"), photo("g3")]
+        let order = PlaybackOrder()
+        order.reset(count: 3, shuffle: false)
+        let fresh = FreshPhotos()
+        fresh.add(["g2", "g3"])
+        XCTAssertEqual(fresh.take(photos, currentIndex: 0), 1)
+        XCTAssertEqual(fresh.take(photos, currentIndex: 1), 2)
+        XCTAssertNil(fresh.take(photos, currentIndex: 2))
+        XCTAssertEqual(fresh.resume(photos, next: { order.next(after: $0) }), 0)
+        XCTAssertNil(fresh.resume(photos, next: { order.next(after: $0) }))
+    }
+
+    func testRemapKeepsShuffledCycle() {
+        // Mescolamento e inserimenti deterministici: ordine invertito, inserimento in fondo.
+        let order = PlaybackOrder(shuffler: { Array($0.reversed()) }, randomIndex: { $0.upperBound })
+        order.reset(count: 4, shuffle: true, current: 0)   // 0, 3, 2, 1
+        XCTAssertEqual(order.next(after: 0), 3)
+        order.remap(count: 5, current: 3) { $0 }          // la foto 4 è nuova: 0, 3, 2, 1, 4
+        XCTAssertEqual(order.next(after: 3), 2)
+        XCTAssertEqual(order.next(after: 2), 1)
+        XCTAssertEqual(order.next(after: 1), 4)
+    }
+
+    func testRemapDropsRemovedPhotos() {
+        let order = PlaybackOrder(shuffler: { $0 }, randomIndex: { $0.upperBound })
+        order.reset(count: 4, shuffle: true, current: 1)   // 1, 0, 2, 3
+        order.remap(count: 3, current: 0) { $0 == 1 ? nil : ($0 > 1 ? $0 - 1 : $0) } // tolta la 1
+        XCTAssertEqual(order.next(after: 0), 1)
+        XCTAssertEqual(order.next(after: 1), 2)
+    }
 }
 
 final class GuestUploadServerTests: XCTestCase {
@@ -238,14 +311,13 @@ final class GuestUploadServerTests: XCTestCase {
         XCTAssertNil(GuestUploadServer.headEnd(in: Data("GET / HTTP/1.1\r\nHost: x\r\n".utf8)))
     }
 
-    func testOnlyHomeNetworkAddressesAreLocal() {
-        XCTAssertTrue(GuestUploadServer.isLocalIPv4([192, 168, 1, 20]))
-        XCTAssertTrue(GuestUploadServer.isLocalIPv4([10, 0, 0, 5]))
-        XCTAssertTrue(GuestUploadServer.isLocalIPv4([172, 20, 1, 1]))
-        XCTAssertFalse(GuestUploadServer.isLocalIPv4([172, 40, 1, 1]))
-        XCTAssertFalse(GuestUploadServer.isLocalIPv4([8, 8, 8, 8]))
+    func testHostHeaderAndUploadID() throws {
         XCTAssertEqual(GuestUploadServer.hostHeader(host: "192.168.1.5", port: 8765), "192.168.1.5:8765")
         XCTAssertEqual(GuestUploadServer.hostHeader(host: "fe80::1", port: 80), "[fe80::1]:80")
+        let valid = try GuestUploadServer.parseHead(Data("POST /photos HTTP/1.1\r\nX-FotoFesta-Upload: abc123def456".utf8))
+        XCTAssertEqual(GuestUploadServer.uploadID(valid), "abc123def456")
+        let invalid = try GuestUploadServer.parseHead(Data("POST /photos HTTP/1.1\r\nX-FotoFesta-Upload: <script>".utf8))
+        XCTAssertNil(GuestUploadServer.uploadID(invalid))
     }
 
     func testServesPageAndReceivesPhotos() async throws {
@@ -253,6 +325,7 @@ final class GuestUploadServerTests: XCTestCase {
         let server = GuestUploadServer(
             key: "test-key",
             maxUploadBytes: 1_000,
+            maxUploadsPerMinute: 4,
             page: { "<html>pagina</html>" },
             onPhoto: { data, sender in
                 received.append(data, sender)
@@ -276,20 +349,38 @@ final class GuestUploadServerTests: XCTestCase {
         upload.httpMethod = "POST"
         upload.setValue("test-key", forHTTPHeaderField: "X-FotoFesta-Key")
         upload.setValue("Zia%20Maria", forHTTPHeaderField: "X-FotoFesta-Sender")
+        upload.setValue("upload-000001", forHTTPHeaderField: "X-FotoFesta-Upload")
         let (body, uploaded) = try await session.upload(for: upload, from: jpeg)
         XCTAssertEqual((uploaded as? HTTPURLResponse)?.statusCode, 200)
         XCTAssertEqual(String(data: body, encoding: .utf8), #"{"status":"shown"}"#)
         XCTAssertEqual(received.items.first?.0, jpeg)
         XCTAssertEqual(received.items.first?.1, "Zia Maria")
 
+        // Lo stesso invio ripetuto non salva una seconda foto.
+        let (_, repeated) = try await session.upload(for: upload, from: jpeg)
+        XCTAssertEqual((repeated as? HTTPURLResponse)?.statusCode, 200)
+        XCTAssertEqual(received.items.count, 1)
+
         var noKey = upload
         noKey.setValue(nil, forHTTPHeaderField: "X-FotoFesta-Key")
         let (_, refused) = try await session.upload(for: noKey, from: jpeg)
         XCTAssertEqual((refused as? HTTPURLResponse)?.statusCode, 401)
 
-        let (_, notImage) = try await session.upload(for: upload, from: Data("<script>".utf8))
+        var other = upload
+        other.setValue("upload-000002", forHTTPHeaderField: "X-FotoFesta-Upload")
+        let (_, notImage) = try await session.upload(for: other, from: Data("<script>".utf8))
         XCTAssertEqual((notImage as? HTTPURLResponse)?.statusCode, 415)
         XCTAssertEqual(received.items.count, 1)
+
+        // Quattro invii al minuto: il quinto da questo telefono viene rimandato.
+        for number in 3...4 {
+            other.setValue("upload-00000\(number)", forHTTPHeaderField: "X-FotoFesta-Upload")
+            _ = try await session.upload(for: other, from: jpeg)
+        }
+        other.setValue("upload-000005", forHTTPHeaderField: "X-FotoFesta-Upload")
+        let (_, limited) = try await session.upload(for: other, from: jpeg)
+        XCTAssertEqual((limited as? HTTPURLResponse)?.statusCode, 429)
+        XCTAssertEqual((limited as? HTTPURLResponse)?.value(forHTTPHeaderField: "Retry-After"), "10")
     }
 }
 

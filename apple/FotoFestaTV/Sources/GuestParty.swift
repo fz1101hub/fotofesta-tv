@@ -37,6 +37,8 @@ final class GuestParty {
     private(set) var wifi: WifiNetwork?
     /// Tutte le foto ricevute, approvate e da approvare, dalla più vecchia.
     private(set) var photos: [GuestPhoto] = []
+    /// Vero quando le foto di una festa interrotta sono state riprese (o cancellate) all'avvio.
+    private(set) var ready = false
 
     /// Chiamato dopo ogni cambio di foto o dello stato della festa.
     @ObservationIgnored var onChange: (() -> Void)?
@@ -63,6 +65,7 @@ final class GuestParty {
         static let approval = "guests.approval"
         static let qrInSlideshow = "guests.qrInSlideshow"
         static let wifiSSID = "guests.wifiSSID"
+        static let wifiHasPassword = "guests.wifiHasPassword"
     }
 
     init() {
@@ -74,10 +77,16 @@ final class GuestParty {
             .flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? ""
         approvalFlag.value = defaults.bool(forKey: Keys.approval)
         if let ssid = defaults.string(forKey: Keys.wifiSSID) {
-            wifi = WifiNetwork(ssid: ssid, password: WifiPasswordKeychain.read() ?? "")
+            let password = WifiPasswordKeychain.read()
+            // Senza la password nel Portachiavi una rete protetta sembrerebbe aperta: niente QR.
+            if password == nil, defaults.bool(forKey: Keys.wifiHasPassword) {
+                wifi = nil
+            } else {
+                wifi = WifiNetwork(ssid: ssid, password: password ?? "")
+            }
         } else {
             // Password rimasta da un'installazione precedente: senza nome della rete non serve.
-            WifiPasswordKeychain.write(nil)
+            _ = WifiPasswordKeychain.write(nil)
         }
         let store = self.store
         store.setOnChange { [weak self] _ in
@@ -88,15 +97,16 @@ final class GuestParty {
         let startedAt = defaults.double(forKey: Keys.startedAt)
         let idleLimit = Self.idleLimit
         Task.detached(priority: .utility) { [weak self] in
-            guard wasActive else {
+            if wasActive {
+                store.restore(maxAge: idleLimit)
+                let newest = store.photos.map(\.receivedAt.timeIntervalSince1970).max() ?? 0
+                if Date().timeIntervalSince1970 - max(startedAt, newest) > idleLimit {
+                    await self?.end()
+                }
+            } else {
                 store.clear()
-                return
             }
-            store.restore(maxAge: idleLimit)
-            let newest = store.photos.map(\.receivedAt.timeIntervalSince1970).max() ?? 0
-            if Date().timeIntervalSince1970 - max(startedAt, newest) > idleLimit {
-                await self?.end()
-            }
+            await self?.markReady()
         }
     }
 
@@ -123,6 +133,8 @@ final class GuestParty {
         defaults.removeObject(forKey: Keys.startedAt)
         active = false
         problem = nil
+        // Subito, senza aspettare la notifica dell'archivio: la raccolta non deve usare foto cancellate.
+        photos = []
         onChange?()
     }
 
@@ -140,8 +152,16 @@ final class GuestParty {
     }
 
     func saveWifi(_ network: WifiNetwork?) {
-        WifiPasswordKeychain.write(network?.password)
-        defaults.set(network?.ssid, forKey: Keys.wifiSSID)
+        let saved = WifiPasswordKeychain.write(network?.password)
+        if let network, saved {
+            defaults.set(network.ssid, forKey: Keys.wifiSSID)
+            defaults.set(!network.isOpen, forKey: Keys.wifiHasPassword)
+        } else {
+            // Portachiavi non disponibile: la rete vale solo finché l'app resta aperta, e non resta
+            // salvato un nome senza password che al riavvio sembrerebbe una rete aperta.
+            defaults.removeObject(forKey: Keys.wifiSSID)
+            defaults.removeObject(forKey: Keys.wifiHasPassword)
+        }
         wifi = network
     }
 
@@ -188,6 +208,20 @@ final class GuestParty {
         onChange?()
     }
 
+    private func markReady() {
+        photos = store.photos
+        ready = true
+        onChange?()
+    }
+
+    /// Il server si è fermato da solo (ad esempio la rete è caduta): si riavvia.
+    private func serverFailed(_ failed: GuestUploadServer) {
+        guard failed === server else { return }
+        server = nil
+        serverHost = nil
+        refresh()
+    }
+
     /// Avvia il server sull'indirizzo attuale, o lo sposta se la rete è cambiata.
     private func refresh() {
         guard active, foreground else { return }
@@ -217,15 +251,22 @@ final class GuestParty {
             defaults.set(value, forKey: Keys.secret)
             return value
         }()
+        let failure = FailureRelay()
         let candidate = GuestUploadServer(
             key: secret,
             page: makePageProvider(),
-            onPhoto: makePhotoHandler()
+            onPhoto: makePhotoHandler(),
+            onFailure: { [weak self] in
+                Task { @MainActor [weak self] in
+                    if let server = failure.server { self?.serverFailed(server) }
+                }
+            }
         )
+        failure.server = candidate
         do {
             let port = try await candidate.start(host: host, preferredPort: Self.preferredPort)
-            // Nel frattempo l'app è andata in background o la festa è finita.
-            guard active, foreground else {
+            // Nel frattempo l'app è andata in background, la festa è finita o è partito un altro avvio.
+            guard !Task.isCancelled, active, foreground else {
                 candidate.stop()
                 return
             }
@@ -237,12 +278,17 @@ final class GuestParty {
             candidate.stop()
             url = nil
             problem = .serverFailed
+            // Nuovo tentativo tra qualche secondo, se la festa è ancora in primo piano.
+            Task { [weak self] in
+                try? await Task.sleep(nanoseconds: 5_000_000_000)
+                self?.refresh()
+            }
         }
     }
 
     private func stopServing() {
+        // Il tentativo annullato resta il "precedente": il prossimo avvio aspetta che finisca.
         serving?.cancel()
-        serving = nil
         monitor?.cancel()
         monitor = nil
         server?.stop()
@@ -284,8 +330,11 @@ final class GuestParty {
         let flag = approvalFlag
         return { data, sender in
             guard GuestImageFormat.isDisplayable(data) else { return .unsupported }
-            guard let photo = store.add(data, sender: sender, approved: !flag.value) else { return .full }
-            return photo.approved ? .shown : .pending
+            switch store.add(data, sender: sender, approved: !flag.value) {
+            case let .added(photo): return photo.approved ? .shown : .pending
+            case .full: return .full
+            case .tooManyPending: return .tooManyPending
+            }
         }
     }
 
@@ -309,6 +358,11 @@ final class GuestParty {
             .replacingOccurrences(of: "/", with: "_")
             .replacingOccurrences(of: "=", with: "")
     }
+}
+
+/// Server a cui si riferisce la notifica di errore, impostato subito dopo la creazione.
+private final class FailureRelay: @unchecked Sendable {
+    weak var server: GuestUploadServer?
 }
 
 /// Valore booleano letto dalla coda del server e scritto dal thread principale.
@@ -347,12 +401,14 @@ enum WifiPasswordKeychain {
         return String(data: data, encoding: .utf8)
     }
 
-    static func write(_ value: String?) {
+    /// Salva (o con nil cancella) la password; false se il Portachiavi non l'ha accettata.
+    @discardableResult
+    static func write(_ value: String?) -> Bool {
         SecItemDelete(query as CFDictionary)
-        guard let value else { return }
+        guard let value else { return true }
         var item = query
         item[kSecValueData as String] = Data(value.utf8)
         item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        SecItemAdd(item as CFDictionary, nil)
+        return SecItemAdd(item as CFDictionary, nil) == errSecSuccess
     }
 }

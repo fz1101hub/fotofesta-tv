@@ -7,13 +7,16 @@ import Foundation
 /// evitando di ripetere subito l'ultima foto mostrata.
 public final class PlaybackOrder {
     public typealias Shuffler = ([Int]) -> [Int]
+    public typealias RandomIndex = (ClosedRange<Int>) -> Int
 
     private let shuffler: Shuffler
+    private let randomIndex: RandomIndex
     private var order: [Int] = []
     private var shuffle = false
 
-    public init(shuffler: @escaping Shuffler = { $0.shuffled() }) {
+    public init(shuffler: @escaping Shuffler = { $0.shuffled() }, randomIndex: @escaping RandomIndex = { Int.random(in: $0) }) {
         self.shuffler = shuffler
+        self.randomIndex = randomIndex
     }
 
     public func reset(count: Int, shuffle: Bool, current: Int = 0) {
@@ -28,6 +31,33 @@ public final class PlaybackOrder {
         }
         let first = min(max(current, 0), count - 1)
         order = [first] + shuffler((0..<count).filter { $0 != first })
+    }
+
+    /// Aggiorna l'ordine quando la raccolta cambia senza ripartire (foto degli invitati che arrivano
+    /// o spariscono). `oldToNew` traduce un indice della raccolta precedente in quello nuovo, o nil se
+    /// la foto non c'è più. In ordine casuale le foto restano dove erano nel giro corrente e quelle
+    /// nuove vengono inserite a caso tra quelle non ancora mostrate, così il giro non ricomincia.
+    public func remap(count newCount: Int, current: Int, oldToNew: (Int) -> Int?) {
+        guard shuffle, newCount > 0, !order.isEmpty else {
+            reset(count: newCount, shuffle: shuffle, current: current)
+            return
+        }
+        var seen = Set<Int>()
+        var list: [Int] = []
+        for old in order {
+            if let new = oldToNew(old), (0..<newCount).contains(new), seen.insert(new).inserted { list.append(new) }
+        }
+        var added = (0..<newCount).filter { !seen.contains($0) }
+        let anchor = min(max(current, 0), newCount - 1)
+        if !seen.contains(anchor) {
+            added.removeAll { $0 == anchor }
+            list.insert(anchor, at: 0)
+        }
+        let position = list.firstIndex(of: anchor) ?? 0
+        for index in shuffler(added) {
+            list.insert(index, at: randomIndex((position + 1)...list.count))
+        }
+        order = list
     }
 
     public func next(after current: Int) -> Int {

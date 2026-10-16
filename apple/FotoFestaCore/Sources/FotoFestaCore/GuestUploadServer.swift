@@ -14,45 +14,75 @@ public struct GuestHTTPRequest: Equatable, Sendable {
 public struct GuestHTTPError: Error, Equatable, Sendable {
     public let status: Int
     public let code: String
+    public var retryAfter: Int?
+
+    public init(status: Int, code: String, retryAfter: Int? = nil) {
+        self.status = status
+        self.code = code
+        self.retryAfter = retryAfter
+    }
 }
 
 /// Piccolo server HTTP sulla rete di casa: dà agli invitati la pagina per mandare le foto e le
 /// riceve. Le foto non passano da internet: vanno dal telefono alla TV attraverso il router.
 ///
 /// Solo chi ha inquadrato il QR conosce `key`, richiesta sia per aprire la pagina sia per inviare.
-/// Ogni richiesta usa una connessione propria, con limiti su intestazioni, dimensione e tempi, e
-/// sono accettati solo telefoni con un indirizzo della rete locale.
+/// Ogni richiesta usa una connessione propria, con limiti su intestazioni, dimensione e tempi totali
+/// (non solo tra un pacchetto e l'altro: una connessione lentissima non resta aperta), un massimo di
+/// connessioni e di invii al minuto per telefono e un tetto ai byte in arrivo contemporaneamente.
+/// Tutto avviene su una sola coda seriale. Se il server si ferma da solo (ad esempio quando la rete
+/// cade) viene chiamato `onFailure`.
 public final class GuestUploadServer: @unchecked Sendable {
     public enum UploadResult: Sendable {
-        case shown, pending, full, unsupported
+        case shown, pending, full, tooManyPending, unsupported
     }
 
     public static let maxUploadBytes = 12 * 1024 * 1024
     static let maxHeaderBytes = 16 * 1024
     static let maxConnections = 16
+    static let maxConnectionsPerClient = 3
+    static let maxInFlightBytes = 24 * 1024 * 1024
 
     private let key: String
     private let maxUploadBytes: Int
-    private let readTimeout: TimeInterval
+    private let headerDeadline: TimeInterval
+    private let bodyDeadline: TimeInterval
+    private let maxUploadsPerMinute: Int
     private let page: @Sendable () -> String
     private let onPhoto: @Sendable (Data, String?) -> UploadResult
+    private let onFailure: @Sendable () -> Void
     private let queue = DispatchQueue(label: "it.fotofesta.guest-upload")
+
+    // Usati solo sulla coda `queue`.
     private var listener: NWListener?
+    private var stopping = false
     private var connections: [ObjectIdentifier: GuestConnection] = [:]
     private var expectedHost = ""
+    private var perClient: [String: Int] = [:]
+    private var recentUploads: [String: [Date]] = [:]
+    private var inFlightBytes = 0
+    /// Invii già ricevuti, per non salvare due volte una foto se il telefono ripete l'invio.
+    private var handledUploads: [String: GuestHTTPResponse] = [:]
+    private var handledOrder: [String] = []
 
     public init(
         key: String,
         maxUploadBytes: Int = GuestUploadServer.maxUploadBytes,
-        readTimeout: TimeInterval = 20,
+        headerDeadline: TimeInterval = 15,
+        bodyDeadline: TimeInterval = 120,
+        maxUploadsPerMinute: Int = 60,
         page: @escaping @Sendable () -> String,
-        onPhoto: @escaping @Sendable (Data, String?) -> UploadResult
+        onPhoto: @escaping @Sendable (Data, String?) -> UploadResult,
+        onFailure: @escaping @Sendable () -> Void = {}
     ) {
         self.key = key
         self.maxUploadBytes = maxUploadBytes
-        self.readTimeout = readTimeout
+        self.headerDeadline = headerDeadline
+        self.bodyDeadline = bodyDeadline
+        self.maxUploadsPerMinute = maxUploadsPerMinute
         self.page = page
         self.onPhoto = onPhoto
+        self.onFailure = onFailure
     }
 
     /// Avvia il server, preferibilmente sulla porta `preferredPort` (così il QR resta uguale tra un
@@ -67,8 +97,11 @@ public final class GuestUploadServer: @unchecked Sendable {
         }
     }
 
+    /// Ferma il server. Tutto avviene sulla coda del server, quindi dopo il ritorno nessuna foto viene
+    /// più consegnata a `onPhoto`.
     public func stop() {
         queue.sync {
+            stopping = true
             listener?.cancel()
             listener = nil
             for connection in connections.values { connection.close() }
@@ -83,21 +116,35 @@ public final class GuestUploadServer: @unchecked Sendable {
         listener.newConnectionHandler = { [weak self] connection in
             self?.accept(connection)
         }
+        // Lo stato cambia sempre sulla coda del server: basta un indicatore senza lock.
+        let resumed = OnceFlag()
         let actualPort: UInt16 = try await withCheckedThrowingContinuation { continuation in
-            var resumed = false
-            listener.stateUpdateHandler = { state in
-                guard !resumed else { return }
+            listener.stateUpdateHandler = { [weak self, weak listener] state in
                 switch state {
                 case .ready:
-                    resumed = true
-                    continuation.resume(returning: listener.port?.rawValue ?? 0)
+                    if resumed.claim() { continuation.resume(returning: listener?.port?.rawValue ?? 0) }
                 case let .failed(error):
-                    resumed = true
-                    listener.cancel()
-                    continuation.resume(throwing: error)
+                    listener?.cancel()
+                    if resumed.claim() {
+                        continuation.resume(throwing: error)
+                    } else {
+                        // Fallito dopo l'avvio (ad esempio la rete è caduta): chi l'ha avviato lo riavvia.
+                        self?.listenerStopped()
+                    }
+                case let .waiting(error):
+                    // Senza rete il listener aspetterebbe all'infinito: meglio un errore subito.
+                    listener?.cancel()
+                    if resumed.claim() {
+                        continuation.resume(throwing: error)
+                    } else {
+                        self?.listenerStopped()
+                    }
                 case .cancelled:
-                    resumed = true
-                    continuation.resume(throwing: CancellationError())
+                    if resumed.claim() {
+                        continuation.resume(throwing: CancellationError())
+                    } else {
+                        self?.listenerStopped()
+                    }
                 default:
                     break
                 }
@@ -105,52 +152,51 @@ public final class GuestUploadServer: @unchecked Sendable {
             listener.start(queue: queue)
         }
         queue.sync {
+            self.stopping = false
             self.listener = listener
             self.expectedHost = Self.hostHeader(host: host, port: actualPort)
         }
         return actualPort
     }
 
+    /// Chiamato sulla coda del server quando il listener si ferma da solo dopo l'avvio.
+    private func listenerStopped() {
+        guard !stopping else { return }
+        listener = nil
+        onFailure()
+    }
+
     /// Chiamato sulla coda del server.
     private func accept(_ connection: NWConnection) {
-        guard connections.count < Self.maxConnections, Self.isLocal(connection.endpoint) else {
-            // Troppe richieste insieme, o un indirizzo fuori dalla rete di casa.
-            connection.cancel()
+        let client = Self.clientKey(connection.endpoint)
+        guard connections.count < Self.maxConnections, (perClient[client] ?? 0) < Self.maxConnectionsPerClient else {
+            // Troppe richieste insieme: risposta breve senza leggere la richiesta, il telefono riproverà.
+            let busy = GuestHTTPResponse.json(503, #"{"error":"busy"}"#, retryAfter: 5)
+            connection.start(queue: queue)
+            connection.send(content: busy.serialized, contentContext: .finalMessage, isComplete: true, completion: .contentProcessed { _ in
+                connection.cancel()
+            })
             return
         }
-        let handler = GuestConnection(connection: connection, server: self, readTimeout: readTimeout)
+        perClient[client, default: 0] += 1
+        let handler = GuestConnection(connection: connection, server: self, client: client, headerDeadline: headerDeadline, bodyDeadline: bodyDeadline)
         let id = ObjectIdentifier(handler)
         connections[id] = handler
-        handler.onClose = { [weak self] in self?.connections[id] = nil }
+        handler.onClose = { [weak self] in
+            guard let self else { return }
+            self.connections[id] = nil
+            let remaining = (self.perClient[client] ?? 1) - 1
+            self.perClient[client] = remaining > 0 ? remaining : nil
+        }
         handler.start(on: queue)
     }
 
-    /// Risposta a una richiesta completa. `body` contiene il corpo già letto per intero.
-    func respond(to request: GuestHTTPRequest, body: Data) -> GuestHTTPResponse {
-        do {
-            try checkHost(request)
-            switch request.path {
-            case "/":
-                guard request.method == "GET" || request.method == "HEAD" else { throw GuestHTTPError(status: 405, code: "method") }
-                guard keyMatches(request.query["k"]) else { return .html(403, Self.expiredPage) }
-                return .html(200, page(), head: request.method == "HEAD")
-            case "/photos":
-                return try receivePhoto(request, body: body)
-            default:
-                return .json(404, #"{"error":"not_found"}"#)
-            }
-        } catch let error as GuestHTTPError {
-            return .json(error.status, #"{"error":"\#(error.code)"}"#)
-        } catch {
-            return .json(400, #"{"error":"request"}"#)
-        }
-    }
-
     /// Controlli da fare appena arrivano le intestazioni: un upload rifiutato non viene letto.
-    /// Restituisce quanti byte di corpo attendere.
-    func expectedBodyLength(for request: GuestHTTPRequest) throws -> Int {
+    /// Restituisce quanti byte di corpo attendere, oppure una risposta già pronta (invio ripetuto).
+    /// Chiamato sulla coda del server.
+    func prepare(_ request: GuestHTTPRequest, client: String) throws -> (bodyLength: Int, cached: GuestHTTPResponse?) {
         try checkHost(request)
-        guard request.path == "/photos" else { return 0 }
+        guard request.path == "/photos" else { return (0, nil) }
         guard request.method == "POST" else { throw GuestHTTPError(status: 405, code: "method") }
         guard keyMatches(request.headers["x-fotofesta-key"]) else { throw GuestHTTPError(status: 401, code: "key") }
         if request.headers["transfer-encoding"] != nil { throw GuestHTTPError(status: 411, code: "length") }
@@ -159,19 +205,72 @@ public final class GuestUploadServer: @unchecked Sendable {
         }
         guard length > 0 else { throw GuestHTTPError(status: 400, code: "empty") }
         guard length <= maxUploadBytes else { throw GuestHTTPError(status: 413, code: "too_large") }
-        return length
+        if let id = Self.uploadID(request), let cached = handledUploads[id] { return (length, cached) }
+        guard allowUpload(client) else { throw GuestHTTPError(status: 429, code: "rate", retryAfter: 10) }
+        guard inFlightBytes + length <= Self.maxInFlightBytes else { throw GuestHTTPError(status: 503, code: "busy", retryAfter: 5) }
+        inFlightBytes += length
+        return (length, nil)
+    }
+
+    /// Libera i byte riservati da `prepare` per un corpo che non arriverà (connessione chiusa).
+    func releaseReserved(_ length: Int) {
+        inFlightBytes = max(inFlightBytes - length, 0)
+    }
+
+    /// Risposta a una richiesta completa. `body` contiene il corpo già letto per intero; i byte
+    /// riservati da `prepare` vengono liberati. Chiamato sulla coda del server.
+    func respond(to request: GuestHTTPRequest, body: Data) -> GuestHTTPResponse {
+        if request.path == "/photos" { releaseReserved(body.count) }
+        do {
+            try checkHost(request)
+            switch request.path {
+            case "/":
+                guard request.method == "GET" || request.method == "HEAD" else { throw GuestHTTPError(status: 405, code: "method") }
+                guard keyMatches(request.query["k"]) else { return .html(403, Self.expiredPage) }
+                return .html(200, page(), head: request.method == "HEAD")
+            case "/photos":
+                let response = try receivePhoto(request, body: body)
+                if let id = Self.uploadID(request) { remember(id, response) }
+                return response
+            default:
+                return .json(404, #"{"error":"not_found"}"#)
+            }
+        } catch let error as GuestHTTPError {
+            return .error(error)
+        } catch {
+            return .json(400, #"{"error":"request"}"#)
+        }
     }
 
     private func receivePhoto(_ request: GuestHTTPRequest, body: Data) throws -> GuestHTTPResponse {
-        _ = try expectedBodyLength(for: request)
         guard GuestImageFormat.sniff(body) != nil else { throw GuestHTTPError(status: 415, code: "unsupported") }
         let sender = request.headers["x-fotofesta-sender"].flatMap { $0.removingPercentEncoding }.flatMap(GuestSender.clean)
         switch onPhoto(body, sender) {
         case .shown: return .json(200, #"{"status":"shown"}"#)
         case .pending: return .json(200, #"{"status":"pending"}"#)
         case .full: throw GuestHTTPError(status: 507, code: "full")
+        case .tooManyPending: throw GuestHTTPError(status: 507, code: "pending_full")
         case .unsupported: throw GuestHTTPError(status: 415, code: "unsupported")
         }
+    }
+
+    private func remember(_ id: String, _ response: GuestHTTPResponse) {
+        handledUploads[id] = response
+        handledOrder.append(id)
+        if handledOrder.count > 200 { handledUploads[handledOrder.removeFirst()] = nil }
+    }
+
+    /// Al massimo `maxUploadsPerMinute` invii al minuto dallo stesso telefono.
+    private func allowUpload(_ client: String) -> Bool {
+        let now = Date()
+        var times = (recentUploads[client] ?? []).filter { now.timeIntervalSince($0) <= 60 }
+        guard times.count < maxUploadsPerMinute else {
+            recentUploads[client] = times
+            return false
+        }
+        times.append(now)
+        recentUploads[client] = times
+        return true
     }
 
     private func checkHost(_ request: GuestHTTPRequest) throws {
@@ -197,32 +296,17 @@ public final class GuestUploadServer: @unchecked Sendable {
         host.contains(":") ? "[\(host)]:\(port)" : "\(host):\(port)"
     }
 
-    /// Indirizzi della rete di casa: privati IPv4, link-local, loopback e IPv6 locali (ULA, link-local).
-    static func isLocal(_ endpoint: NWEndpoint) -> Bool {
-        guard case let .hostPort(host, _) = endpoint else { return false }
-        switch host {
-        case let .ipv4(address):
-            return isLocalIPv4([UInt8](address.rawValue))
-        case let .ipv6(address):
-            let bytes = [UInt8](address.rawValue)
-            guard bytes.count == 16 else { return false }
-            // IPv4 scritto come IPv6 (::ffff:a.b.c.d).
-            if bytes[0..<10].allSatisfy({ $0 == 0 }), bytes[10] == 0xFF, bytes[11] == 0xFF {
-                return isLocalIPv4(Array(bytes[12..<16]))
-            }
-            let loopback = bytes[0..<15].allSatisfy { $0 == 0 } && bytes[15] == 1
-            return loopback || (bytes[0] == 0xFE && bytes[1] & 0xC0 == 0x80) || bytes[0] & 0xFE == 0xFC
-        default:
-            return false
-        }
+    /// Identificativo dell'invio mandato dalla pagina, se valido.
+    static func uploadID(_ request: GuestHTTPRequest) -> String? {
+        guard let id = request.headers["x-fotofesta-upload"], (8...64).contains(id.count),
+              id.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-" || $0 == "_") }) else { return nil }
+        return id
     }
 
-    static func isLocalIPv4(_ octets: [UInt8]) -> Bool {
-        guard octets.count == 4 else { return false }
-        return octets[0] == 10 || octets[0] == 127 ||
-            (octets[0] == 172 && (16...31).contains(octets[1])) ||
-            (octets[0] == 192 && octets[1] == 168) ||
-            (octets[0] == 169 && octets[1] == 254)
+    /// Telefono che si collega, per i limiti per telefono: l'indirizzo senza la porta.
+    static func clientKey(_ endpoint: NWEndpoint) -> String {
+        if case let .hostPort(host, _) = endpoint { return "\(host)" }
+        return "\(endpoint)"
     }
 
     /// Legge riga di richiesta e intestazioni (senza la riga vuota finale).
@@ -292,6 +376,17 @@ public final class GuestUploadServer: @unchecked Sendable {
     """
 }
 
+/// Indicatore che vale una volta sola. Usato solo sulla coda del server, quindi senza lock.
+private final class OnceFlag: @unchecked Sendable {
+    private var used = false
+
+    func claim() -> Bool {
+        if used { return false }
+        used = true
+        return true
+    }
+}
+
 /// Risposta HTTP pronta da inviare.
 struct GuestHTTPResponse {
     let status: Int
@@ -300,8 +395,17 @@ struct GuestHTTPResponse {
     var extraHeaders: [(String, String)] = []
     var head = false
 
-    static func json(_ status: Int, _ body: String) -> GuestHTTPResponse {
-        GuestHTTPResponse(status: status, contentType: "application/json; charset=utf-8", body: Data(body.utf8))
+    static func json(_ status: Int, _ body: String, retryAfter: Int? = nil) -> GuestHTTPResponse {
+        GuestHTTPResponse(
+            status: status,
+            contentType: "application/json; charset=utf-8",
+            body: Data(body.utf8),
+            extraHeaders: retryAfter.map { [("Retry-After", String($0))] } ?? []
+        )
+    }
+
+    static func error(_ error: GuestHTTPError) -> GuestHTTPResponse {
+        json(error.status, #"{"error":"\#(error.code)"}"#, retryAfter: error.retryAfter)
     }
 
     static func html(_ status: Int, _ body: String, head: Bool = false) -> GuestHTTPResponse {
@@ -338,32 +442,45 @@ struct GuestHTTPResponse {
         case 413: return "Payload Too Large"
         case 415: return "Unsupported Media Type"
         case 421: return "Misdirected Request"
+        case 429: return "Too Many Requests"
         case 431: return "Request Header Fields Too Large"
+        case 503: return "Service Unavailable"
         case 507: return "Insufficient Storage"
         default: return "Error"
         }
     }
 }
 
-/// Una connessione del server: legge intestazioni e corpo, risponde e chiude. Usata solo sulla coda
-/// del server.
+/// Una connessione del server: legge intestazioni e corpo entro tempi totali, risponde e chiude.
+/// Usata solo sulla coda del server.
 final class GuestConnection {
+    private static let drainLimit = 256 * 1024
+    private static let drainTime: TimeInterval = 1
+    private static let writeTime: TimeInterval = 10
+
     private let connection: NWConnection
     private weak var server: GuestUploadServer?
-    private let readTimeout: TimeInterval
+    private let client: String
+    private let headerDeadline: TimeInterval
+    private let bodyDeadline: TimeInterval
     private var buffer = Data()
     private var request: GuestHTTPRequest?
     private var bodyStart: Data.Index = 0
     private var expectedBody = 0
-    private var timeout: DispatchWorkItem?
+    private var reserved = 0
+    private var deadline: DispatchWorkItem?
     private var queue: DispatchQueue?
+    private var draining = false
+    private var drained = 0
     private var finished = false
     var onClose: (() -> Void)?
 
-    init(connection: NWConnection, server: GuestUploadServer, readTimeout: TimeInterval) {
+    init(connection: NWConnection, server: GuestUploadServer, client: String, headerDeadline: TimeInterval, bodyDeadline: TimeInterval) {
         self.connection = connection
         self.server = server
-        self.readTimeout = readTimeout
+        self.client = client
+        self.headerDeadline = headerDeadline
+        self.bodyDeadline = bodyDeadline
     }
 
     func start(on queue: DispatchQueue) {
@@ -375,6 +492,8 @@ final class GuestConnection {
             }
         }
         connection.start(queue: queue)
+        // Tempo totale per le intestazioni, anche se i byte arrivano uno alla volta.
+        setDeadline(headerDeadline)
         receive()
     }
 
@@ -383,9 +502,17 @@ final class GuestConnection {
     }
 
     private func receive() {
-        restartTimeout()
         connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { [weak self] data, _, isComplete, error in
             guard let self, !self.finished else { return }
+            if self.draining {
+                self.drained += data?.count ?? 0
+                if isComplete || error != nil || self.drained >= Self.drainLimit {
+                    self.finish()
+                } else {
+                    self.receive()
+                }
+                return
+            }
             if let data, !data.isEmpty { self.buffer.append(data) }
             if error != nil {
                 self.finish()
@@ -399,7 +526,7 @@ final class GuestConnection {
         if request == nil {
             guard let end = GuestUploadServer.headEnd(in: buffer) else {
                 if buffer.count > GuestUploadServer.maxHeaderBytes {
-                    send(.json(431, #"{"error":"header"}"#))
+                    send(.json(431, #"{"error":"header"}"#), early: true)
                 } else if peerClosed {
                     finish()
                 } else {
@@ -408,7 +535,7 @@ final class GuestConnection {
                 return
             }
             if end.head.count > GuestUploadServer.maxHeaderBytes {
-                send(.json(431, #"{"error":"header"}"#))
+                send(.json(431, #"{"error":"header"}"#), early: true)
                 return
             }
             guard let server else {
@@ -417,14 +544,22 @@ final class GuestConnection {
             }
             do {
                 let parsed = try GuestUploadServer.parseHead(buffer.subdata(in: end.head))
-                expectedBody = try server.expectedBodyLength(for: parsed)
+                let prepared = try server.prepare(parsed, client: client)
+                if let cached = prepared.cached {
+                    // Invio già ricevuto: si risponde come la prima volta, senza leggere di nuovo la foto.
+                    send(cached, early: true)
+                    return
+                }
+                expectedBody = prepared.bodyLength
+                reserved = parsed.path == "/photos" ? prepared.bodyLength : 0
                 request = parsed
                 bodyStart = end.bodyStart
+                if expectedBody > 0 { setDeadline(bodyDeadline) }
             } catch let error as GuestHTTPError {
-                send(.json(error.status, #"{"error":"\#(error.code)"}"#))
+                send(.error(error), early: true)
                 return
             } catch {
-                send(.json(400, #"{"error":"request"}"#))
+                send(.json(400, #"{"error":"request"}"#), early: true)
                 return
             }
         }
@@ -435,7 +570,9 @@ final class GuestConnection {
         let received = buffer.endIndex - bodyStart
         if received >= expectedBody {
             let body = expectedBody > 0 ? buffer.subdata(in: bodyStart..<(bodyStart + expectedBody)) : Data()
-            send(server.respond(to: request, body: body))
+            buffer = Data()
+            reserved = 0
+            send(server.respond(to: request, body: body), early: false)
         } else if peerClosed {
             finish()
         } else {
@@ -443,24 +580,37 @@ final class GuestConnection {
         }
     }
 
-    private func send(_ response: GuestHTTPResponse) {
-        timeout?.cancel()
+    /// Invia la risposta e chiude. `early`: il telefono potrebbe star ancora mandando la foto; chiudere
+    /// subito farebbe arrivare un reset al posto della risposta, quindi si scarta il resto per un po'.
+    private func send(_ response: GuestHTTPResponse, early: Bool) {
+        setDeadline(Self.writeTime)
         connection.send(content: response.serialized, contentContext: .finalMessage, isComplete: true, completion: .contentProcessed { [weak self] _ in
-            self?.finish()
+            guard let self, !self.finished else { return }
+            if early {
+                self.draining = true
+                self.setDeadline(Self.drainTime)
+                self.receive()
+            } else {
+                self.finish()
+            }
         })
     }
 
-    private func restartTimeout() {
-        timeout?.cancel()
+    private func setDeadline(_ seconds: TimeInterval) {
+        deadline?.cancel()
         let item = DispatchWorkItem { [weak self] in self?.finish() }
-        timeout = item
-        queue?.asyncAfter(deadline: .now() + readTimeout, execute: item)
+        deadline = item
+        queue?.asyncAfter(deadline: .now() + seconds, execute: item)
     }
 
     private func finish() {
         guard !finished else { return }
         finished = true
-        timeout?.cancel()
+        deadline?.cancel()
+        if reserved > 0 {
+            server?.releaseReserved(reserved)
+            reserved = 0
+        }
         connection.cancel()
         onClose?()
         onClose = nil

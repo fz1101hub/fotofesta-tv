@@ -39,15 +39,10 @@ actor ImageLoader {
                   let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
             decoded = Self.thumbnail(source, maxPixelSize: maxPixelSize)
         case let .guest(id):
-            // Dall'archivio della festa: in RAM o nella cartella di riserva. I byte si leggono subito,
-            // così una foto cancellata a metà caricamento mostra il segnaposto e non un'immagine rotta.
-            let data: Data?
-            switch GuestStorage.store.open(id) {
-            case let .data(bytes): data = bytes
-            case let .file(url): data = try? Data(contentsOf: url)
-            case nil: data = nil
-            }
-            guard let data, let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+            // Dall'archivio della festa: in RAM o nella cartella di riserva. I byte si leggono subito e
+            // con il lock dell'archivio, così un'approvazione o una cancellazione a metà non rompe la foto.
+            guard let data = GuestStorage.store.read(id),
+                  let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
             decoded = Self.thumbnail(source, maxPixelSize: maxPixelSize)
         }
         guard let decoded else { return nil }

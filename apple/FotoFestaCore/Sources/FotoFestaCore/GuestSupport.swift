@@ -121,6 +121,8 @@ public final class FreshPhotos {
     private let limit: Int
     private var queue: [String] = []
     private var resumeAfter: String?
+    /// Foto nuove già mostrate da quando si è lasciato l'ordine normale.
+    private var shownInRun: Set<String> = []
 
     public init(limit: Int = 30) {
         self.limit = limit
@@ -135,6 +137,7 @@ public final class FreshPhotos {
     public func clear() {
         queue = []
         resumeAfter = nil
+        shownInRun = []
     }
 
     /// Indice della prossima foto nuova in `photos`, oppure nil se non ce ne sono.
@@ -143,6 +146,7 @@ public final class FreshPhotos {
             let id = queue.removeFirst()
             if let index = photos.firstIndex(where: { $0.id == id }), index != currentIndex {
                 if resumeAfter == nil, photos.indices.contains(currentIndex) { resumeAfter = photos[currentIndex].id }
+                shownInRun.insert(photos[index].id)
                 return index
             }
         }
@@ -157,11 +161,29 @@ public final class FreshPhotos {
         return nil
     }
 
-    /// Foto da cui riprendere l'ordine normale dopo quelle nuove; la dimentica.
+    /// Foto da cui riprendere l'ordine normale dopo quelle nuove (per "Precedente"); la dimentica.
     public func takeResume(_ photos: [Photo]) -> Int? {
         guard let id = resumeAfter else { return nil }
         resumeAfter = nil
+        shownInRun = []
         return photos.firstIndex { $0.id == id }
+    }
+
+    /// Foto successiva nell'ordine normale dopo una serie di foto nuove: riparte da quella mostrata
+    /// prima e salta le foto nuove appena viste, che altrimenti ricomparirebbero subito. `next` è il
+    /// passo dell'ordine di riproduzione. Nil se non si stava mostrando una serie di foto nuove.
+    public func resume(_ photos: [Photo], next: (Int) -> Int) -> Int? {
+        guard let id = resumeAfter else { return nil }
+        resumeAfter = nil
+        let shown = shownInRun
+        shownInRun = []
+        guard let start = photos.firstIndex(where: { $0.id == id }) else { return nil }
+        var index = next(start)
+        for _ in 0..<photos.count {
+            if !photos.indices.contains(index) || !shown.contains(photos[index].id) { return index }
+            index = next(index)
+        }
+        return index
     }
 
     public func peekResume(_ photos: [Photo]) -> Int? {
