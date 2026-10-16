@@ -78,7 +78,7 @@ La versione 1.4.0 compila e supera test e Lint nella CI (`.github/workflows/andr
    - Testi da `fastlane/metadata/android/<lingua>/`.
    - Icona, grafica in evidenza e banner TV da `.../images/`.
    - Le schede sono pronte in italiano, inglese, francese, spagnolo e tedesco: `fastlane android metadata` le carica tutte.
-   - Screenshot: catturali dalla TV con `adb exec-out screencap -p > shot.png`. Servono almeno gli screenshot TV della lingua predefinita: per le altre lingue, se mancano, Play mostra quelli. Play Console può richiedere anche gli screenshot generici della scheda.
+   - Screenshot: 8 schermate TV a 1920×1080 per ogni lingua sono già in `.../images/tvScreenshots/`, catturate dall'emulatore Android TV della CI (vedi [fastlane/metadata/android/README.md](../fastlane/metadata/android/README.md)); `fastlane android metadata` le carica con i testi. Se cambi l'interfaccia, rifalle con `[screenshots]` nel messaggio del commit.
 4. **Form factor Android TV**: in **Impostazioni avanzate › Form factor** aggiungi **Android TV** e accetta i requisiti. La revisione TV verifica:
    - banner e icona Leanback;
    - navigazione completa con il telecomando;

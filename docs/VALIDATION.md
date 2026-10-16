@@ -23,6 +23,21 @@
 
 Nella 1.0.0 i test unitari verificavano il protocollo Cast, poi rimosso. I test attuali sono descritti nel [README](../README.md#verifica-effettuata).
 
+## Emulatore Android TV (1.4.0)
+
+Con `[screenshots]` nel messaggio del commit, o con l'avvio a mano di `android.yml`, la CI accende l'emulatore Android TV 14 a 1080p e apre l'APK di debug in 32 schermate (`scripts/android_screenshots.sh`, scenari in `app/src/debug/.../ScreenshotScenario.kt`). Sul runner girano un Samba 4 e un server DLNA di prova con tre foto, una sottocartella e un video H.264 con audio (`scripts/android_test_servers.sh`), raggiunti dall'emulatore come un NAS della rete di casa. Il passo fallisce se l'app si chiude da sola o se una schermata non si apre.
+
+| Flusso | Risultato nell'emulatore |
+| --- | --- |
+| Home, slideshow, impostazioni, giochi, puzzle, mosaico, conto alla rovescia | Schermate corrette in italiano, inglese, francese, spagnolo e tedesco |
+| Festa | Foto mandate alla pagina della TV come dai telefoni, slideshow con QR, approvazione, premi |
+| Gioco con i telefoni | Due telefoni rispondono dalla pagina della festa; risposta giusta e classifica |
+| Cartelle condivise (SMB) | Accesso con password, password sbagliata con il suo messaggio, condivisioni, sottocartelle, slideshow, video riprodotto, cartella in uso nel browser; tastiera chiusa all'apertura e aperta premendo OK sul campo |
+| Cartelle di rete (DLNA) | Server aggiunto, cartelle, slideshow, video riprodotto |
+| Album iCloud | Schermata con il QR (il servizio di Apple non è raggiungibile dalla CI) |
+
+Problemi trovati così e corretti sono in [AUDIT.md](AUDIT.md#emulatore-android-tv-140). Restano da provare su TV reali la navigazione completa con il telecomando (la CI apre le schermate da sola e preme solo OK su un campo), le tastiere dei produttori e la ricerca automatica in rete (l'emulatore non riceve il multicast).
+
 ## Artefatti e checksum
 
 ```text

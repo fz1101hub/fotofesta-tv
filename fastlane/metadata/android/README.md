@@ -11,14 +11,12 @@ Testi e grafica per `fastlane supply` (`fastlane android metadata`), una cartell
 | `images/icon.png` | 512×512 | Icona |
 | `images/featureGraphic.png` | 1024×500 | Grafica in evidenza |
 | `images/tvBanner.png` | 1280×720 | Banner Android TV |
-| `images/tvScreenshots/` | 1920×1080 | **Da aggiungere**: almeno uno screenshot reale nella lingua predefinita (le altre lingue, se mancano, usano quelli) |
+| `images/tvScreenshots/` | 1920×1080 | 8 schermate della build reale per lingua (JPEG), dall'emulatore Android TV della CI |
 
 La grafica si rigenera con `python3 scripts/make_store_assets.py`.
 
-Gli screenshot devono mostrare la build reale. Si catturano dalla TV collegata con adb:
+Gli screenshot mostrano la build reale: home, slideshow, festa con il QR, slideshow con le foto degli invitati, giochi, gioco con i telefoni, puzzle e mosaico. Si rifanno con `[screenshots]` nel messaggio del commit (o avviando a mano `android.yml`): il job `screenshots` li cattura nell'emulatore Android TV 1080p in ogni lingua, con `scripts/android_screenshots.sh <lingua> store`, e li carica come artefatto `FotoFesta-TV-screenshots-<lingua>-store`. Da una TV collegata si catturano con:
 
 ```bash
 adb exec-out screencap -p > fastlane/metadata/android/it-IT/images/tvScreenshots/1_home.png
 ```
-
-Suggeriti: home, slideshow con controlli visibili, impostazioni, collegamento Google Foto con QR, un gioco.

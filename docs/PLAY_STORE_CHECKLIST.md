@@ -22,7 +22,7 @@ Riepilogo dei requisiti di qualità. I passaggi operativi, nell'ordine in cui es
 
 ## Scheda Store
 
-Preparare almeno uno screenshot reale ad alta risoluzione della UI TV. Non usare mockup che mostrino funzioni diverse dalla build. La categoria proposta è **Fotografia**; la sezione giochi è secondaria e non richiede che l’app compaia nella riga Giochi, perché il suo scopo principale rimane lo slideshow.
+Gli screenshot TV (8 per lingua, 1920×1080) sono catturati dalla build reale nell'emulatore Android TV della CI e stanno in `fastlane/metadata/android/<lingua>/images/tvScreenshots/`. Rifarli quando cambia l'interfaccia; non usare mockup che mostrino funzioni diverse dalla build. La categoria proposta è **Fotografia**; la sezione giochi è secondaria e non richiede che l’app compaia nella riga Giochi, perché il suo scopo principale rimane lo slideshow.
 
 La descrizione deve spiegare che Google Foto richiede selezione esplicita, che USB e le foto degli invitati funzionano senza account, che per le foto degli invitati i telefoni devono essere sulla stessa rete della TV, che la musica è locale, che le cartelle di rete richiedono un server multimediale DLNA sulla stessa rete, che le cartelle condivise richiedono SMB 2 o 3 (i PC Windows si aggiungono con l’indirizzo) e che l’album di iCloud deve avere “Sito web pubblico” attivo. Il salvaschermo è incluso, ma alcune Google TV ne nascondono la scelta: la scheda non deve promettere che sia sempre selezionabile dalle impostazioni. Non promettere sincronizzazione dell’intera libreria; per i video precisare che i formati riproducibili dipendono dalla TV.
 

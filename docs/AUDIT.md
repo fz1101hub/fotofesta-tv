@@ -212,6 +212,19 @@ Problemi trovati e corretti durante lo sviluppo:
 
 Verifiche: 215 test JVM (Android; 8 contro un vero server Samba 4 con `FOTOFESTA_SMB_TEST`) e 114 test XCTest (Apple TV); CI Android (test, Lint, APK debug, release con R8) e CI Apple TV. Il servizio dell'album iCloud non era raggiungibile dall'ambiente di sviluppo (rete bloccata): il client è scritto sul comportamento documentato da progetti open source e provato contro un server finto, e va provato con un album reale.
 
+## Emulatore Android TV (1.4.0)
+
+La CI apre l'app nell'emulatore Android TV 14 a 1080p in 32 schermate, in cinque lingue, con un Samba e un server DLNA di prova sul runner (vedi [VALIDATION.md](VALIDATION.md#emulatore-android-tv-140)). I test JVM non vedono l'interfaccia: le schermate hanno mostrato questi problemi, corretti e verificati nel giro successivo.
+
+| Gravità | Problema | Correzione |
+| --- | --- | --- |
+| Media | Impostazioni: tornando in Musica dopo aver scelto un brano, o in Festa dalla Wi‑Fi, il fuoco cadeva sulla prima sezione, che con il fuoco si apre: le impostazioni tornavano a Slideshow | All'apertura il fuoco va sulla sezione in uso |
+| Media | Campi di testo (cartelle condivise, link iCloud, Wi‑Fi della festa): la tastiera si apriva da sola con il fuoco e copriva metà schermata, compresi il messaggio d'errore e la didascalia del QR. `showKeyboardOnFocus = false` e `stateHidden` non bastavano: Compose la apre per ogni campo che riceve il fuoco | `TvTextField`: le frecce si fermano su una cornice e il campo vero riceve il fuoco, con la tastiera, solo dopo OK. Verificato nell'emulatore premendo OK |
+| Media | Gioco con i telefoni: in spagnolo la classifica finiva tagliata in fondo al pannello (e con più giocatori sarebbe successo in ogni lingua) | Con la classifica il QR lascia il posto ai primi tre nomi; spiegazione al massimo su quattro righe |
+| Media | Pulsanti tornati attivi ("Connetti" dopo un errore, "Mostra la foto" a foto caricata) restavano senza sfondo | Ombra e trasparenza in livelli sempre presenti, invece di `shadow()` e `alpha()` che aggiungono e tolgono un livello |
+| Bassa | Home: "Impostazioni" ed "Einstellungen" tagliati nella scheda stretta; descrizioni delle sorgenti tagliate a una riga; "Photos de démo" e "Fotos de demostración" tagliati | Scheda più larga, descrizioni su due righe e più corte dove non stavano; "Photos démo" e "Fotos demo" |
+| Bassa | Giochi: descrizioni di tre righe tagliate senza puntini; la fila finiva tagliata di netto sul margine | Schede più alte con i puntini; la fila arriva al bordo dello schermo |
+
 ## Raccomandazioni aperte
 
 | Priorità | Raccomandazione |
@@ -223,4 +236,3 @@ Verifiche: 215 test JVM (Android; 8 contro un vero server Samba 4 con `FOTOFESTA
 | Bassa | Prima di portare `targetSdk` oltre 35, verificare se Android richiede il nuovo permesso per la rete locale anche per un server in ascolto. |
 | Bassa | Valutare l'approvazione delle foto attiva per impostazione predefinita, se le prove mostrano invii indesiderati. |
 | Alta | Provare le cartelle di rete con server reali (NAS, Plex o Jellyfin, router) e i video su TV diverse: formati, codec non supportati, video lunghi, audio insieme alla musica. Su Apple TV, i video di Google Foto. |
-| Media | Cartelle condivise SMB senza server multimediale: valutarle se gli utenti le chiedono (richiederebbero utente e password e una libreria SMB). |
