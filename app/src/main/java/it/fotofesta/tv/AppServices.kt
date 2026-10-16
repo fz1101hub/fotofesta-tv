@@ -8,6 +8,7 @@ import it.fotofesta.tv.google.GooglePhotosStream
 import it.fotofesta.tv.google.GoogleSelectionStore
 import it.fotofesta.tv.google.SecureTokenStore
 import it.fotofesta.tv.guests.GuestParty
+import it.fotofesta.tv.guests.PhoneGame
 import it.fotofesta.tv.guests.GuestPhotoStore
 import okhttp3.OkHttpClient
 import java.io.File
@@ -42,8 +43,11 @@ class AppServices(context: Context) {
 
     val googleStream = GooglePhotosStream(googlePicker, googleAuth, googleSelection)
 
+    /** Gioco con i telefoni: la TV fa le domande, gli invitati rispondono dalla pagina della festa. */
+    val phoneGame = PhoneGame()
+
     /** Foto degli invitati: in RAM finché c'è posto, poi in una cartella temporanea con un limite. */
-    val guests = GuestParty(context, guestStore(context))
+    val guests = GuestParty(context, guestStore(context), phoneGame)
 
     private companion object {
         const val MB = 1024L * 1024

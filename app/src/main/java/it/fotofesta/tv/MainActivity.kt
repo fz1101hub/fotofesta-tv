@@ -37,6 +37,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -51,6 +52,7 @@ import it.fotofesta.tv.model.GoogleConnectState
 import it.fotofesta.tv.model.PartyAwards
 import it.fotofesta.tv.model.SourceType
 import it.fotofesta.tv.model.WhoTookIt
+import it.fotofesta.tv.model.AppState
 import it.fotofesta.tv.ui.Accent
 import it.fotofesta.tv.ui.AwardsScreen
 import it.fotofesta.tv.ui.FileBrowserScreen
@@ -70,6 +72,7 @@ import it.fotofesta.tv.ui.SlideshowScreen
 import it.fotofesta.tv.ui.SurfaceRaised
 import it.fotofesta.tv.ui.TextPrimary
 import it.fotofesta.tv.ui.WhoTookItScreen
+import it.fotofesta.tv.ui.PhonePlay
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -219,7 +222,7 @@ class MainActivity : ComponentActivity() {
                         }
                         Destination.MYSTERY -> {
                             val photos = remember { state.photos }
-                            MysteryGameScreen(photos) { viewModel.navigate(Destination.GAMES) }
+                            MysteryGameScreen(photos, phonePlay(state)) { viewModel.navigate(Destination.GAMES) }
                         }
                         Destination.PUZZLE -> {
                             val photos = remember { state.photos }
@@ -227,7 +230,7 @@ class MainActivity : ComponentActivity() {
                         }
                         Destination.WHO_TOOK_IT -> {
                             val photos = remember { state.photos }
-                            WhoTookItScreen(photos) { viewModel.navigate(Destination.GAMES) }
+                            WhoTookItScreen(photos, phonePlay(state)) { viewModel.navigate(Destination.GAMES) }
                         }
                         Destination.GOOGLE_CONNECT -> GoogleConnectScreen(
                             state = state.google,
@@ -311,6 +314,13 @@ class MainActivity : ComponentActivity() {
     }
 
     /** Alcune TV non hanno un selettore di documenti: senza questo controllo l'app andrebbe in crash. */
+    /** Gioco con i telefoni: solo durante la festa, quando la pagina degli invitati è raggiungibile. */
+    @Composable
+    private fun phonePlay(state: AppState): PhonePlay? {
+        val url = state.guests.url?.takeIf { state.guests.active }
+        return remember(url) { url?.let { PhonePlay(viewModel.phoneGame, it) } }
+    }
+
     private fun launchPicker(launch: () -> Unit) {
         try {
             launch()

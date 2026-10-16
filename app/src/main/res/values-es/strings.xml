@@ -137,6 +137,13 @@
     <string name="who_wrong">No: la envió %1$s.</string>
     <string name="who_next">Siguiente foto</string>
     <string name="who_photo">Foto para adivinar</string>
+    <string name="phone_title">Responde desde el móvil</string>
+    <string name="phone_scan">Escanea el QR de la fiesta: la pregunta aparece en la página.</string>
+    <string name="phone_leaderboard">Clasificación</string>
+    <string name="phone_mode_phones">Con los móviles</string>
+    <string name="phone_mode_remote">Con el mando</string>
+    <string name="phone_reveal">Ver la respuesta</string>
+    <string name="phone_reveal_who">La envió %1$s.</string>
     <string name="guests_awards">Premios de la fiesta</string>
     <string name="awards_kicker">Resumen de la fiesta</string>
     <string name="awards_title">Los premios de la fiesta</string>
@@ -214,6 +221,16 @@
         <item quantity="one">%1$d canción</item>
         <item quantity="many">%1$d canciones</item>
         <item quantity="other">%1$d canciones</item>
+    </plurals>
+    <plurals name="phone_answers">
+        <item quantity="one">%1$d respuesta</item>
+        <item quantity="many">%1$d respuestas</item>
+        <item quantity="other">%1$d respuestas</item>
+    </plurals>
+    <plurals name="phone_points">
+        <item quantity="one">%1$d punto</item>
+        <item quantity="many">%1$d puntos</item>
+        <item quantity="other">%1$d puntos</item>
     </plurals>
     <plurals name="puzzle_pieces">
         <item quantity="one">%1$d pieza</item>

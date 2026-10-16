@@ -37,6 +37,8 @@ class GuestUploadServer(
     private val page: () -> String,
     private val onPhoto: (bytes: ByteArray, sender: String?) -> UploadResult,
     private val onFailure: () -> Unit = {},
+    /** Gioco con i telefoni: domanda in corso (GET /game) e risposte (POST /game/answer). */
+    private val game: PhoneGame? = null,
     private val maxUploadBytes: Int = MAX_UPLOAD_BYTES,
     private val readTimeoutMillis: Int = READ_TIMEOUT_MS,
     private val headerDeadlineMillis: Long = HEADER_DEADLINE_MS,
@@ -215,6 +217,15 @@ class GuestUploadServer(
                 if (request.method != "POST") throw HttpError(405, "method")
                 receivePhoto(request, body, clientAddress, startedAt)
             }
+            "/game" -> {
+                if (request.method != "GET") throw HttpError(405, "method")
+                if (!keyMatches(request.headers["x-fotofesta-key"])) throw HttpError(401, "key")
+                Response.json(200, gameJson(game?.current(), request.query["player"]))
+            }
+            "/game/answer" -> {
+                if (request.method != "POST") throw HttpError(405, "method")
+                receiveAnswer(request, body, startedAt)
+            }
             else -> Response.json(404, """{"error":"not_found"}""")
         }
     }
@@ -248,6 +259,39 @@ class GuestUploadServer(
         }
         uploadId?.let { id -> synchronized(handledUploads) { handledUploads[id] = response } }
         return response
+    }
+
+    /** Domanda in corso per la pagina dei telefoni, con i punti del telefono che la chiede. */
+    private fun gameJson(snapshot: PhoneGame.Snapshot?, player: String?): String {
+        if (snapshot == null) return """{"round":null}"""
+        val points = player?.takeIf(PhoneGame::validPlayer)?.let { game?.pointsOf(it) } ?: 0
+        return buildString {
+            append("""{"round":""").append(jsonString(snapshot.round))
+            append(""","question":""").append(jsonString(snapshot.question))
+            append(""","choices":[""").append(snapshot.choices.joinToString(",") { jsonString(it) }).append(']')
+            append(""","open":""").append(snapshot.open)
+            append(""","answer":""").append(snapshot.answer?.toString() ?: "null")
+            append(""","points":""").append(points).append('}')
+        }
+    }
+
+    /** Risposta di un telefono, in un piccolo modulo: round, choice, player e name. */
+    private fun receiveAnswer(request: Request, body: InputStream, startedAt: Long): Response {
+        if (!keyMatches(request.headers["x-fotofesta-key"])) throw HttpError(401, "key")
+        val game = game ?: throw HttpError(404, "not_found")
+        if (request.headers.containsKey("transfer-encoding")) throw HttpError(411, "length")
+        val length = request.headers["content-length"]?.trim()?.toIntOrNull() ?: throw HttpError(411, "length")
+        if (length <= 0) throw HttpError(400, "empty")
+        if (length > MAX_ANSWER_BYTES) throw HttpError(413, "too_large")
+        val form = parseForm(readBody(body, length, deadline = startedAt + bodyDeadlineMillis, now = nowMillis).toString(Charsets.UTF_8))
+        val round = form["round"] ?: throw HttpError(400, "invalid")
+        val choice = form["choice"]?.toIntOrNull() ?: throw HttpError(400, "invalid")
+        val player = form["player"] ?: throw HttpError(400, "invalid")
+        return when (game.answer(round, choice, player, GuestSender.clean(form["name"]))) {
+            PhoneGame.AnswerResult.ACCEPTED -> Response.json(200, """{"status":"ok"}""")
+            PhoneGame.AnswerResult.CLOSED -> throw HttpError(409, "closed")
+            PhoneGame.AnswerResult.INVALID -> throw HttpError(400, "invalid")
+        }
     }
 
     private fun acquireClient(address: InetAddress): Boolean = synchronized(perClient) {
@@ -447,6 +491,33 @@ class GuestUploadServer(
             return bytes
         }
 
+        /** Risposte dei telefoni: poche decine di byte, con margine per nomi lunghi. */
+        private const val MAX_ANSWER_BYTES = 1_024
+
+        /** Campi di un modulo "a=1&b=2"; i valori malformati fanno rifiutare la richiesta. */
+        internal fun parseForm(body: String): Map<String, String> = try {
+            body.split('&').filter { it.isNotEmpty() }.associate { pair ->
+                val name = URLDecoder.decode(pair.substringBefore('='), "UTF-8")
+                name to URLDecoder.decode(pair.substringAfter('=', ""), "UTF-8")
+            }
+        } catch (_: IllegalArgumentException) {
+            throw HttpError(400, "invalid")
+        }
+
+        /** Stringa JSON tra virgolette, con i caratteri speciali protetti. */
+        internal fun jsonString(value: String): String = buildString {
+            append('"')
+            for (char in value) {
+                when {
+                    char == '"' -> append("\\\"")
+                    char == '\\' -> append("\\\\")
+                    char < ' ' || char == '\u2028' || char == '\u2029' -> append("\\u%04x".format(char.code))
+                    else -> append(char)
+                }
+            }
+            append('"')
+        }
+
         private fun reason(status: Int) = when (status) {
             200 -> "OK"
             400 -> "Bad Request"
@@ -454,6 +525,7 @@ class GuestUploadServer(
             403 -> "Forbidden"
             404 -> "Not Found"
             405 -> "Method Not Allowed"
+            409 -> "Conflict"
             411 -> "Length Required"
             413 -> "Payload Too Large"
             415 -> "Unsupported Media Type"

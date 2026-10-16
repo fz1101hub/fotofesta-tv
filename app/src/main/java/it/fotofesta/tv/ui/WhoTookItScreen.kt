@@ -15,6 +15,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.SkipNext
+import androidx.compose.material.icons.rounded.Smartphone
+import androidx.compose.material.icons.rounded.SportsEsports
+import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,7 +41,7 @@ import it.fotofesta.tv.model.WhoTookIt
 
 /** "Chi l'ha scattata?": una foto della festa e i nomi degli invitati; si indovina chi l'ha mandata. */
 @Composable
-fun WhoTookItScreen(photos: List<PhotoItem>, onBack: () -> Unit) {
+fun WhoTookItScreen(photos: List<PhotoItem>, phones: PhonePlay?, onBack: () -> Unit) {
     if (!WhoTookIt.canPlay(photos)) {
         Column(Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 40.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
             SectionTitle(
@@ -60,13 +63,22 @@ fun WhoTookItScreen(photos: List<PhotoItem>, onBack: () -> Unit) {
     var chosen by remember(roundNumber) { mutableStateOf<String?>(null) }
     var score by remember { mutableIntStateOf(0) }
     var played by remember { mutableIntStateOf(0) }
+    // Con i telefoni rispondono gli invitati; il telecomando mostra la risposta e passa alla foto dopo.
+    var phoneMode by remember { mutableStateOf(false) }
+    var revealed by remember(roundNumber, phoneMode) { mutableStateOf(false) }
     val nextFocus = remember { FocusRequester() }
     // Dopo la risposta i nomi si disattivano: il fuoco passa a "Prossima foto".
-    LaunchedEffect(chosen) { if (chosen != null) runCatching { nextFocus.requestFocus() } }
+    LaunchedEffect(chosen, revealed) { if (chosen != null || revealed) runCatching { nextFocus.requestFocus() } }
+    val question = stringResource(R.string.who_question)
+    LaunchedEffect(round, phoneMode) {
+        if (phoneMode && phones != null) phones.game.ask(question, round.choices, round.choices.indexOf(round.answer))
+    }
+    StopPhoneGameOnExit(phones, phoneMode)
 
     val answered = chosen
     val title = when {
-        answered == null -> stringResource(R.string.who_question)
+        phoneMode -> if (revealed) stringResource(R.string.phone_reveal_who, round.answer) else question
+        answered == null -> question
         WhoTookIt.isAnswer(round, answered) -> stringResource(R.string.who_correct, round.answer)
         else -> stringResource(R.string.who_wrong, round.answer)
     }
@@ -76,8 +88,36 @@ fun WhoTookItScreen(photos: List<PhotoItem>, onBack: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            SectionTitle(stringResource(R.string.who_kicker, score, played), title, modifier = Modifier.weight(1f))
+            SectionTitle(
+                if (phoneMode) stringResource(R.string.games_who_title) else stringResource(R.string.who_kicker, score, played),
+                title,
+                modifier = Modifier.weight(1f),
+            )
             Spacer(Modifier.width(16.dp))
+            if (phones != null) {
+                TvButton(
+                    stringResource(if (phoneMode) R.string.phone_mode_remote else R.string.phone_mode_phones),
+                    {
+                        phoneMode = !phoneMode
+                        if (phoneMode) phones.game.resetScores()
+                    },
+                    icon = if (phoneMode) Icons.Rounded.SportsEsports else Icons.Rounded.Smartphone,
+                )
+                Spacer(Modifier.width(12.dp))
+            }
+            if (phoneMode && phones != null && !revealed) {
+                TvButton(
+                    stringResource(R.string.phone_reveal),
+                    {
+                        phones.game.reveal()
+                        revealed = true
+                    },
+                    modifier = Modifier.initialFocus(round.photo.id to roundNumber),
+                    icon = Icons.Rounded.Visibility,
+                    selected = true,
+                )
+                Spacer(Modifier.width(12.dp))
+            }
             TvButton(
                 stringResource(R.string.who_next),
                 { roundNumber++ },
@@ -94,7 +134,13 @@ fun WhoTookItScreen(photos: List<PhotoItem>, onBack: () -> Unit) {
                 BlurredBackdrop(round.photo, Modifier.fillMaxSize())
                 PhotoContent(round.photo, FitMode.CONTAIN, Modifier.fillMaxSize(), contentDescription = stringResource(R.string.who_photo))
             }
-            Column(Modifier.weight(.6f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
+            if (phoneMode && phones != null) {
+                Column(Modifier.weight(.6f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically)) {
+                    // Le risposte si scelgono sui telefoni: qui si vedono soltanto, con quella giusta dopo la rivelazione.
+                    round.choices.forEach { name -> ChoiceLabel(name, highlighted = revealed && WhoTookIt.isAnswer(round, name)) }
+                    PhonePlayPanel(phones, revealed, Modifier.fillMaxWidth().padding(top = 8.dp))
+                }
+            } else Column(Modifier.weight(.6f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
                 round.choices.forEach { name ->
                     TvButton(
                         name,

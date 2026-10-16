@@ -1,5 +1,6 @@
 package it.fotofesta.tv.guests
 
+import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -26,6 +27,7 @@ class GuestUploadServerTest {
     private val jpeg = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte(), 1, 2, 3, 4)
 
     private var failures = 0
+    private val game = PhoneGame()
 
     @Before
     fun setUp() = startServer()
@@ -44,6 +46,7 @@ class GuestUploadServerTest {
                 result
             },
             onFailure = { failures++ },
+            game = game,
             maxUploadBytes = 1_000,
             readTimeoutMillis = 2_000,
             headerDeadlineMillis = headerDeadlineMillis,
@@ -95,6 +98,67 @@ class GuestUploadServerTest {
             append("\r\n")
         }
         return send(head.toByteArray() + body)
+    }
+
+    private fun getGame(key: String? = KEY, player: String? = null): Reply {
+        val target = if (player != null) "/game?player=$player" else "/game"
+        val keyHeader = if (key != null) "X-FotoFesta-Key: $key\r\n" else ""
+        return send("GET $target HTTP/1.1\r\nHost: 127.0.0.1:$port\r\n$keyHeader\r\n".toByteArray())
+    }
+
+    private fun answer(form: String, key: String? = KEY): Reply {
+        val body = form.toByteArray()
+        val keyHeader = if (key != null) "X-FotoFesta-Key: $key\r\n" else ""
+        val head = "POST /game/answer HTTP/1.1\r\nHost: 127.0.0.1:$port\r\n" +
+            "Content-Type: application/x-www-form-urlencoded\r\nContent-Length: ${body.size}\r\n$keyHeader\r\n"
+        return send(head.toByteArray() + body)
+    }
+
+    @Test
+    fun `phones read the current question with the key`() {
+        assertEquals(401, getGame(key = null).status)
+        assertEquals(JSONObject.NULL, JSONObject(getGame().body).get("round"))
+        game.ask("Chi l'ha \"scattata\"?", listOf("Giulia", "Marco"), correct = 1)
+        val question = JSONObject(getGame().body)
+        assertEquals(game.current()!!.round, question.getString("round"))
+        assertEquals("Chi l'ha \"scattata\"?", question.getString("question"))
+        assertEquals("Marco", question.getJSONArray("choices").getString(1))
+        assertTrue(question.getBoolean("open"))
+        assertTrue(question.isNull("answer"))
+    }
+
+    @Test
+    fun `phones answer and see the result after the reveal`() {
+        game.ask("?", listOf("A", "B"), correct = 1)
+        val round = game.current()!!.round
+        val reply = answer("round=$round&choice=1&player=telefono-1&name=Giulia%20B")
+        assertEquals(200, reply.status)
+        assertEquals(1, game.answerCount())
+        game.reveal()
+        val result = JSONObject(getGame(player = "telefono-1").body)
+        assertEquals(1, result.getInt("answer"))
+        assertEquals(1, result.getInt("points"))
+        assertEquals("Giulia B", game.leaderboard().single().name)
+        assertEquals(409, answer("round=$round&choice=0&player=telefono-2").status)
+    }
+
+    @Test
+    fun `bad answers are refused`() {
+        game.ask("?", listOf("A", "B"), correct = 0)
+        val round = game.current()!!.round
+        assertEquals(401, answer("round=$round&choice=0&player=telefono-1", key = "sbagliata").status)
+        assertEquals(400, answer("round=$round&choice=9&player=telefono-1").status)
+        assertEquals(400, answer("round=$round&player=telefono-1").status)
+        assertEquals(400, answer("round=$round&choice=0&player=telefono-1&name=%ZZ").status)
+        assertEquals(413, answer("round=$round&choice=0&player=telefono-1&name=" + "x".repeat(2_000)).status)
+        assertEquals(405, send("GET /game/answer HTTP/1.1\r\nHost: 127.0.0.1:$port\r\n\r\n".toByteArray()).status)
+        assertEquals(0, game.answerCount())
+    }
+
+    @Test
+    fun `json strings are escaped`() {
+        assertEquals("\"a\\\"b\\\\c\\u000a\"", GuestUploadServer.jsonString("a\"b\\c\n"))
+        assertEquals("\"Città\"", GuestUploadServer.jsonString("Città"))
     }
 
     @Test

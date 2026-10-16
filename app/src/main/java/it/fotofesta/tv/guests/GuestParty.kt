@@ -35,7 +35,12 @@ import kotlin.math.roundToInt
  * Tutte le operazioni passano da un unico thread, così avvio, arresto e cambi di rete non si
  * sovrappongono. Lo stato da mostrare è in [state]; le foto sono in [store].
  */
-class GuestParty(private val context: Context, val store: GuestPhotoStore) {
+class GuestParty(
+    private val context: Context,
+    val store: GuestPhotoStore,
+    /** Gioco con i telefoni, servito dalla stessa pagina della festa. */
+    private val phoneGame: PhoneGame? = null,
+) {
     data class State(
         val active: Boolean = false,
         val url: String? = null,
@@ -186,6 +191,7 @@ class GuestParty(private val context: Context, val store: GuestPhotoStore) {
             onPhoto = ::receive,
             // Il sistema ha chiuso il server (ad esempio togliendo l'indirizzo): si riavvia a breve.
             onFailure = { scheduleRetry(FAILURE_RETRY_SECONDS) },
+            game = phoneGame,
         )
         try {
             val port = candidate.start(address, PREFERRED_PORT)

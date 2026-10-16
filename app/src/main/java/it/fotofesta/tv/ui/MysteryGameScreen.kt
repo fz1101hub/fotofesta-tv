@@ -16,6 +16,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Smartphone
+import androidx.compose.material.icons.rounded.SportsEsports
+import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,9 +45,10 @@ import coil.size.Precision
 import it.fotofesta.tv.R
 import it.fotofesta.tv.model.FitMode
 import it.fotofesta.tv.model.PhotoItem
+import kotlinx.coroutines.delay
 
 @Composable
-fun MysteryGameScreen(photos: List<PhotoItem>, onBack: () -> Unit) {
+fun MysteryGameScreen(photos: List<PhotoItem>, phones: PhonePlay?, onBack: () -> Unit) {
     if (photos.size < MIN_GAME_PHOTOS) {
         NotEnoughPhotos(stringResource(R.string.games_mystery_title), onBack)
         return
@@ -64,6 +68,19 @@ fun MysteryGameScreen(photos: List<PhotoItem>, onBack: () -> Unit) {
     val newPhotoFocus = remember { FocusRequester() }
     // Dopo la risposta giusta le scelte si disattivano: il focus passa a "Nuova foto".
     LaunchedEffect(revealed) { if (revealed) runCatching { newPhotoFocus.requestFocus() } }
+    // Con i telefoni rispondono gli invitati: la domanda va alla pagina della festa e la foto si fa
+    // più nitida da sola ogni tanto; il telecomando mostra la risposta.
+    var phoneMode by remember { mutableStateOf(false) }
+    val question = stringResource(R.string.mystery_question)
+    LaunchedEffect(answer, phoneMode) {
+        if (!phoneMode || phones == null) return@LaunchedEffect
+        phones.game.ask(question, choices.map { it.title }, choices.indexOf(answer))
+        repeat(2) {
+            delay(PHONE_HINT_DELAY_MS)
+            if (!revealed) hintLevel = (hintLevel + 1).coerceAtMost(2)
+        }
+    }
+    StopPhoneGameOnExit(phones, phoneMode)
 
     Column(Modifier.fillMaxSize().background(Background).padding(horizontal = 48.dp, vertical = 27.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -73,6 +90,30 @@ fun MysteryGameScreen(photos: List<PhotoItem>, onBack: () -> Unit) {
                 modifier = Modifier.weight(1f),
             )
             Spacer(Modifier.width(16.dp))
+            if (phones != null) {
+                TvButton(
+                    stringResource(if (phoneMode) R.string.phone_mode_remote else R.string.phone_mode_phones),
+                    {
+                        phoneMode = !phoneMode
+                        if (phoneMode) phones.game.resetScores()
+                    },
+                    icon = if (phoneMode) Icons.Rounded.SportsEsports else Icons.Rounded.Smartphone,
+                )
+                Spacer(Modifier.width(12.dp))
+            }
+            if (phoneMode && phones != null && !revealed) {
+                TvButton(
+                    stringResource(R.string.phone_reveal),
+                    {
+                        phones.game.reveal()
+                        revealed = true
+                    },
+                    modifier = Modifier.initialFocus(answer.id to phoneMode),
+                    icon = Icons.Rounded.Visibility,
+                    selected = true,
+                )
+                Spacer(Modifier.width(12.dp))
+            }
             TvButton(
                 stringResource(R.string.mystery_new_photo),
                 { round++ },
@@ -99,7 +140,12 @@ fun MysteryGameScreen(photos: List<PhotoItem>, onBack: () -> Unit) {
                     else -> LowResolutionPhoto(answer, sizePx = 10 + hintLevel * 12, Modifier.fillMaxSize())
                 }
             }
-            Column(Modifier.weight(.75f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
+            if (phoneMode && phones != null) {
+                Column(Modifier.weight(.75f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically)) {
+                    choices.forEach { choice -> ChoiceLabel(choice.title, highlighted = revealed && choice.id == answer.id) }
+                    PhonePlayPanel(phones, revealed, Modifier.fillMaxWidth().padding(top = 8.dp))
+                }
+            } else Column(Modifier.weight(.75f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
                 Text(stringResource(feedbackRes), style = MaterialTheme.typography.titleLarge, color = if (revealed) Accent else TextPrimary)
                 Spacer(Modifier.padding(8.dp))
                 choices.forEach { choice ->
@@ -124,6 +170,9 @@ fun MysteryGameScreen(photos: List<PhotoItem>, onBack: () -> Unit) {
         }
     }
 }
+
+/** Con i telefoni la foto misteriosa si fa più nitida da sola a questi intervalli. */
+private const val PHONE_HINT_DELAY_MS = 8_000L
 
 @Composable
 private fun LowResolutionPhoto(photo: PhotoItem, sizePx: Int, modifier: Modifier = Modifier) {

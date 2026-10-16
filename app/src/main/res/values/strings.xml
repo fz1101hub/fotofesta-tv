@@ -138,6 +138,13 @@
     <string name="who_wrong">No, %1$s sent it.</string>
     <string name="who_next">Next photo</string>
     <string name="who_photo">Photo to guess</string>
+    <string name="phone_title">Answer on your phone</string>
+    <string name="phone_scan">Scan the party QR code: the question appears on the page.</string>
+    <string name="phone_leaderboard">Leaderboard</string>
+    <string name="phone_mode_phones">With phones</string>
+    <string name="phone_mode_remote">With the remote</string>
+    <string name="phone_reveal">Show the answer</string>
+    <string name="phone_reveal_who">%1$s sent it.</string>
     <string name="guests_awards">Party awards</string>
     <string name="awards_kicker">Party wrap-up</string>
     <string name="awards_title">The party awards</string>
@@ -212,6 +219,14 @@
     <plurals name="music_folder_tracks">
         <item quantity="one">%1$d track</item>
         <item quantity="other">%1$d tracks</item>
+    </plurals>
+    <plurals name="phone_answers">
+        <item quantity="one">%1$d answer</item>
+        <item quantity="other">%1$d answers</item>
+    </plurals>
+    <plurals name="phone_points">
+        <item quantity="one">%1$d point</item>
+        <item quantity="other">%1$d points</item>
     </plurals>
     <plurals name="puzzle_pieces">
         <item quantity="one">%1$d piece</item>

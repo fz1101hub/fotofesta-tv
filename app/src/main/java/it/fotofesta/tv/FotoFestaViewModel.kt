@@ -78,6 +78,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private val googleStream = services.googleStream
     private val googleImport = GoogleImportFlow(googleAuth, googlePicker)
     private val guests = services.guests
+    /** Gioco con i telefoni, per "Foto misteriosa" e "Chi l'ha scattata?" durante la festa. */
+    val phoneGame = services.phoneGame
     private val playbackOrder = PlaybackOrder()
     private val freshPhotos = FreshPhotos()
     private var googleJob: Job? = null

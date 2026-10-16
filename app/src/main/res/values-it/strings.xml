@@ -137,6 +137,13 @@
     <string name="who_wrong">No: l\'ha mandata %1$s.</string>
     <string name="who_next">Prossima foto</string>
     <string name="who_photo">Foto da indovinare</string>
+    <string name="phone_title">Rispondi dal telefono</string>
+    <string name="phone_scan">Inquadra il QR della festa: la domanda compare sulla pagina.</string>
+    <string name="phone_leaderboard">Classifica</string>
+    <string name="phone_mode_phones">Con i telefoni</string>
+    <string name="phone_mode_remote">Con il telecomando</string>
+    <string name="phone_reveal">Mostra la risposta</string>
+    <string name="phone_reveal_who">L\'ha mandata %1$s.</string>
     <string name="guests_awards">Premi della festa</string>
     <string name="awards_kicker">Fine festa</string>
     <string name="awards_title">I premi della festa</string>
@@ -214,6 +221,16 @@
         <item quantity="one">%1$d brano</item>
         <item quantity="many">%1$d brani</item>
         <item quantity="other">%1$d brani</item>
+    </plurals>
+    <plurals name="phone_answers">
+        <item quantity="one">%1$d risposta</item>
+        <item quantity="many">%1$d risposte</item>
+        <item quantity="other">%1$d risposte</item>
+    </plurals>
+    <plurals name="phone_points">
+        <item quantity="one">%1$d punto</item>
+        <item quantity="many">%1$d punti</item>
+        <item quantity="other">%1$d punti</item>
     </plurals>
     <plurals name="puzzle_pieces">
         <item quantity="one">%1$d pezzo</item>

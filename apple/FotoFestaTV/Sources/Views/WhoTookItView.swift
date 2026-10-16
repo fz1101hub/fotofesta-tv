@@ -14,7 +14,9 @@ struct WhoTookItView: View {
     @FocusState private var nextFocused: Bool
 
     var body: some View {
-        Group {
+        // Lo sfondo c'è sempre: una vista vuota non riceverebbe onAppear e il gioco non partirebbe.
+        ZStack {
+            Theme.background.ignoresSafeArea()
             if let round {
                 game(round)
             } else if started {
@@ -25,7 +27,6 @@ struct WhoTookItView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .background(Theme.background.ignoresSafeArea())
         .onAppear {
             guard !started else { return }
             started = true

@@ -137,6 +137,13 @@
     <string name="who_wrong">Non : c’est %1$s qui l’a envoyée.</string>
     <string name="who_next">Photo suivante</string>
     <string name="who_photo">Photo à deviner</string>
+    <string name="phone_title">Répondez depuis le téléphone</string>
+    <string name="phone_scan">Scannez le QR de la fête : la question s’affiche sur la page.</string>
+    <string name="phone_leaderboard">Classement</string>
+    <string name="phone_mode_phones">Avec les téléphones</string>
+    <string name="phone_mode_remote">Avec la télécommande</string>
+    <string name="phone_reveal">Voir la réponse</string>
+    <string name="phone_reveal_who">C’est %1$s qui l’a envoyée.</string>
     <string name="guests_awards">Prix de la fête</string>
     <string name="awards_kicker">Bilan de la fête</string>
     <string name="awards_title">Les prix de la fête</string>
@@ -214,6 +221,16 @@
         <item quantity="one">%1$d morceau</item>
         <item quantity="many">%1$d morceaux</item>
         <item quantity="other">%1$d morceaux</item>
+    </plurals>
+    <plurals name="phone_answers">
+        <item quantity="one">%1$d réponse</item>
+        <item quantity="many">%1$d réponses</item>
+        <item quantity="other">%1$d réponses</item>
+    </plurals>
+    <plurals name="phone_points">
+        <item quantity="one">%1$d point</item>
+        <item quantity="many">%1$d points</item>
+        <item quantity="other">%1$d points</item>
     </plurals>
     <plurals name="puzzle_pieces">
         <item quantity="one">%1$d pièce</item>
