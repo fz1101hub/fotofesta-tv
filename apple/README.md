@@ -59,7 +59,9 @@ La pubblicazione è descritta in [docs/PUBLISHING.md](../docs/PUBLISHING.md).
 
 ## Stato di verifica
 
-Il workflow `.github/workflows/apple.yml` gira su un runner macOS 15 con Xcode 26.3 (SDK tvOS 26): i 65 test XCTest del nucleo passano e l'app si compila per tvOS senza firma, senza errori né avvisi Swift. Con un repository privato i minuti macOS sono a pagamento. La logica è la stessa dell'app Android, coperta dai test JVM.
+Il workflow `.github/workflows/apple.yml` gira su un runner macOS 15 con Xcode 26.3 (SDK tvOS 26): i 68 test XCTest del nucleo passano e l'app si compila per tvOS senza firma, senza errori né avvisi Swift. Con un repository privato i minuti macOS sono a pagamento. La logica è la stessa dell'app Android, coperta dai test JVM.
+
+Con `[screenshots]` nel messaggio dell'ultimo commit (o avviando il workflow a mano) la CI apre anche l'app nel simulatore Apple TV in italiano e fotografa le schermate principali: home, slideshow, impostazioni, giochi, festa. Durante la festa lo script `scripts/screenshots.sh` manda alcune foto come farebbe il telefono di un invitato, per mostrare slideshow, miniature e approvazione. Le PNG a piena risoluzione si scaricano dall'artifact `FotoFestaTV-screenshots` e vanno bene anche per App Store Connect. Il passo fallisce se l'app si chiude da sola in una schermata. Gli scenari sono in `ScreenshotScenario.swift` e sono attivi solo nelle build di debug.
 
 Prima del primo invio servono ancora tre cose:
 - archiviare e firmare l'app in Xcode 26 con il proprio Team ID;
