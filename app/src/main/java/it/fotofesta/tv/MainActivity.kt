@@ -266,6 +266,7 @@ class MainActivity : ComponentActivity() {
                             onUp = viewModel::browserUp,
                             onUseFolder = viewModel::browserUseFolder,
                             onChooseTrack = viewModel::browserChooseTrack,
+                            onUseMusicFolder = viewModel::browserUseMusicFolder,
                             onSystemPicker = {
                                 launchSystemPicker(state.browser.kind, { usbPicker.launch(null) }, { musicPicker.launch(arrayOf("audio/*")) })
                             },

@@ -188,7 +188,8 @@
     <string name="browser_kicker_photos">USB drive</string>
     <string name="browser_kicker_music">Background music</string>
     <string name="browser_title_photos">Choose a photo folder</string>
-    <string name="browser_title_music">Choose a track</string>
+    <string name="browser_title_music">Choose a track or a folder</string>
+    <string name="browser_use_music_folder">Play the whole folder</string>
     <string name="browser_roots_hint">Drives and storage connected to the TV.</string>
     <string name="browser_internal_storage">Internal storage</string>
     <string name="browser_up">Up</string>
@@ -207,6 +208,10 @@
     <plurals name="awards_guest_count">
         <item quantity="one">%1$d guest</item>
         <item quantity="other">%1$d guests</item>
+    </plurals>
+    <plurals name="music_folder_tracks">
+        <item quantity="one">%1$d track</item>
+        <item quantity="other">%1$d tracks</item>
     </plurals>
     <plurals name="puzzle_pieces">
         <item quantity="one">%1$d piece</item>
@@ -257,6 +262,24 @@
     <string name="fit_blur_body">Fill the screen with a blurred background</string>
     <string name="fit_contain_body">Whole photo, with black bars at the sides</string>
     <string name="fit_crop_body">Photos are cropped to fill the screen</string>
+    <string name="settings_layout">Layout</string>
+    <string name="layout_single">One photo at a time</string>
+    <string name="layout_single_body">The photo fills the screen.</string>
+    <string name="layout_mosaic">Mosaic</string>
+    <string name="layout_mosaic_body">The new photo large, with the two previous ones beside it.</string>
+    <string name="settings_countdown">Countdown</string>
+    <string name="settings_countdown_body">In the slideshow, during the last hour before the chosen time.</string>
+    <string name="settings_countdown_time">Time</string>
+    <string name="settings_countdown_event">Occasion</string>
+    <string name="countdown_in">%1$s in %2$s</string>
+    <string name="countdown_midnight">Midnight</string>
+    <string name="countdown_midnight_message">Happy New Year!</string>
+    <string name="countdown_cake">Cake</string>
+    <string name="countdown_cake_message">Here comes the cake!</string>
+    <string name="countdown_toast">Toast</string>
+    <string name="countdown_toast_message">Raise your glasses!</string>
+    <string name="countdown_surprise">Surprise</string>
+    <string name="countdown_surprise_message">Here we go!</string>
     <string name="guests_end_short">End the party</string>
     <string name="guests_party_started">The party has started</string>
     <string name="guests_qr_step_send">2 · Send photos</string>
@@ -283,7 +306,7 @@
     <string name="settings_cat_privacy">Account and privacy</string>
     <string name="settings_cat_screensaver">Screensaver</string>
     <string name="settings_cat_slideshow">Slideshow</string>
-    <string name="settings_music_body">Plays during the slideshow, in any format the TV supports.</string>
+    <string name="settings_music_body">A track or a whole folder, played during the slideshow in any format the TV supports.</string>
     <string name="settings_music_remove_item">Remove the track</string>
     <string name="settings_music_value_none">None</string>
     <string name="settings_selected">Selected</string>

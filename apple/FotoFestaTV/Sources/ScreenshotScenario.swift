@@ -45,6 +45,19 @@ extension AppModel {
                 await waitUntil { self.approvedGuestCount >= 3 }
                 self.path = [.guests, .awards]
             }
+        case "mosaic":
+            // Ultimo scenario: chiude la festa (le foto demo tornano nella raccolta) e lascia il mosaico.
+            if guests.active { endGuestParty() }
+            // Conto alla rovescia della torta tra 15-30 minuti, sull'orario del quarto d'ora.
+            let now = Calendar.current.dateComponents([.hour, .minute], from: Date())
+            let minutes = ((now.hour ?? 0) * 60 + (now.minute ?? 0)) / 15 * 15 + 30
+            updateSettings {
+                $0.layout = .mosaic
+                $0.countdown = true
+                $0.countdownMinutes = minutes % (24 * 60)
+                $0.countdownEvent = .cake
+            }
+            startDemo()
         case "review":
             guests.setApproval(true)
             startGuestParty()

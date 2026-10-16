@@ -22,6 +22,12 @@ enum class FitMode(@StringRes val labelRes: Int, @StringRes val descriptionRes: 
     CROP(R.string.fit_crop, R.string.fit_crop_body),
 }
 
+/** Disposizione dello slideshow: una foto alla volta, o la foto nuova in grande con accanto le precedenti. */
+enum class SlideshowLayout(@StringRes val labelRes: Int, @StringRes val descriptionRes: Int) {
+    SINGLE(R.string.layout_single, R.string.layout_single_body),
+    MOSAIC(R.string.layout_mosaic, R.string.layout_mosaic_body),
+}
+
 /** Sezioni della schermata Impostazioni. */
 enum class SettingsCategory { SLIDESHOW, MUSIC, PARTY, SCREENSAVER, PRIVACY }
 
@@ -67,6 +73,7 @@ data class SlideshowSettings(
     val intervalSeconds: Int = 8,
     val transition: TransitionType = TransitionType.FADE,
     val fitMode: FitMode = FitMode.BLUR,
+    val layout: SlideshowLayout = SlideshowLayout.SINGLE,
     val shuffle: Boolean = false,
     val reducedMotion: Boolean = false,
     val showClock: Boolean = true,
@@ -75,6 +82,10 @@ data class SlideshowSettings(
     val kenBurns: Boolean = false,
     /** Minuti di riproduzione dopo i quali lo slideshow va in pausa; 0 = disattivato. */
     val sleepTimerMinutes: Int = 0,
+    /** Conto alla rovescia nello slideshow verso [countdownMinutes] (minuti dalla mezzanotte, ora locale). */
+    val countdown: Boolean = false,
+    val countdownMinutes: Int = 0,
+    val countdownEvent: CountdownEvent = CountdownEvent.MIDNIGHT,
 )
 
 sealed interface GoogleConnectState {

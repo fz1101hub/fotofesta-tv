@@ -22,6 +22,7 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.SdStorage
 import androidx.compose.material.icons.rounded.Usb
 import androidx.compose.material3.CircularProgressIndicator
@@ -52,6 +53,7 @@ fun FileBrowserScreen(
     onUp: () -> Unit,
     onUseFolder: () -> Unit,
     onChooseTrack: (BrowserEntry) -> Unit,
+    onUseMusicFolder: () -> Unit,
     onSystemPicker: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -99,6 +101,19 @@ fun FileBrowserScreen(
                     )
                     Text(
                         quantityStringResource(R.plurals.browser_photos_here, state.photosHere),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextSecondary,
+                    )
+                } else if (state.files.isNotEmpty() && !state.loading) {
+                    // Musica: la cartella intera, oltre al singolo brano dall'elenco.
+                    TvButton(
+                        stringResource(R.string.browser_use_music_folder),
+                        onUseMusicFolder,
+                        icon = Icons.Rounded.QueueMusic,
+                        selected = true,
+                    )
+                    Text(
+                        quantityStringResource(R.plurals.music_folder_tracks, state.files.size),
                         style = MaterialTheme.typography.bodyMedium,
                         color = TextSecondary,
                     )

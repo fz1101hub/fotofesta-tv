@@ -131,6 +131,9 @@ capture awards 6
 launch review
 upload "$OUT/guest_portrait.jpg" Sara
 capture review 6
+# Mosaico per ultimo: cambia l'impostazione salvata. Dopo due cambi di foto le caselle sono piene.
+launch mosaic
+capture mosaic 20
 xcrun simctl terminate "$DEVICE" "$BUNDLE_ID" 2>/dev/null || true
 
 for shot in "${SHOTS[@]}"; do

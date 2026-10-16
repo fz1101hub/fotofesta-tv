@@ -1,3 +1,4 @@
+import FotoFestaCore
 import SwiftUI
 
 /// Colori dell'app su Apple TV. Come nelle app di sistema di tvOS l'interfaccia è bianca e grigia,
@@ -33,4 +34,33 @@ func LP(_ key: String, _ count: Int) -> String {
 func L(_ key: String, _ arguments: CVarArg...) -> String {
     let format = NSLocalizedString(key, comment: "")
     return arguments.isEmpty ? format : String(format: format, locale: .current, arguments: arguments)
+}
+
+/// Nome del momento del conto alla rovescia.
+func countdownName(_ event: CountdownEvent) -> String {
+    switch event {
+    case .midnight: return L("countdown.midnight")
+    case .cake: return L("countdown.cake")
+    case .toast: return L("countdown.toast")
+    case .surprise: return L("countdown.surprise")
+    }
+}
+
+/// Messaggio quando arriva il momento.
+func countdownMessage(_ event: CountdownEvent) -> String {
+    switch event {
+    case .midnight: return L("countdown.midnight_message")
+    case .cake: return L("countdown.cake_message")
+    case .toast: return L("countdown.toast_message")
+    case .surprise: return L("countdown.surprise_message")
+    }
+}
+
+func countdownSymbol(_ event: CountdownEvent) -> String {
+    switch event {
+    case .midnight: return "sparkles"
+    case .cake: return "birthday.cake.fill"
+    case .toast: return "wineglass.fill"
+    case .surprise: return "gift.fill"
+    }
 }

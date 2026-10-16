@@ -30,6 +30,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -39,8 +42,13 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
+import androidx.compose.material.icons.rounded.Celebration
+import androidx.compose.material.icons.rounded.Cake
+import androidx.compose.material.icons.rounded.WineBar
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -68,6 +76,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.imageLoader
 import coil.request.ImageRequest
 import coil.size.Precision
@@ -81,14 +90,21 @@ import it.fotofesta.tv.model.PhotoRef
 import it.fotofesta.tv.model.SlideshowSettings
 import it.fotofesta.tv.model.SourceType
 import it.fotofesta.tv.model.TransitionType
+import it.fotofesta.tv.model.SlideshowLayout
+import it.fotofesta.tv.model.mosaicSidePhotos
+import it.fotofesta.tv.model.Countdown
+import it.fotofesta.tv.model.CountdownEvent
+import it.fotofesta.tv.model.CountdownPhase
 import java.io.File
 import java.text.DateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import androidx.compose.ui.graphics.vector.ImageVector
 
 private const val CONTROLS_TIMEOUT_MS = 5_000L
 
@@ -116,6 +132,15 @@ fun SlideshowScreen(
     var interactions by remember { mutableIntStateOf(0) }
     var focusControlsRequest by remember { mutableIntStateOf(0) }
     var viewport by remember { mutableStateOf(IntSize.Zero) }
+    // Mosaico: le foto mostrate di recente, dalla più recente, per le caselle accanto a quella grande.
+    var recentIds by remember { mutableStateOf(emptyList<String>()) }
+    val lastShownId = remember { arrayOfNulls<String>(1) }
+    LaunchedEffect(photo?.id) {
+        val previous = lastShownId[0]
+        if (previous != null && previous != photo?.id) recentIds = (listOf(previous) + recentIds).distinct().take(MOSAIC_HISTORY)
+        lastShownId[0] = photo?.id
+    }
+    val mosaic = state.settings.layout == SlideshowLayout.MOSAIC && state.photos.size > 1
 
     fun showControls(focusBar: Boolean) {
         controlsVisible = true
@@ -181,7 +206,9 @@ fun SlideshowScreen(
             .onFocusChanged { screenFocused = it.isFocused }
             .focusable()
     ) {
-        if (photo != null) {
+        if (photo != null && mosaic) {
+            MosaicSlide(photo, mosaicSidePhotos(state.photos, state.currentIndex, recentIds), state, Modifier.fillMaxSize())
+        } else if (photo != null) {
             AnimatedContent(
                 targetState = photo,
                 transitionSpec = {
@@ -249,6 +276,8 @@ fun SlideshowScreen(
             ) { ClockText() }
         }
 
+        if (state.settings.countdown) CountdownOverlay(state.settings)
+
         Column(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(start = 48.dp, end = 48.dp, bottom = 32.dp),
         ) {
@@ -278,6 +307,107 @@ fun SlideshowScreen(
                 Caption(photo, state)
                 Spacer(Modifier.height(10.dp))
                 SlideProgress(state)
+            }
+        }
+    }
+}
+
+/**
+ * Conto alla rovescia: nell'ultima ora un'etichetta in alto al centro, negli ultimi secondi numeri
+ * grandi a tutto schermo, poi il messaggio del momento.
+ */
+@Composable
+private fun BoxScope.CountdownOverlay(settings: SlideshowSettings) {
+    val phase by produceState<CountdownPhase>(CountdownPhase.Hidden, settings.countdownMinutes) {
+        while (true) {
+            val now = System.currentTimeMillis()
+            value = Countdown.phase(now, settings.countdownMinutes, TimeZone.getDefault().getOffset(now))
+            // Al cambio di secondo, così i numeri scorrono con l'orologio.
+            delay(1_000 - now % 1_000)
+        }
+    }
+    val event = settings.countdownEvent
+    when (val current = phase) {
+        CountdownPhase.Hidden -> Unit
+        is CountdownPhase.Showing -> Row(
+            Modifier.align(Alignment.TopCenter)
+                .padding(vertical = 27.dp)
+                .background(Background.copy(alpha = .72f), RoundedCornerShape(12.dp))
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Icon(event.icon, contentDescription = null, tint = Accent, modifier = Modifier.size(22.dp))
+            Text(
+                stringResource(R.string.countdown_in, stringResource(event.labelRes), Countdown.format(current.seconds)),
+                style = MaterialTheme.typography.titleMedium,
+                color = TextPrimary,
+            )
+        }
+        is CountdownPhase.Final -> Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .55f)), contentAlignment = Alignment.Center) {
+            Text(
+                current.seconds.toString(),
+                style = MaterialTheme.typography.displayLarge.copy(fontSize = 200.sp, fontWeight = FontWeight.Bold),
+                color = TextPrimary,
+            )
+        }
+        CountdownPhase.Celebrate -> Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .55f)), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                Icon(event.icon, contentDescription = null, tint = Accent, modifier = Modifier.size(96.dp))
+                Text(
+                    stringResource(event.messageRes),
+                    style = MaterialTheme.typography.displayLarge.copy(fontWeight = FontWeight.Bold),
+                    color = TextPrimary,
+                )
+            }
+        }
+    }
+}
+
+private val CountdownEvent.icon: ImageVector
+    get() = when (this) {
+        CountdownEvent.MIDNIGHT -> Icons.Rounded.Celebration
+        CountdownEvent.CAKE -> Icons.Rounded.Cake
+        CountdownEvent.TOAST -> Icons.Rounded.WineBar
+        CountdownEvent.SURPRISE -> Icons.Rounded.AutoAwesome
+    }
+
+/** Foto ricordate per il mosaico: un po' più di quelle mostrate, se alcune spariscono dalla raccolta. */
+private const val MOSAIC_HISTORY = 6
+
+/** Mosaico: la foto attuale in grande a sinistra, accanto in colonna le ultime mostrate. */
+@Composable
+private fun MosaicSlide(photo: PhotoItem, side: List<PhotoItem>, state: AppState, modifier: Modifier = Modifier) {
+    val motion = !state.settings.reducedMotion
+    Row(modifier.padding(10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        AnimatedContent(
+            targetState = photo,
+            transitionSpec = {
+                if (motion) fadeIn(tween(750)) togetherWith fadeOut(tween(750)) else EnterTransition.None togetherWith ExitTransition.None
+            },
+            label = "mosaicMain",
+            modifier = Modifier.weight(2f).fillMaxHeight().clip(RoundedCornerShape(14.dp)),
+        ) { item ->
+            SlidePhoto(
+                item,
+                state.settings,
+                playing = state.isPlaying,
+                durationMillis = state.settings.intervalSeconds * 1_000 + 800,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            side.forEachIndexed { index, item ->
+                AnimatedContent(
+                    targetState = item,
+                    transitionSpec = {
+                        if (motion) fadeIn(tween(750)) togetherWith fadeOut(tween(750)) else EnterTransition.None togetherWith ExitTransition.None
+                    },
+                    label = "mosaicSide$index",
+                    modifier = Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(14.dp)),
+                ) { tile ->
+                    PhotoContent(tile, FitMode.CROP, Modifier.fillMaxSize(), contentDescription = null, placeholder = false)
+                }
             }
         }
     }

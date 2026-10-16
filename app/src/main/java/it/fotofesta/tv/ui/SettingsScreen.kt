@@ -47,11 +47,17 @@ import it.fotofesta.tv.model.AppState
 import it.fotofesta.tv.model.FitMode
 import it.fotofesta.tv.model.SettingsCategory
 import it.fotofesta.tv.model.SlideshowSettings
+import it.fotofesta.tv.model.SlideshowLayout
 import it.fotofesta.tv.model.TransitionType
+import it.fotofesta.tv.model.Countdown
+import it.fotofesta.tv.model.CountdownEvent
 import kotlin.math.roundToInt
+import android.text.format.DateFormat
+import java.util.Calendar
+import androidx.compose.ui.platform.LocalContext
 
 /** Impostazioni che si scelgono da un elenco di valori, aperto al posto delle voci. */
-private enum class Picker { INTERVAL, TRANSITION, FIT, SLEEP, VOLUME }
+private enum class Picker { INTERVAL, TRANSITION, FIT, LAYOUT, SLEEP, COUNTDOWN_TIME, COUNTDOWN_EVENT, VOLUME }
 
 private val INTERVAL_OPTIONS = listOf(3, 5, 8, 12, 20)
 private val SLEEP_TIMER_OPTIONS = listOf(0, 30, 60, 120)
@@ -176,12 +182,32 @@ fun SettingsScreen(
                         toCategory,
                         descriptions = FitMode.entries.map { stringResource(it.descriptionRes) },
                     ) { index -> choose { onChange(settings.copy(fitMode = FitMode.entries[index])) } }
+                    Picker.LAYOUT -> OptionsPanel(
+                        stringResource(R.string.settings_layout),
+                        SlideshowLayout.entries.map { stringResource(it.labelRes) },
+                        settings.layout.ordinal,
+                        toCategory,
+                        descriptions = SlideshowLayout.entries.map { stringResource(it.descriptionRes) },
+                    ) { index -> choose { onChange(settings.copy(layout = SlideshowLayout.entries[index])) } }
                     Picker.SLEEP -> OptionsPanel(
                         stringResource(R.string.settings_sleep_timer),
                         SLEEP_TIMER_OPTIONS.map { sleepLabel(it) },
                         SLEEP_TIMER_OPTIONS.indexOf(settings.sleepTimerMinutes),
                         toCategory,
                     ) { index -> choose { onChange(settings.copy(sleepTimerMinutes = SLEEP_TIMER_OPTIONS[index])) } }
+                    Picker.COUNTDOWN_TIME -> OptionsPanel(
+                        stringResource(R.string.settings_countdown_time),
+                        Countdown.TIME_OPTIONS.map { timeLabel(it) },
+                        Countdown.TIME_OPTIONS.indexOf(settings.countdownMinutes),
+                        toCategory,
+                    ) { index -> choose { onChange(settings.copy(countdownMinutes = Countdown.TIME_OPTIONS[index])) } }
+                    Picker.COUNTDOWN_EVENT -> OptionsPanel(
+                        stringResource(R.string.settings_countdown_event),
+                        CountdownEvent.entries.map { stringResource(it.labelRes) },
+                        settings.countdownEvent.ordinal,
+                        toCategory,
+                        descriptions = CountdownEvent.entries.map { stringResource(it.messageRes) },
+                    ) { index -> choose { onChange(settings.copy(countdownEvent = CountdownEvent.entries[index])) } }
                     Picker.VOLUME -> OptionsPanel(
                         stringResource(R.string.settings_volume),
                         VOLUME_OPTIONS.map { stringResource(R.string.settings_volume_value, (it * 100).roundToInt()) },
@@ -208,6 +234,13 @@ fun SettingsScreen(
                                 Modifier.focusRequester(pickerFocus.getValue(Picker.FIT)).then(toCategory),
                                 subtitle = stringResource(settings.fitMode.descriptionRes),
                                 value = stringResource(settings.fitMode.labelRes),
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_layout),
+                                { open(Picker.LAYOUT) },
+                                Modifier.focusRequester(pickerFocus.getValue(Picker.LAYOUT)).then(toCategory),
+                                subtitle = stringResource(settings.layout.descriptionRes),
+                                value = stringResource(settings.layout.labelRes),
                             )
                             SettingsItem(
                                 stringResource(R.string.settings_shuffle),
@@ -243,6 +276,27 @@ fun SettingsScreen(
                                 subtitle = stringResource(R.string.settings_sleep_timer_body),
                                 value = sleepLabel(settings.sleepTimerMinutes),
                             )
+                            SettingsItem(
+                                stringResource(R.string.settings_countdown),
+                                { onChange(settings.copy(countdown = !settings.countdown)) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_countdown_body),
+                                checked = settings.countdown,
+                            )
+                            if (settings.countdown) {
+                                SettingsItem(
+                                    stringResource(R.string.settings_countdown_time),
+                                    { open(Picker.COUNTDOWN_TIME) },
+                                    Modifier.focusRequester(pickerFocus.getValue(Picker.COUNTDOWN_TIME)).then(toCategory),
+                                    value = timeLabel(settings.countdownMinutes),
+                                )
+                                SettingsItem(
+                                    stringResource(R.string.settings_countdown_event),
+                                    { open(Picker.COUNTDOWN_EVENT) },
+                                    Modifier.focusRequester(pickerFocus.getValue(Picker.COUNTDOWN_EVENT)).then(toCategory),
+                                    value = stringResource(settings.countdownEvent.labelRes),
+                                )
+                            }
                         }
                         SettingsCategory.MUSIC -> {
                             SettingsItem(
@@ -338,6 +392,15 @@ fun SettingsScreen(
             }
         }
     }
+}
+
+@Composable
+private fun timeLabel(minutesOfDay: Int): String {
+    val calendar = Calendar.getInstance().apply {
+        set(Calendar.HOUR_OF_DAY, minutesOfDay / 60)
+        set(Calendar.MINUTE, minutesOfDay % 60)
+    }
+    return DateFormat.getTimeFormat(LocalContext.current).format(calendar.time)
 }
 
 @Composable

@@ -87,6 +87,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private var sleepJob: Job? = null
     private var sleepJobMinutes = 0
     private val savedMusic = settingsRepository.loadMusic()
+    /** Brani da suonare: quello scelto, o quelli della cartella scelta (letti all'avvio). */
+    private var musicTracks: List<String> = savedMusic?.takeIf { !it.folder }?.let { listOf(it.uri) } ?: emptyList()
 
     private val demoPhotos = DemoPhotos.load(context)
 
@@ -118,6 +120,14 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
 
     init {
         playbackOrder.reset(demoPhotos.size, _state.value.settings.shuffle)
+        savedMusic?.takeIf { it.folder }?.let { saved ->
+            viewModelScope.launch {
+                val path = Uri.parse(saved.uri).path ?: return@launch
+                musicTracks = folderTracks(path)
+                if (musicTracks.isNotEmpty()) _state.update { it.copy(musicName = folderMusicName(saved.name, musicTracks.size)) }
+                syncMusic()
+            }
+        }
         val lastSource = settingsRepository.loadLastSource()
         if (lastSource == "GOOGLE") {
             restoreJob = viewModelScope.launch {
@@ -436,6 +446,32 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         navigate(Destination.SETTINGS)
     }
 
+    /** Musica di sottofondo: tutti i brani della cartella aperta, uno dopo l'altro. */
+    fun browserUseMusicFolder() {
+        val path = _state.value.browser.directory ?: return
+        viewModelScope.launch {
+            val tracks = folderTracks(path)
+            if (tracks.isEmpty()) {
+                showMessage(context.getString(R.string.browser_empty_music))
+                return@launch
+            }
+            val folder = File(path)
+            val name = folder.name.ifBlank { context.getString(R.string.music_default_name) }
+            settingsRepository.saveMusic(Uri.fromFile(folder).toString(), name, folder = true)
+            musicTracks = tracks
+            _state.update { it.copy(musicUri = Uri.fromFile(folder).toString(), musicName = folderMusicName(name, tracks.size)) }
+            syncMusic()
+            navigate(Destination.SETTINGS)
+        }
+    }
+
+    private suspend fun folderTracks(path: String): List<String> = withContext(Dispatchers.IO) {
+        runCatching { fileBrowser.list(File(path), BrowserKind.MUSIC).files.map { Uri.fromFile(it).toString() } }
+            .getOrDefault(emptyList())
+    }
+
+    private fun folderMusicName(name: String, tracks: Int) = "$name · ${quantityString(R.plurals.music_folder_tracks, tracks)}"
+
     fun closeBrowser() {
         browserJob?.cancel()
         navigate(if (_state.value.browser.kind == BrowserKind.MUSIC) Destination.SETTINGS else Destination.HOME)
@@ -451,12 +487,14 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         }
         val name = displayName ?: context.getString(R.string.music_default_name)
         settingsRepository.saveMusic(uri.toString(), name)
+        musicTracks = listOf(uri.toString())
         _state.update { it.copy(musicUri = uri.toString(), musicName = name) }
         syncMusic()
     }
 
     fun removeMusic() {
         musicPlayer.release()
+        musicTracks = emptyList()
         settingsRepository.clearMusic()
         _state.update { it.copy(musicUri = null, musicName = null) }
     }
@@ -817,7 +855,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
 
     private fun syncMusic() {
         val current = _state.value
-        if (current.isPlaying) musicPlayer.play(current.musicUri, current.settings.musicVolume)
+        if (current.isPlaying) musicPlayer.play(musicTracks, current.settings.musicVolume)
         else musicPlayer.pause()
         syncSleepTimer()
     }

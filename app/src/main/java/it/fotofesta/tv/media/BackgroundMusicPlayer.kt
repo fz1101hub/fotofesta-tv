@@ -9,9 +9,10 @@ import android.net.Uri
 import android.util.Log
 
 /**
- * Musica di sottofondo in loop. Gestisce lo stato asincrono di [MediaPlayer] (una pausa durante la
- * preparazione non viene persa), il focus audio di sistema e i file non più disponibili senza
- * arrestare l'app: in caso di errore notifica [onError].
+ * Musica di sottofondo in loop: un brano o i brani di una cartella, uno dopo l'altro. Gestisce lo
+ * stato asincrono di [MediaPlayer] (una pausa durante la preparazione non viene persa), il focus audio
+ * di sistema e i file non più disponibili senza arrestare l'app: un brano che non si riproduce viene
+ * saltato, e se non se ne riproduce nessuno notifica [onError].
  */
 class BackgroundMusicPlayer(
     private val context: Context,
@@ -28,19 +29,25 @@ class BackgroundMusicPlayer(
         .build()
 
     private var player: MediaPlayer? = null
-    private var currentUri: String? = null
+    private var playlist: List<String> = emptyList()
+    private var index = 0
+    /** Brani di fila che non si sono riprodotti: quando sono tutti, la musica si ferma. */
+    private var failures = 0
     private var prepared = false
     private var wantPlaying = false
     private var volume = 1f
 
-    fun play(uriValue: String?, volume: Float) {
+    fun play(tracks: List<String>, volume: Float) {
         this.volume = volume
-        if (uriValue == null) return
+        if (tracks.isEmpty()) return
         wantPlaying = true
-        if (currentUri != uriValue || player == null) {
+        if (tracks != playlist || player == null) {
             release()
+            playlist = tracks
+            index = 0
+            failures = 0
             wantPlaying = true
-            if (!prepare(uriValue)) return
+            if (!prepare(playlist[index])) return
         }
         startIfReady()
     }
@@ -58,12 +65,35 @@ class BackgroundMusicPlayer(
 
     fun release() {
         wantPlaying = false
+        releasePlayer()
+        playlist = emptyList()
+        audioManager?.abandonAudioFocusRequest(focusRequest)
+    }
+
+    private fun releasePlayer() {
         player?.runCatching { if (prepared) stop() }
         player?.release()
         player = null
-        currentUri = null
         prepared = false
-        audioManager?.abandonAudioFocusRequest(focusRequest)
+    }
+
+    /** Brano successivo della cartella, ricominciando dal primo dopo l'ultimo. */
+    private fun advance() {
+        if (playlist.isEmpty()) return
+        releasePlayer()
+        index = (index + 1) % playlist.size
+        if (prepare(playlist[index])) startIfReady()
+    }
+
+    /** Un brano non si riproduce: si passa al successivo, finché ce n'è almeno uno che va. */
+    private fun trackFailed() {
+        failures++
+        if (failures >= playlist.size) {
+            release()
+            onError()
+        } else {
+            advance()
+        }
     }
 
     private fun prepare(uriValue: String): Boolean = try {
@@ -72,27 +102,27 @@ class BackgroundMusicPlayer(
         player?.apply {
             setAudioAttributes(attributes)
             setDataSource(context, Uri.parse(uriValue))
-            isLooping = true
+            // Un solo brano si ripete da sé; con una cartella si passa al successivo alla fine.
+            isLooping = playlist.size == 1
             setVolume(volume, volume)
             setOnPreparedListener {
                 prepared = true
+                failures = 0
                 startIfReady()
             }
+            setOnCompletionListener { advance() }
             setOnErrorListener { _, what, extra ->
                 Log.w(TAG, "Errore MediaPlayer $what/$extra")
-                this@BackgroundMusicPlayer.release()
-                onError()
+                trackFailed()
                 true
             }
             prepareAsync()
         }
-        currentUri = uriValue
         true
     } catch (failure: Exception) {
         // File rimosso, permesso revocato o formato non supportato.
         Log.w(TAG, "Brano non riproducibile", failure)
-        release()
-        onError()
+        trackFailed()
         false
     }
 

@@ -38,6 +38,11 @@ public enum FitMode: String, Codable, CaseIterable, Sendable {
     case blur, contain, crop
 }
 
+/// Disposizione dello slideshow: una foto alla volta, o la foto nuova in grande con accanto le precedenti.
+public enum SlideshowLayout: String, Codable, CaseIterable, Sendable {
+    case single, mosaic
+}
+
 /// Impostazioni dello slideshow, salvate in UserDefaults come JSON.
 /// La decodifica tollera chiavi mancanti o valori sconosciuti, così gli aggiornamenti non azzerano le scelte.
 public struct SlideshowSettings: Codable, Equatable, Sendable {
@@ -47,17 +52,23 @@ public struct SlideshowSettings: Codable, Equatable, Sendable {
     public var intervalSeconds = 8
     public var transition: TransitionStyle = .fade
     public var fitMode: FitMode = .blur
+    public var layout: SlideshowLayout = .single
     public var shuffle = false
     public var reducedMotion = false
     public var showClock = true
     public var kenBurns = false
     /// Minuti di riproduzione prima della pausa automatica; 0 = disattivata.
     public var sleepTimerMinutes = 0
+    /// Conto alla rovescia nello slideshow verso `countdownMinutes` (minuti dalla mezzanotte, ora locale).
+    public var countdown = false
+    public var countdownMinutes = 0
+    public var countdownEvent: CountdownEvent = .midnight
 
     public init() {}
 
     private enum CodingKeys: String, CodingKey {
-        case intervalSeconds, transition, fitMode, shuffle, reducedMotion, showClock, kenBurns, sleepTimerMinutes
+        case intervalSeconds, transition, fitMode, layout, shuffle, reducedMotion, showClock, kenBurns, sleepTimerMinutes
+        case countdown, countdownMinutes, countdownEvent
     }
 
     public init(from decoder: Decoder) throws {
@@ -69,11 +80,15 @@ public struct SlideshowSettings: Codable, Equatable, Sendable {
         if let seconds = value(Int.self, .intervalSeconds) { intervalSeconds = min(max(seconds, 2), 120) }
         if let transition = value(TransitionStyle.self, .transition) { self.transition = transition }
         if let fitMode = value(FitMode.self, .fitMode) { self.fitMode = fitMode }
+        if let layout = value(SlideshowLayout.self, .layout) { self.layout = layout }
         if let shuffle = value(Bool.self, .shuffle) { self.shuffle = shuffle }
         if let reducedMotion = value(Bool.self, .reducedMotion) { self.reducedMotion = reducedMotion }
         if let showClock = value(Bool.self, .showClock) { self.showClock = showClock }
         if let kenBurns = value(Bool.self, .kenBurns) { self.kenBurns = kenBurns }
         if let minutes = value(Int.self, .sleepTimerMinutes) { sleepTimerMinutes = min(max(minutes, 0), 240) }
+        if let countdown = value(Bool.self, .countdown) { self.countdown = countdown }
+        if let minutes = value(Int.self, .countdownMinutes), Countdown.timeOptions.contains(minutes) { countdownMinutes = minutes }
+        if let event = value(CountdownEvent.self, .countdownEvent) { countdownEvent = event }
     }
 
     /// Il movimento lento è attivo solo se non è stata chiesta la riduzione del movimento.

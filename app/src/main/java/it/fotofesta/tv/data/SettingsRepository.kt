@@ -3,8 +3,11 @@ package it.fotofesta.tv.data
 import android.annotation.SuppressLint
 import android.content.Context
 import it.fotofesta.tv.model.FitMode
+import it.fotofesta.tv.model.SlideshowLayout
 import it.fotofesta.tv.model.SlideshowSettings
 import it.fotofesta.tv.model.TransitionType
+import it.fotofesta.tv.model.Countdown
+import it.fotofesta.tv.model.CountdownEvent
 
 /**
  * Preferenze dell'app, divise in due file:
@@ -16,7 +19,8 @@ class SettingsRepository(context: Context) {
     private val prefs = context.getSharedPreferences("slideshow_settings", Context.MODE_PRIVATE)
     private val sources = context.getSharedPreferences("device_sources", Context.MODE_PRIVATE)
 
-    data class SavedMusic(val uri: String, val name: String)
+    /** Brano o cartella di brani ([folder]) scelti per la musica di sottofondo. */
+    data class SavedMusic(val uri: String, val name: String, val folder: Boolean = false)
 
     init {
         migrateSourcesOutOfBackup()
@@ -29,12 +33,16 @@ class SettingsRepository(context: Context) {
         // sostituisce; resta solo la scelta esplicita di riempire lo schermo.
         fitMode = prefs.getString("fit_mode", null)?.let { enumValueOrDefault(it, FitMode.BLUR) }
             ?: if (prefs.getString("fit", null) == FitMode.CROP.name) FitMode.CROP else FitMode.BLUR,
+        layout = enumValueOrDefault(prefs.getString("layout", null), SlideshowLayout.SINGLE),
         shuffle = prefs.getBoolean("shuffle", false),
         reducedMotion = prefs.getBoolean("reduced_motion", false),
         showClock = prefs.getBoolean("clock", true),
         musicVolume = prefs.getFloat("volume", 0.35f),
         kenBurns = prefs.getBoolean("ken_burns", false),
         sleepTimerMinutes = prefs.getInt("sleep_timer", 0),
+        countdown = prefs.getBoolean("countdown", false),
+        countdownMinutes = prefs.getInt("countdown_minutes", 0).takeIf { it in Countdown.TIME_OPTIONS } ?: 0,
+        countdownEvent = enumValueOrDefault(prefs.getString("countdown_event", null), CountdownEvent.MIDNIGHT),
     )
 
     fun save(value: SlideshowSettings) {
@@ -42,26 +50,30 @@ class SettingsRepository(context: Context) {
             .putInt("interval", value.intervalSeconds)
             .putString("transition", value.transition.name)
             .putString("fit_mode", value.fitMode.name)
+            .putString("layout", value.layout.name)
             .putBoolean("shuffle", value.shuffle)
             .putBoolean("reduced_motion", value.reducedMotion)
             .putBoolean("clock", value.showClock)
             .putFloat("volume", value.musicVolume)
             .putBoolean("ken_burns", value.kenBurns)
             .putInt("sleep_timer", value.sleepTimerMinutes)
+            .putBoolean("countdown", value.countdown)
+            .putInt("countdown_minutes", value.countdownMinutes)
+            .putString("countdown_event", value.countdownEvent.name)
             .apply()
     }
 
     fun loadMusic(): SavedMusic? {
         val uri = sources.getString("music_uri", null) ?: return null
-        return SavedMusic(uri, sources.getString("music_name", null).orEmpty())
+        return SavedMusic(uri, sources.getString("music_name", null).orEmpty(), sources.getBoolean("music_folder", false))
     }
 
-    fun saveMusic(uri: String, name: String) {
-        sources.edit().putString("music_uri", uri).putString("music_name", name).apply()
+    fun saveMusic(uri: String, name: String, folder: Boolean = false) {
+        sources.edit().putString("music_uri", uri).putString("music_name", name).putBoolean("music_folder", folder).apply()
     }
 
     fun clearMusic() {
-        sources.edit().remove("music_uri").remove("music_name").apply()
+        sources.edit().remove("music_uri").remove("music_name").remove("music_folder").apply()
     }
 
     /** Cartella scelta con il selettore di documenti di Android. */

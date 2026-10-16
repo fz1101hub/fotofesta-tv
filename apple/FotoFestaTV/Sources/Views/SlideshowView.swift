@@ -14,6 +14,8 @@ struct SlideshowView: View {
     // avviene dopo il tempo restante, in sincronia con il movimento lento.
     @State private var shownSeconds: TimeInterval = 0
     @State private var shownPhotoID: String?
+    /// Mosaico: le foto mostrate di recente, dalla più recente, per le caselle accanto a quella grande.
+    @State private var recentIDs: [String] = []
 
     var body: some View {
         // "Riduci movimento" vale sia dalle impostazioni dell'app sia da quelle di sistema.
@@ -24,7 +26,14 @@ struct SlideshowView: View {
         } label: {
             ZStack {
                 Color.black
-                if let photo = model.currentPhoto {
+                if let photo = model.currentPhoto, settings.layout == .mosaic, model.photos.count > 1 {
+                    MosaicSlideView(
+                        photo: photo,
+                        side: Mosaic.side(of: model.photos, currentIndex: model.currentIndex, recentIDs: recentIDs),
+                        settings: settings,
+                        playing: model.isPlaying
+                    )
+                } else if let photo = model.currentPhoto {
                     SlideView(photo: photo, settings: settings, playing: model.isPlaying)
                         .id(photo.id)
                         .transition(transition(for: settings))
@@ -52,6 +61,9 @@ struct SlideshowView: View {
                     .padding(.top, 60)
             }
         }
+        .overlay {
+            if settings.countdown { CountdownOverlay(settings: settings) }
+        }
         // QR piccolo per gli invitati, che possono mandare foto in ogni momento.
         .overlay(alignment: .topLeading) {
             if model.guests.active, model.guests.qrInSlideshow, model.currentPhoto != nil {
@@ -59,6 +71,10 @@ struct SlideshowView: View {
                     .padding(.horizontal, 90)
                     .padding(.top, 60)
             }
+        }
+        .onChange(of: model.currentPhoto?.id) { previous, _ in
+            guard let previous else { return }
+            recentIDs = Array(([previous] + recentIDs.filter { $0 != previous }).prefix(6))
         }
         .onMoveCommand { direction in
             switch direction {
@@ -218,6 +234,79 @@ private struct SlideView: View {
             if settings.fitMode == .blur { BlurredBackdrop(photo: photo) }
             MovingPhoto(photo: photo, settings: settings, playing: playing)
         }
+    }
+}
+
+/// Conto alla rovescia: nell'ultima ora un'etichetta in alto al centro, negli ultimi secondi numeri
+/// grandi a tutto schermo, poi il messaggio del momento.
+private struct CountdownOverlay: View {
+    let settings: SlideshowSettings
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            switch Countdown.phase(at: context.date, minutesOfDay: settings.countdownMinutes, timeZone: .current) {
+            case .hidden:
+                Color.clear
+            case let .showing(seconds):
+                VStack {
+                    Label(L("countdown.in", countdownName(settings.countdownEvent), Countdown.format(seconds)),
+                          systemImage: countdownSymbol(settings.countdownEvent))
+                        .font(.title3.weight(.semibold).monospacedDigit())
+                        .padding(.horizontal, 28)
+                        .padding(.vertical, 12)
+                        .background(.regularMaterial, in: Capsule())
+                        .padding(.top, 60)
+                    Spacer()
+                }
+            case let .final(seconds):
+                ZStack {
+                    Color.black.opacity(0.55)
+                    Text("\(seconds)").font(.system(size: 360, weight: .bold).monospacedDigit())
+                }
+                .ignoresSafeArea()
+            case .celebrate:
+                ZStack {
+                    Color.black.opacity(0.55)
+                    VStack(spacing: 32) {
+                        Image(systemName: countdownSymbol(settings.countdownEvent)).font(.system(size: 160))
+                        Text(countdownMessage(settings.countdownEvent)).font(.system(size: 96, weight: .bold))
+                    }
+                }
+                .ignoresSafeArea()
+            }
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+/// Mosaico: la foto attuale in grande a sinistra (due terzi), accanto in colonna le ultime mostrate.
+private struct MosaicSlideView: View {
+    let photo: Photo
+    let side: [Photo]
+    let settings: SlideshowSettings
+    let playing: Bool
+
+    var body: some View {
+        GeometryReader { geometry in
+            let spacing: CGFloat = 16
+            let mainWidth = (geometry.size.width - spacing) * 2 / 3
+            HStack(spacing: spacing) {
+                SlideView(photo: photo, settings: settings, playing: playing)
+                    .id(photo.id)
+                    .transition(.opacity)
+                    .frame(width: mainWidth)
+                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                VStack(spacing: spacing) {
+                    ForEach(Array(side.enumerated()), id: \.offset) { _, item in
+                        PhotoImage(photo: item, fitMode: .crop, maxPixelSize: 1200, placeholder: false)
+                            .id(item.id)
+                            .transition(.opacity)
+                            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    }
+                }
+            }
+        }
+        .padding(16)
     }
 }
 

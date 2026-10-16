@@ -58,6 +58,17 @@ struct SettingsView: View {
                         Text(fitDescription(settings.fitMode)).font(.caption).foregroundStyle(.secondary)
                     }
                 }
+                Picker(selection: binding(\.layout)) {
+                    Text(L("layout.single")).tag(SlideshowLayout.single)
+                    Text(L("layout.mosaic")).tag(SlideshowLayout.mosaic)
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L("settings.layout"))
+                        Text(settings.layout == .mosaic ? L("layout.mosaic_body") : L("layout.single_body"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
                 Toggle(L("settings.shuffle"), isOn: binding(\.shuffle))
                 // Con "Riduci movimento" (dell'app o di sistema) il movimento lento resta spento.
                 Toggle(L("settings.ken_burns"), isOn: binding(\.kenBurns))
@@ -68,6 +79,24 @@ struct SettingsView: View {
                     Text(L("settings.off")).tag(0)
                     ForEach(sleepOptions(including: settings.sleepTimerMinutes), id: \.self) { minutes in
                         Text(L("settings.minutes", minutes)).tag(minutes)
+                    }
+                }
+                Toggle(isOn: binding(\.countdown)) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L("settings.countdown"))
+                        Text(L("settings.countdown_body")).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                if settings.countdown {
+                    Picker(L("settings.countdown_time"), selection: binding(\.countdownMinutes)) {
+                        ForEach(Countdown.timeOptions, id: \.self) { minutes in
+                            Text(timeLabel(minutes)).tag(minutes)
+                        }
+                    }
+                    Picker(L("settings.countdown_event"), selection: binding(\.countdownEvent)) {
+                        ForEach(CountdownEvent.allCases, id: \.self) { event in
+                            Text(countdownName(event)).tag(event)
+                        }
                     }
                 }
             }
@@ -131,6 +160,15 @@ struct SettingsView: View {
         case .contain: return L("fit.contain_body")
         case .crop: return L("fit.crop_body")
         }
+    }
+
+    /// Orario del conto alla rovescia nel formato del dispositivo (21:30 o 9:30 PM).
+    private func timeLabel(_ minutesOfDay: Int) -> String {
+        var components = DateComponents()
+        components.hour = minutesOfDay / 60
+        components.minute = minutesOfDay % 60
+        guard let date = Calendar.current.date(from: components) else { return "" }
+        return date.formatted(date: .omitted, time: .shortened)
     }
 
     /// Include anche un valore impostato altrove (es. da una versione precedente) per non perderlo.
