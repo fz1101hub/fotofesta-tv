@@ -61,6 +61,7 @@ import it.fotofesta.tv.ui.HomeScreen
 import it.fotofesta.tv.ui.MemoryGameScreen
 import it.fotofesta.tv.ui.MysteryGameScreen
 import it.fotofesta.tv.ui.Outline
+import it.fotofesta.tv.ui.PuzzleGameScreen
 import it.fotofesta.tv.ui.SettingsScreen
 import it.fotofesta.tv.ui.SlideshowScreen
 import it.fotofesta.tv.ui.SurfaceRaised
