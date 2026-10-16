@@ -59,3 +59,28 @@ jobs:
             -configuration Release \
             -destination "generic/platform=tvOS" \
             CODE_SIGNING_ALLOWED=NO
+
+      # Schermate dal simulatore, solo su richiesta: avvio a mano o "[screenshots]" nel messaggio
+      # dell'ultimo commit. Verifica anche che l'app si avvii senza chiudersi in ogni schermata.
+      - name: Schermate richieste?
+        id: shots
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          message=$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA" --jq .commit.message)
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch || "$message" == *"[screenshots]"* ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Schermate dal simulatore tvOS
+        if: steps.shots.outputs.run == 'true'
+        run: scripts/screenshots.sh it
+
+      - name: Carica le schermate
+        if: steps.shots.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: FotoFestaTV-screenshots
+          path: apple/build/screenshots/*.png
+          retention-days: 14

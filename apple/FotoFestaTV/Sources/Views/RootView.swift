@@ -53,6 +53,9 @@ struct RootView: View {
         .onChange(of: keepAwake, initial: true) { _, keep in
             UIApplication.shared.isIdleTimerDisabled = keep
         }
+        #if DEBUG
+        .task { model.applyScreenshotScenario() }
+        #endif
     }
 
     private var keepAwake: Bool {
