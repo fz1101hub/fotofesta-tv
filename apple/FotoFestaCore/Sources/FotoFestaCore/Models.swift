@@ -18,13 +18,16 @@ public struct Photo: Identifiable, Hashable, Codable, Sendable {
     public let receivedAt: Date?
     /// Nome con cui l'invitato ha firmato la foto, per le foto degli invitati.
     public let sender: String?
+    /// È un video: nello slideshow si guarda fino alla fine; i giochi lo saltano.
+    public let isVideo: Bool
 
-    public init(id: String, title: String, source: PhotoSource, receivedAt: Date? = nil, sender: String? = nil) {
+    public init(id: String, title: String, source: PhotoSource, receivedAt: Date? = nil, sender: String? = nil, isVideo: Bool = false) {
         self.id = id
         self.title = title
         self.source = source
         self.receivedAt = receivedAt
         self.sender = sender
+        self.isVideo = isVideo
     }
 }
 
@@ -63,12 +66,16 @@ public struct SlideshowSettings: Codable, Equatable, Sendable {
     public var countdown = false
     public var countdownMinutes = 0
     public var countdownEvent: CountdownEvent = .midnight
+    /// Video della raccolta nello slideshow, insieme alle foto.
+    public var videos = true
+    /// Audio dei video.
+    public var videoSound = true
 
     public init() {}
 
     private enum CodingKeys: String, CodingKey {
         case intervalSeconds, transition, fitMode, layout, shuffle, reducedMotion, showClock, kenBurns, sleepTimerMinutes
-        case countdown, countdownMinutes, countdownEvent
+        case countdown, countdownMinutes, countdownEvent, videos, videoSound
     }
 
     public init(from decoder: Decoder) throws {
@@ -89,6 +96,8 @@ public struct SlideshowSettings: Codable, Equatable, Sendable {
         if let countdown = value(Bool.self, .countdown) { self.countdown = countdown }
         if let minutes = value(Int.self, .countdownMinutes), Countdown.timeOptions.contains(minutes) { countdownMinutes = minutes }
         if let event = value(CountdownEvent.self, .countdownEvent) { countdownEvent = event }
+        if let videos = value(Bool.self, .videos) { self.videos = videos }
+        if let videoSound = value(Bool.self, .videoSound) { self.videoSound = videoSound }
     }
 
     /// Il movimento lento è attivo solo se non è stata chiesta la riduzione del movimento.

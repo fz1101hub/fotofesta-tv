@@ -12,7 +12,7 @@ struct PuzzleGameView: View {
         ZStack {
             Theme.background.ignoresSafeArea()
             if let level {
-                PuzzleBoardView(photos: model.photos, level: level) { self.level = nil }
+                PuzzleBoardView(photos: model.stillPhotos, level: level) { self.level = nil }
                     .id(level)
             } else {
                 levelPicker

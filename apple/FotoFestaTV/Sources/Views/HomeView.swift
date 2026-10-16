@@ -10,7 +10,7 @@ struct HomeView: View {
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
-            HomeBackdrop(photos: Array(model.photos.prefix(12)))
+            HomeBackdrop(photos: Array(model.stillPhotos.prefix(12)))
                 .ignoresSafeArea()
             // Scuro in basso e a sinistra, dove ci sono testi e schede.
             LinearGradient(colors: [.black.opacity(0.85), .black.opacity(0.15)], startPoint: .leading, endPoint: .trailing)

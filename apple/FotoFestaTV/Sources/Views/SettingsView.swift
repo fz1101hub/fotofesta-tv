@@ -70,6 +70,20 @@ struct SettingsView: View {
                     }
                 }
                 Toggle(L("settings.shuffle"), isOn: binding(\.shuffle))
+                Toggle(isOn: binding(\.videos)) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L("settings.videos"))
+                        Text(L("settings.videos_body")).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                if settings.videos {
+                    Toggle(isOn: binding(\.videoSound)) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(L("settings.video_sound"))
+                            Text(L("settings.video_sound_body")).font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                }
                 // Con "Riduci movimento" (dell'app o di sistema) il movimento lento resta spento.
                 Toggle(L("settings.ken_burns"), isOn: binding(\.kenBurns))
                     .disabled(settings.reducedMotion || systemReduceMotion)

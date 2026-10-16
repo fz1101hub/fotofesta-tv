@@ -25,6 +25,7 @@ public final class PhotosPicker: @unchecked Sendable {
         public let mimeType: String
 
         public var isPhoto: Bool { mimeType.hasPrefix("image/") }
+        public var isVideo: Bool { mimeType.hasPrefix("video/") }
     }
 
     public static let defaultAPIBase = URL(string: "https://photospicker.googleapis.com/v1/")!

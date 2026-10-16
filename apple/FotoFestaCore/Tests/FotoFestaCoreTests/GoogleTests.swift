@@ -229,15 +229,20 @@ final class GoogleImportFlowTests: XCTestCase {
         XCTAssertEqual(http.requests("GET", "/v1/mediaItems").first?.value(forHTTPHeaderField: "Authorization"), "Bearer new")
     }
 
-    func testVideosAreSkippedAndCounted() async throws {
+    func testVideosAreKeptAndOtherTypesSkipped() async throws {
         tokens.accessToken = "ok"
         tokens.expiresAt = clock.now.addingTimeInterval(3000)
         http.enqueue("POST", "/v1/sessions", .json(#"{"id":"s1","pickerUri":"https://p/s1","mediaItemsSet":true}"#))
-        http.enqueue("GET", "/v1/mediaItems", .json(#"{"mediaItems":[\#(mediaItem("ok")),\#(mediaItem("film", mime: "video/mp4"))]}"#))
+        http.enqueue(
+            "GET",
+            "/v1/mediaItems",
+            .json(#"{"mediaItems":[\#(mediaItem("ok")),\#(mediaItem("film", mime: "video/mp4")),\#(mediaItem("doc", mime: "application/pdf"))]}"#)
+        )
 
         let result = try await flow().run { _ in }
 
-        XCTAssertEqual(result.selection.items.map(\.id), ["ok"])
+        XCTAssertEqual(result.selection.items.map(\.id), ["ok", "film"])
+        XCTAssertEqual(result.selection.photos.map(\.isVideo), [false, true])
         XCTAssertEqual(result.skipped, 1)
     }
 
@@ -246,7 +251,7 @@ final class GoogleImportFlowTests: XCTestCase {
         tokens.expiresAt = clock.now.addingTimeInterval(3000)
         http.enqueue("POST", "/v1/sessions", .json(#"{"id":"s1","pickerUri":"https://p/s1","mediaItemsSet":true}"#))
         http.always("DELETE", "/v1/sessions/s1", .json("{}"))
-        http.enqueue("GET", "/v1/mediaItems", .json(#"{"mediaItems":[\#(mediaItem("film", mime: "video/mp4"))]}"#))
+        http.enqueue("GET", "/v1/mediaItems", .json(#"{"mediaItems":[\#(mediaItem("doc", mime: "application/pdf"))]}"#))
         do {
             _ = try await flow().run { _ in }
             XCTFail("expected an error")
@@ -440,12 +445,23 @@ final class GooglePhotosStreamTests: XCTestCase {
     }
 
     func testSelectionStoreRoundTripAndClear() {
-        let selection = GoogleSelection(sessionID: "s1", expiresAt: Date(timeIntervalSince1970: 1_234), items: [.init(id: "a", filename: "Mare.jpg")])
+        let selection = GoogleSelection(
+            sessionID: "s1",
+            expiresAt: Date(timeIntervalSince1970: 1_234),
+            items: [.init(id: "a", filename: "Mare.jpg"), .init(id: "v", filename: "Torta.mp4", isVideo: true)]
+        )
         store.save(selection)
         XCTAssertEqual(GoogleSelectionStore(defaults: defaults).current(), selection)
         store.clear()
         XCTAssertNil(GoogleSelectionStore(defaults: defaults).current())
         XCTAssertNil(store.current())
+    }
+
+    func testSelectionsSavedBeforeVideosStillLoad() throws {
+        let old = #"{"sessionID":"s1","items":[{"id":"a","filename":"Mare.jpg"}]}"#
+        let selection = try JSONDecoder().decode(GoogleSelection.self, from: Data(old.utf8))
+        XCTAssertEqual(selection.items, [.init(id: "a", filename: "Mare.jpg")])
+        XCTAssertEqual(selection.photos.map(\.isVideo), [false])
     }
 }
 

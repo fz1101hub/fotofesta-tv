@@ -6,6 +6,13 @@ final class MosaicTests: XCTestCase {
 
     private func ids(_ list: [Photo]) -> [String] { list.map(\.id) }
 
+    func testVideosNeverGoInTheSmallTiles() {
+        let mixed = photos.map { photo in
+            ["p1", "p3"].contains(photo.id) ? Photo(id: photo.id, title: photo.title, source: photo.source, isVideo: true) : photo
+        }
+        XCTAssertEqual(ids(Mosaic.side(of: mixed, currentIndex: 2, recentIDs: ["p1", "p0"])), ["p0", "p4"])
+    }
+
     func testRecentlyShownPhotosComeFirst() {
         XCTAssertEqual(ids(Mosaic.side(of: photos, currentIndex: 2, recentIDs: ["p1", "p0", "p4"])), ["p1", "p0"])
     }

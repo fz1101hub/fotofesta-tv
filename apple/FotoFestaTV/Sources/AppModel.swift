@@ -136,6 +136,7 @@ final class AppModel {
         if let data = try? JSONEncoder().encode(settings) { defaults.set(data, forKey: Self.settingsKey) }
         if old.shuffle != settings.shuffle { order.reset(count: photos.count, shuffle: settings.shuffle, current: currentIndex) }
         if old.sleepTimerMinutes != settings.sleepTimerMinutes { syncSleepTimer(restart: true) }
+        if old.videos != settings.videos { applyCollection(restart: false) }
     }
 
     func showMessage(_ text: String) {
@@ -149,6 +150,9 @@ final class AppModel {
     }
 
     var currentPhoto: Photo? { photos.indices.contains(currentIndex) ? photos[currentIndex] : nil }
+
+    /// Le foto della raccolta senza i video, per giochi e sfondi.
+    var stillPhotos: [Photo] { photos.filter { !$0.isVideo } }
 
     var upcomingPhoto: Photo? {
         if let fresh = freshPhotos.peek(photos, currentIndex: currentIndex) { return photos[fresh] }
@@ -452,7 +456,8 @@ final class AppModel {
     /// Ricalcola la raccolta mostrata. Con `restart` riparte dall'inizio; altrimenti resta sulla foto
     /// corrente (arrivano o spariscono foto degli invitati mentre lo slideshow va avanti).
     private func applyCollection(restart: Bool) {
-        let newPhotos = combineWithGuests(base: basePhotos, baseIsDemo: baseIsDemo, guests: guestPhotos, partyActive: guestPartyActive)
+        let base = settings.videos ? basePhotos : basePhotos.filter { !$0.isVideo }
+        let newPhotos = combineWithGuests(base: base, baseIsDemo: baseIsDemo, guests: guestPhotos, partyActive: guestPartyActive)
         let oldPhotos = photos
         let currentID = currentPhoto?.id
         let index: Int

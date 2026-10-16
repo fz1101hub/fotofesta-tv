@@ -26,7 +26,8 @@ struct SlideshowView: View {
         } label: {
             ZStack {
                 Color.black
-                if let photo = model.currentPhoto, settings.layout == .mosaic, model.photos.count > 1 {
+                // I video si guardano a schermo intero anche con il mosaico.
+                if let photo = model.currentPhoto, settings.layout == .mosaic, model.photos.count > 1, !photo.isVideo {
                     MosaicSlideView(
                         photo: photo,
                         side: Mosaic.side(of: model.photos, currentIndex: model.currentIndex, recentIDs: recentIDs),
@@ -34,7 +35,7 @@ struct SlideshowView: View {
                         playing: model.isPlaying
                     )
                 } else if let photo = model.currentPhoto {
-                    SlideView(photo: photo, settings: settings, playing: model.isPlaying)
+                    slide(photo, settings: settings)
                         .id(photo.id)
                         .transition(transition(for: settings))
                 } else if model.guests.active {
@@ -94,13 +95,20 @@ struct SlideshowView: View {
         }
         // Cambio foto automatico; si riavvia a ogni foto, pausa o cambio di durata. Solo "più di una
         // foto" e non il numero: le foto che arrivano dagli invitati non fanno ripartire il conteggio.
-        .task(id: TimerKey(tick: model.slideTick, playing: model.isPlaying, interval: settings.intervalSeconds, canAdvance: model.photos.count > 1)) {
+        // Un video si guarda fino alla fine: lo slideshow va avanti quando finisce (VideoSlideView).
+        .task(id: TimerKey(
+            tick: model.slideTick,
+            playing: model.isPlaying,
+            interval: settings.intervalSeconds,
+            canAdvance: model.photos.count > 1,
+            video: model.currentPhoto?.isVideo == true
+        )) {
             let photoID = model.currentPhoto?.id
             if photoID != shownPhotoID {
                 shownPhotoID = photoID
                 shownSeconds = 0
             }
-            guard model.isPlaying, model.photos.count > 1 else { return }
+            guard model.isPlaying, model.photos.count > 1, model.currentPhoto?.isVideo != true else { return }
             let startedAt = Date()
             let remaining = max(Double(settings.intervalSeconds) - shownSeconds, 0)
             do {
@@ -119,7 +127,7 @@ struct SlideshowView: View {
             withAnimation { infoVisible = false }
         }
         .task(id: model.upcomingPhoto?.id) {
-            if let upcoming = model.upcomingPhoto {
+            if let upcoming = model.upcomingPhoto, !upcoming.isVideo {
                 _ = await ImageLoader.shared.image(for: upcoming, maxPixelSize: 3840)
             }
         }
@@ -129,6 +137,23 @@ struct SlideshowView: View {
         var settings = model.settings
         if systemReduceMotion { settings.reducedMotion = true }
         return settings
+    }
+
+    @ViewBuilder
+    private func slide(_ photo: Photo, settings: SlideshowSettings) -> some View {
+        if photo.isVideo {
+            VideoSlideView(
+                photo: photo,
+                settings: settings,
+                playing: model.isPlaying,
+                // Unico elemento della raccolta: il video ricomincia da capo.
+                loop: model.photos.count < 2
+            ) {
+                if model.photos.count > 1 { model.next() }
+            }
+        } else {
+            SlideView(photo: photo, settings: settings, playing: model.isPlaying)
+        }
     }
 
     private func showInfo() {
@@ -179,11 +204,14 @@ struct SlideshowView: View {
                     .font(.callout.monospacedDigit())
                     .foregroundStyle(Theme.secondaryText)
             }
-            SlideProgress(
-                tick: model.slideTick,
-                playing: model.isPlaying && model.photos.count > 1,
-                interval: Double(settings.intervalSeconds)
-            )
+            // La barra misura il tempo di una foto; un video dura quanto dura.
+            if model.currentPhoto?.isVideo != true {
+                SlideProgress(
+                    tick: model.slideTick,
+                    playing: model.isPlaying && model.photos.count > 1,
+                    interval: Double(settings.intervalSeconds)
+                )
+            }
         }
         .padding(.horizontal, 90)
         .padding(.top, 140)
@@ -219,6 +247,7 @@ struct SlideshowView: View {
         let playing: Bool
         let interval: Int
         let canAdvance: Bool
+        let video: Bool
     }
 }
 

@@ -8,7 +8,7 @@
 "source.demo" = "Fotos de demostración";
 "source.google" = "Google Fotos · fotos: %ld";
 "message.choose_source" = "Primero elige una fuente de fotos.";
-"message.google_skipped" = "Elementos omitidos (solo se muestran fotos, no vídeos): %ld";
+"message.google_skipped" = "Elementos omitidos (solo se muestran fotos y vídeos): %ld";
 "message.google_ready" = "Fotos de Google listas para la presentación.";
 "message.google_removed" = "Google Fotos desconectado: el acceso y la lista de fotos se han eliminado de este Apple TV.";
 "message.sleep_timer" = "Presentación en pausa por el temporizador.";
@@ -159,6 +159,11 @@
 "phone.answers.other" = "%ld respuestas";
 "phone.points.one" = "%ld punto";
 "phone.points.other" = "%ld puntos";
+"settings.videos" = "Vídeos";
+"settings.videos_body" = "Junto a las fotos, de principio a fin. Los juegos solo usan fotos.";
+"settings.video_sound" = "Sonido de los vídeos";
+"settings.video_sound_body" = "Desactívalo para ver los vídeos sin sonido.";
+"video.unsupported" = "Este vídeo no se puede reproducir en el Apple TV.";
 "guests.awards" = "Premios de la fiesta";
 "awards.title" = "Los premios de la fiesta";
 "awards.golden_lens" = "Objetivo de oro";

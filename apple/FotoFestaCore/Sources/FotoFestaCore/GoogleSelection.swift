@@ -6,10 +6,24 @@ public struct GoogleSelection: Codable, Equatable, Sendable {
     public struct Item: Codable, Equatable, Sendable {
         public let id: String
         public let filename: String
+        public let isVideo: Bool
 
-        public init(id: String, filename: String) {
+        public init(id: String, filename: String, isVideo: Bool = false) {
             self.id = id
             self.filename = filename
+            self.isVideo = isVideo
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case id, filename, isVideo
+        }
+
+        // Le selezioni salvate dalle versioni senza video non hanno isVideo.
+        public init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            id = try container.decode(String.self, forKey: .id)
+            filename = try container.decode(String.self, forKey: .filename)
+            isVideo = try container.decodeIfPresent(Bool.self, forKey: .isVideo) ?? false
         }
     }
 
@@ -30,7 +44,7 @@ public struct GoogleSelection: Codable, Equatable, Sendable {
     }
 
     public var photos: [Photo] {
-        items.map { Photo(id: "google:\($0.id)", title: $0.filename, source: .google(mediaID: $0.id)) }
+        items.map { Photo(id: "google:\($0.id)", title: $0.filename, source: .google(mediaID: $0.id), isVideo: $0.isVideo) }
     }
 }
 

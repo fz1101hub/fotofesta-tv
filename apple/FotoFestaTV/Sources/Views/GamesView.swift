@@ -8,7 +8,8 @@ struct GamesView: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        let playable = model.photos.count >= minimumGamePhotos
+        // I giochi usano solo le foto: i video si guardano nello slideshow.
+        let playable = model.stillPhotos.count >= minimumGamePhotos
         let whoTookItPlayable = WhoTookIt.canPlay(model.photos)
         ZStack {
             Theme.background.ignoresSafeArea()
@@ -33,7 +34,7 @@ struct GamesView: View {
                     .padding(.vertical, 40)
                 }
                 .scrollClipDisabled()
-                Text(playable ? L("games.active_collection", model.photos.count) : L("games.need_photos", minimumGamePhotos))
+                Text(playable ? L("games.active_collection", model.stillPhotos.count) : L("games.need_photos", minimumGamePhotos))
                     .foregroundStyle(Theme.secondaryText)
                 Spacer(minLength: 0)
             }
@@ -140,7 +141,7 @@ struct MemoryGameView: View {
     }
 
     private func newGame() {
-        let chosen = Array(model.photos.shuffled().prefix(4))
+        let chosen = Array(model.stillPhotos.shuffled().prefix(4))
         cards = (chosen + chosen).shuffled().enumerated().map { Card(id: $0.offset, photo: $0.element) }
         moves = 0
         checking = false
@@ -270,7 +271,7 @@ struct MysteryGameView: View {
     }
 
     private func newRound() {
-        let photos = model.photos
+        let photos = model.stillPhotos
         guard photos.count >= minimumGamePhotos else { return }
         let candidates = photos.filter { $0.id != answer?.id }
         let next = (candidates.isEmpty ? photos : candidates).randomElement()!

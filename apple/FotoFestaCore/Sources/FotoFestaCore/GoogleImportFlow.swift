@@ -13,7 +13,7 @@ public enum ImportStep: Equatable, Sendable {
 public final class GoogleImportFlow: @unchecked Sendable {
     public struct Result: Equatable, Sendable {
         public let selection: GoogleSelection
-        /// Elementi scelti che non sono foto (ad esempio i video).
+        /// Elementi scelti che non sono né foto né video.
         public let skipped: Int
     }
 
@@ -50,14 +50,14 @@ public final class GoogleImportFlow: @unchecked Sendable {
             onStep(.waitingForPhotos(pickerURI: session.pickerURI))
             let completed = try await picker.awaitSelection(token: tokens, session: session)
             let picked = try await picker.listPickedMedia(token: tokens, sessionID: completed.id)
-            let photos = picked.filter(\.isPhoto)
-            guard !photos.isEmpty else { throw FotoFestaError.nothingSelected }
+            let media = picked.filter { $0.isPhoto || $0.isVideo }
+            guard !media.isEmpty else { throw FotoFestaError.nothingSelected }
             let selection = GoogleSelection(
                 sessionID: completed.id,
                 expiresAt: completed.expiresAt ?? session.expiresAt,
-                items: photos.map { GoogleSelection.Item(id: $0.id, filename: $0.filename) }
+                items: media.map { GoogleSelection.Item(id: $0.id, filename: $0.filename, isVideo: $0.isVideo) }
             )
-            return Result(selection: selection, skipped: picked.count - photos.count)
+            return Result(selection: selection, skipped: picked.count - media.count)
         } catch {
             // Anche se l'attività è stata annullata la sessione va chiusa: si usa un Task non legato.
             let picker = self.picker

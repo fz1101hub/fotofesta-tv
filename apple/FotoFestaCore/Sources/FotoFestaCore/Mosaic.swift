@@ -13,7 +13,8 @@ public enum Mosaic {
         for photo in photos where byID[photo.id] == nil { byID[photo.id] = photo }
         var chosen: [Photo] = []
         func add(_ photo: Photo) {
-            guard chosen.count < count, photo.id != current.id, !chosen.contains(where: { $0.id == photo.id }) else { return }
+            // I video si guardano a schermo intero, mai nelle caselle piccole.
+            guard chosen.count < count, photo.id != current.id, !photo.isVideo, !chosen.contains(where: { $0.id == photo.id }) else { return }
             chosen.append(photo)
         }
         for id in recentIDs {
