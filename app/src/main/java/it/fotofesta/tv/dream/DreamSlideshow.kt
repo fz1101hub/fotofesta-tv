@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.dp
 import it.fotofesta.tv.model.PhotoItem
 import it.fotofesta.tv.model.PlaybackOrder
 import it.fotofesta.tv.model.SlideshowSettings
-import it.fotofesta.tv.ui.KenBurnsPhoto
+import it.fotofesta.tv.ui.SlidePhoto
 import it.fotofesta.tv.ui.rememberCurrentTime
 import kotlinx.coroutines.delay
 
@@ -66,10 +66,9 @@ fun DreamSlideshow(settings: SlideshowSettings, loadPhotos: suspend () -> List<P
                 label = "dreamTransition",
                 modifier = Modifier.fillMaxSize(),
             ) { item ->
-                KenBurnsPhoto(
+                SlidePhoto(
                     item,
-                    settings.fitMode,
-                    enabled = settings.kenBurns && !settings.reducedMotion,
+                    settings,
                     playing = true,
                     durationMillis = settings.intervalSeconds * 1_000 + DREAM_FADE_MS,
                     modifier = Modifier.fillMaxSize(),

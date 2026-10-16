@@ -12,6 +12,8 @@ fun GuestPhotoStore.Photo.toPhotoItem(context: Context): PhotoItem = PhotoItem(
     title = sender?.let { context.getString(R.string.guest_photo_from, it) } ?: context.getString(R.string.guest_photo),
     ref = PhotoRef.GuestPhoto(id),
     source = SourceType.GUESTS,
+    sender = sender,
+    receivedAtMillis = receivedAtMillis,
 )
 
 /** Identificativo nell'archivio della festa, se l'elemento è una foto di un invitato. */

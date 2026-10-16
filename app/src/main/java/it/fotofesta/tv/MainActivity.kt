@@ -18,6 +18,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,7 +39,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -47,6 +48,8 @@ import it.fotofesta.tv.files.StoragePermissions
 import it.fotofesta.tv.model.BrowserKind
 import it.fotofesta.tv.model.Destination
 import it.fotofesta.tv.model.GoogleConnectState
+import it.fotofesta.tv.model.SourceType
+import it.fotofesta.tv.ui.Accent
 import it.fotofesta.tv.ui.FileBrowserScreen
 import it.fotofesta.tv.ui.FotoFestaTheme
 import it.fotofesta.tv.ui.GamesScreen
@@ -57,8 +60,11 @@ import it.fotofesta.tv.ui.GuestsScreen
 import it.fotofesta.tv.ui.HomeScreen
 import it.fotofesta.tv.ui.MemoryGameScreen
 import it.fotofesta.tv.ui.MysteryGameScreen
+import it.fotofesta.tv.ui.Outline
 import it.fotofesta.tv.ui.SettingsScreen
 import it.fotofesta.tv.ui.SlideshowScreen
+import it.fotofesta.tv.ui.SurfaceRaised
+import it.fotofesta.tv.ui.TextPrimary
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -165,18 +171,22 @@ class MainActivity : ComponentActivity() {
                             onUsb = { openBrowser(BrowserKind.PHOTOS) },
                             onDemo = viewModel::useDemoAndPlay,
                             onPlay = viewModel::playCurrent,
+                            onStartParty = viewModel::startPartyAndPlay,
                             onSettings = { viewModel.navigate(Destination.SETTINGS) },
                             onGames = { viewModel.navigate(Destination.GAMES) },
                         )
                         Destination.SETTINGS -> SettingsScreen(
                             state = state,
-                            onBack = { viewModel.navigate(Destination.HOME) },
+                            onCategory = viewModel::setSettingsCategory,
                             onChange = viewModel::updateSettings,
                             onPickMusic = { openBrowser(BrowserKind.MUSIC) },
                             onRemoveMusic = viewModel::removeMusic,
                             onDisconnectGoogle = viewModel::disconnectGoogle,
-                            onPlay = viewModel::playCurrent,
                             onOpenScreensaverSettings = ::openScreensaverSettings,
+                            onApproval = viewModel::setGuestApproval,
+                            onQrInSlideshow = viewModel::setGuestQrInSlideshow,
+                            onWifi = viewModel::openGuestWifi,
+                            onRemoveWifi = viewModel::removeGuestWifi,
                         )
                         Destination.SLIDESHOW -> SlideshowScreen(
                             state = state,
@@ -211,15 +221,16 @@ class MainActivity : ComponentActivity() {
                         )
                         Destination.GUESTS -> GuestsScreen(
                             guests = state.guests,
-                            onBack = { viewModel.navigate(Destination.HOME) },
+                            // Le ultime foto arrivate, dalla più recente.
+                            recent = state.photos.filter { it.source == SourceType.GUESTS }
+                                .sortedByDescending { it.receivedAtMillis ?: 0L }
+                                .take(4),
                             onStart = viewModel::startGuestParty,
                             onEnd = viewModel::endGuestParty,
                             onPlay = viewModel::playCurrent,
                             onReview = { viewModel.navigate(Destination.GUEST_REVIEW) },
                             onApproval = viewModel::setGuestApproval,
-                            onQrInSlideshow = viewModel::setGuestQrInSlideshow,
-                            onWifi = { viewModel.navigate(Destination.GUEST_WIFI) },
-                            onRemoveWifi = viewModel::removeGuestWifi,
+                            onWifi = viewModel::openGuestWifi,
                         )
                         Destination.GUEST_REVIEW -> GuestReviewScreen(
                             pending = state.guests.pending,
@@ -242,7 +253,6 @@ class MainActivity : ComponentActivity() {
                         Destination.GUEST_WIFI -> GuestWifiScreen(
                             initialName = state.guests.wifiName,
                             initialPassword = state.guests.wifiPassword,
-                            onBack = { viewModel.navigate(Destination.GUESTS) },
                             onSave = viewModel::saveGuestWifi,
                         )
                     }
@@ -254,19 +264,23 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.align(Alignment.BottomCenter)
                                 .padding(bottom = 28.dp)
                                 .widthIn(max = 760.dp)
-                                .background(Color(0xEE17213A), RoundedCornerShape(14.dp))
-                                .padding(horizontal = 22.dp, vertical = 12.dp),
+                                .shadow(16.dp, RoundedCornerShape(14.dp))
+                                .background(SurfaceRaised, RoundedCornerShape(14.dp))
+                                .border(1.dp, Outline, RoundedCornerShape(14.dp))
+                                .padding(horizontal = 22.dp, vertical = 14.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
                             state.message?.let { message ->
                                 Text(
                                     message,
-                                    color = MaterialTheme.colorScheme.tertiary,
+                                    color = TextPrimary,
                                     style = MaterialTheme.typography.bodyLarge,
                                 )
                             }
-                            if (state.busy) LinearProgressIndicator(Modifier.width(320.dp), color = MaterialTheme.colorScheme.tertiary)
+                            if (state.busy) {
+                                LinearProgressIndicator(Modifier.width(320.dp), color = Accent, trackColor = TextPrimary.copy(alpha = .2f))
+                            }
                         }
                     }
                 }

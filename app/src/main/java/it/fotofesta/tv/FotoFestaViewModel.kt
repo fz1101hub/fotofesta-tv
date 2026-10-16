@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Build
 import android.util.Log
 import androidx.annotation.PluralsRes
+import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import coil.imageLoader
@@ -30,12 +31,14 @@ import it.fotofesta.tv.model.AppState
 import it.fotofesta.tv.model.BrowserEntry
 import it.fotofesta.tv.model.BrowserKind
 import it.fotofesta.tv.model.BrowserState
+import it.fotofesta.tv.model.CollectionInfo
 import it.fotofesta.tv.model.Destination
 import it.fotofesta.tv.model.FreshPhotos
 import it.fotofesta.tv.model.GoogleConnectState
 import it.fotofesta.tv.model.GuestsUiState
 import it.fotofesta.tv.model.PhotoItem
 import it.fotofesta.tv.model.PlaybackOrder
+import it.fotofesta.tv.model.SettingsCategory
 import it.fotofesta.tv.model.SlideshowSettings
 import it.fotofesta.tv.model.SourceType
 import it.fotofesta.tv.model.UserFacingException
@@ -91,6 +94,11 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private var basePhotos: List<PhotoItem> = demoPhotos
     private var baseLabel: String = context.getString(R.string.source_demo)
     private var baseIsDemo = true
+    private var baseSource = SourceType.DEMO
+    /** Nome della raccolta per la home: cartella USB, Google Foto o foto demo. */
+    private var baseTitle: String = context.getString(R.string.collection_demo)
+    /** Schermata a cui tornare dalla Wi‑Fi degli invitati (festa o impostazioni). */
+    private var wifiReturnTo = Destination.GUESTS
     private var guestPhotos: List<PhotoItem> = emptyList()
     private var guestPartyActive = false
     /** Foto approvate già viste; null finché le foto di una festa interrotta non sono state riprese. */
@@ -100,6 +108,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         AppState(
             photos = demoPhotos,
             sourceLabel = context.getString(R.string.source_demo),
+            collection = CollectionInfo(SourceType.DEMO, context.getString(R.string.collection_demo), demoPhotos.size),
             settings = settingsRepository.load(),
             musicUri = savedMusic?.uri,
             musicName = savedMusic?.let { saved -> saved.name.ifBlank { context.getString(R.string.music_default_name) } },
@@ -114,7 +123,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             restoreJob = viewModelScope.launch {
                 val selection = withContext(Dispatchers.IO) { googleSelection.current() }
                 when {
-                    selection != null -> showPhotos(selection.toPhotos(), googleLabel(selection.items.size), isDemo = false)
+                    selection != null -> showPhotos(selection.toPhotos(), googleLabel(selection.items.size), SourceType.GOOGLE_PHOTOS, googleTitle())
                     // Già spiegato da onGoogleSelectionGone (es. accesso perso durante il salvaschermo).
                     googleStream.gone.value != null -> Unit
                     else -> {
@@ -162,7 +171,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             Destination.MEMORY, Destination.MYSTERY -> navigate(Destination.GAMES)
             Destination.GOOGLE_CONNECT -> cancelGoogleConnect()
             Destination.SETTINGS, Destination.GAMES, Destination.GUESTS -> navigate(Destination.HOME)
-            Destination.GUEST_REVIEW, Destination.GUEST_WIFI -> navigate(Destination.GUESTS)
+            Destination.GUEST_REVIEW -> navigate(Destination.GUESTS)
+            Destination.GUEST_WIFI -> navigate(wifiReturnTo)
             Destination.FILE_BROWSER -> if (_state.value.browser.directory != null) browserUp() else closeBrowser()
         }
     }
@@ -170,7 +180,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     fun useDemoAndPlay() {
         cancelPendingSources()
         settingsRepository.saveLastSource("DEMO")
-        showPhotos(demoPhotos, context.getString(R.string.source_demo), isDemo = true)
+        showDemoPhotos()
         discardGoogleSelection()
         _state.update { it.copy(destination = Destination.SLIDESHOW, isPlaying = true) }
         syncMusic()
@@ -247,7 +257,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                     _state.update { it.copy(busy = false, message = context.getString(R.string.message_usb_empty)) }
                 } else {
                     settingsRepository.saveUsbTree(treeUri.toString())
-                    showPhotos(photos, quantityString(R.plurals.source_usb, photos.size), isDemo = false)
+                    showPhotos(photos, quantityString(R.plurals.source_usb, photos.size), SourceType.USB, usbTreeTitle(treeUri))
                     discardGoogleSelection()
                     _state.update { it.copy(busy = false, message = quantityString(R.plurals.message_usb_ready, photos.size)) }
                 }
@@ -292,7 +302,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                     files.isEmpty() -> context.getString(R.string.message_usb_empty)
                     else -> {
                         settingsRepository.saveUsbFolder(path)
-                        showPhotos(files.map { it.toUsbPhotoItem() }, quantityString(R.plurals.source_usb, files.size), isDemo = false)
+                        showPhotos(files.map { it.toUsbPhotoItem() }, quantityString(R.plurals.source_usb, files.size), SourceType.USB, usbFolderTitle(path))
                         discardGoogleSelection()
                         quantityString(R.plurals.message_usb_ready, files.size)
                     }
@@ -494,7 +504,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         googleSelection.save(selection)
         googleStream.reset()
         settingsRepository.saveLastSource("GOOGLE")
-        showPhotos(selection.toPhotos(), googleLabel(selection.items.size), isDemo = false)
+        showPhotos(selection.toPhotos(), googleLabel(selection.items.size), SourceType.GOOGLE_PHOTOS, googleTitle())
         if (previous != null && previous.sessionId != selection.sessionId) {
             // La sessione della selezione precedente non serve più.
             viewModelScope.launch(NonCancellable) {
@@ -526,7 +536,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         if (googleSelection.current() != null) return
         if (settingsRepository.loadLastSource() == "GOOGLE") settingsRepository.saveLastSource("DEMO")
         if (basePhotos.any { it.source == SourceType.GOOGLE_PHOTOS }) {
-            showPhotos(demoPhotos, context.getString(R.string.source_demo), isDemo = true)
+            showDemoPhotos()
         }
         showMessage(
             context.getString(
@@ -587,7 +597,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         if (wasShowingGoogle || settingsRepository.loadLastSource() == "GOOGLE") {
             settingsRepository.saveLastSource("DEMO")
         }
-        if (wasShowingGoogle) showPhotos(demoPhotos, context.getString(R.string.source_demo), isDemo = true)
+        if (wasShowingGoogle) showDemoPhotos()
         _state.update {
             it.copy(
                 google = GoogleConnectState.Idle,
@@ -631,8 +641,31 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             return false
         }
         guests.saveWifi(WifiNetwork(ssid.trim(), password))
-        navigate(Destination.GUESTS)
+        navigate(wifiReturnTo)
         return true
+    }
+
+    /** Apre la Wi‑Fi degli invitati; Indietro e Salva tornano alla schermata da cui si è partiti. */
+    fun openGuestWifi() {
+        wifiReturnTo = _state.value.destination.takeIf { it == Destination.SETTINGS } ?: Destination.GUESTS
+        navigate(Destination.GUEST_WIFI)
+    }
+
+    fun closeGuestWifi() = navigate(wifiReturnTo)
+
+    fun setSettingsCategory(category: SettingsCategory) {
+        if (_state.value.settingsCategory != category) _state.update { it.copy(settingsCategory = category) }
+    }
+
+    /**
+     * "Avvia la festa" della home: accende la ricezione delle foto e fa partire lo slideshow con il QR
+     * nell'angolo. Senza foto (raccolta demo) lo slideshow mostra il QR grande in attesa della prima.
+     */
+    fun startPartyAndPlay() {
+        if (!_state.value.guests.active) guests.start()
+        if (!_state.value.guests.qrInSlideshow) guests.setQrInSlideshow(true)
+        _state.update { it.copy(destination = Destination.SLIDESHOW, isPlaying = true, message = null) }
+        syncMusic()
     }
 
     fun removeGuestWifi() = guests.saveWifi(null)
@@ -703,12 +736,30 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     /** Sostituisce la raccolta scelta ripartendo dalla prima foto dell'ordine di riproduzione. */
-    private fun showPhotos(photos: List<PhotoItem>, label: String, isDemo: Boolean) {
+    private fun showPhotos(photos: List<PhotoItem>, label: String, source: SourceType, title: String) {
         basePhotos = photos
         baseLabel = label
-        baseIsDemo = isDemo
+        baseIsDemo = source == SourceType.DEMO
+        baseSource = source
+        baseTitle = title
         applyCollection(restart = true)
     }
+
+    private fun showDemoPhotos() =
+        showPhotos(demoPhotos, context.getString(R.string.source_demo), SourceType.DEMO, context.getString(R.string.collection_demo))
+
+    private fun googleTitle() = context.getString(R.string.home_google_title)
+
+    /** Nome della cartella scelta con il browser; la cartella principale di un disco ha un nome tecnico. */
+    private fun usbFolderTitle(path: String): String {
+        val folder = File(path)
+        val volumeRoot = folder.parent == "/storage" || (folder.parentFile?.parent == "/storage" && folder.name == "0")
+        return folder.name.takeUnless { volumeRoot || it.isBlank() } ?: context.getString(R.string.home_usb_title)
+    }
+
+    private fun usbTreeTitle(treeUri: Uri): String =
+        runCatching { DocumentFile.fromTreeUri(context, treeUri)?.name }.getOrNull()?.takeIf(String::isNotBlank)
+            ?: context.getString(R.string.home_usb_title)
 
     /**
      * Ricalcola la raccolta mostrata. Con [restart] riparte dall'inizio; altrimenti resta sulla foto
@@ -722,7 +773,13 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             val index = if (shuffle && photos.isNotEmpty()) photos.indices.random() else 0
             playbackOrder.reset(photos.size, shuffle, index)
             _state.update {
-                it.copy(photos = photos, sourceLabel = collectionLabel(), currentIndex = index, slideTick = it.slideTick + 1)
+                it.copy(
+                    photos = photos,
+                    sourceLabel = collectionLabel(),
+                    collection = collectionInfo(),
+                    currentIndex = index,
+                    slideTick = it.slideTick + 1,
+                )
             }
             return
         }
@@ -738,10 +795,18 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             it.copy(
                 photos = photos,
                 sourceLabel = collectionLabel(),
+                collection = collectionInfo(),
                 currentIndex = index,
                 slideTick = if (changed) it.slideTick + 1 else it.slideTick,
             )
         }
+    }
+
+    private fun collectionInfo(): CollectionInfo = when {
+        // Con le foto demo e la festa in corso si mostrano solo le foto degli invitati.
+        baseIsDemo && (guestPartyActive || guestPhotos.isNotEmpty()) ->
+            CollectionInfo(SourceType.GUESTS, context.getString(R.string.home_guests_title), guestPhotos.size)
+        else -> CollectionInfo(baseSource, baseTitle, basePhotos.size)
     }
 
     private fun collectionLabel(): String = when {

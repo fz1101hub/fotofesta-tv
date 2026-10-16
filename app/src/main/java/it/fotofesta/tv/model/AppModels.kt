@@ -12,10 +12,28 @@ enum class TransitionType(@StringRes val labelRes: Int) {
     ZOOM(R.string.transition_zoom),
 }
 
-enum class FitMode(@StringRes val labelRes: Int) {
-    CONTAIN(R.string.fit_contain),
-    CROP(R.string.fit_crop),
+/**
+ * Come una foto riempie lo schermo. Con [BLUR] la foto è intera e le bande ai lati (foto verticali o
+ * non 16:9) mostrano la stessa foto ingrandita e sfocata.
+ */
+enum class FitMode(@StringRes val labelRes: Int, @StringRes val descriptionRes: Int) {
+    BLUR(R.string.fit_blur, R.string.fit_blur_body),
+    CONTAIN(R.string.fit_contain, R.string.fit_contain_body),
+    CROP(R.string.fit_crop, R.string.fit_crop_body),
 }
+
+/** Sezioni della schermata Impostazioni. */
+enum class SettingsCategory { SLIDESHOW, MUSIC, PARTY, SCREENSAVER, PRIVACY }
+
+/**
+ * Raccolta scelta, come la mostra la home: sorgente, nome (cartella, Google Foto, foto demo) e numero
+ * di foto. Con le foto demo e la festa in corso la raccolta sono le foto degli invitati.
+ */
+data class CollectionInfo(
+    val source: SourceType = SourceType.DEMO,
+    val title: String = "",
+    val count: Int = 0,
+)
 
 /** Errore da mostrare all'utente con un testo localizzato. */
 class UserFacingException(@StringRes val messageRes: Int) : Exception()
@@ -39,12 +57,16 @@ data class PhotoItem(
     val title: String,
     val ref: PhotoRef,
     val source: SourceType,
+    /** Nome di chi ha mandato la foto, per le foto degli invitati. */
+    val sender: String? = null,
+    /** Quando la foto è arrivata alla TV (epoch ms), per le foto degli invitati. */
+    val receivedAtMillis: Long? = null,
 )
 
 data class SlideshowSettings(
     val intervalSeconds: Int = 8,
     val transition: TransitionType = TransitionType.FADE,
-    val fitMode: FitMode = FitMode.CONTAIN,
+    val fitMode: FitMode = FitMode.BLUR,
     val shuffle: Boolean = false,
     val reducedMotion: Boolean = false,
     val showClock: Boolean = true,
@@ -131,6 +153,9 @@ data class AppState(
     val destination: Destination = Destination.HOME,
     val photos: List<PhotoItem> = emptyList(),
     val sourceLabel: String = "",
+    val collection: CollectionInfo = CollectionInfo(),
+    /** Sezione aperta nelle impostazioni: resta tale tornando dal browser della musica o dalla Wi‑Fi. */
+    val settingsCategory: SettingsCategory = SettingsCategory.SLIDESHOW,
     val settings: SlideshowSettings = SlideshowSettings(),
     val currentIndex: Int = 0,
     val isPlaying: Boolean = false,

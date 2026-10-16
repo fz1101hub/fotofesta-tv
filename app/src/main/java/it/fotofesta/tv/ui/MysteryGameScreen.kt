@@ -65,7 +65,7 @@ fun MysteryGameScreen(photos: List<PhotoItem>, onBack: () -> Unit) {
     // Dopo la risposta giusta le scelte si disattivano: il focus passa a "Nuova foto".
     LaunchedEffect(revealed) { if (revealed) runCatching { newPhotoFocus.requestFocus() } }
 
-    Column(Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 27.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+    Column(Modifier.fillMaxSize().background(Background).padding(horizontal = 48.dp, vertical = 27.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             SectionTitle(
                 stringResource(R.string.games_mystery_title),
@@ -84,7 +84,7 @@ fun MysteryGameScreen(photos: List<PhotoItem>, onBack: () -> Unit) {
         }
         Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(28.dp)) {
             Box(
-                Modifier.weight(1.25f).fillMaxHeight().clip(RoundedCornerShape(24.dp)).background(NavySoft),
+                Modifier.weight(1.25f).fillMaxHeight().clip(RoundedCornerShape(16.dp)).background(SurfaceDark),
                 contentAlignment = Alignment.Center,
             ) {
                 when {
@@ -100,7 +100,7 @@ fun MysteryGameScreen(photos: List<PhotoItem>, onBack: () -> Unit) {
                 }
             }
             Column(Modifier.weight(.75f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
-                Text(stringResource(feedbackRes), style = MaterialTheme.typography.titleLarge, color = if (revealed) Cyan else Amber)
+                Text(stringResource(feedbackRes), style = MaterialTheme.typography.titleLarge, color = if (revealed) Accent else TextPrimary)
                 Spacer(Modifier.padding(8.dp))
                 choices.forEach { choice ->
                     TvButton(

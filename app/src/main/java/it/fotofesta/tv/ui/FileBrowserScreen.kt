@@ -1,11 +1,9 @@
 package it.fotofesta.tv.ui
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,22 +24,13 @@ import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.SdStorage
 import androidx.compose.material.icons.rounded.Usb
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -72,7 +61,7 @@ fun FileBrowserScreen(
     // Nessun disco e nessun selettore di sistema: resta solo "Indietro", che deve avere il fuoco.
     val nothingToOpen = state.directory == null && !state.loading && state.roots.isEmpty() && !state.systemPickerAvailable
     Column(
-        Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 30.dp),
+        Modifier.fillMaxSize().background(Background).padding(horizontal = 48.dp, vertical = 27.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -116,7 +105,7 @@ fun FileBrowserScreen(
             }
         }
         if (state.loading) {
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = TextSecondary) }
             return@Column
         }
         // Il primo elemento prende il fuoco a ogni cambio di cartella: la prima pressione del
@@ -178,10 +167,10 @@ fun FileBrowserScreen(
 
 @Composable
 private fun EmptyText(text: String) {
-    Text(text, style = MaterialTheme.typography.bodyLarge, color = TextSecondary, modifier = Modifier.padding(8.dp))
+    Text(text, style = MaterialTheme.typography.bodyLarge, color = TextSecondary, modifier = Modifier.padding(vertical = 8.dp))
 }
 
-/** Riga a tutta larghezza con icona, nome ed eventuale dettaglio, ben visibile quando ha il fuoco. */
+/** Riga a tutta larghezza con icona, nome ed eventuale dettaglio: con il fuoco diventa bianca. */
 @Composable
 private fun BrowserRow(
     label: String,
@@ -190,29 +179,29 @@ private fun BrowserRow(
     modifier: Modifier = Modifier,
     detail: String? = null,
 ) {
-    var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(if (focused) 1.015f else 1f, label = "rowFocus")
-    Button(
+    FocusSurface(
         onClick = onClick,
-        modifier = modifier
-            .fillMaxWidth()
-            .scale(scale)
-            .onFocusChanged { focused = it.isFocused },
-        shape = RoundedCornerShape(14.dp),
-        border = BorderStroke(if (focused) 3.dp else 1.dp, if (focused) Amber else Color(0xFF394563)),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (focused) Color(0xFF2B3859) else SurfaceBlue,
-            contentColor = TextPrimary,
-        ),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
-    ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, contentDescription = null, tint = Amber, modifier = Modifier.size(28.dp))
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = SurfaceDark,
+        focusScale = 1.02f,
+    ) { focused ->
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(icon, contentDescription = null, tint = if (focused) OnFocus else Accent, modifier = Modifier.size(26.dp))
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f)) {
-                Text(label, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(label, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (detail != null) {
-                    Text(detail, style = MaterialTheme.typography.bodyMedium, color = TextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        detail,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (focused) OnFocusSecondary else TextSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
         }

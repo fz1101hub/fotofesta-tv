@@ -6,41 +6,82 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import it.fotofesta.tv.R
 
-val Navy = Color(0xFF050A18)
-val NavySoft = Color(0xFF10182D)
-val SurfaceBlue = Color(0xFF17213A)
-val Coral = Color(0xFFFF795B)
-val Amber = Color(0xFFFFC24B)
-val Cyan = Color(0xFF55D6D2)
-val TextPrimary = Color(0xFFF8FAFF)
-val TextSecondary = Color(0xFFB9C3D9)
+// Palette ad alto contrasto: sfondo quasi nero, testi bianchi e grigio chiaro (almeno 6:1), un solo
+// colore d'accento (il corallo del logo) e il fuoco del telecomando in bianco pieno.
+val Background = Color(0xFF0D0F13)
+val SurfaceDark = Color(0xFF1B1E25)
+val SurfaceRaised = Color(0xFF262A33)
+val Outline = Color(0xFF343945)
+val TextPrimary = Color(0xFFFFFFFF)
+val TextSecondary = Color(0xFFC8CDD6)
+val TextTertiary = Color(0xFF9AA2AF)
+val Accent = Color(0xFFFF7A57)
+val OnAccent = Color(0xFF1A0B06)
+val FocusWhite = Color(0xFFFFFFFF)
+val OnFocus = Color(0xFF0D0F13)
+val OnFocusSecondary = Color(0xFF3A404C)
+val SwitchOff = Color(0xFF4A505D)
+val SwitchThumbOff = Color(0xFFD5D9E0)
+val ErrorText = Color(0xFFFF9C85)
 
-private val FotoColors = darkColorScheme(
-    primary = Coral,
-    onPrimary = Color(0xFF2A0803),
-    secondary = Cyan,
-    tertiary = Amber,
-    background = Navy,
-    onBackground = TextPrimary,
-    surface = SurfaceBlue,
-    onSurface = TextPrimary,
-    surfaceVariant = NavySoft,
-    onSurfaceVariant = TextSecondary,
-    outline = Color(0xFF55617C),
-    error = Color(0xFFFFB4AB),
+/** Figtree (licenza SIL OFL, testo in assets/licenses): titoli decisi e cifre leggibili da lontano. */
+val Figtree = FontFamily(
+    Font(R.font.figtree_regular, FontWeight.Normal),
+    Font(R.font.figtree_medium, FontWeight.Medium),
+    Font(R.font.figtree_semibold, FontWeight.SemiBold),
+    Font(R.font.figtree_bold, FontWeight.Bold),
+    Font(R.font.figtree_extrabold, FontWeight.ExtraBold),
 )
 
+private val FotoColors = darkColorScheme(
+    primary = Accent,
+    onPrimary = OnAccent,
+    secondary = TextSecondary,
+    onSecondary = Background,
+    tertiary = Accent,
+    onTertiary = OnAccent,
+    background = Background,
+    onBackground = TextPrimary,
+    surface = SurfaceDark,
+    onSurface = TextPrimary,
+    surfaceVariant = SurfaceRaised,
+    onSurfaceVariant = TextSecondary,
+    outline = Outline,
+    error = ErrorText,
+)
+
+private fun style(size: Int, weight: FontWeight, lineHeight: Int, tracking: Double = 0.0) = TextStyle(
+    fontFamily = Figtree,
+    fontSize = size.sp,
+    fontWeight = weight,
+    lineHeight = lineHeight.sp,
+    letterSpacing = tracking.sp,
+)
+
+/**
+ * Scala tipografica per una TV vista dal divano (960×540 dp). I nomi seguono Material 3:
+ * display per il titolo della home, headline per i titoli delle schermate, title per schede e voci,
+ * body per i testi, label per pulsanti ed etichette.
+ */
 private val TvTypography = Typography(
-    displayLarge = TextStyle(fontSize = 52.sp, lineHeight = 58.sp, fontWeight = FontWeight.Bold),
-    headlineLarge = TextStyle(fontSize = 36.sp, lineHeight = 42.sp, fontWeight = FontWeight.Bold),
-    headlineMedium = TextStyle(fontSize = 28.sp, lineHeight = 34.sp, fontWeight = FontWeight.SemiBold),
-    titleLarge = TextStyle(fontSize = 24.sp, lineHeight = 30.sp, fontWeight = FontWeight.SemiBold),
-    bodyLarge = TextStyle(fontSize = 20.sp, lineHeight = 28.sp),
-    bodyMedium = TextStyle(fontSize = 17.sp, lineHeight = 24.sp),
-    labelLarge = TextStyle(fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold),
+    displayLarge = style(46, FontWeight.ExtraBold, 50, tracking = -0.9),
+    headlineLarge = style(38, FontWeight.ExtraBold, 44, tracking = -0.7),
+    headlineMedium = style(28, FontWeight.ExtraBold, 34, tracking = -0.5),
+    titleLarge = style(24, FontWeight.ExtraBold, 30, tracking = -0.2),
+    titleMedium = style(16, FontWeight.Bold, 21),
+    titleSmall = style(15, FontWeight.Bold, 20),
+    bodyLarge = style(17, FontWeight.Normal, 24),
+    bodyMedium = style(15, FontWeight.Normal, 21),
+    bodySmall = style(13, FontWeight.Normal, 18),
+    labelLarge = style(16, FontWeight.Bold, 20),
+    labelMedium = style(12, FontWeight.Bold, 16, tracking = 1.7),
+    labelSmall = style(11, FontWeight.ExtraBold, 14),
 )
 
 @Composable

@@ -1,5 +1,8 @@
 package it.fotofesta.tv.ui
 
+import android.content.Context
+import android.media.ExifInterface
+import android.net.Uri
 import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
@@ -7,6 +10,8 @@ import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -19,10 +24,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -38,10 +46,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -54,6 +64,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -64,19 +75,28 @@ import coil.size.Scale
 import it.fotofesta.tv.R
 import it.fotofesta.tv.model.AppState
 import it.fotofesta.tv.model.FitMode
+import it.fotofesta.tv.model.PhotoCaption
 import it.fotofesta.tv.model.PhotoItem
+import it.fotofesta.tv.model.PhotoRef
+import it.fotofesta.tv.model.SlideshowSettings
 import it.fotofesta.tv.model.SourceType
 import it.fotofesta.tv.model.TransitionType
+import java.io.File
+import java.text.DateFormat
+import java.util.Calendar
 import java.util.Date
+import java.util.Locale
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 private const val CONTROLS_TIMEOUT_MS = 5_000L
 
 /**
- * Slideshow a schermo intero. I controlli si nascondono dopo qualche secondo di inattività mentre
- * le foto scorrono; con i controlli nascosti centro = play/pausa, sinistra/destra = foto
- * precedente/successiva, su/giù mostrano i controlli. Con i controlli visibili le frecce
- * spostano normalmente il focus tra i pulsanti.
+ * Slideshow a schermo intero. In basso restano sempre titolo, data o mittente, posizione e una
+ * sottile barra di avanzamento; i comandi compaiono sopra con OK o le frecce su/giù e si nascondono
+ * dopo qualche secondo mentre le foto scorrono. Con i comandi nascosti centro = play/pausa e
+ * sinistra/destra = foto precedente/successiva; con i comandi visibili le frecce spostano il fuoco.
  */
 @Composable
 fun SlideshowScreen(
@@ -183,10 +203,9 @@ fun SlideshowScreen(
                 label = "slideTransition",
                 modifier = Modifier.fillMaxSize(),
             ) { item ->
-                KenBurnsPhoto(
+                SlidePhoto(
                     item,
-                    state.settings.fitMode,
-                    enabled = state.settings.kenBurns && !state.settings.reducedMotion,
+                    state.settings,
                     playing = state.isPlaying,
                     // Copre anche la transizione verso la foto successiva, così il movimento non si ferma.
                     durationMillis = state.settings.intervalSeconds * 1_000 + 800,
@@ -196,104 +215,168 @@ fun SlideshowScreen(
         } else if (state.guests.active) {
             WaitingForGuests(state.guests, Modifier.align(Alignment.Center))
         } else {
-            Text(stringResource(R.string.slideshow_empty), Modifier.align(Alignment.Center), style = MaterialTheme.typography.titleLarge)
-        }
-
-        val guestQr = state.guests.url?.takeIf { state.guests.active && state.guests.qrInSlideshow && photo != null }
-        if (guestQr != null) {
-            SlideshowGuestQr(guestQr, Modifier.align(Alignment.TopStart).padding(horizontal = 48.dp, vertical = 28.dp))
-        }
-
-        // Il nome di chi ha mandato la foto, finché i controlli (che mostrano già il titolo) sono nascosti.
-        val anonymousGuest = stringResource(R.string.guest_photo)
-        val guestName = photo?.takeIf { it.source == SourceType.GUESTS }?.title?.takeIf { it != anonymousGuest }
-        AnimatedVisibility(
-            visible = guestName != null && !(controlsVisible || !state.isPlaying),
-            enter = fadeIn(tween(300)),
-            exit = fadeOut(tween(300)),
-            modifier = Modifier.align(Alignment.BottomStart).padding(horizontal = 48.dp, vertical = 32.dp),
-        ) {
             Text(
-                guestName.orEmpty(),
-                modifier = Modifier.background(Color.Black.copy(alpha = .55f), RoundedCornerShape(12.dp))
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                stringResource(R.string.slideshow_empty),
+                Modifier.align(Alignment.Center),
                 style = MaterialTheme.typography.titleLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                color = TextPrimary,
             )
         }
 
-        AnimatedVisibility(
-            visible = controlsVisible || !state.isPlaying,
-            enter = fadeIn(tween(200)),
-            exit = fadeOut(tween(400)),
-            modifier = Modifier.align(Alignment.BottomCenter),
-        ) {
-            // Titolo e dettagli sopra, pulsanti sotto: anche in italiano, con etichette lunghe, la barra
-            // resta bassa e i testi non vanno mai a capo. Margini dentro l'area sicura delle TV (48 dp).
-            Column(
-                Modifier.fillMaxWidth().background(
-                    Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .86f)))
-                ).padding(start = 48.dp, end = 48.dp, top = 40.dp, bottom = 28.dp)
-            ) {
-                Text(
-                    photo?.title.orEmpty(),
-                    style = MaterialTheme.typography.titleLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        stringResource(R.string.slideshow_info, state.currentIndex + 1, state.photos.size, state.settings.intervalSeconds, stringResource(state.settings.transition.labelRes)),
-                        modifier = Modifier.weight(1f, fill = false),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+        if (photo != null) {
+            // Ombra in basso per la didascalia, leggibile anche su foto chiare.
+            Box(
+                Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(.42f).background(
+                    Brush.verticalGradient(
+                        0f to Color.Transparent,
+                        .45f to Color.Black.copy(alpha = .35f),
+                        1f to Color.Black.copy(alpha = .82f),
                     )
-                    state.sleepAtMillis?.let { sleepAt ->
-                        Spacer(Modifier.size(16.dp))
-                        Text(
-                            stringResource(R.string.slideshow_sleep_at, rememberTimeText(sleepAt)),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Amber,
-                            maxLines = 1,
-                        )
-                    }
-                }
-                Spacer(Modifier.size(14.dp))
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                )
+            )
+        }
+
+        if (photo != null && state.guests.active && state.guests.qrInSlideshow) {
+            SlideshowGuestQr(state.guests, Modifier.align(Alignment.TopStart).padding(horizontal = 48.dp, vertical = 27.dp))
+        }
+
+        if (state.settings.showClock) {
+            Box(
+                Modifier.align(Alignment.TopEnd)
+                    .padding(horizontal = 48.dp, vertical = 27.dp)
+                    .background(Background.copy(alpha = .6f), RoundedCornerShape(10.dp))
+                    .padding(horizontal = 14.dp, vertical = 6.dp)
+            ) { ClockText() }
+        }
+
+        Column(
+            Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(start = 48.dp, end = 48.dp, bottom = 32.dp),
+        ) {
+            AnimatedVisibility(
+                visible = controlsVisible || !state.isPlaying,
+                enter = fadeIn(tween(200)),
+                exit = fadeOut(tween(400)),
+            ) {
+                Row(Modifier.fillMaxWidth().padding(bottom = 18.dp), verticalAlignment = Alignment.CenterVertically) {
                     TvButton(stringResource(R.string.action_back), onBack, icon = Icons.AutoMirrored.Rounded.ArrowBack)
-                    Spacer(Modifier.size(12.dp))
+                    Spacer(Modifier.width(12.dp))
                     TvIconButton(stringResource(R.string.slideshow_previous), onPrevious, Icons.Rounded.SkipPrevious)
-                    Spacer(Modifier.size(12.dp))
+                    Spacer(Modifier.width(12.dp))
                     TvButton(
                         if (state.isPlaying) stringResource(R.string.slideshow_pause) else stringResource(R.string.slideshow_resume),
                         onToggle,
                         modifier = Modifier.focusRequester(playFocus),
                         icon = if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                        selected = state.isPlaying,
                     )
-                    Spacer(Modifier.size(12.dp))
+                    Spacer(Modifier.width(12.dp))
                     TvIconButton(stringResource(R.string.slideshow_next), onNext, Icons.Rounded.SkipNext)
                     Spacer(Modifier.weight(1f))
                     TvButton(stringResource(R.string.action_settings), onSettings, icon = Icons.Rounded.Settings)
                 }
             }
-        }
-
-        if (state.settings.showClock) {
-            Text(
-                rememberCurrentTime(),
-                modifier = Modifier.align(Alignment.TopEnd)
-                    .padding(horizontal = 48.dp, vertical = 32.dp)
-                    .background(Color.Black.copy(alpha = .5f), RoundedCornerShape(12.dp))
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                style = MaterialTheme.typography.titleLarge,
-            )
+            if (photo != null) {
+                Caption(photo, state)
+                Spacer(Modifier.height(10.dp))
+                SlideProgress(state)
+            }
         }
     }
 }
+
+/**
+ * Foto dello slideshow (e del salvaschermo). Con lo sfondo sfocato la foto resta intera e le bande
+ * ai lati mostrano la stessa foto ingrandita e sfocata; il movimento lento riguarda solo la foto.
+ */
+@Composable
+fun SlidePhoto(
+    photo: PhotoItem,
+    settings: SlideshowSettings,
+    playing: Boolean,
+    durationMillis: Int,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier) {
+        if (settings.fitMode == FitMode.BLUR) BlurredBackdrop(photo, Modifier.fillMaxSize())
+        KenBurnsPhoto(
+            photo,
+            settings.fitMode,
+            enabled = settings.kenBurns && !settings.reducedMotion,
+            playing = playing,
+            durationMillis = durationMillis,
+            modifier = Modifier.fillMaxSize(),
+        )
+    }
+}
+
+/** Titolo (nome significativo, cartella o mittente), data o ora di arrivo, posizione nella raccolta. */
+@Composable
+private fun Caption(photo: PhotoItem, state: AppState) {
+    val context = LocalContext.current
+    val date by produceState<String?>(null, photo.id) {
+        value = withContext(Dispatchers.IO) { photoDateText(context, photo) }
+    }
+    val title = when (photo.source) {
+        SourceType.GUESTS -> photo.sender?.let { stringResource(R.string.guest_photo_from, it) } ?: stringResource(R.string.guest_photo)
+        SourceType.DEMO -> photo.title
+        else -> PhotoCaption.title(photo.title, (photo.ref as? PhotoRef.LocalFile)?.let { File(it.path).parentFile?.name })
+    }
+    val received = photo.receivedAtMillis?.let { stringResource(R.string.slideshow_received_at, rememberTimeText(it)) }
+    val detail = listOfNotNull(date, received).joinToString(" · ").takeIf(String::isNotEmpty)
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
+        Column(Modifier.weight(1f)) {
+            if (title != null) {
+                Text(title, style = MaterialTheme.typography.titleLarge, color = TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            if (detail != null) {
+                Text(detail, style = MaterialTheme.typography.bodyMedium, color = TextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+        Spacer(Modifier.width(20.dp))
+        state.sleepAtMillis?.let { sleepAt ->
+            Text(
+                stringResource(R.string.slideshow_sleep_at, rememberTimeText(sleepAt)),
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = Accent,
+                maxLines = 1,
+            )
+            Spacer(Modifier.width(16.dp))
+        }
+        Text(
+            "${state.currentIndex + 1} / ${state.photos.size}",
+            style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
+            color = TextSecondary,
+            maxLines = 1,
+        )
+    }
+}
+
+/** Barra sottile che si riempie fino al cambio di foto; ferma e vuota in pausa. */
+@Composable
+private fun SlideProgress(state: AppState) {
+    val progress = remember { Animatable(0f) }
+    val running = state.isPlaying && state.photos.size > 1
+    LaunchedEffect(state.slideTick, running, state.settings.intervalSeconds) {
+        progress.snapTo(0f)
+        if (running) progress.animateTo(1f, tween(state.settings.intervalSeconds * 1_000, easing = LinearEasing))
+    }
+    Box(Modifier.fillMaxWidth().height(3.dp).clip(CircleShape).background(TextPrimary.copy(alpha = .22f))) {
+        Box(Modifier.fillMaxHeight().fillMaxWidth(progress.value).background(Accent))
+    }
+}
+
+/** Data di scatto letta dai dati EXIF delle foto su disco, nel formato lungo della lingua della TV. */
+private fun photoDateText(context: Context, photo: PhotoItem): String? = runCatching {
+    val exif = when (val ref = photo.ref) {
+        is PhotoRef.LocalFile -> ExifInterface(ref.path)
+        is PhotoRef.LocalUri -> context.contentResolver.openInputStream(Uri.parse(ref.value))?.use { ExifInterface(it) }
+        else -> null
+    } ?: return@runCatching null
+    val (year, month, day) = PhotoCaption.parseExifDate(
+        exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL) ?: exif.getAttribute(ExifInterface.TAG_DATETIME)
+    ) ?: return@runCatching null
+    val calendar = Calendar.getInstance().apply { set(year, month - 1, day, 12, 0, 0) }
+    DateFormat.getDateInstance(DateFormat.LONG, Locale.getDefault()).format(calendar.time)
+}.getOrNull()
 
 /** Orario [epochMillis] nel formato 12/24 h del sistema. */
 @Composable

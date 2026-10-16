@@ -25,7 +25,10 @@ class SettingsRepository(context: Context) {
     fun load(): SlideshowSettings = SlideshowSettings(
         intervalSeconds = prefs.getInt("interval", 8),
         transition = enumValueOrDefault(prefs.getString("transition", null), TransitionType.FADE),
-        fitMode = enumValueOrDefault(prefs.getString("fit", null), FitMode.CONTAIN),
+        // Chiave nuova dalla 1.3.0: "Foto intera" era il valore predefinito e lo sfondo sfocato lo
+        // sostituisce; resta solo la scelta esplicita di riempire lo schermo.
+        fitMode = prefs.getString("fit_mode", null)?.let { enumValueOrDefault(it, FitMode.BLUR) }
+            ?: if (prefs.getString("fit", null) == FitMode.CROP.name) FitMode.CROP else FitMode.BLUR,
         shuffle = prefs.getBoolean("shuffle", false),
         reducedMotion = prefs.getBoolean("reduced_motion", false),
         showClock = prefs.getBoolean("clock", true),
@@ -38,7 +41,7 @@ class SettingsRepository(context: Context) {
         prefs.edit()
             .putInt("interval", value.intervalSeconds)
             .putString("transition", value.transition.name)
-            .putString("fit", value.fitMode.name)
+            .putString("fit_mode", value.fitMode.name)
             .putBoolean("shuffle", value.shuffle)
             .putBoolean("reduced_motion", value.reducedMotion)
             .putBoolean("clock", value.showClock)

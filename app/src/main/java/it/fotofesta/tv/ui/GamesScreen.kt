@@ -1,20 +1,30 @@
 package it.fotofesta.tv.ui
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import it.fotofesta.tv.R
@@ -42,20 +52,18 @@ fun GamesScreen(photoCount: Int, onBack: () -> Unit, onMemory: () -> Unit, onMys
             )
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(22.dp)) {
-            SourceCard(
+            GameTile(
                 stringResource(R.string.games_memory_title),
                 stringResource(R.string.games_memory_body),
                 Icons.Rounded.GridView,
-                Coral,
                 onMemory,
                 Modifier.weight(1f).then(if (playable) Modifier.initialFocus() else Modifier),
                 enabled = playable,
             )
-            SourceCard(
+            GameTile(
                 stringResource(R.string.games_mystery_title),
                 stringResource(R.string.games_mystery_body),
                 Icons.Rounded.Visibility,
-                Cyan,
                 onMystery,
                 Modifier.weight(1f),
                 enabled = playable,
@@ -66,6 +74,38 @@ fun GamesScreen(photoCount: Int, onBack: () -> Unit, onMemory: () -> Unit, onMys
             else stringResource(R.string.games_need_photos, MIN_GAME_PHOTOS),
             color = TextSecondary,
         )
+    }
+}
+
+/** Scheda grande di un gioco: icona, nome e descrizione. */
+@Composable
+private fun GameTile(
+    title: String,
+    body: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    FocusSurface(
+        onClick = onClick,
+        modifier = modifier.height(184.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = SurfaceDark,
+        border = BorderStroke(1.dp, TextPrimary.copy(alpha = .08f)),
+        focusScale = 1.04f,
+        enabled = enabled,
+    ) { focused ->
+        Column(Modifier.fillMaxSize().padding(22.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Box(
+                Modifier.size(48.dp).background(if (focused) OnFocus else Accent, RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(icon, contentDescription = null, tint = if (focused) FocusWhite else OnAccent, modifier = Modifier.size(28.dp))
+            }
+            Text(title, style = MaterialTheme.typography.titleLarge)
+            Text(body, style = MaterialTheme.typography.bodyMedium, color = if (focused) OnFocusSecondary else TextSecondary)
+        }
     }
 }
 
