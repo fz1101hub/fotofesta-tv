@@ -61,11 +61,19 @@ class SettingsRepository(context: Context) {
         sources.edit().remove("music_uri").remove("music_name").apply()
     }
 
+    /** Cartella scelta con il selettore di documenti di Android. */
     fun saveUsbTree(uri: String) {
-        sources.edit().putString("usb_tree_uri", uri).putString("last_source", "USB").apply()
+        sources.edit().putString("usb_tree_uri", uri).remove("usb_folder").putString("last_source", "USB").apply()
     }
 
     fun loadUsbTree(): String? = sources.getString("usb_tree_uri", null)
+
+    /** Cartella scelta con il browser interno, come percorso sul disco. */
+    fun saveUsbFolder(path: String) {
+        sources.edit().putString("usb_folder", path).remove("usb_tree_uri").putString("last_source", "USB").apply()
+    }
+
+    fun loadUsbFolder(): String? = sources.getString("usb_folder", null)
 
     fun saveLastSource(source: String) {
         sources.edit().putString("last_source", source).apply()
@@ -77,6 +85,7 @@ class SettingsRepository(context: Context) {
     @SuppressLint("ApplySharedPref") // commit sincrono voluto: le chiavi si tolgono dal vecchio file solo dopo
     private fun migrateSourcesOutOfBackup() {
         val keys = listOf("music_uri", "music_name", "usb_tree_uri", "last_source").filter(prefs::contains)
+        // usb_folder è nato direttamente in device_sources: non serve spostarlo.
         if (keys.isEmpty()) return
         val moved = sources.edit()
         val removed = prefs.edit()

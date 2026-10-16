@@ -3,6 +3,7 @@ package it.fotofesta.tv
 import android.app.Application
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.util.Log
 import androidx.annotation.PluralsRes
 import androidx.lifecycle.AndroidViewModel
@@ -11,6 +12,9 @@ import coil.imageLoader
 import it.fotofesta.tv.data.DemoPhotos
 import it.fotofesta.tv.data.SettingsRepository
 import it.fotofesta.tv.data.UsbPhotoRepository
+import it.fotofesta.tv.files.FileBrowser
+import it.fotofesta.tv.files.StorageRoots
+import it.fotofesta.tv.files.toUsbPhotoItem
 import it.fotofesta.tv.google.GoogleImportFlow
 import it.fotofesta.tv.google.GooglePhotosStream
 import it.fotofesta.tv.google.HttpStatusException
@@ -21,6 +25,9 @@ import it.fotofesta.tv.guests.guestPhotoId
 import it.fotofesta.tv.guests.toPhotoItem
 import it.fotofesta.tv.media.BackgroundMusicPlayer
 import it.fotofesta.tv.model.AppState
+import it.fotofesta.tv.model.BrowserEntry
+import it.fotofesta.tv.model.BrowserKind
+import it.fotofesta.tv.model.BrowserState
 import it.fotofesta.tv.model.Destination
 import it.fotofesta.tv.model.FreshPhotos
 import it.fotofesta.tv.model.GoogleConnectState
@@ -36,12 +43,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.io.IOException
 
 class FotoFestaViewModel(application: Application) : AndroidViewModel(application) {
@@ -49,6 +58,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         get() = getApplication<Application>().applicationContext
     private val settingsRepository = SettingsRepository(context)
     private val usbRepository = UsbPhotoRepository(context)
+    private val fileBrowser = FileBrowser(FileBrowser.imageExtensions(Build.VERSION.SDK_INT))
+    private var browserJob: Job? = null
     private val musicPlayer = BackgroundMusicPlayer(context) {
         showMessage(context.getString(R.string.message_music_error))
     }
@@ -118,7 +129,10 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                 if (settingsRepository.loadLastSource() != "GOOGLE") discardGoogleSelection()
             }
         }
-        if (lastSource == "USB") settingsRepository.loadUsbTree()?.let { stored -> loadUsb(Uri.parse(stored)) }
+        if (lastSource == "USB") {
+            val folder = settingsRepository.loadUsbFolder()
+            if (folder != null) loadUsbFolder(folder) else settingsRepository.loadUsbTree()?.let { stored -> loadUsb(Uri.parse(stored)) }
+        }
         viewModelScope.launch {
             googleStream.gone.collect { gone -> if (gone != null) onGoogleSelectionGone(gone) }
         }
@@ -144,6 +158,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             Destination.GOOGLE_CONNECT -> cancelGoogleConnect()
             Destination.SETTINGS, Destination.GAMES, Destination.GUESTS -> navigate(Destination.HOME)
             Destination.GUEST_REVIEW, Destination.GUEST_WIFI -> navigate(Destination.GUESTS)
+            Destination.FILE_BROWSER -> if (_state.value.browser.directory != null) browserUp() else closeBrowser()
         }
     }
 
@@ -244,6 +259,143 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             }
         }
     }
+
+    /**
+     * Cartella scelta con il browser interno: le foto si leggono dal percorso sul disco, con il
+     * permesso di lettura delle foto. Con [fromBrowser] alla fine si torna alla schermata iniziale.
+     */
+    fun loadUsbFolder(path: String, fromBrowser: Boolean = false) {
+        cancelPendingSources()
+        usbJob = viewModelScope.launch {
+            _state.update { it.copy(busy = true, message = context.getString(R.string.message_usb_indexing)) }
+            try {
+                val directory = File(path)
+                val files = withContext(Dispatchers.IO) {
+                    if (!directory.isDirectory || !directory.canRead()) null
+                    else fileBrowser.scanPhotos(directory) { ensureActive() }
+                }
+                val message = when {
+                    files == null -> context.getString(R.string.message_usb_unavailable)
+                    files.isEmpty() -> context.getString(R.string.message_usb_empty)
+                    else -> {
+                        settingsRepository.saveUsbFolder(path)
+                        showPhotos(files.map { it.toUsbPhotoItem() }, quantityString(R.plurals.source_usb, files.size), isDemo = false)
+                        discardGoogleSelection()
+                        quantityString(R.plurals.message_usb_ready, files.size)
+                    }
+                }
+                _state.update {
+                    it.copy(
+                        busy = false,
+                        message = message,
+                        destination = if (fromBrowser && files?.isNotEmpty() == true) Destination.HOME else it.destination,
+                    )
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                Log.w(TAG, "Lettura della cartella non riuscita", failure)
+                _state.update { it.copy(busy = false, message = context.getString(R.string.message_usb_unavailable)) }
+            }
+        }
+    }
+
+    /** Apre il browser di cartelle interno, che non dipende dal selettore di documenti di Android. */
+    fun openBrowser(kind: BrowserKind, systemPickerAvailable: Boolean) {
+        browserJob?.cancel()
+        _state.update {
+            it.copy(
+                destination = Destination.FILE_BROWSER,
+                message = null,
+                browser = BrowserState(kind = kind, loading = true, systemPickerAvailable = systemPickerAvailable),
+            )
+        }
+        browserJob = viewModelScope.launch {
+            val roots = withContext(Dispatchers.IO) { runCatching { StorageRoots.list(context) }.getOrDefault(emptyList()) }
+            _state.update { it.copy(browser = it.browser.copy(roots = roots, loading = false)) }
+            if (kind == BrowserKind.PHOTOS && roots.none { it.removable }) showMessage(context.getString(R.string.browser_no_drive))
+        }
+    }
+
+    fun browserOpen(path: String) {
+        val browser = _state.value.browser
+        val root = browser.roots.firstOrNull { it.path == path } ?: browser.root
+        browserJob?.cancel()
+        _state.update { it.copy(browser = it.browser.copy(loading = true)) }
+        browserJob = viewModelScope.launch {
+            val directory = File(path)
+            val loaded = withContext(Dispatchers.IO) {
+                runCatching {
+                    if (!directory.isDirectory || !directory.canRead()) return@runCatching null
+                    val listing = fileBrowser.list(directory, browser.kind)
+                    val photosHere = if (browser.kind == BrowserKind.PHOTOS) fileBrowser.countPhotos(directory) else 0
+                    listing to photosHere
+                }.getOrNull()
+            }
+            if (loaded == null) {
+                _state.update { it.copy(browser = it.browser.copy(loading = false)) }
+                showMessage(context.getString(R.string.browser_unreadable))
+                return@launch
+            }
+            val (listing, photosHere) = loaded
+            _state.update {
+                it.copy(
+                    browser = it.browser.copy(
+                        root = root,
+                        directory = directory.absolutePath,
+                        folders = listing.folders.map { folder -> BrowserEntry(folder.name, folder.absolutePath) },
+                        files = listing.files.map { file -> BrowserEntry(file.name, file.absolutePath) },
+                        photosHere = photosHere,
+                        loading = false,
+                    ),
+                )
+            }
+        }
+    }
+
+    /** Cartella superiore; dalla cartella principale di un disco si torna all'elenco dei dischi. */
+    fun browserUp() {
+        val browser = _state.value.browser
+        val directory = browser.directory ?: return
+        val root = browser.root
+        val parent = File(directory).parentFile
+        if (root == null || File(directory).absolutePath == File(root.path).absolutePath || parent == null) {
+            browserJob?.cancel()
+            _state.update {
+                it.copy(
+                    browser = it.browser.copy(
+                        root = null,
+                        directory = null,
+                        folders = emptyList(),
+                        files = emptyList(),
+                        photosHere = 0,
+                        loading = false,
+                    ),
+                )
+            }
+        } else {
+            browserOpen(parent.absolutePath)
+        }
+    }
+
+    fun browserUseFolder() {
+        val path = _state.value.browser.directory ?: return
+        loadUsbFolder(path, fromBrowser = true)
+    }
+
+    fun browserChooseTrack(entry: BrowserEntry) {
+        selectMusic(Uri.fromFile(File(entry.path)), entry.name.substringBeforeLast('.').ifBlank { entry.name })
+        navigate(Destination.SETTINGS)
+    }
+
+    fun closeBrowser() {
+        browserJob?.cancel()
+        navigate(if (_state.value.browser.kind == BrowserKind.MUSIC) Destination.SETTINGS else Destination.HOME)
+    }
+
+    fun showStoragePermissionDenied(kind: BrowserKind) = showMessage(
+        context.getString(if (kind == BrowserKind.MUSIC) R.string.browser_permission_music else R.string.browser_permission_photos)
+    )
 
     fun selectMusic(uri: Uri, displayName: String?) {
         runCatching {
@@ -609,6 +761,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
 
     override fun onCleared() {
         googleJob?.cancel()
+        browserJob?.cancel()
         usbJob?.cancel()
         sleepJob?.cancel()
         musicPlayer.release()

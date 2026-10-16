@@ -4,7 +4,7 @@ import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import it.fotofesta.tv.R
 
-enum class Destination { HOME, SETTINGS, SLIDESHOW, GAMES, MEMORY, MYSTERY, GOOGLE_CONNECT, GUESTS, GUEST_REVIEW, GUEST_WIFI }
+enum class Destination { HOME, SETTINGS, SLIDESHOW, GAMES, MEMORY, MYSTERY, GOOGLE_CONNECT, GUESTS, GUEST_REVIEW, GUEST_WIFI, FILE_BROWSER }
 
 enum class TransitionType(@StringRes val labelRes: Int) {
     FADE(R.string.transition_fade),
@@ -93,6 +93,33 @@ data class GuestsUiState(
     val pending: List<PhotoItem> = emptyList(),
 )
 
+/** Cosa si sta scegliendo nel browser di cartelle: una cartella di foto o un brano. */
+enum class BrowserKind { PHOTOS, MUSIC }
+
+/** Disco o memoria leggibile dalla TV. */
+data class BrowserRoot(val path: String, val label: String, val removable: Boolean)
+
+/** Cartella o file mostrato nel browser. */
+data class BrowserEntry(val name: String, val path: String)
+
+/**
+ * Browser di cartelle interno, usato al posto del selettore di documenti di Android, che molte TV
+ * non hanno. Con [directory] null mostra l'elenco dei dischi.
+ */
+data class BrowserState(
+    val kind: BrowserKind = BrowserKind.PHOTOS,
+    val roots: List<BrowserRoot> = emptyList(),
+    val root: BrowserRoot? = null,
+    val directory: String? = null,
+    val folders: List<BrowserEntry> = emptyList(),
+    val files: List<BrowserEntry> = emptyList(),
+    /** Foto direttamente nella cartella aperta (senza sottocartelle). */
+    val photosHere: Int = 0,
+    val loading: Boolean = false,
+    /** Il selettore di documenti di Android è disponibile, come alternativa. */
+    val systemPickerAvailable: Boolean = false,
+)
+
 data class MemoryCard(
     val key: Int,
     val photo: PhotoItem,
@@ -113,6 +140,7 @@ data class AppState(
     val busy: Boolean = false,
     val message: String? = null,
     val guests: GuestsUiState = GuestsUiState(),
+    val browser: BrowserState = BrowserState(),
     /**
      * Cresce a ogni cambio di foto voluto (successiva, precedente, nuova raccolta). Il cambio
      * automatico si basa su questo e non sull'indice, che si sposta quando arrivano o spariscono

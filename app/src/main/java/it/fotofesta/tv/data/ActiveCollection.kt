@@ -2,8 +2,11 @@ package it.fotofesta.tv.data
 
 import android.content.Context
 import android.net.Uri
+import android.os.Build
 import android.util.Log
 import it.fotofesta.tv.appServices
+import it.fotofesta.tv.files.FileBrowser
+import it.fotofesta.tv.files.toUsbPhotoItem
 import it.fotofesta.tv.guests.toPhotoItem
 import it.fotofesta.tv.model.PhotoItem
 import it.fotofesta.tv.model.combineWithGuests
@@ -12,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import java.io.File
 
 /**
  * Raccolta attiva dell'ultima sorgente scelta (Google Foto, cartella USB o foto demo), con le foto
@@ -25,7 +29,8 @@ class ActiveCollection(private val context: Context) {
             // Le foto Google si caricano da Google durante il salvaschermo: serve la connessione.
             // Una selezione scaduta presso Google viene tolta dall'archivio al primo caricamento fallito.
             "GOOGLE" -> context.appServices.googleSelection.current()?.toPhotos().orEmpty()
-            "USB" -> settings.loadUsbTree()?.let { scanUsb(Uri.parse(it)) }.orEmpty()
+            "USB" -> settings.loadUsbFolder()?.let(::scanFolder)
+                ?: settings.loadUsbTree()?.let { scanUsb(Uri.parse(it)) }.orEmpty()
             else -> emptyList()
         }
         // All'avvio a freddo del salvaschermo le foto di una festa interrotta si stanno ancora riprendendo.
@@ -41,6 +46,11 @@ class ActiveCollection(private val context: Context) {
             partyActive = false,
         )
     }
+
+    /** Cartella scelta con il browser interno; vuota se il disco è scollegato o il permesso revocato. */
+    private fun scanFolder(path: String): List<PhotoItem> = runCatching {
+        FileBrowser(FileBrowser.imageExtensions(Build.VERSION.SDK_INT)).scanPhotos(File(path)).map { it.toUsbPhotoItem() }
+    }.getOrDefault(emptyList())
 
     private suspend fun scanUsb(treeUri: Uri): List<PhotoItem> = try {
         UsbPhotoRepository(context).scan(treeUri)

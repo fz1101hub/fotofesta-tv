@@ -36,7 +36,7 @@
     <string name="error_google_access_denied">Autorizzazione annullata sul telefono.</string>
     <string name="error_google_code_expired">Il codice Google è scaduto. Riprova.</string>
     <string name="error_google_session_expired">L\'accesso a Google è scaduto. Collegati di nuovo.</string>
-    <string name="error_picker_unavailable">Questa TV non ha un selettore di file. Installa un gestore file da Google Play e riprova.</string>
+    <string name="error_picker_unavailable">Il selettore file di Android non si è aperto: scegli il disco dall’elenco di FotoFesta TV.</string>
     <string name="error_google_selection_expired">La selezione Google Foto è scaduta.</string>
     <string name="error_google_selection_gone">La selezione di Google Foto è scaduta. Scegli di nuovo le foto dal telefono.</string>
     <string name="error_google_nothing_selected">Non hai selezionato foto.</string>
@@ -184,6 +184,21 @@
     <string name="wifi_error_name">Scrivi il nome della rete.</string>
     <string name="wifi_error_name_long">Il nome della rete è troppo lungo.</string>
     <string name="wifi_error_password">La password deve avere da 8 a 63 caratteri.</string>
+    <string name="browser_kicker_photos">Hard disk USB</string>
+    <string name="browser_kicker_music">Musica di sottofondo</string>
+    <string name="browser_title_photos">Scegli una cartella di foto</string>
+    <string name="browser_title_music">Scegli un brano</string>
+    <string name="browser_roots_hint">Dischi e memorie collegati alla TV.</string>
+    <string name="browser_internal_storage">Memoria interna</string>
+    <string name="browser_up">Cartella superiore</string>
+    <string name="browser_use_folder">Usa questa cartella</string>
+    <string name="browser_empty_photos">Nessuna sottocartella: usa questa cartella o torna su.</string>
+    <string name="browser_empty_music">Nessun brano o cartella qui.</string>
+    <string name="browser_no_drive">Nessun disco USB trovato. Collegalo alla TV e riapri questa schermata.</string>
+    <string name="browser_system_picker">Selettore file di Android</string>
+    <string name="browser_unreadable">Questa cartella non si può leggere.</string>
+    <string name="browser_permission_photos">Senza l’accesso alle foto FotoFesta TV non può leggere il disco. Consentilo in Impostazioni › App › FotoFesta TV › Autorizzazioni.</string>
+    <string name="browser_permission_music">Senza l’accesso a musica e audio FotoFesta TV non può leggere i brani. Consentilo in Impostazioni › App › FotoFesta TV › Autorizzazioni.</string>
     <plurals name="games_active_collection">
         <item quantity="one">Raccolta attiva: %1$d foto</item>
         <item quantity="many">Raccolta attiva: %1$d foto</item>
@@ -233,5 +248,10 @@
         <item quantity="one">%1$s + %2$d dagli invitati</item>
         <item quantity="many">%1$s + %2$d dagli invitati</item>
         <item quantity="other">%1$s + %2$d dagli invitati</item>
+    </plurals>
+    <plurals name="browser_photos_here">
+        <item quantity="one">%1$d foto in questa cartella, più le sottocartelle</item>
+        <item quantity="many">%1$d foto in questa cartella, più le sottocartelle</item>
+        <item quantity="other">%1$d foto in questa cartella, più le sottocartelle</item>
     </plurals>
 </resources>

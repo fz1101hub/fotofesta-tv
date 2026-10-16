@@ -37,7 +37,7 @@
     <string name="error_google_access_denied">Authorization cancelled on the phone.</string>
     <string name="error_google_code_expired">The Google code has expired. Try again.</string>
     <string name="error_google_session_expired">Access to Google has expired. Connect again.</string>
-    <string name="error_picker_unavailable">This TV has no file picker. Install a file manager from Google Play and try again.</string>
+    <string name="error_picker_unavailable">The Android file picker did not open: choose the drive from the FotoFesta TV list.</string>
     <string name="error_google_selection_expired">The Google Photos selection has expired.</string>
     <string name="error_google_selection_gone">Your Google Photos selection has expired. Choose the photos again from your phone.</string>
     <string name="error_google_nothing_selected">You didn’t select any photos.</string>
@@ -185,6 +185,21 @@
     <string name="wifi_error_name">Enter the network name.</string>
     <string name="wifi_error_name_long">The network name is too long.</string>
     <string name="wifi_error_password">The password must be 8 to 63 characters long.</string>
+    <string name="browser_kicker_photos">USB drive</string>
+    <string name="browser_kicker_music">Background music</string>
+    <string name="browser_title_photos">Choose a photo folder</string>
+    <string name="browser_title_music">Choose a track</string>
+    <string name="browser_roots_hint">Drives and storage connected to the TV.</string>
+    <string name="browser_internal_storage">Internal storage</string>
+    <string name="browser_up">Up</string>
+    <string name="browser_use_folder">Use this folder</string>
+    <string name="browser_empty_photos">No subfolders here: use this folder or go up.</string>
+    <string name="browser_empty_music">No tracks or folders here.</string>
+    <string name="browser_no_drive">No USB drive found. Connect it to the TV and open this screen again.</string>
+    <string name="browser_system_picker">Android file picker</string>
+    <string name="browser_unreadable">This folder can’t be read.</string>
+    <string name="browser_permission_photos">FotoFesta TV can’t read the drive without access to photos. Allow it in Settings › Apps › FotoFesta TV › Permissions.</string>
+    <string name="browser_permission_music">FotoFesta TV can’t read tracks without access to music and audio. Allow it in Settings › Apps › FotoFesta TV › Permissions.</string>
     <plurals name="games_active_collection">
         <item quantity="one">Active collection: %1$d photo</item>
         <item quantity="other">Active collection: %1$d photos</item>
@@ -224,5 +239,9 @@
     <plurals name="source_with_guests">
         <item quantity="one">%1$s + %2$d from guests</item>
         <item quantity="other">%1$s + %2$d from guests</item>
+    </plurals>
+    <plurals name="browser_photos_here">
+        <item quantity="one">%1$d photo in this folder, plus subfolders</item>
+        <item quantity="other">%1$d photos in this folder, plus subfolders</item>
     </plurals>
 </resources>

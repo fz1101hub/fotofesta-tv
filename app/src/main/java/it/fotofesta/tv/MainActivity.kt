@@ -1,9 +1,12 @@
 package it.fotofesta.tv
 
+import android.Manifest
 import android.app.PendingIntent
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.OpenableColumns
 import android.provider.Settings
@@ -32,16 +35,22 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import it.fotofesta.tv.model.BrowserKind
 import it.fotofesta.tv.model.Destination
 import it.fotofesta.tv.model.GoogleConnectState
+import it.fotofesta.tv.ui.FileBrowserScreen
 import it.fotofesta.tv.ui.FotoFestaTheme
 import it.fotofesta.tv.ui.GamesScreen
 import it.fotofesta.tv.ui.GoogleConnectScreen
@@ -78,10 +87,40 @@ class MainActivity : ComponentActivity() {
             FotoFestaTheme {
                 val state by viewModel.state.collectAsStateWithLifecycle()
                 val usbPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
-                    uri?.let(viewModel::loadUsb)
+                    uri?.let {
+                        viewModel.loadUsb(it)
+                        if (viewModel.state.value.destination == Destination.FILE_BROWSER) viewModel.closeBrowser()
+                    }
                 }
                 val musicPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-                    uri?.let { viewModel.selectMusic(it, displayName(it)) }
+                    uri?.let {
+                        viewModel.selectMusic(it, displayName(it))
+                        if (viewModel.state.value.destination == Destination.FILE_BROWSER) viewModel.closeBrowser()
+                    }
+                }
+                // Il selettore di documenti di Android manca su molte TV: cartelle e brani si scelgono
+                // con il browser interno, che chiede il permesso di leggere foto o musica.
+                var pendingBrowser by rememberSaveable { mutableStateOf<BrowserKind?>(null) }
+                val permissionRequest = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+                    val kind = pendingBrowser ?: return@rememberLauncherForActivityResult
+                    pendingBrowser = null
+                    when {
+                        result.isNotEmpty() && result.values.all { it } -> viewModel.openBrowser(kind, systemPickerAvailable(kind))
+                        // Senza permesso resta il selettore di sistema, se la TV lo ha.
+                        systemPickerAvailable(kind) -> launchSystemPicker(kind, { usbPicker.launch(null) }, { musicPicker.launch(arrayOf("audio/*")) })
+                        else -> viewModel.showStoragePermissionDenied(kind)
+                    }
+                }
+                fun openBrowser(kind: BrowserKind) {
+                    val missing = storagePermissions(kind).filter {
+                        ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+                    }
+                    if (missing.isEmpty()) {
+                        viewModel.openBrowser(kind, systemPickerAvailable(kind))
+                    } else {
+                        pendingBrowser = kind
+                        permissionRequest.launch(missing.toTypedArray())
+                    }
                 }
 
                 BackHandler(enabled = state.destination != Destination.HOME, onBack = viewModel::back)
@@ -120,7 +159,7 @@ class MainActivity : ComponentActivity() {
                             showGoogle = viewModel.showGoogle,
                             onGoogle = viewModel::startGoogleConnect,
                             onGuests = { viewModel.navigate(Destination.GUESTS) },
-                            onUsb = { launchPicker { usbPicker.launch(null) } },
+                            onUsb = { openBrowser(BrowserKind.PHOTOS) },
                             onDemo = viewModel::useDemoAndPlay,
                             onPlay = viewModel::playCurrent,
                             onSettings = { viewModel.navigate(Destination.SETTINGS) },
@@ -130,7 +169,7 @@ class MainActivity : ComponentActivity() {
                             state = state,
                             onBack = { viewModel.navigate(Destination.HOME) },
                             onChange = viewModel::updateSettings,
-                            onPickMusic = { launchPicker { musicPicker.launch(arrayOf("audio/*")) } },
+                            onPickMusic = { openBrowser(BrowserKind.MUSIC) },
                             onRemoveMusic = viewModel::removeMusic,
                             onDisconnectGoogle = viewModel::disconnectGoogle,
                             onPlay = viewModel::playCurrent,
@@ -186,6 +225,17 @@ class MainActivity : ComponentActivity() {
                             onDiscard = viewModel::discardGuestPhoto,
                             onApproveAll = viewModel::approveAllGuestPhotos,
                         )
+                        Destination.FILE_BROWSER -> FileBrowserScreen(
+                            state = state.browser,
+                            onOpen = viewModel::browserOpen,
+                            onUp = viewModel::browserUp,
+                            onUseFolder = viewModel::browserUseFolder,
+                            onChooseTrack = viewModel::browserChooseTrack,
+                            onSystemPicker = {
+                                launchSystemPicker(state.browser.kind, { usbPicker.launch(null) }, { musicPicker.launch(arrayOf("audio/*")) })
+                            },
+                            onBack = viewModel::closeBrowser,
+                        )
                         Destination.GUEST_WIFI -> GuestWifiScreen(
                             initialName = state.guests.wifiName,
                             initialPassword = state.guests.wifiPassword,
@@ -228,6 +278,26 @@ class MainActivity : ComponentActivity() {
         } catch (_: ActivityNotFoundException) {
             viewModel.showPickerUnavailable()
         }
+    }
+
+    private fun launchSystemPicker(kind: BrowserKind, photos: () -> Unit, music: () -> Unit) =
+        launchPicker(if (kind == BrowserKind.PHOTOS) photos else music)
+
+    /** Permessi per leggere foto o musica dai dischi: da Android 13 sono separati per tipo. */
+    private fun storagePermissions(kind: BrowserKind): List<String> = when {
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU ->
+            listOf(if (kind == BrowserKind.PHOTOS) Manifest.permission.READ_MEDIA_IMAGES else Manifest.permission.READ_MEDIA_AUDIO)
+        else -> listOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+    }
+
+    /** La TV ha il selettore di documenti di Android (molte non ce l'hanno). */
+    private fun systemPickerAvailable(kind: BrowserKind): Boolean {
+        val intent = if (kind == BrowserKind.PHOTOS) {
+            Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+        } else {
+            Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("audio/*")
+        }
+        return runCatching { intent.resolveActivity(packageManager) != null }.getOrDefault(false)
     }
 
     private fun openScreensaverSettings() {
