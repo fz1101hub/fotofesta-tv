@@ -23,10 +23,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import okhttp3.FormBody
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -197,8 +193,9 @@ object ScreenshotScenario {
                     delay(2_000)
                 }
                 "countdown" -> {
+                    // Il conto alla rovescia compare nell'ultima ora.
                     val now = Calendar.getInstance()
-                    val target = (now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE) + 95) % (24 * 60)
+                    val target = (now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE) + 35) % (24 * 60)
                     vm.updateSettings(
                         vm.state.value.settings.copy(
                             layout = SlideshowLayout.SINGLE,
@@ -220,9 +217,12 @@ object ScreenshotScenario {
         private suspend fun fresh() {
             val party = services.guests.state.value
             if (party.approval) vm.setGuestApproval(false)
-            if (party.active) {
-                vm.endGuestParty()
-                withTimeoutOrNull(10_000) { services.guests.state.first { !it.active } } ?: error("La festa non finisce")
+            if (party.active) vm.endGuestParty()
+            // La festa finisce sul suo thread e la raccolta dell'app la segue poco dopo: un gioco
+            // aperto prima prenderebbe la raccolta della festa (vuota con le foto demo).
+            until("fine della festa") {
+                val guests = services.guests.state.value
+                !guests.active && !guests.approval && !it.guests.active && !it.guests.approval
             }
             vm.clearMessage()
         }
@@ -244,19 +244,18 @@ object ScreenshotScenario {
             if (senders.isNotEmpty()) until("foto degli invitati") { it.guests.shown >= senders.size }
         }
 
-        /** Manda una foto come la pagina per i telefoni: POST /photos con la chiave del QR. */
+        /**
+         * Manda una foto come la pagina per i telefoni: POST /photos con la chiave del QR. La festa è
+         * in HTTP in chiaro sulla rete di casa, che la configurazione di rete dell'app permette solo
+         * a LanHttp.
+         */
         private suspend fun upload(sender: String, portrait: Boolean) {
             val url = vm.state.value.guests.url ?: error("La festa non ha un indirizzo")
             val bytes = withContext(Dispatchers.Default) { guestPhoto(sender, portrait) }
             withContext(Dispatchers.IO) {
-                val request = Request.Builder()
-                    .url(base(url) + "/photos")
-                    .header("X-FotoFesta-Key", key(url))
-                    .header("X-FotoFesta-Sender", sender)
-                    .post(bytes.toRequestBody("image/jpeg".toMediaType()))
-                    .build()
-                services.http.newCall(request).execute().use { response ->
-                    check(response.isSuccessful) { "Foto di $sender rifiutata: ${response.code}" }
+                val headers = mapOf("X-FotoFesta-Key" to key(url), "X-FotoFesta-Sender" to sender, "Content-Type" to "image/jpeg")
+                services.lanHttp.post(base(url) + "/photos", headers, bytes).use { response ->
+                    check(response.isSuccessful) { "Foto di $sender rifiutata: ${response.status}" }
                 }
             }
         }
@@ -285,9 +284,9 @@ object ScreenshotScenario {
                 var current: String? = null
                 while (current == null) {
                     current = withContext(Dispatchers.IO) {
-                        val request = Request.Builder().url(base(url) + "/game").header("X-FotoFesta-Key", key(url)).build()
-                        services.http.newCall(request).execute().use { response ->
-                            JSONObject(response.body?.string().orEmpty()).optString("round").takeIf { it.isNotEmpty() && it != "null" }
+                        services.lanHttp.get(base(url) + "/game", mapOf("X-FotoFesta-Key" to key(url))).use { response ->
+                            JSONObject(response.bytes(64 * 1024).toString(Charsets.UTF_8))
+                                .optString("round").takeIf { it.isNotEmpty() && it != "null" }
                         }
                     }
                     if (current == null) delay(500)
@@ -296,15 +295,10 @@ object ScreenshotScenario {
             } ?: error("Nessuna domanda per i telefoni")
             listOf(Triple("telefono-giulia", "Giulia", 0), Triple("telefono-marco", "Marco", 1)).forEach { (player, nickname, choice) ->
                 withContext(Dispatchers.IO) {
-                    val form = FormBody.Builder()
-                        .add("round", round)
-                        .add("choice", choice.toString())
-                        .add("player", player)
-                        .add("name", nickname)
-                        .build()
-                    val request = Request.Builder().url(base(url) + "/game/answer").header("X-FotoFesta-Key", key(url)).post(form).build()
-                    services.http.newCall(request).execute().use { response ->
-                        check(response.isSuccessful) { "Risposta di $nickname rifiutata: ${response.code}" }
+                    val form = "round=$round&choice=$choice&player=$player&name=$nickname".toByteArray()
+                    val headers = mapOf("X-FotoFesta-Key" to key(url), "Content-Type" to "application/x-www-form-urlencoded")
+                    services.lanHttp.post(base(url) + "/game/answer", headers, form).use { response ->
+                        check(response.isSuccessful) { "Risposta di $nickname rifiutata: ${response.status}" }
                     }
                 }
             }

@@ -87,7 +87,6 @@ if [ "$SET" = store ]; then
   shoot games 3
   shoot who_phone 3
   shoot puzzle_game 4
-  shoot browser 3
   shoot mosaic 3
 else
   shoot home 4

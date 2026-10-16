@@ -32,6 +32,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -52,6 +53,7 @@ fun ICloudLinkScreen(
     onBack: () -> Unit,
 ) {
     var input by rememberSaveable { mutableStateOf("") }
+    val keyboard = LocalSoftwareKeyboardController.current
     val fieldColors = OutlinedTextFieldDefaults.colors(
         focusedBorderColor = FocusWhite,
         unfocusedBorderColor = Outline,
@@ -96,11 +98,11 @@ fun ICloudLinkScreen(
                         onValueChange = { input = it.take(300) },
                         label = { Text(stringResource(R.string.icloud_field)) },
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go, showKeyboardOnFocus = false),
                         keyboardActions = KeyboardActions(onGo = { onSubmit(input) }),
                         colors = fieldColors,
                         textStyle = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.widthIn(max = 460.dp).weight(1f, fill = false)
+                        modifier = Modifier.widthIn(max = 460.dp).weight(1f, fill = false).keyboardOnSelect(keyboard)
                             .then(if (state.token == null) Modifier.initialFocus("field") else Modifier),
                     )
                     TvButton(stringResource(R.string.icloud_open), { onSubmit(input) }, icon = Icons.Rounded.Search, enabled = !state.loading)

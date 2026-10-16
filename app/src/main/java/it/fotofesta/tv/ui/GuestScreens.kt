@@ -43,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -438,6 +439,7 @@ fun GuestWifiScreen(
     var ssid by rememberSaveable { mutableStateOf(initialName.orEmpty()) }
     // Anche la password è già compilata: con il campo vuoto la rete diventerebbe "aperta".
     var password by rememberSaveable { mutableStateOf(initialPassword.orEmpty()) }
+    val keyboard = LocalSoftwareKeyboardController.current
     val fieldColors = OutlinedTextFieldDefaults.colors(
         focusedBorderColor = FocusWhite,
         unfocusedBorderColor = Outline,
@@ -465,10 +467,10 @@ fun GuestWifiScreen(
             onValueChange = { ssid = it.take(64) },
             label = { Text(stringResource(R.string.wifi_name)) },
             singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next, showKeyboardOnFocus = false),
             colors = fieldColors,
             textStyle = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth().initialFocus(),
+            modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth().keyboardOnSelect(keyboard).initialFocus(),
         )
         // La password resta visibile: con il telecomando gli errori di battitura sono facili, e il QR
         // la mostra comunque a chi lo inquadra.
@@ -477,10 +479,10 @@ fun GuestWifiScreen(
             onValueChange = { password = it.take(64) },
             label = { Text(stringResource(R.string.wifi_password)) },
             singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done, showKeyboardOnFocus = false),
             colors = fieldColors,
             textStyle = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth(),
+            modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth().keyboardOnSelect(keyboard),
         )
         Row {
             TvButton(stringResource(R.string.wifi_save), { onSave(ssid, password) }, icon = Icons.Rounded.Save)

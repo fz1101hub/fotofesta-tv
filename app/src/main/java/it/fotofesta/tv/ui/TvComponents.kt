@@ -47,7 +47,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
@@ -185,11 +191,12 @@ fun SourceTile(
                 Icon(icon, contentDescription = null, modifier = Modifier.size(26.dp))
                 Column {
                     Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    // Due righe: in francese e in tedesco una sola taglierebbe quasi tutte le descrizioni.
                     Text(
                         subtitle,
                         style = MaterialTheme.typography.bodySmall,
                         color = if (focused) OnFocusSecondary else TextSecondary,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
@@ -415,4 +422,15 @@ fun Modifier.initialFocus(key: Any? = Unit): Modifier {
     val requester = remember { FocusRequester() }
     LaunchedEffect(key) { runCatching { requester.requestFocus() } }
     return this.focusRequester(requester)
+}
+
+/**
+ * Campo di testo con il telecomando: la tastiera si apre premendo OK sul campo e non appena il campo
+ * riceve il fuoco, che coprirebbe metà schermata (errori e pulsanti compresi) anche a chi la sta solo
+ * attraversando con le frecce. Va con KeyboardOptions(showKeyboardOnFocus = false).
+ */
+fun Modifier.keyboardOnSelect(keyboard: SoftwareKeyboardController?): Modifier = onPreviewKeyEvent { event ->
+    val select = event.key == Key.DirectionCenter || event.key == Key.Enter || event.key == Key.NumPadEnter
+    if (select && event.type == KeyEventType.KeyUp) keyboard?.show()
+    select
 }

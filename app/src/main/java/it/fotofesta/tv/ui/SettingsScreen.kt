@@ -99,8 +99,14 @@ fun SettingsScreen(
     var picker by remember { mutableStateOf<Picker?>(null) }
     var returnTo by remember { mutableStateOf<Picker?>(null) }
 
-    // All'apertura il fuoco va alla prima voce; dopo, cambiare sezione non lo sposta.
-    LaunchedEffect(Unit) { runCatching { firstItem.requestFocus() } }
+    // All'apertura il fuoco va alla prima voce; dopo, cambiare sezione non lo sposta. Tornando in
+    // Musica o in Festa (dal browser della musica o dalla Wi‑Fi) va sulla sezione aperta: altrimenti
+    // finirebbe sulla prima sezione, che con il fuoco si apre al posto di quella in uso.
+    LaunchedEffect(Unit) {
+        runCatching {
+            if (selected == SettingsCategory.SLIDESHOW) firstItem.requestFocus() else categoryFocus.getValue(selected).requestFocus()
+        }
+    }
     // Chiuso l'elenco dei valori, il fuoco torna sulla voce che lo aveva aperto.
     LaunchedEffect(picker) {
         val target = returnTo

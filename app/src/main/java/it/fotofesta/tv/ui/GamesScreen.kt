@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import it.fotofesta.tv.R
@@ -152,7 +153,8 @@ private fun GameTile(
 ) {
     FocusSurface(
         onClick = onClick,
-        modifier = modifier.height(184.dp),
+        // Icona, nome e tre righe di descrizione (in francese, spagnolo e tedesco ne servono tre).
+        modifier = modifier.height(208.dp),
         shape = RoundedCornerShape(16.dp),
         color = SurfaceDark,
         border = BorderStroke(1.dp, TextPrimary.copy(alpha = .08f)),
@@ -167,7 +169,13 @@ private fun GameTile(
                 Icon(icon, contentDescription = null, tint = if (focused) FocusWhite else OnAccent, modifier = Modifier.size(28.dp))
             }
             Text(title, style = MaterialTheme.typography.titleLarge)
-            Text(body, style = MaterialTheme.typography.bodyMedium, color = if (focused) OnFocusSecondary else TextSecondary)
+            Text(
+                body,
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (focused) OnFocusSecondary else TextSecondary,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

@@ -180,8 +180,8 @@ fun HomeScreen(
                     Modifier.weight(1f),
                     badge = inUse.takeIf { collection.source == SourceType.DEMO },
                 )
-                SmallTile(stringResource(R.string.home_tile_games), Icons.Rounded.SportsEsports, onGames, Modifier.width(92.dp))
-                SmallTile(stringResource(R.string.action_settings), Icons.Rounded.Settings, onSettings, Modifier.width(92.dp))
+                SmallTile(stringResource(R.string.home_tile_games), Icons.Rounded.SportsEsports, onGames, Modifier.width(108.dp))
+                SmallTile(stringResource(R.string.action_settings), Icons.Rounded.Settings, onSettings, Modifier.width(108.dp))
             }
         }
     }
