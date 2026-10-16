@@ -23,3 +23,7 @@
 -dontwarn com.google.j2objc.annotations.**
 -dontwarn org.checkerframework.**
 -dontwarn java.lang.management.**
+# dcerpc usa java.rmi solo per segnalare messaggi malformati; MBassador usa javax.el solo per i
+# filtri con espressioni, che smbj non usa. Su Android non ci sono: SmbShares gestisce l'errore.
+-dontwarn java.rmi.**
+-dontwarn javax.el.**

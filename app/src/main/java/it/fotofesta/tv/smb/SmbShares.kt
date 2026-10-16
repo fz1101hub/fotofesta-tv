@@ -137,6 +137,9 @@ class SmbShares(
             // (alcuni NAS e router, o l'ospite senza permesso): si chiede il nome della condivisione.
             if (lostConnection(server, failure)) throw failure
             null
+        } catch (_: LinkageError) {
+            // Risposta DCE/RPC malformata: dcerpc la segnala con java.rmi, che su Android non c'è.
+            null
         }
     }
 
