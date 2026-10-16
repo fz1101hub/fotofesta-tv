@@ -193,7 +193,7 @@
     <string name="browser_up">Cartella superiore</string>
     <string name="browser_use_folder">Usa questa cartella</string>
     <string name="browser_empty_photos">Nessuna sottocartella: usa questa cartella o torna su.</string>
-    <string name="browser_empty_music">Nessun brano o cartella qui.</string>
+    <string name="browser_empty_music">Nessun brano o cartella qui. Se hai appena collegato il disco, aspetta un minuto che la TV lo legga e riapri la cartella.</string>
     <string name="browser_no_drive">Nessun disco USB trovato. Collegalo alla TV e riapri questa schermata.</string>
     <string name="browser_system_picker">Selettore file di Android</string>
     <string name="browser_unreadable">Questa cartella non si può leggere.</string>

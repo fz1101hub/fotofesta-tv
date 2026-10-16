@@ -29,10 +29,17 @@ class FileBrowser(
     data class Listing(val folders: List<File>, val files: List<File>)
 
     fun list(directory: File, kind: BrowserKind): Listing {
-        val entries = directory.listFiles().orEmpty().filterNot { it.name.startsWith(".") }
-        val folders = entries.filter { it.isDirectory }.sortedWith(compareBy(NaturalOrder) { it.name })
-        val files = entries.filter { it.isFile && matches(it, kind) }.sortedWith(compareBy(NaturalOrder) { it.name })
-        return Listing(folders, files)
+        val folders = mutableListOf<File>()
+        val files = mutableListOf<File>()
+        for (entry in directory.listFiles().orEmpty()) {
+            when {
+                entry.name.startsWith(".") -> Unit
+                // L'estensione si guarda prima: su un disco USB lento ogni controllo sul file costa.
+                matches(entry, kind) && entry.isFile -> files += entry
+                entry.isDirectory -> folders += entry
+            }
+        }
+        return Listing(folders.sortedWith(compareBy(NaturalOrder) { it.name }), files.sortedWith(compareBy(NaturalOrder) { it.name }))
     }
 
     /**
@@ -58,17 +65,13 @@ class FileBrowser(
                 when {
                     // Esclude file nascosti, come i "._IMG.jpg" creati da macOS sui dischi esterni.
                     entry.name.startsWith(".") -> Unit
+                    matches(entry, BrowserKind.PHOTOS) && entry.isFile -> found += entry
                     entry.isDirectory -> queue.addLast(entry)
-                    entry.isFile && matches(entry, BrowserKind.PHOTOS) -> found += entry
                 }
             }
         }
         return found.sortedWith(compareBy(NaturalOrder) { it.name })
     }
-
-    /** Foto direttamente nella cartella (senza sottocartelle), per l'anteprima del conteggio. */
-    fun countPhotos(directory: File): Int =
-        directory.listFiles().orEmpty().count { !it.name.startsWith(".") && it.isFile && matches(it, BrowserKind.PHOTOS) }
 
     private fun matches(file: File, kind: BrowserKind): Boolean {
         val extension = file.extension.lowercase()

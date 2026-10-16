@@ -194,7 +194,7 @@
     <string name="browser_up">Up</string>
     <string name="browser_use_folder">Use this folder</string>
     <string name="browser_empty_photos">No subfolders here: use this folder or go up.</string>
-    <string name="browser_empty_music">No tracks or folders here.</string>
+    <string name="browser_empty_music">No tracks or folders here. If you just plugged in the drive, wait a minute for the TV to read it and open the folder again.</string>
     <string name="browser_no_drive">No USB drive found. Connect it to the TV and open this screen again.</string>
     <string name="browser_system_picker">Android file picker</string>
     <string name="browser_unreadable">This folder can’t be read.</string>

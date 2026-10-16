@@ -99,13 +99,16 @@ class FileBrowserTest {
     }
 
     @Test
-    fun countPhotosLooksOnlyAtTheFolderItself() {
+    fun listLooksOnlyAtTheFolderItselfAndKeepsFoldersWithImageNames() {
         file("a.jpg")
         file("b.png")
         file("._c.jpg")
         file("Sotto/d.jpg")
         file("e.mp3")
-        assertEquals(2, browser.countPhotos(temp.root))
+        folder("Album.jpg")
+        val listing = browser.list(temp.root, BrowserKind.PHOTOS)
+        assertEquals(listOf("a.jpg", "b.png"), listing.files.map { it.name })
+        assertEquals(listOf("Album.jpg", "Sotto"), listing.folders.map { it.name })
     }
 
     @Test

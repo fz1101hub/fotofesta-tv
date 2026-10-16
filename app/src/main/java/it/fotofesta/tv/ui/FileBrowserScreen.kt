@@ -69,6 +69,8 @@ fun FileBrowserScreen(
     val focusKey = state.directory ?: "roots"
     // Cartella senza elementi da scegliere: il fuoco va ai pulsanti sopra l'elenco.
     val listEmpty = state.directory != null && !state.loading && state.folders.isEmpty() && (photos || state.files.isEmpty())
+    // Nessun disco e nessun selettore di sistema: resta solo "Indietro", che deve avere il fuoco.
+    val nothingToOpen = state.directory == null && !state.loading && state.roots.isEmpty() && !state.systemPickerAvailable
     Column(
         Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 30.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -81,7 +83,12 @@ fun FileBrowserScreen(
                 modifier = Modifier.weight(1f),
             )
             Spacer(Modifier.width(16.dp))
-            TvButton(stringResource(R.string.action_back), onBack, icon = Icons.AutoMirrored.Rounded.ArrowBack)
+            TvButton(
+                stringResource(R.string.action_back),
+                onBack,
+                modifier = if (nothingToOpen) Modifier.initialFocus("no-drive") else Modifier,
+                icon = Icons.AutoMirrored.Rounded.ArrowBack,
+            )
         }
         if (state.directory != null) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {

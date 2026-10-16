@@ -1,12 +1,9 @@
 package it.fotofesta.tv
 
-import android.Manifest
 import android.app.PendingIntent
 import android.content.ActivityNotFoundException
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.provider.OpenableColumns
 import android.provider.Settings
@@ -43,10 +40,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import it.fotofesta.tv.files.StoragePermissions
 import it.fotofesta.tv.model.BrowserKind
 import it.fotofesta.tv.model.Destination
 import it.fotofesta.tv.model.GoogleConnectState
@@ -88,33 +85,39 @@ class MainActivity : ComponentActivity() {
                 val state by viewModel.state.collectAsStateWithLifecycle()
                 val usbPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
                     uri?.let {
-                        viewModel.loadUsb(it)
+                        // Prima si chiude il browser: la navigazione toglierebbe il messaggio di avanzamento.
                         if (viewModel.state.value.destination == Destination.FILE_BROWSER) viewModel.closeBrowser()
+                        viewModel.loadUsb(it)
                     }
                 }
                 val musicPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
                     uri?.let {
-                        viewModel.selectMusic(it, displayName(it))
                         if (viewModel.state.value.destination == Destination.FILE_BROWSER) viewModel.closeBrowser()
+                        viewModel.selectMusic(it, displayName(it))
                     }
                 }
                 // Il selettore di documenti di Android manca su molte TV: cartelle e brani si scelgono
                 // con il browser interno, che chiede il permesso di leggere foto o musica.
                 var pendingBrowser by rememberSaveable { mutableStateOf<BrowserKind?>(null) }
                 val permissionRequest = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+                    // Risultato vuoto: richiesta ripetuta (doppia pressione) mentre il dialogo è aperto.
+                    // La risposta vera arriva dopo, quindi qui non si decide nulla.
+                    if (result.isEmpty()) return@rememberLauncherForActivityResult
                     val kind = pendingBrowser ?: return@rememberLauncherForActivityResult
                     pendingBrowser = null
                     when {
-                        result.isNotEmpty() && result.values.all { it } -> viewModel.openBrowser(kind, systemPickerAvailable(kind))
+                        result.values.all { it } -> viewModel.openBrowser(kind, systemPickerAvailable(kind))
                         // Senza permesso resta il selettore di sistema, se la TV lo ha.
                         systemPickerAvailable(kind) -> launchSystemPicker(kind, { usbPicker.launch(null) }, { musicPicker.launch(arrayOf("audio/*")) })
-                        else -> viewModel.showStoragePermissionDenied(kind)
+                        else -> {
+                            viewModel.showStoragePermissionDenied(kind)
+                            // Rifiutato per sempre: il dialogo non comparirebbe più, si aprono le impostazioni dell'app.
+                            if (result.keys.none { shouldShowRequestPermissionRationale(it) }) openAppSettings()
+                        }
                     }
                 }
                 fun openBrowser(kind: BrowserKind) {
-                    val missing = storagePermissions(kind).filter {
-                        ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
-                    }
+                    val missing = StoragePermissions.missing(this, kind)
                     if (missing.isEmpty()) {
                         viewModel.openBrowser(kind, systemPickerAvailable(kind))
                     } else {
@@ -283,11 +286,12 @@ class MainActivity : ComponentActivity() {
     private fun launchSystemPicker(kind: BrowserKind, photos: () -> Unit, music: () -> Unit) =
         launchPicker(if (kind == BrowserKind.PHOTOS) photos else music)
 
-    /** Permessi per leggere foto o musica dai dischi: da Android 13 sono separati per tipo. */
-    private fun storagePermissions(kind: BrowserKind): List<String> = when {
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU ->
-            listOf(if (kind == BrowserKind.PHOTOS) Manifest.permission.READ_MEDIA_IMAGES else Manifest.permission.READ_MEDIA_AUDIO)
-        else -> listOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+    private fun openAppSettings() {
+        try {
+            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
+        } catch (_: ActivityNotFoundException) {
+            // Alcune TV non hanno la pagina dell'app: resta il messaggio con il percorso nelle impostazioni.
+        }
     }
 
     /** La TV ha il selettore di documenti di Android (molte non ce l'hanno). */

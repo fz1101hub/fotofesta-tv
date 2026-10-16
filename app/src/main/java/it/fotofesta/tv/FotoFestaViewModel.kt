@@ -2,6 +2,7 @@ package it.fotofesta.tv
 
 import android.app.Application
 import android.content.Intent
+import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
 import android.util.Log
@@ -13,6 +14,7 @@ import it.fotofesta.tv.data.DemoPhotos
 import it.fotofesta.tv.data.SettingsRepository
 import it.fotofesta.tv.data.UsbPhotoRepository
 import it.fotofesta.tv.files.FileBrowser
+import it.fotofesta.tv.files.StoragePermissions
 import it.fotofesta.tv.files.StorageRoots
 import it.fotofesta.tv.files.toUsbPhotoItem
 import it.fotofesta.tv.google.GoogleImportFlow
@@ -38,6 +40,7 @@ import it.fotofesta.tv.model.SlideshowSettings
 import it.fotofesta.tv.model.SourceType
 import it.fotofesta.tv.model.UserFacingException
 import it.fotofesta.tv.model.combineWithGuests
+import kotlin.coroutines.resume
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -49,7 +52,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.io.IOException
 
@@ -262,17 +267,25 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
 
     /**
      * Cartella scelta con il browser interno: le foto si leggono dal percorso sul disco, con il
-     * permesso di lettura delle foto. Con [fromBrowser] alla fine si torna alla schermata iniziale.
+     * permesso di lettura delle foto. Con [fromBrowser] la cartella viene prima indicizzata e, se
+     * si è ancora nel browser, alla fine si torna alla schermata iniziale.
      */
     fun loadUsbFolder(path: String, fromBrowser: Boolean = false) {
         cancelPendingSources()
+        // Da Android 11, senza permesso le cartelle si vedono ma le foto no: meglio dirlo che
+        // segnalare una cartella vuota.
+        if (!StoragePermissions.granted(context, BrowserKind.PHOTOS)) {
+            showStoragePermissionDenied(BrowserKind.PHOTOS)
+            return
+        }
         usbJob = viewModelScope.launch {
             _state.update { it.copy(busy = true, message = context.getString(R.string.message_usb_indexing)) }
             try {
                 val directory = File(path)
+                val readable = withContext(Dispatchers.IO) { directory.isDirectory && directory.canRead() }
+                if (readable && fromBrowser) indexFolder(directory)
                 val files = withContext(Dispatchers.IO) {
-                    if (!directory.isDirectory || !directory.canRead()) null
-                    else fileBrowser.scanPhotos(directory) { ensureActive() }
+                    if (!readable) null else fileBrowser.scanPhotos(directory) { ensureActive() }
                 }
                 val message = when {
                     files == null -> context.getString(R.string.message_usb_unavailable)
@@ -288,7 +301,12 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                     it.copy(
                         busy = false,
                         message = message,
-                        destination = if (fromBrowser && files?.isNotEmpty() == true) Destination.HOME else it.destination,
+                        // Solo se nel frattempo non si è passati a un'altra schermata.
+                        destination = if (it.destination == Destination.FILE_BROWSER && files?.isNotEmpty() == true) {
+                            Destination.HOME
+                        } else {
+                            it.destination
+                        },
                     )
                 }
             } catch (cancelled: CancellationException) {
@@ -296,6 +314,27 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             } catch (failure: Exception) {
                 Log.w(TAG, "Lettura della cartella non riuscita", failure)
                 _state.update { it.copy(busy = false, message = context.getString(R.string.message_usb_unavailable)) }
+            }
+        }
+    }
+
+    /**
+     * Da Android 11 un'app vede i file dei dischi solo dopo che il sistema li ha indicizzati: su un
+     * disco appena collegato molte foto mancherebbero. Si chiede al sistema di indicizzare subito la
+     * cartella (i file già noti si saltano) e si aspetta al massimo [INDEX_TIMEOUT_MS].
+     */
+    private suspend fun indexFolder(directory: File) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
+        withTimeoutOrNull(INDEX_TIMEOUT_MS) {
+            suspendCancellableCoroutine<Unit> { continuation ->
+                runCatching {
+                    MediaScannerConnection.scanFile(context, arrayOf(directory.absolutePath), null) { _, _ ->
+                        if (continuation.isActive) continuation.resume(Unit)
+                    }
+                }.onFailure { failure ->
+                    Log.w(TAG, "Indicizzazione della cartella non avviata", failure)
+                    if (continuation.isActive) continuation.resume(Unit)
+                }
             }
         }
     }
@@ -328,8 +367,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                 runCatching {
                     if (!directory.isDirectory || !directory.canRead()) return@runCatching null
                     val listing = fileBrowser.list(directory, browser.kind)
-                    val photosHere = if (browser.kind == BrowserKind.PHOTOS) fileBrowser.countPhotos(directory) else 0
-                    listing to photosHere
+                    listing to if (browser.kind == BrowserKind.PHOTOS) listing.files.size else 0
                 }.getOrNull()
             }
             if (loaded == null) {
@@ -770,5 +808,6 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
 
     private companion object {
         const val TAG = "FotoFestaViewModel"
+        const val INDEX_TIMEOUT_MS = 90_000L
     }
 }
