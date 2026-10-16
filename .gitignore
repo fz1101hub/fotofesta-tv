@@ -17,6 +17,8 @@ local.properties
 google-services.json
 *.jks
 *.keystore
+# Chiave di debug pubblica per le build di test (vedi app/build.gradle.kts): non è un segreto.
+!app/debug.keystore
 *.pem
 *.p12
 

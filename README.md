@@ -51,7 +51,9 @@ Il progetto implementa il primo approccio perché è l’unico che soddisfa cont
 adb install -r dist/FotoFesta-TV-debug.apk
 ```
 
-L’APK debug è firmato con certificato di sviluppo. Per una distribuzione reale usare l’Android App Bundle e una chiave di release, preferibilmente tramite Play App Signing.
+In alternativa l’APK di prova si scarica dalla pagina dell’esecuzione di **Android CI** in GitHub Actions (artefatto `FotoFesta-TV-debug`).
+
+L’APK debug è firmato con una chiave di sviluppo fissa e pubblica (`app/debug.keystore`, password `android`), così ogni nuova build di prova si installa sopra la precedente e conserva le impostazioni. Le build di prova scaricate prima della 1.3.0 avevano una chiave diversa a ogni esecuzione: la prima volta va disinstallata la vecchia. Per una distribuzione reale usare l’Android App Bundle e una chiave di release, preferibilmente tramite Play App Signing.
 
 ## Compilazione
 
@@ -115,7 +117,7 @@ Risultati della validazione locale della versione 1.0.0:
 | ABI | `armeabi-v7a`, `arm64-v8a`, `x86`, `x86_64` |
 | Allineamento 16 KB | Superato |
 
-**Apple TV.** Il workflow `.github/workflows/apple.yml` su un runner macOS (macOS 15) esegue i 65 test XCTest del nucleo, tutti superati, e compila l’app per tvOS senza firma, senza errori. Restano da fare la prova nel simulatore e su una Apple TV reale e la build firmata con Xcode 26 descritta in [apple/README.md](apple/README.md).
+**Apple TV.** Il workflow `.github/workflows/apple.yml` su un runner macOS 15 con Xcode 26.3 (SDK tvOS 26, quello richiesto da App Store Connect) esegue i 65 test XCTest del nucleo, tutti superati, e compila l’app per tvOS senza firma, senza errori né avvisi Swift. Restano da fare la prova nel simulatore e su una Apple TV reale e l’archivio firmato descritto in [apple/README.md](apple/README.md).
 
 ## Riferimenti
 

@@ -108,7 +108,7 @@ Questi passaggi funzionano solo dopo il primo caricamento manuale.
 
 ### Una volta sola
 
-> **Stato:** il workflow `.github/workflows/apple.yml` compila l'app per tvOS ed esegue i 65 test del nucleo su un runner macOS, senza errori. La build firmata con Xcode 26 e la prova su una Apple TV reale restano da fare; vedi [apple/README.md](../apple/README.md#stato-di-verifica).
+> **Stato:** il workflow `.github/workflows/apple.yml` compila l'app per tvOS con Xcode 26.3 ed esegue i 65 test del nucleo su un runner macOS, senza errori. L'archivio firmato e la prova su una Apple TV reale restano da fare; vedi [apple/README.md](../apple/README.md#stato-di-verifica).
 
 1. **Strumenti**:
    - iscrizione all'[Apple Developer Program](https://developer.apple.com/programs/) (abbonamento annuale);

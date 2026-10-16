@@ -58,6 +58,14 @@ android {
     // Firma release opzionale: se RELEASE_STORE_FILE non è configurato l'AAB resta non firmato.
     val releaseStoreFile = ownerProperty("RELEASE_STORE_FILE")?.let(rootProject::file)
     signingConfigs {
+        // Chiave di debug fissa e pubblica (password "android"), solo per le build di test: ogni APK
+        // della CI si installa sopra il precedente senza disinstallare. Play non accetta build debug.
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
         if (releaseStoreFile != null) {
             create("release") {
                 storeFile = releaseStoreFile
