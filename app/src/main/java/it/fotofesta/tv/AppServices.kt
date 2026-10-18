@@ -4,7 +4,7 @@ import android.app.ActivityManager
 import android.content.Context
 import android.os.Build
 import it.fotofesta.tv.files.FileBrowser
-import it.fotofesta.tv.google.GoogleDeviceAuthRepository
+import it.fotofesta.tv.google.GoogleAuthRepository
 import it.fotofesta.tv.google.GooglePhotosPickerRepository
 import it.fotofesta.tv.google.GooglePhotosStream
 import it.fotofesta.tv.google.GoogleSelectionStore
@@ -45,11 +45,12 @@ class AppServices(context: Context) {
      */
     val streamingHttp: OkHttpClient = http.newBuilder().callTimeout(0, TimeUnit.SECONDS).build()
 
-    val googleAuth = GoogleDeviceAuthRepository(
+    val googleAuth = GoogleAuthRepository(
         client = http,
         tokens = SecureTokenStore(context),
         clientId = BuildConfig.PHOTOS_CLIENT_ID,
         clientSecret = BuildConfig.PHOTOS_CLIENT_SECRET,
+        redirectUri = BuildConfig.PHOTOS_REDIRECT_URI,
     )
 
     val googlePicker = GooglePhotosPickerRepository(http)

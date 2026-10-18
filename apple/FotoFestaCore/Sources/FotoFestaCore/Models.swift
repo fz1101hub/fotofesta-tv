@@ -113,7 +113,12 @@ public struct SlideshowSettings: Codable, Equatable, Sendable {
 public enum FotoFestaError: Error, Equatable, Sendable {
     case notConfigured
     case accessDenied
+    /// Il telefono non ha completato l'autorizzazione entro il tempo della pagina.
     case codeExpired
+    /// La TV non è in una rete di casa: il telefono non potrebbe raggiungere la sua pagina.
+    case noNetwork
+    /// Google ha rifiutato la richiesta di autorizzazione (client OAuth configurato male).
+    case consentFailed
     case selectionExpired
     case sessionExpired
     case nothingSelected

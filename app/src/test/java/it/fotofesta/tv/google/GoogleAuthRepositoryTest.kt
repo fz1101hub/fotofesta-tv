@@ -3,67 +3,84 @@ package it.fotofesta.tv.google
 import it.fotofesta.tv.R
 import it.fotofesta.tv.model.UserFacingException
 import kotlinx.coroutines.test.runTest
-import okhttp3.mockwebserver.MockResponse
-import okhttp3.mockwebserver.SocketPolicy
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
+import java.net.URLEncoder
+import java.security.MessageDigest
+import java.util.Base64
 
-class GoogleDeviceAuthRepositoryTest {
+class GoogleAuthRepositoryTest {
     private val server = FakeGoogleServer()
     private val tokens = MemoryTokenStore()
     private val now = 1_800_000_000_000L
 
-    private fun repository(clientId: String = "client", clientSecret: String = "secret") =
-        GoogleDeviceAuthRepository(server.client, tokens, clientId, clientSecret, server.oauthBase) { now }
+    private fun repository(clientId: String = "client", clientSecret: String = "secret", redirectUri: String = REDIRECT) =
+        GoogleAuthRepository(server.client, tokens, clientId, clientSecret, redirectUri, server.oauthBase) { now }
 
     @After
     fun tearDown() = server.close()
 
     @Test
-    fun `device flow waits for authorization and stores tokens`() = runTest {
-        server.enqueue(
-            "POST", "/oauth/device/code",
-            json("""{"device_code":"dev-1","user_code":"ABCD-EFGH","verification_url":"https://www.google.com/device","expires_in":1800,"interval":5}"""),
-        )
-        server.enqueue(
-            "POST", "/oauth/token",
-            oauthError("authorization_pending", 428),
-            oauthError("slow_down", 403),
-            json("""{"access_token":"access-1","refresh_token":"refresh-1","expires_in":3599}"""),
-        )
+    fun `authorization url carries pkce the scope and the way back to the tv`() {
         val auth = repository()
-        val code = auth.requestDeviceCode()
-        assertEquals("ABCD-EFGH", code.userCode)
-        assertEquals("https://www.google.com/device", code.verificationUrl)
+        val pending = auth.beginAuthorization()
+        val url = auth.authorizationUrl(pending, "http://192.168.1.50:38211/google?k=abc").toHttpUrl()
 
-        val token = auth.pollForToken(code)
+        assertEquals("accounts.google.com", url.host)
+        assertEquals("/o/oauth2/v2/auth", url.encodedPath)
+        assertEquals("client", url.queryParameter("client_id"))
+        assertEquals(REDIRECT, url.queryParameter("redirect_uri"))
+        assertEquals("code", url.queryParameter("response_type"))
+        assertEquals(GoogleAuthRepository.SCOPE, url.queryParameter("scope"))
+        assertEquals("S256", url.queryParameter("code_challenge_method"))
+        val digest = MessageDigest.getInstance("SHA-256").digest(pending.verifier.toByteArray())
+        assertEquals(Base64.getUrlEncoder().withoutPadding().encodeToString(digest), url.queryParameter("code_challenge"))
+        assertEquals("http://192.168.1.50:38211/google?k=abc", GoogleAuthRepository.decodeState(url.queryParameter("state")!!))
+        assertEquals("offline", url.queryParameter("access_type"))
+        assertEquals("consent", url.queryParameter("prompt"))
+        // Il segreto PKCE è lungo e diverso a ogni collegamento.
+        assertTrue(pending.verifier.length >= 43)
+        assertFalse(pending.verifier == auth.beginAuthorization().verifier)
+        assertTrue(server.requests.isEmpty())
+    }
+
+    @Test
+    fun `the code from the phone is exchanged with pkce and the tokens are stored`() = runTest {
+        server.enqueue("POST", "/oauth/token", json("""{"access_token":"access-1","refresh_token":"refresh-1","expires_in":3599}"""))
+        val auth = repository()
+        val pending = auth.beginAuthorization()
+
+        val token = auth.exchangeCode(pending, "4/0Acode con spazi")
 
         assertEquals("access-1", token.accessToken)
         assertEquals("access-1", tokens.accessToken)
         assertEquals("refresh-1", tokens.refreshToken)
         assertEquals(now / 1_000 + 3599, tokens.expiresAtEpochSeconds)
-        val deviceRequest = server.requestsTo("POST", "/oauth/device/code").single().body.readUtf8()
-        assertTrue(deviceRequest.contains("client_id=client"))
-        assertTrue(deviceRequest.contains("photospicker.mediaitems.readonly"))
-        val tokenRequests = server.requestsTo("POST", "/oauth/token")
-        assertEquals(3, tokenRequests.size)
-        assertTrue(tokenRequests.first().body.readUtf8().contains("device_code=dev-1"))
+        val body = server.requestsTo("POST", "/oauth/token").single().body.readUtf8()
+        assertTrue(body, body.contains("grant_type=authorization_code"))
+        assertTrue(body, body.contains("code=4%2F0Acode%20con%20spazi"))
+        assertTrue(body, body.contains("code_verifier=${pending.verifier}"))
+        assertTrue(body, body.contains("redirect_uri=" + URLEncoder.encode(REDIRECT, "UTF-8")))
+        assertTrue(body, body.contains("client_secret=secret"))
     }
 
     @Test
-    fun `a dropped connection while waiting does not abort the sign in`() = runTest {
-        server.enqueue(
-            "POST", "/oauth/token",
-            MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AFTER_REQUEST),
-            json("""{"access_token":"after-drop","expires_in":3600}"""),
-        )
-        val code = GoogleDeviceAuthRepository.DeviceCode("dev", "CODE", "https://g.co/device", 600, 1)
-
-        assertEquals("after-drop", repository().pollForToken(code).accessToken)
+    fun `a used or expired code asks to start again`() = runTest {
+        server.enqueue("POST", "/oauth/token", oauthError("invalid_grant"))
+        val auth = repository()
+        try {
+            auth.exchangeCode(auth.beginAuthorization(), "vecchio")
+            fail("expected UserFacingException")
+        } catch (expected: UserFacingException) {
+            assertEquals(R.string.error_google_code_expired, expected.messageRes)
+        }
+        assertNull(tokens.accessToken)
     }
 
     @Test
@@ -98,18 +115,6 @@ class GoogleDeviceAuthRepositoryTest {
         repository().revokeAndDisconnect()
 
         assertTrue(tokens.cleared)
-    }
-
-    @Test
-    fun `access denied on the phone becomes a user facing error`() = runTest {
-        server.enqueue("POST", "/oauth/token", oauthError("access_denied", 403))
-        val code = GoogleDeviceAuthRepository.DeviceCode("dev", "CODE", "https://g.co/device", 600, 1)
-        try {
-            repository().pollForToken(code)
-            fail("expected UserFacingException")
-        } catch (expected: UserFacingException) {
-            assertEquals(R.string.error_google_access_denied, expected.messageRes)
-        }
     }
 
     @Test
@@ -158,14 +163,19 @@ class GoogleDeviceAuthRepositoryTest {
 
     @Test
     fun `missing credentials are reported before any request`() = runTest {
+        assertFalse(repository(redirectUri = "").isConfigured())
         val auth = repository(clientId = "", clientSecret = "")
-        assertEquals(false, auth.isConfigured())
+        assertFalse(auth.isConfigured())
         try {
-            auth.requestDeviceCode()
+            auth.beginAuthorization()
             fail("expected UserFacingException")
         } catch (expected: UserFacingException) {
             assertEquals(R.string.error_google_not_configured, expected.messageRes)
         }
         assertTrue(server.requests.isEmpty())
+    }
+
+    private companion object {
+        const val REDIRECT = "https://esempio.github.io/fotofesta-tv/google/"
     }
 }

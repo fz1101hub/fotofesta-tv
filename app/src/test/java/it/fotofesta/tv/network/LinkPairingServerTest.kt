@@ -98,7 +98,7 @@ class LinkPairingServerTest {
 
     @Test
     fun limitsTheConnectionsOfOnePhone() {
-        val idle = List(LinkPairingServer.MAX_CONNECTIONS_PER_CLIENT) { Socket(loopback, port) }
+        val idle = List(LocalHttpServer.MAX_CONNECTIONS_PER_CLIENT) { Socket(loopback, port) }
         try {
             Thread.sleep(300)
             assertEquals(429, get("/?k=chiave-segreta").first)

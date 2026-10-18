@@ -26,7 +26,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import it.fotofesta.tv.R
@@ -67,18 +66,13 @@ fun GoogleConnectScreen(
                     Text(stringResource(R.string.google_preparing), style = MaterialTheme.typography.titleLarge)
                 }
                 is GoogleConnectState.WaitingForAuthorization -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(44.dp)) {
-                    QrCode(state.verificationUrl, stringResource(R.string.google_qr_authorize), Modifier.clip(RoundedCornerShape(16.dp)), padding = 16.dp)
+                    QrCode(state.pageUrl, stringResource(R.string.google_qr_authorize), Modifier.clip(RoundedCornerShape(16.dp)), padding = 16.dp)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                         Text(stringResource(R.string.google_step_scan), style = MaterialTheme.typography.headlineMedium)
-                        Text(stringResource(R.string.google_open_url, state.verificationUrl), style = MaterialTheme.typography.bodyLarge, color = TextSecondary)
-                        Text(
-                            state.userCode,
-                            style = MaterialTheme.typography.displayLarge,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = TextPrimary,
-                            modifier = Modifier.background(Background, RoundedCornerShape(14.dp)).padding(horizontal = 24.dp, vertical = 14.dp),
-                        )
+                        Text(stringResource(R.string.google_phone_steps), style = MaterialTheme.typography.bodyLarge)
+                        Text(stringResource(R.string.google_same_network), style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
                         Text(stringResource(R.string.google_scope_note), style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                        CircularProgressIndicator(color = Accent)
                     }
                 }
                 is GoogleConnectState.WaitingForPhotos -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(44.dp)) {

@@ -16,10 +16,33 @@ class GoogleImportFlowTest {
     @Volatile
     private var now = 1_800_000_000_000L
 
+    private val consent = FakePhoneConsent()
+
     private fun flow() = GoogleImportFlow(
-        GoogleDeviceAuthRepository(server.client, tokens, "client", "secret", server.oauthBase) { now },
+        GoogleAuthRepository(server.client, tokens, "client", "secret", "https://site.test/google/", server.oauthBase) { now },
         GooglePhotosPickerRepository(server.client, server.apiBase) { now },
-    )
+    ) { consent }
+
+    /** Telefono finto: riceve l'indirizzo di Google e risponde subito con un codice. */
+    private class FakePhoneConsent : PhoneConsent {
+        var googleUrl: String? = null
+        var pickerUrl: String? = null
+        var closed = false
+
+        override suspend fun obtainCode(authorizationUrl: (String) -> String, onState: (GoogleConnectState) -> Unit): String {
+            googleUrl = authorizationUrl("http://192.168.1.50:38211/google?k=abc")
+            onState(GoogleConnectState.WaitingForAuthorization("http://192.168.1.50:38211/?k=abc", 600))
+            return "code-1"
+        }
+
+        override fun publishPickerUrl(url: String) {
+            pickerUrl = url
+        }
+
+        override fun close() {
+            closed = true
+        }
+    }
 
     @After
     fun tearDown() = server.close()
@@ -37,7 +60,6 @@ class GoogleImportFlowTest {
         tokens.accessToken = "revoked"
         tokens.expiresAtEpochSeconds = now / 1_000 + 3_000
         server.enqueue("POST", "/v1/sessions", json("""{"error":{"code":401,"message":"Invalid credentials"}}""", 401))
-        server.enqueue("POST", "/oauth/device/code", json("""{"device_code":"d","user_code":"WXYZ","verification_url":"https://www.google.com/device","expires_in":600,"interval":1}"""))
         server.enqueue("POST", "/oauth/token", json("""{"access_token":"fresh","refresh_token":"r","expires_in":3600}"""))
         pickerSessionReady()
         server.enqueue("GET", "/v1/mediaItems", json("""{"mediaItems":[${mediaItem("p1")},${mediaItem("p2")}]}"""))
@@ -52,8 +74,16 @@ class GoogleImportFlowTest {
         assertEquals(0, result.skipped)
         assertTrue(tokens.cleared)
         assertEquals("fresh", tokens.accessToken)
-        assertEquals(GoogleConnectState.WaitingForAuthorization("https://www.google.com/device", "WXYZ", 600), states.first())
+        assertEquals(GoogleConnectState.WaitingForAuthorization("http://192.168.1.50:38211/?k=abc", 600), states.first())
         assertEquals(GoogleConnectState.WaitingForPhotos("https://photos.google.com/picker/s1"), states.last())
+        // Il telefono ha ricevuto la strada verso Google con il ritorno sulla TV, e poi il Picker.
+        assertTrue(consent.googleUrl!!.startsWith("https://accounts.google.com/o/oauth2/v2/auth?"))
+        assertTrue(consent.googleUrl!!.contains("state=" + GoogleAuthRepository.encodeState("http://192.168.1.50:38211/google?k=abc")))
+        assertEquals("https://photos.google.com/picker/s1", consent.pickerUrl)
+        assertTrue(consent.closed)
+        val exchange = server.requestsTo("POST", "/oauth/token").single().body.readUtf8()
+        assertTrue(exchange.contains("grant_type=authorization_code"))
+        assertTrue(exchange.contains("code=code-1"))
         val sessionCreations = server.requestsTo("POST", "/v1/sessions")
         assertEquals(listOf("Bearer revoked", "Bearer fresh"), sessionCreations.map { it.getHeader("Authorization") })
         // La sessione resta aperta: serve a rinnovare gli indirizzi delle foto durante lo slideshow.
@@ -76,6 +106,9 @@ class GoogleImportFlowTest {
             assertEquals(R.string.error_google_nothing_selected, expected.messageRes)
         }
         assertEquals(1, server.requestsTo("DELETE", "/v1/sessions/s1").size)
+        // Il telefono non è stato coinvolto (token già valido), ma la pagina è stata comunque chiusa.
+        assertEquals(null, consent.googleUrl)
+        assertTrue(consent.closed)
     }
 
     @Test

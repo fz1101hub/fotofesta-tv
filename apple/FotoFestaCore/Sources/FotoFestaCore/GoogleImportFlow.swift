@@ -2,13 +2,15 @@ import Foundation
 
 /// Passi del collegamento a Google Foto da mostrare sulla TV.
 public enum ImportStep: Equatable, Sendable {
-    case waitingForAuthorization(verificationURL: String, userCode: String, expiresIn: Int)
+    /// `pageURL`: pagina della TV da inquadrare con il telefono; da lì si va da Google.
+    case waitingForAuthorization(pageURL: String, expiresIn: Int)
     case waitingForPhotos(pickerURI: String)
 }
 
-/// Flusso completo di collegamento: autorizzazione, sessione Picker, selezione ed elenco delle foto
-/// scelte. Le foto non vengono scaricate: il risultato contiene solo identificativi e nomi, e la
-/// sessione resta aperta perché serve a ottenere gli indirizzi aggiornati durante lo slideshow.
+/// Flusso completo di collegamento: autorizzazione dal telefono (QR verso la pagina della TV,
+/// consenso su Google, codice di ritorno), sessione Picker, selezione ed elenco delle foto scelte.
+/// Le foto non vengono scaricate: il risultato contiene solo identificativi e nomi, e la sessione
+/// resta aperta perché serve a ottenere gli indirizzi aggiornati durante lo slideshow.
 /// Se il flusso non arriva in fondo (errore, nessuna foto, annullamento) la sessione viene eliminata.
 public final class GoogleImportFlow: @unchecked Sendable {
     public struct Result: Equatable, Sendable {
@@ -17,16 +19,25 @@ public final class GoogleImportFlow: @unchecked Sendable {
         public let skipped: Int
     }
 
-    private let auth: GoogleDeviceAuth
+    private let auth: GoogleAuth
     private let picker: PhotosPicker
+    /// Un consenso nuovo per ogni collegamento: la pagina resta accesa fino alla fine del flusso.
+    private let newConsent: @Sendable () -> PhoneConsent
 
-    public init(auth: GoogleDeviceAuth, picker: PhotosPicker) {
+    public init(auth: GoogleAuth, picker: PhotosPicker, consent: @escaping @Sendable () -> PhoneConsent) {
         self.auth = auth
         self.picker = picker
+        self.newConsent = consent
     }
 
     public func run(onStep: @escaping @Sendable (ImportStep) -> Void) async throws -> Result {
-        var firstToken = try await authorize(onStep)
+        let consent = newConsent()
+        defer { consent.close() }
+        return try await run(consent: consent, onStep: onStep)
+    }
+
+    private func run(consent: PhoneConsent, onStep: @escaping @Sendable (ImportStep) -> Void) async throws -> Result {
+        var firstToken = try await authorize(consent, onStep)
         let session: PhotosPicker.Session
         do {
             session = try await picker.createSession(token: firstToken)
@@ -37,7 +48,7 @@ public final class GoogleImportFlow: @unchecked Sendable {
                 firstToken = renewed
             } else {
                 await auth.disconnect()
-                firstToken = try await authorize(onStep)
+                firstToken = try await authorize(consent, onStep)
             }
             session = try await picker.createSession(token: firstToken)
         }
@@ -47,6 +58,8 @@ public final class GoogleImportFlow: @unchecked Sendable {
             return token
         }
         do {
+            // Il telefono che ha appena dato il consenso può scegliere le foto senza un secondo QR.
+            consent.publishPickerURL(session.pickerURI)
             onStep(.waitingForPhotos(pickerURI: session.pickerURI))
             let completed = try await picker.awaitSelection(token: tokens, session: session)
             let picked = try await picker.listPickedMedia(token: tokens, sessionID: completed.id)
@@ -66,10 +79,12 @@ public final class GoogleImportFlow: @unchecked Sendable {
         }
     }
 
-    private func authorize(_ onStep: @escaping @Sendable (ImportStep) -> Void) async throws -> String {
+    /// Restituisce un token valido o chiede il consenso dal telefono e scambia il codice.
+    private func authorize(_ consent: PhoneConsent, _ onStep: @escaping @Sendable (ImportStep) -> Void) async throws -> String {
         if let token = try await auth.validAccessToken() { return token }
-        let code = try await auth.requestDeviceCode()
-        onStep(.waitingForAuthorization(verificationURL: code.verificationURL, userCode: code.userCode, expiresIn: code.expiresIn))
-        return try await auth.pollForToken(code)
+        let pending = try await auth.beginAuthorization()
+        let auth = self.auth
+        let code = try await consent.obtainCode(authorizationURL: { returnURL in auth.authorizationURL(pending, returnURL: returnURL) }, onStep: onStep)
+        return try await auth.exchange(pending, code: code)
     }
 }

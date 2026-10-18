@@ -20,6 +20,7 @@ import it.fotofesta.tv.files.StoragePermissions
 import it.fotofesta.tv.files.StorageRoots
 import it.fotofesta.tv.files.toUsbPhotoItem
 import it.fotofesta.tv.google.GoogleImportFlow
+import it.fotofesta.tv.google.LanPhoneConsent
 import it.fotofesta.tv.google.GooglePhotosStream
 import it.fotofesta.tv.google.HttpStatusException
 import it.fotofesta.tv.guests.GuestParty
@@ -97,7 +98,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private val googlePicker = services.googlePicker
     private val googleSelection = services.googleSelection
     private val googleStream = services.googleStream
-    private val googleImport = GoogleImportFlow(googleAuth, googlePicker)
+    private val googleImport = GoogleImportFlow(googleAuth, googlePicker) { LanPhoneConsent(context) }
     private val guests = services.guests
     private val networkMedia = services.networkMedia
     private val smbShares = services.smbShares

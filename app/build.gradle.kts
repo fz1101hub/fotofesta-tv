@@ -35,6 +35,8 @@ android {
 
         buildConfigField("String", "PHOTOS_CLIENT_ID", quotedProperty("PHOTOS_CLIENT_ID"))
         buildConfigField("String", "PHOTOS_CLIENT_SECRET", quotedProperty("PHOTOS_CLIENT_SECRET"))
+        // Pagina del sito che riceve il codice OAuth dal telefono e lo rimanda alla TV (site/google/).
+        buildConfigField("String", "PHOTOS_REDIRECT_URI", quotedProperty("PHOTOS_REDIRECT_URI"))
     }
 
     buildFeatures {

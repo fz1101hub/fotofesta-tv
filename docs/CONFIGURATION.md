@@ -31,29 +31,33 @@ Dal 31 marzo 2025 un’app di terze parti non può più leggere indiscriminatame
    - email di contatto dello sviluppatore.
 4. In **Google Auth Platform › Pubblico**, sotto **Utenti di test**, aggiungi gli account Google con cui proverai l'app. Finché l'app è in modalità test possono collegarsi solo questi account, e il collegamento scade dopo 7 giorni.
 5. In **Google Auth Platform › Accesso ai dati** premi **Aggiungi o rimuovi ambiti**, inserisci a mano `https://www.googleapis.com/auth/photospicker.mediaitems.readonly` e salva.
-6. In **Google Auth Platform › Client** premi **Crea client**, scegli il tipo **TV e dispositivi con input limitato**, dai un nome e crea.
-7. Copia **ID client** e **Client secret**.
-8. Inserisci i due valori, a seconda di dove compili:
-   - **GitHub Actions** (APK della CI): nel repository, **Settings › Secrets and variables › Actions › New repository secret**, crea `PHOTOS_CLIENT_ID` e `PHOTOS_CLIENT_SECRET`. Li usano sia la CI sia il workflow di release.
+6. Pubblica il sito della cartella `site/` (vedi [PUBLISHING.md](PUBLISHING.md)): la pagina `site/google/` è il punto in cui Google rimanda il telefono dopo il consenso, e deve essere raggiungibile in https. Con GitHub Pages l'indirizzo è `https://<utente>.github.io/fotofesta-tv/google/`.
+7. In **Google Auth Platform › Client** premi **Crea client**, scegli il tipo **Applicazione web**, dai un nome e, sotto **URI di reindirizzamento autorizzati**, aggiungi l'indirizzo della pagina `google/` del sito (con la barra finale). Il flusso per "TV e dispositivi con input limitato" non si può usare: Google non vi ammette lo scope del Photos Picker.
+8. Copia **ID client** e **Client secret**.
+9. Inserisci i tre valori, a seconda di dove compili:
+   - **GitHub Actions** (APK della CI): nel repository, **Settings › Secrets and variables › Actions**, crea i secret `PHOTOS_CLIENT_ID` e `PHOTOS_CLIENT_SECRET` e, nella scheda **Variables**, la variabile `PHOTOS_REDIRECT_URI` con l'indirizzo della pagina `google/`. Li usano sia la CI sia il workflow di release.
    - **Computer locale**: in `local.properties`, senza aggiungere il file a Git:
 
 ```properties
 sdk.dir=/home/utente/Android/Sdk
 PHOTOS_CLIENT_ID=123456789012-abc123.apps.googleusercontent.com
 PHOTOS_CLIENT_SECRET=GOCSPX-...
+PHOTOS_REDIRECT_URI=https://utente.github.io/fotofesta-tv/google/
 ```
 
-9. Ricompila l’app: rilancia la CI (**Actions › Android CI › Run workflow**) o `./scripts/build.sh`. Se la TV ha già una versione installata con un'altra firma debug, disinstallala prima.
+10. Ricompila l’app: rilancia la CI (**Actions › Android CI › Run workflow**) o `./scripts/build.sh`. Se la TV ha già una versione installata con un'altra firma debug, disinstallala prima.
 
-Senza credenziali, le build debug mostrano comunque la scheda Google Foto con un messaggio che spiega cosa manca, mentre le build di release la nascondono. Il workflow di release si ferma se mancano i secret, salvo l'opzione "Build senza Google Foto".
+Senza credenziali, le build debug mostrano comunque la scheda Google Foto con un messaggio che spiega cosa manca, mentre le build di release la nascondono. Il workflow di release si ferma se mancano i secret o la variabile, salvo l'opzione "Build senza Google Foto".
+
+Il client secret di un'applicazione web, secondo Google, andrebbe tenuto su un server: qui sta nell'app, come il secret del vecchio flusso per TV, perché il progetto non ha un server. Serve solo a scambiare e rinnovare i token insieme al codice che arriva dal telefono, protetto da PKCE; chi lo estraesse dall'app potrebbe al massimo presentare agli utenti una schermata di consenso con il nome di FotoFesta. Se Google lo rigenerasse, basta aggiornare il secret e ricompilare.
 
 L’app chiede esclusivamente lo scope `https://www.googleapis.com/auth/photospicker.mediaitems.readonly`, che consente di creare sessioni Picker e recuperare solo gli elementi selezionati.[2] Per una pubblicazione fuori dal gruppo di test, Google richiede la verifica OAuth dell’app Photos API.[2]
 
 ### Flusso utente
 
-La TV richiede un `device_code`, mostra QR, URL e `user_code`, quindi rispetta l’intervallo di polling restituito da Google.[3] Dopo l’autorizzazione, crea una sessione Picker con UUID v4, mostra un secondo QR e attende `mediaItemsSet=true`, ricalcolando la scadenza da `pollingConfig.timeoutIn` a ogni risposta. Le foto **non vengono scaricate**: l’app salva solo un piccolo file con l’identificativo della sessione Picker, la sua scadenza e identificativi e nomi delle foto scelte. Durante slideshow, giochi e salvaschermo ogni foto si carica da Google già ridotta alla dimensione dello schermo (`=w…-h…`, con `-c` quando deve riempire il riquadro) e resta solo nella cache in RAM. Gli indirizzi restituiti dalla Picker API valgono circa 60 minuti: l’app li rinnova richiedendo di nuovo l’elenco della sessione ogni 50 minuti, o subito dopo un errore 401/403. La sessione resta aperta finché Google la tiene valida (`expireTime`, mostrato all’utente a fine collegamento; Google non ne garantisce la durata): quando l’elenco risponde 404, o 400/403 confermati da `sessions.get`, l’app avvisa che le foto vanno scelte di nuovo. Se l’accesso viene revocato avvisa che serve un nuovo collegamento. La scadenza non si decide con l’orologio della TV, che all’accensione può essere sbagliato. La sessione viene eliminata con “Disconnetti e cancella”, quando una nuova selezione la sostituisce, quando si passa a un’altra sorgente o se il collegamento non arriva in fondo. All’avvio l’app elimina le foto scaricate dalle versioni fino alla 1.2.0.
+La TV apre sulla rete di casa una pagina (`shared/assets/guest/google.html`, come quella degli invitati) e ne mostra il QR. Il telefono la apre, tocca «Continua con Google» e va alla schermata di consenso di Google con il flusso "authorization code" e PKCE;[3] lo `state` porta, in base64url, l'indirizzo di ritorno sulla TV. Google rimanda il telefono alla pagina `site/google/` del sito, che legge lo `state`, controlla che l'indirizzo sia della rete di casa e ci rimanda il telefono con il codice (una navigazione da https a http, ammessa dai browser al contrario di una `fetch`). La TV scambia il codice con i token (client secret e `code_verifier`), crea una sessione Picker con UUID v4, mostra un secondo QR e offre lo stesso link anche sulla pagina del telefono, poi attende `mediaItemsSet=true`, ricalcolando la scadenza da `pollingConfig.timeoutIn` a ogni risposta. La pagina della TV vuole la chiave del QR, controlla l'intestazione `Host`, resta accesa dieci minuti al massimo e consegna un codice una volta sola. Le foto **non vengono scaricate**: l’app salva solo un piccolo file con l’identificativo della sessione Picker, la sua scadenza e identificativi e nomi delle foto scelte. Durante slideshow, giochi e salvaschermo ogni foto si carica da Google già ridotta alla dimensione dello schermo (`=w…-h…`, con `-c` quando deve riempire il riquadro) e resta solo nella cache in RAM. Gli indirizzi restituiti dalla Picker API valgono circa 60 minuti: l’app li rinnova richiedendo di nuovo l’elenco della sessione ogni 50 minuti, o subito dopo un errore 401/403. La sessione resta aperta finché Google la tiene valida (`expireTime`, mostrato all’utente a fine collegamento; Google non ne garantisce la durata): quando l’elenco risponde 404, o 400/403 confermati da `sessions.get`, l’app avvisa che le foto vanno scelte di nuovo. Se l’accesso viene revocato avvisa che serve un nuovo collegamento. La scadenza non si decide con l’orologio della TV, che all’accensione può essere sbagliato. La sessione viene eliminata con “Disconnetti e cancella”, quando una nuova selezione la sostituisce, quando si passa a un’altra sorgente o se il collegamento non arriva in fondo. All’avvio l’app elimina le foto scaricate dalle versioni fino alla 1.2.0.
 
-Se l’utente revoca l’accesso dall’account Google, al collegamento successivo l’app cancella i token non più validi e mostra di nuovo il codice di autorizzazione, senza richiedere “Disconnetti e cancella”.
+Se l’utente revoca l’accesso dall’account Google, al collegamento successivo l’app cancella i token non più validi e mostra di nuovo il QR per il telefono, senza richiedere “Disconnetti e cancella”.
 
 Il `client_secret` di un client installato/TV è un identificatore distribuito nell’app e non deve essere considerato una credenziale server realmente segreta. La sicurezza dell’utente dipende da consenso OAuth, scope minimo, refresh token cifrato e possibilità di revoca. Non riutilizzare queste credenziali in un backend riservato.
 
@@ -147,4 +151,4 @@ Non aggiungere `.jks`, password o `local.properties` al repository. La soluzione
 
 [1]: https://developers.google.com/photos/support/updates "Updates to the Google Photos APIs"
 [2]: https://developers.google.com/photos/overview/authorization "Google Photos API authorization scopes"
-[3]: https://developers.google.com/identity/protocols/oauth2/limited-input-device "OAuth 2.0 for TV and Limited-Input Device Applications"
+[3]: https://developers.google.com/identity/protocols/oauth2/web-server "Using OAuth 2.0 for Web Server Applications"

@@ -53,13 +53,14 @@ jobs:
         env:
           PHOTOS_CLIENT_ID: ${{ secrets.PHOTOS_CLIENT_ID }}
           PHOTOS_CLIENT_SECRET: ${{ secrets.PHOTOS_CLIENT_SECRET }}
+          PHOTOS_REDIRECT_URI: ${{ vars.PHOTOS_REDIRECT_URI }}
           WITHOUT_GOOGLE: ${{ inputs.without_google }}
         run: |
-          if [ -z "$PHOTOS_CLIENT_ID" ] || [ -z "$PHOTOS_CLIENT_SECRET" ]; then
+          if [ -z "$PHOTOS_CLIENT_ID" ] || [ -z "$PHOTOS_CLIENT_SECRET" ] || [ -z "$PHOTOS_REDIRECT_URI" ]; then
             if [ "$WITHOUT_GOOGLE" = "true" ]; then
               echo "::warning::Build senza Google Foto: la scheda Google non comparira' nell'app"
             else
-              echo "::error::Secret PHOTOS_CLIENT_ID o PHOTOS_CLIENT_SECRET mancante (vedi docs/CONFIGURATION.md)"
+              echo "::error::Secret PHOTOS_CLIENT_ID o PHOTOS_CLIENT_SECRET, o variabile PHOTOS_REDIRECT_URI, mancante (vedi docs/CONFIGURATION.md)"
               exit 1
             fi
           fi
@@ -71,6 +72,7 @@ jobs:
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
           PHOTOS_CLIENT_ID: ${{ secrets.PHOTOS_CLIENT_ID }}
           PHOTOS_CLIENT_SECRET: ${{ secrets.PHOTOS_CLIENT_SECRET }}
+          PHOTOS_REDIRECT_URI: ${{ vars.PHOTOS_REDIRECT_URI }}
         run: ./gradlew --no-daemon testReleaseUnitTest lintRelease bundleRelease
 
       # jarsigner -verify termina con 0 anche su un file non firmato: si controlla il testo.

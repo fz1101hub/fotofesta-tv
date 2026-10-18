@@ -48,19 +48,15 @@ struct GoogleConnectView: View {
                 Text(L("google.preparing")).font(.title3)
                 cancelButton
             }
-        case let .working(.waitingForAuthorization(url, code, _)?):
+        case let .working(.waitingForAuthorization(url, _)?):
             HStack(spacing: 64) {
                 QRCodeView(text: url, accessibilityLabel: L("google.qr_authorize"))
                 VStack(alignment: .leading, spacing: 20) {
                     Text(L("google.step_scan")).font(.title2.bold())
-                    Text(L("google.open_url", url)).foregroundStyle(Theme.secondaryText)
-                    Text(code)
-                        .font(.system(size: 64, weight: .bold, design: .monospaced))
-                        .padding(.horizontal, 28)
-                        .padding(.vertical, 14)
-                        .background(Theme.background, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                        .accessibilityLabel(Text(code.map(String.init).joined(separator: " ")))
+                    Text(L("google.phone_steps"))
+                    Text(L("google.same_network")).font(.callout).foregroundStyle(Theme.secondaryText)
                     Text(L("google.scope_note")).font(.callout).foregroundStyle(Theme.secondaryText)
+                    ProgressView()
                     cancelButton
                 }
             }

@@ -457,7 +457,7 @@ public final class GuestUploadServer: @unchecked Sendable {
 }
 
 /// Indicatore che vale una volta sola. Usato solo sulla coda del server, quindi senza lock.
-private final class OnceFlag: @unchecked Sendable {
+final class OnceFlag: @unchecked Sendable {
     private var used = false
 
     func claim() -> Bool {
@@ -513,6 +513,7 @@ struct GuestHTTPResponse {
     static func reason(_ status: Int) -> String {
         switch status {
         case 200: return "OK"
+        case 303: return "See Other"
         case 400: return "Bad Request"
         case 401: return "Unauthorized"
         case 403: return "Forbidden"

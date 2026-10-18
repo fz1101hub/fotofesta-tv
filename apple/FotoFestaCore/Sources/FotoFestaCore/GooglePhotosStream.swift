@@ -23,7 +23,7 @@ public actor GooglePhotosStream {
     static let minimumRefreshInterval: TimeInterval = 60
 
     private let picker: PhotosPicker
-    private let auth: GoogleDeviceAuth
+    private let auth: GoogleAuth
     private let selections: GoogleSelectionStore
     private let now: @Sendable () -> Date
     private var urls: [String: String] = [:]
@@ -37,7 +37,7 @@ public actor GooglePhotosStream {
     private var listFailedAt: Date?
     private var onSelectionGone: (@Sendable (String, GoneReason) -> Void)?
 
-    public init(picker: PhotosPicker, auth: GoogleDeviceAuth, selections: GoogleSelectionStore, now: @escaping @Sendable () -> Date = { Date() }) {
+    public init(picker: PhotosPicker, auth: GoogleAuth, selections: GoogleSelectionStore, now: @escaping @Sendable () -> Date = { Date() }) {
         self.picker = picker
         self.auth = auth
         self.selections = selections

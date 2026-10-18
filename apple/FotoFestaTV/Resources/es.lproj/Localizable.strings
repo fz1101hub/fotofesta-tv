@@ -14,7 +14,9 @@
 "message.sleep_timer" = "Presentación en pausa por el temporizador.";
 "error.google_not_configured" = "Google Fotos no está disponible en esta versión de la app. Puedes seguir usando las fotos de demostración.";
 "error.google_access_denied" = "Autorización cancelada en el teléfono.";
-"error.google_code_expired" = "El código de Google ha caducado. Inténtalo de nuevo.";
+"error.google_code_expired" = "Se agotó el tiempo para la autorización. Inténtalo de nuevo.";
+"error.google_no_network" = "El Apple TV no está conectado a la red de casa: el teléfono no podría alcanzarlo.";
+"error.google_consent_failed" = "Google rechazó la solicitud de autorización. Revisa la configuración del cliente OAuth.";
 "error.google_selection_expired" = "La selección de Google Fotos ha caducado.";
 "error.google_session_expired" = "El acceso a Google ha caducado. Vuelve a conectarte.";
 "error.google_selection_gone" = "Tu selección de Google Fotos ha caducado. Vuelve a elegir las fotos desde el teléfono.";
@@ -57,8 +59,9 @@
 "google.preparing" = "Preparando la conexión…";
 "google.qr_authorize" = "Código QR para autorizar Google Fotos";
 "google.step_scan" = "1. Escanea el código QR";
-"google.open_url" = "O abre %@ en el teléfono e introduce este código:";
-"google.scope_note" = "Solo pedimos acceso a las fotos que elijas. El código caduca automáticamente.";
+"google.phone_steps" = "2. En la página que se abre, toca «Continuar con Google» y elige la cuenta con tus fotos.";
+"google.same_network" = "El teléfono debe estar en la misma Wi‑Fi que el Apple TV. La página permanece abierta diez minutos.";
+"google.scope_note" = "Solo pedimos acceso a las fotos que elijas.";
 "google.qr_pick" = "Código QR para elegir fotos";
 "google.step_pick" = "2. Elige tus fotos";
 "google.pick_instructions" = "Escanea el código QR, selecciona las fotos en Google Fotos y toca Listo.";

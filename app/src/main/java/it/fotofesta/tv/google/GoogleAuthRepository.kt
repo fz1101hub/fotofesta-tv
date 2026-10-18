@@ -4,7 +4,6 @@ import it.fotofesta.tv.R
 import it.fotofesta.tv.model.UserFacingException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import okhttp3.FormBody
 import okhttp3.HttpUrl
@@ -12,27 +11,31 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
-import java.io.IOException
+import java.security.MessageDigest
+import java.security.SecureRandom
+import java.util.Base64
 
 /**
- * OAuth 2.0 per TV e dispositivi a input limitato. Credenziali, archivio dei token, endpoint e
- * orologio sono iniettati, così il flusso è verificabile nei test contro un server finto.
+ * OAuth 2.0 con il consenso dato dal telefono: il flusso per TV di Google non ammette lo scope del
+ * Photos Picker, quindi la TV mostra un QR con una sua pagina, il telefono va da Google (flusso
+ * "authorization code" con PKCE) e torna, attraverso la pagina del sito indicata come
+ * `redirect_uri`, con un codice che la TV scambia con i token. Credenziali, archivio dei token,
+ * endpoint e orologio sono iniettati, così il flusso è verificabile nei test contro un server finto.
  */
-class GoogleDeviceAuthRepository(
+class GoogleAuthRepository(
     private val client: OkHttpClient,
     private val tokens: TokenStore,
     private val clientId: String,
     private val clientSecret: String,
+    /** Pagina del sito che riceve il codice da Google e lo rimanda alla TV (`site/google/`). */
+    private val redirectUri: String,
     oauthBase: HttpUrl = DEFAULT_OAUTH_BASE,
+    private val authorizationUrl: HttpUrl = DEFAULT_AUTHORIZATION_URL,
+    private val random: SecureRandom = SecureRandom(),
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
-    data class DeviceCode(
-        val deviceCode: String,
-        val userCode: String,
-        val verificationUrl: String,
-        val expiresIn: Int,
-        val interval: Int,
-    )
+    /** Un'autorizzazione iniziata: il segreto PKCE resta sulla TV, al telefono va solo la sua impronta. */
+    class Pending(val verifier: String, val challenge: String)
 
     data class TokenResult(
         val accessToken: String,
@@ -40,61 +43,57 @@ class GoogleDeviceAuthRepository(
         val expiresIn: Int,
     )
 
-    private val deviceCodeUrl = oauthBase.newBuilder().addPathSegments("device/code").build()
     private val tokenUrl = oauthBase.newBuilder().addPathSegment("token").build()
     private val revokeUrl = oauthBase.newBuilder().addPathSegment("revoke").build()
 
-    fun isConfigured(): Boolean = clientId.isNotBlank() && clientSecret.isNotBlank()
+    fun isConfigured(): Boolean = clientId.isNotBlank() && clientSecret.isNotBlank() && redirectUri.isNotBlank()
 
-    suspend fun requestDeviceCode(): DeviceCode {
+    fun beginAuthorization(): Pending {
+        requireConfigured()
+        val bytes = ByteArray(32).also(random::nextBytes)
+        val verifier = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
+        val digest = MessageDigest.getInstance("SHA-256").digest(verifier.toByteArray(Charsets.US_ASCII))
+        return Pending(verifier, Base64.getUrlEncoder().withoutPadding().encodeToString(digest))
+    }
+
+    /**
+     * Indirizzo di Google da aprire sul telefono. [returnUrl] è la pagina della TV a cui il sito
+     * rimanda il codice: viaggia nello `state`, che Google restituisce intatto.
+     */
+    fun authorizationUrl(pending: Pending, returnUrl: String): String =
+        authorizationUrl.newBuilder()
+            .addQueryParameter("client_id", clientId)
+            .addQueryParameter("redirect_uri", redirectUri)
+            .addQueryParameter("response_type", "code")
+            .addQueryParameter("scope", SCOPE)
+            .addQueryParameter("code_challenge", pending.challenge)
+            .addQueryParameter("code_challenge_method", "S256")
+            .addQueryParameter("state", encodeState(returnUrl))
+            // Refresh token a ogni collegamento, anche se l'utente aveva già dato il consenso.
+            .addQueryParameter("access_type", "offline")
+            .addQueryParameter("prompt", "consent")
+            .build()
+            .toString()
+
+    /** Scambia il codice arrivato dal telefono con i token e li salva. */
+    suspend fun exchangeCode(pending: Pending, code: String): TokenResult {
         requireConfigured()
         val body = FormBody.Builder()
             .add("client_id", clientId)
-            .add("scope", SCOPE)
+            .add("client_secret", clientSecret)
+            .add("code", code)
+            .add("code_verifier", pending.verifier)
+            .add("redirect_uri", redirectUri)
+            .add("grant_type", "authorization_code")
             .build()
-        val json = client.fetchJson(
-            Request.Builder().url(deviceCodeUrl).post(body).build(),
-        )
-        return DeviceCode(
-            deviceCode = json.getString("device_code"),
-            userCode = json.getString("user_code"),
-            verificationUrl = json.optString("verification_url").ifBlank { json.optString("verification_uri") },
-            expiresIn = json.getInt("expires_in"),
-            interval = json.optInt("interval", 5).coerceAtLeast(1),
-        )
-    }
-
-    suspend fun pollForToken(code: DeviceCode): TokenResult {
-        val deadline = clock() + code.expiresIn * 1_000L
-        var intervalSeconds = code.interval
-        while (clock() < deadline) {
-            delay(intervalSeconds * 1_000L)
-            val body = FormBody.Builder()
-                .add("client_id", clientId)
-                .add("client_secret", clientSecret)
-                .add("device_code", code.deviceCode)
-                .add("grant_type", "urn:ietf:params:oauth:grant-type:device_code")
-                .build()
-            val json = try {
-                client.fetchJson(Request.Builder().url(tokenUrl).post(body).build())
-            } catch (failure: HttpStatusException) {
-                when (failure.oauthError) {
-                    "authorization_pending" -> continue
-                    "slow_down" -> {
-                        intervalSeconds += 5
-                        continue
-                    }
-                    "access_denied" -> throw UserFacingException(R.string.error_google_access_denied)
-                    "expired_token" -> throw UserFacingException(R.string.error_google_code_expired)
-                    else -> throw failure
-                }
-            } catch (_: IOException) {
-                // Rete instabile durante l'attesa (fino a 30 minuti): si riprova al giro successivo.
-                continue
-            }
-            return persistToken(json)
+        val json = try {
+            client.fetchJson(Request.Builder().url(tokenUrl).post(body).build())
+        } catch (failure: HttpStatusException) {
+            // Codice già usato o scaduto (vale pochi minuti): si ricomincia dal QR.
+            if (failure.oauthError == "invalid_grant") throw UserFacingException(R.string.error_google_code_expired)
+            throw failure
         }
-        throw UserFacingException(R.string.error_google_code_expired)
+        return persistToken(json)
     }
 
     /**
@@ -185,5 +184,13 @@ class GoogleDeviceAuthRepository(
     companion object {
         const val SCOPE = "https://www.googleapis.com/auth/photospicker.mediaitems.readonly"
         val DEFAULT_OAUTH_BASE = "https://oauth2.googleapis.com/".toHttpUrl()
+        val DEFAULT_AUTHORIZATION_URL = "https://accounts.google.com/o/oauth2/v2/auth".toHttpUrl()
+
+        /** Lo `state` porta l'indirizzo di ritorno sulla TV, in base64url come lo legge la pagina del sito. */
+        fun encodeState(returnUrl: String): String =
+            Base64.getUrlEncoder().withoutPadding().encodeToString(returnUrl.toByteArray(Charsets.UTF_8))
+
+        fun decodeState(state: String): String? =
+            runCatching { String(Base64.getUrlDecoder().decode(state), Charsets.UTF_8) }.getOrNull()
     }
 }

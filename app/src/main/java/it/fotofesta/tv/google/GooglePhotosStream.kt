@@ -15,7 +15,7 @@ import kotlinx.coroutines.sync.withLock
  */
 class GooglePhotosStream(
     private val picker: GooglePhotosPickerRepository,
-    private val auth: GoogleDeviceAuthRepository,
+    private val auth: GoogleAuthRepository,
     private val selections: GoogleSelectionStore,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {

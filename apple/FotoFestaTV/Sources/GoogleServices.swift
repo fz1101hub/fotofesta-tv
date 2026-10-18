@@ -5,7 +5,7 @@ import Foundation
 final class GoogleServices: Sendable {
     static let shared = GoogleServices()
 
-    let auth: GoogleDeviceAuth
+    let auth: GoogleAuth
     let picker: PhotosPicker
     let selections: GoogleSelectionStore
     let stream: GooglePhotosStream
@@ -14,15 +14,22 @@ final class GoogleServices: Sendable {
     private init() {
         let http = URLSessionHTTPClient()
         let info = Bundle.main.infoDictionary ?? [:]
-        auth = GoogleDeviceAuth(
+        auth = GoogleAuth(
             http: http,
             tokens: KeychainTokenStore(),
             clientID: (info["PhotosClientID"] as? String) ?? "",
-            clientSecret: (info["PhotosClientSecret"] as? String) ?? ""
+            clientSecret: (info["PhotosClientSecret"] as? String) ?? "",
+            redirectURI: (info["PhotosRedirectURI"] as? String) ?? ""
         )
         picker = PhotosPicker(http: http)
         selections = GoogleSelectionStore()
         stream = GooglePhotosStream(picker: picker, auth: auth, selections: selections)
-        importFlow = GoogleImportFlow(auth: auth, picker: picker)
+        // Il consenso arriva dal telefono, con la pagina (shared/assets/guest/google.html) servita dalla Apple TV.
+        importFlow = GoogleImportFlow(auth: auth, picker: picker) {
+            LANPhoneConsent(page: {
+                Bundle.main.url(forResource: "google", withExtension: "html")
+                    .flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? ""
+            })
+        }
     }
 }

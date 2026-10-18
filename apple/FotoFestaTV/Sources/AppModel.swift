@@ -343,7 +343,7 @@ final class AppModel {
         Self.deleteSession(selection.sessionID, google: google)
     }
 
-    private nonisolated static func requireToken(_ auth: GoogleDeviceAuth) async throws -> String {
+    private nonisolated static func requireToken(_ auth: GoogleAuth) async throws -> String {
         guard let token = try await auth.validAccessToken() else { throw FotoFestaError.sessionExpired }
         return token
     }
@@ -887,6 +887,8 @@ final class AppModel {
             case .notConfigured: return L("error.google_not_configured")
             case .accessDenied: return L("error.google_access_denied")
             case .codeExpired: return L("error.google_code_expired")
+            case .noNetwork: return L("error.google_no_network")
+            case .consentFailed: return L("error.google_consent_failed")
             case .selectionExpired: return L("error.google_selection_expired")
             case .sessionExpired: return L("error.google_session_expired")
             case .nothingSelected: return L("error.google_nothing_selected")

@@ -1,52 +1,73 @@
 import XCTest
 @testable import FotoFestaCore
 
-final class GoogleDeviceAuthTests: XCTestCase {
+final class GoogleAuthTests: XCTestCase {
     private let http = FakeHTTPClient()
     private let tokens = MemoryTokenStore()
     private let clock = TestClock()
+    private let redirect = "https://esempio.github.io/fotofesta-tv/google/"
 
-    private func makeAuth(clientID: String = "client", clientSecret: String = "secret") -> GoogleDeviceAuth {
+    private func makeAuth(clientID: String = "client", clientSecret: String = "secret", redirectURI: String? = nil) -> GoogleAuth {
         let clock = self.clock
-        return GoogleDeviceAuth(
+        return GoogleAuth(
             http: http, tokens: tokens, clientID: clientID, clientSecret: clientSecret,
-            oauthBase: oauthBase, now: { clock.now }, sleep: { _ in }
+            redirectURI: redirectURI ?? redirect, oauthBase: oauthBase, now: { clock.now }
         )
     }
 
-    func testDeviceFlowWaitsForAuthorizationAndStoresTokens() async throws {
-        http.enqueue("POST", "/device/code", .json(#"{"device_code":"dev-1","user_code":"ABCD-EFGH","verification_url":"https://www.google.com/device","expires_in":1800,"interval":5}"#))
-        http.enqueue(
-            "POST", "/token",
-            .json(#"{"error":"authorization_pending"}"#, status: 428),
-            .failure(URLError(.networkConnectionLost)),
-            .json(#"{"error":"slow_down"}"#, status: 403),
-            .json(#"{"access_token":"access-1","refresh_token":"refresh-1","expires_in":3599}"#)
-        )
+    func testAuthorizationURLCarriesPKCETheScopeAndTheWayBackToTheTV() async throws {
         let auth = makeAuth()
-        let code = try await auth.requestDeviceCode()
-        XCTAssertEqual(code.userCode, "ABCD-EFGH")
+        let pending = try await auth.beginAuthorization()
+        let url = try XCTUnwrap(URLComponents(string: auth.authorizationURL(pending, returnURL: "http://192.168.1.50:38211/google?k=abc")))
+        let query = Dictionary(uniqueKeysWithValues: (url.queryItems ?? []).map { ($0.name, $0.value ?? "") })
 
-        let token = try await auth.pollForToken(code)
+        XCTAssertEqual(url.host, "accounts.google.com")
+        XCTAssertEqual(url.path, "/o/oauth2/v2/auth")
+        XCTAssertEqual(query["client_id"], "client")
+        XCTAssertEqual(query["redirect_uri"], redirect)
+        XCTAssertEqual(query["response_type"], "code")
+        XCTAssertEqual(query["scope"], GoogleAuth.scope)
+        XCTAssertEqual(query["code_challenge_method"], "S256")
+        XCTAssertEqual(query["access_type"], "offline")
+        XCTAssertEqual(query["prompt"], "consent")
+        XCTAssertEqual(GoogleAuth.decodeState(query["state"] ?? ""), "http://192.168.1.50:38211/google?k=abc")
+        XCTAssertEqual(query["code_challenge"], pending.challenge)
+        XCTAssertGreaterThanOrEqual(pending.verifier.count, 43)
+        let second = try await auth.beginAuthorization()
+        XCTAssertNotEqual(pending.verifier, second.verifier)
+        XCTAssertTrue(http.requests.isEmpty)
+    }
+
+    func testTheCodeFromThePhoneIsExchangedWithPKCEAndTheTokensAreStored() async throws {
+        http.enqueue("POST", "/token", .json(#"{"access_token":"access-1","refresh_token":"refresh-1","expires_in":3599}"#))
+        let auth = makeAuth()
+        let pending = try await auth.beginAuthorization()
+
+        let token = try await auth.exchange(pending, code: "4/0Acode")
 
         XCTAssertEqual(token, "access-1")
+        XCTAssertEqual(tokens.accessToken, "access-1")
         XCTAssertEqual(tokens.refreshToken, "refresh-1")
         XCTAssertEqual(tokens.expiresAt, clock.now.addingTimeInterval(3599))
-        let deviceBody = http.requests("POST", "/device/code").first?.bodyString ?? ""
-        XCTAssertTrue(deviceBody.contains("client_id=client"))
-        XCTAssertTrue(deviceBody.contains("photospicker.mediaitems.readonly"))
-        XCTAssertEqual(http.requests("POST", "/token").count, 4)
+        let body = http.requests("POST", "/token").first?.bodyString ?? ""
+        XCTAssertTrue(body.contains("grant_type=authorization_code"), body)
+        XCTAssertTrue(body.contains("code=4%2F0Acode"), body)
+        XCTAssertTrue(body.contains("code_verifier=\(pending.verifier)"), body)
+        XCTAssertTrue(body.contains("client_secret=secret"), body)
+        XCTAssertTrue(body.contains("redirect_uri=https%3A%2F%2Fesempio.github.io%2Ffotofesta-tv%2Fgoogle%2F"), body)
     }
 
-    func testAccessDeniedIsReported() async {
-        http.enqueue("POST", "/token", .json(#"{"error":"access_denied"}"#, status: 403))
-        let code = GoogleDeviceAuth.DeviceCode(deviceCode: "d", userCode: "C", verificationURL: "https://g.co", expiresIn: 600, interval: 1)
+    func testAUsedOrExpiredCodeAsksToStartAgain() async throws {
+        http.enqueue("POST", "/token", .json(#"{"error":"invalid_grant"}"#, status: 400))
+        let auth = makeAuth()
+        let pending = try await auth.beginAuthorization()
         do {
-            _ = try await makeAuth().pollForToken(code)
+            _ = try await auth.exchange(pending, code: "vecchio")
             XCTFail("expected an error")
         } catch {
-            XCTAssertEqual(error as? FotoFestaError, .accessDenied)
+            XCTAssertEqual(error as? FotoFestaError, .codeExpired)
         }
+        XCTAssertNil(tokens.accessToken)
     }
 
     func testValidCachedTokenNeedsNoNetwork() async throws {
@@ -87,10 +108,11 @@ final class GoogleDeviceAuthTests: XCTestCase {
     }
 
     func testMissingCredentials() async {
+        XCTAssertFalse(makeAuth(redirectURI: "").isConfigured)
         let auth = makeAuth(clientID: "", clientSecret: "")
         XCTAssertFalse(auth.isConfigured)
         do {
-            _ = try await auth.requestDeviceCode()
+            _ = try await auth.beginAuthorization()
             XCTFail("expected an error")
         } catch {
             XCTAssertEqual(error as? FotoFestaError, .notConfigured)
@@ -169,11 +191,14 @@ final class GoogleImportFlowTests: XCTestCase {
     private let tokens = MemoryTokenStore()
     private let clock = TestClock()
 
+    private let consent = FakePhoneConsent()
+
     private func flow() -> GoogleImportFlow {
         let clock = self.clock
-        let auth = GoogleDeviceAuth(http: http, tokens: tokens, clientID: "client", clientSecret: "secret", oauthBase: oauthBase, now: { clock.now }, sleep: { _ in })
+        let auth = GoogleAuth(http: http, tokens: tokens, clientID: "client", clientSecret: "secret", redirectURI: "https://site.test/google/", oauthBase: oauthBase, now: { clock.now })
         let picker = PhotosPicker(http: http, apiBase: apiBase, sleep: { _ in })
-        return GoogleImportFlow(auth: auth, picker: picker)
+        let consent = self.consent
+        return GoogleImportFlow(auth: auth, picker: picker) { consent }
     }
 
     private func mediaItem(_ id: String, mime: String = "image/jpeg") -> String {
@@ -184,7 +209,6 @@ final class GoogleImportFlowTests: XCTestCase {
         tokens.accessToken = "revoked"
         tokens.expiresAt = clock.now.addingTimeInterval(3000)
         http.enqueue("POST", "/v1/sessions", .json(#"{"error":{"code":401,"message":"Invalid"}}"#, status: 401))
-        http.enqueue("POST", "/device/code", .json(#"{"device_code":"d","user_code":"WXYZ","verification_url":"https://www.google.com/device","expires_in":600,"interval":1}"#))
         http.enqueue("POST", "/token", .json(#"{"access_token":"fresh","refresh_token":"r","expires_in":3600}"#))
         http.enqueue("POST", "/v1/sessions", .json(#"{"id":"s1","pickerUri":"https://photos.google.com/picker/s1","mediaItemsSet":true,"expireTime":"2027-01-15T08:00:00Z"}"#))
         http.always("DELETE", "/v1/sessions/s1", .json("{}"))
@@ -199,8 +223,14 @@ final class GoogleImportFlowTests: XCTestCase {
         XCTAssertEqual(result.selection.expiresAt, ISO8601DateFormatter().date(from: "2027-01-15T08:00:00Z"))
         XCTAssertEqual(result.skipped, 0)
         XCTAssertTrue(tokens.cleared)
-        XCTAssertEqual(steps.all.first, .waitingForAuthorization(verificationURL: "https://www.google.com/device", userCode: "WXYZ", expiresIn: 600))
+        XCTAssertEqual(steps.all.first, .waitingForAuthorization(pageURL: "http://192.168.1.50:38211/?k=abc", expiresIn: 600))
         XCTAssertEqual(steps.all.last, .waitingForPhotos(pickerURI: "https://photos.google.com/picker/s1"))
+        // Il telefono ha ricevuto la strada verso Google con il ritorno sulla TV, e poi il Picker.
+        XCTAssertTrue(consent.googleURL?.hasPrefix("https://accounts.google.com/o/oauth2/v2/auth?") ?? false)
+        XCTAssertTrue(consent.googleURL?.contains("state=" + GoogleAuth.encodeState("http://192.168.1.50:38211/google?k=abc")) ?? false)
+        XCTAssertEqual(consent.pickerURL, "https://photos.google.com/picker/s1")
+        XCTAssertTrue(consent.closed)
+        XCTAssertTrue(http.requests("POST", "/token").first?.bodyString.contains("grant_type=authorization_code") ?? false)
         XCTAssertEqual(http.requests("POST", "/v1/sessions").map { $0.value(forHTTPHeaderField: "Authorization") }, ["Bearer revoked", "Bearer fresh"])
         // La sessione resta aperta per lo streaming e nessuna foto viene scaricata.
         XCTAssertTrue(http.requests("DELETE", "/v1/sessions/s1").isEmpty)
@@ -278,7 +308,7 @@ final class GooglePhotosStreamTests: XCTestCase {
 
     private func makeStream() -> GooglePhotosStream {
         let clock = self.clock
-        let auth = GoogleDeviceAuth(http: http, tokens: tokens, clientID: "client", clientSecret: "secret", oauthBase: oauthBase, now: { clock.now }, sleep: { _ in })
+        let auth = GoogleAuth(http: http, tokens: tokens, clientID: "client", clientSecret: "secret", redirectURI: "https://site.test/google/", oauthBase: oauthBase, now: { clock.now })
         let picker = PhotosPicker(http: http, apiBase: apiBase, sleep: { _ in })
         return GooglePhotosStream(picker: picker, auth: auth, selections: store, now: { clock.now })
     }
@@ -462,6 +492,33 @@ final class GooglePhotosStreamTests: XCTestCase {
         let selection = try JSONDecoder().decode(GoogleSelection.self, from: Data(old.utf8))
         XCTAssertEqual(selection.items, [.init(id: "a", filename: "Mare.jpg")])
         XCTAssertEqual(selection.photos.map(\.isVideo), [false])
+    }
+}
+
+/// Telefono finto: riceve l'indirizzo di Google e risponde subito con un codice.
+final class FakePhoneConsent: PhoneConsent, @unchecked Sendable {
+    private let lock = NSLock()
+    private var google: String?
+    private var picker: String?
+    private var isClosed = false
+
+    var googleURL: String? { lock.lock(); defer { lock.unlock() }; return google }
+    var pickerURL: String? { lock.lock(); defer { lock.unlock() }; return picker }
+    var closed: Bool { lock.lock(); defer { lock.unlock() }; return isClosed }
+
+    func obtainCode(authorizationURL: @escaping @Sendable (String) -> String, onStep: @escaping @Sendable (ImportStep) -> Void) async throws -> String {
+        let url = authorizationURL("http://192.168.1.50:38211/google?k=abc")
+        lock.lock(); google = url; lock.unlock()
+        onStep(.waitingForAuthorization(pageURL: "http://192.168.1.50:38211/?k=abc", expiresIn: 600))
+        return "code-1"
+    }
+
+    func publishPickerURL(_ url: String) {
+        lock.lock(); picker = url; lock.unlock()
+    }
+
+    func close() {
+        lock.lock(); isClosed = true; lock.unlock()
     }
 }
 

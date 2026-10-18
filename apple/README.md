@@ -7,7 +7,7 @@ Versione tvOS dell'app, scritta in Swift e SwiftUI, pensata per l'App Store. Con
 | Funzione | Apple TV | Note rispetto ad Android TV |
 | --- | --- | --- |
 | Foto demo | Sì | |
-| Google Foto (QR + Picker API) | Sì | Stesso client OAuth "TVs and Limited Input devices" |
+| Google Foto (consenso dal telefono + Picker API) | Sì | Stesso client OAuth "Applicazione web" e stessa pagina di ritorno del sito (`PHOTOS_REDIRECT_URI`) |
 | Foto degli invitati (QR, pagina web servita dalla TV) | Sì | Stessa pagina per i telefoni (`shared/assets/guest/index.html`), server su Network.framework |
 | Cartelle USB | No | tvOS non dà alle app accesso a dischi esterni |
 | Foto di iCloud (libreria Foto della Apple TV) | Sì | Solo Apple TV: tutte le foto, preferiti, album e album condivisi, con PhotoKit. Su Android c'è l'album condiviso con il link pubblico |

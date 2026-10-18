@@ -105,9 +105,9 @@ data class SlideshowSettings(
 
 sealed interface GoogleConnectState {
     data object Idle : GoogleConnectState
+    /** [pageUrl]: pagina della TV da inquadrare con il telefono; da lì si va da Google. */
     data class WaitingForAuthorization(
-        val verificationUrl: String,
-        val userCode: String,
+        val pageUrl: String,
         val expiresInSeconds: Int,
     ) : GoogleConnectState
     data class WaitingForPhotos(val pickerUri: String) : GoogleConnectState

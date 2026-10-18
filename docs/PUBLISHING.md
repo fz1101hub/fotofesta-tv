@@ -36,7 +36,7 @@ Le due app funzionano anche senza Google Foto, con le foto demo, le foto degli i
    - utenti di test.
 
    Aggiungi il dominio del sito tra i **domini autorizzati** e verificane la proprietà in [Google Search Console](https://search.google.com/search-console). Per un sito `*.github.io` serve la proprietà con prefisso URL `https://<utente>.github.io/fotofesta-tv/`.
-3. Crea un client OAuth di tipo **TVs and Limited Input devices**. Lo stesso client va bene per Android TV e Apple TV.
+3. Crea un client OAuth di tipo **Applicazione web** con, fra gli **URI di reindirizzamento autorizzati**, la pagina `google/` del sito pubblicato (ad esempio `https://<utente>.github.io/fotofesta-tv/google/`): è lì che Google rimanda il telefono dopo il consenso, e la pagina lo rimanda alla TV. Il tipo "TV e dispositivi con input limitato" non ammette lo scope del Photos Picker. Lo stesso client va bene per Android TV e Apple TV; i valori vanno in `PHOTOS_CLIENT_ID`, `PHOTOS_CLIENT_SECRET` e `PHOTOS_REDIRECT_URI` (vedi [CONFIGURATION.md](CONFIGURATION.md)).
 4. Prima di inviare le app in revisione, porta lo stato di pubblicazione dell'app OAuth su **In produzione** e invia la verifica a Google, indicando lo scope `photospicker.mediaitems.readonly` e il video dimostrativo richiesto. In modalità test possono collegarsi solo gli utenti di test (massimo 100), e i loro token scadono dopo 7 giorni: i revisori degli store non riuscirebbero ad accedere con un proprio account.
 5. Prepara un account Google di test autorizzato, da fornire ai revisori di entrambi gli store.
 
@@ -51,7 +51,7 @@ Le due app funzionano anche senza Google Foto, con le foto demo, le foto degli i
    keytool -genkeypair -keystore fotofesta-upload.jks -alias fotofesta-upload -keyalg RSA -keysize 4096 -validity 10000
    ```
    Conservala fuori dal repository, con il backup delle password.
-3. **Firma locale**: aggiungi a `local.properties` le chiavi `RELEASE_STORE_FILE`, `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD` e, se usi Google Foto, `PHOTOS_CLIENT_ID` e `PHOTOS_CLIENT_SECRET`.
+3. **Firma locale**: aggiungi a `local.properties` le chiavi `RELEASE_STORE_FILE`, `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD` e, se usi Google Foto, `PHOTOS_CLIENT_ID`, `PHOTOS_CLIENT_SECRET` e `PHOTOS_REDIRECT_URI`.
 4. **Firma in CI**: crea in **Settings › Secrets and variables › Actions** i secret con gli stessi nomi, più `RELEASE_KEYSTORE_BASE64`. Quest'ultimo si ottiene con `openssl base64 -A -in fotofesta-upload.jks`, che funziona sia su macOS sia su Linux.
 
 ### Generare l'AAB firmato

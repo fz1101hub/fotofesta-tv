@@ -20,7 +20,7 @@ Il repository contiene anche la versione per **Apple TV** (cartella [`apple/`](a
 | Sorgenti | Album condiviso di iCloud con “Sito web pubblico”: link incollato dal telefono con un QR o codice scritto con il telecomando; foto nuove dell’album aggiunte da sole | Pronta su Android TV (servizio Apple non documentato) |
 | Sorgenti | Libreria Foto della Apple TV: Foto di iCloud, preferiti, album e album condivisi, con le foto nuove aggiunte da sole | Pronta su Apple TV |
 | Sorgenti | Video da USB, rete di casa, cartelle condivise, iCloud e Google Foto, guardati fino alla fine; escludibili, con audio facoltativo | Pronta (Android: Media3; Apple TV: AVPlayer, da Google Foto, libreria Foto e cartelle di rete) |
-| Sorgenti | Google Photos Picker API con autorizzazione TV e QR | Pronta nel codice; richiede credenziali OAuth del proprietario |
+| Sorgenti | Google Photos Picker API con consenso dal telefono (QR, pagina della TV, ritorno dal sito) | Pronta nel codice; richiede un client OAuth del proprietario e il sito pubblicato |
 | Festa | Foto nuove mostrate subito, nome del mittente, approvazione facoltativa, QR nell’angolo dello slideshow, QR della Wi‑Fi | Pronta |
 | Festa | Premi di fine festa: obiettivo d’oro a chi ha mandato più foto, prima foto, gran finale | Pronta |
 | Slideshow | Durata 3, 5, 8, 12 o 20 secondi | Pronta |
@@ -93,7 +93,7 @@ I **video** si guardano nello slideshow dall’inizio alla fine, poi si passa al
 
 Il **gioco con i telefoni** riusa la pagina della festa: la TV pubblica la domanda (`GET /game`) e i telefoni rispondono (`POST /game/answer`) con la stessa chiave del QR. Vale la prima risposta di ogni telefono; nomi e punti restano in memoria sulla TV e spariscono con la festa.
 
-Il flusso OAuth usa il meccanismo Google per TV e dispositivi a input limitato: la TV mostra URL e codice e l’utente autorizza da un telefono.[7] Il solo scope richiesto è `photospicker.mediaitems.readonly`; una pubblicazione pubblica richiede la verifica OAuth di Google.[8]
+Il flusso OAuth è quello "authorization code" con PKCE, con il consenso dato dal telefono:[7] la TV serve sulla rete di casa una pagina (la stessa su Android e Apple TV) e ne mostra il QR; il telefono tocca «Continua con Google», autorizza e viene rimandato alla pagina `site/google/` del sito, che lo riporta alla TV con il codice; la TV scambia il codice con i token. Il flusso per TV e dispositivi a input limitato non si può usare, perché Google non vi ammette lo scope del Photos Picker. Il solo scope richiesto è `photospicker.mediaitems.readonly`; una pubblicazione pubblica richiede la verifica OAuth di Google.[8]
 
 Le **foto degli invitati** non passano da internet. Quando l’organizzatore avvia la festa, la TV apre un piccolo server HTTP sulla rete di casa (porta 8765, oppure un’altra libera) e mostra un QR con il suo indirizzo e una chiave casuale. Il telefono dell’invitato apre la pagina servita dalla TV ([`shared/assets/guest/index.html`](shared/assets/guest/index.html), la stessa per Android TV e Apple TV), che riduce ogni foto alla risoluzione dello schermo, la ricodifica in JPEG senza metadati (posizione, modello del telefono) e la invia. La TV tiene le foto in RAM; quando la memoria assegnata non basta, quando il sistema lo chiede o quando l’app va in background, le più vecchie passano in una cartella temporanea con limite (100 MB, 300 MB sulle TV che disegnano in 4K, mai più del 10% dello spazio libero). Se anche quella è piena, le più vecchie fanno posto alle nuove. “Termina la festa” cancella tutto; dopo 12 ore senza foto la festa si chiude da sola al successivo avvio. Il server resta acceso solo con l’app in primo piano. I dettagli sono in [CONFIGURATION.md](docs/CONFIGURATION.md#3-foto-degli-invitati).
 
@@ -156,7 +156,7 @@ Risultati della validazione locale della versione 1.0.0:
 [4]: https://developer.android.com/docs/quality-guidelines/tv-app-quality "Android TV app quality"
 [5]: https://support.google.com/googleplay/android-developer/answer/11926878 "Target API level requirements for Google Play apps"
 [6]: https://commission.europa.eu/law/law-topic/data-protection/data-protection-eu_en "Legal framework of EU data protection"
-[7]: https://developers.google.com/identity/protocols/oauth2/limited-input-device "OAuth 2.0 for TV and Limited-Input Device Applications"
+[7]: https://developers.google.com/identity/protocols/oauth2/web-server "Using OAuth 2.0 for Web Server Applications"
 [8]: https://developers.google.com/photos/overview/authorization "Google Photos API authorization scopes"
 [9]: https://developer.android.com/guide/practices/page-sizes "Support 16 KB page sizes"
 

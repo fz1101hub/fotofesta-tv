@@ -231,7 +231,7 @@ Un audit esterno ha analizzato la revisione `e32ec4c`, cioè `main` prima della 
 
 | Rilievo | Stato sul branch |
 | --- | --- |
-| F01 Device flow OAuth con lo scope Photos Picker | **Aperto.** Google documenta per il flusso "TV e dispositivi con input limitato" un elenco chiuso di scope (Sign-In, Drive, YouTube) che non comprende `photospicker.mediaitems.readonly`. Il collegamento non è mai stato provato con credenziali vere; va cambiato il flusso di autorizzazione prima di promettere Google Foto |
+| F01 Device flow OAuth con lo scope Photos Picker | **Corretto** con il consenso dal telefono (vedi "Nuovo flusso Google" sotto): Google documenta per il flusso "TV e dispositivi con input limitato" un elenco chiuso di scope (Sign-In, Drive, YouTube) che non comprende `photospicker.mediaitems.readonly` |
 | F19 "Riduci movimento" non toccava le animazioni del fuoco | Corretto: spegne anche l'ingrandimento del fuoco e la dissolvenza delle foto nella home |
 | Licenza del codice e provenienza degli asset | Nessun file `LICENSE`; le foto demo sono immagini generate (`design/`), il carattere Figtree ha la OFL in `assets/licenses` |
 | `distributionSha256Sum` nel wrapper Gradle e verifica delle dipendenze | Non presenti |
@@ -255,9 +255,20 @@ Lo stesso auditor ha rianalizzato il branch della pull request: confermato apert
 | Nota: Apple TV, `GoogleVideoLoader` con la configurazione `.default` | Sessione effimera, senza cache su disco |
 | Nota: i server degli invitati accettavano richieste senza intestazione Host | Host obbligatorio su Android e Apple TV (421 senza) |
 | Nota: `LICENSE`, `distributionSha256Sum`, verifica delle dipendenze | Invariati: la licenza del progetto la sceglie il proprietario; la somma del wrapper e la verifica delle dipendenze sono in `docs/PUBLISHING.md` fra le cose da fare |
-| F01 Device flow OAuth con lo scope Photos Picker | **Aperto**: richiede un altro flusso di autorizzazione (vedi sopra) |
+| F01 Device flow OAuth con lo scope Photos Picker | **Corretto** con il nuovo flusso (sotto) |
 
 Verifiche: test JVM nuovi per la pagina del link (chiave assente dalle pagine di errore, connessioni chiuse da `stop()` senza link consegnati, limite per telefono), per Host obbligatorio, per l'intestazione Host di `LanHttp`, per la regola di rete SMB e per la ricerca Bonjour; su Apple TV un test del client HTTP (tetto in byte) e del server degli invitati senza Host. `RenewingDataSource` non ha un test JVM: `DataSpec` richiede un `Uri` di Android, assente nei test senza Robolectric.
+
+## Nuovo flusso Google: consenso dal telefono (F01)
+
+Il flusso per TV di Google (device flow) non ammette lo scope del Photos Picker, quindi il collegamento non avrebbe mai funzionato con credenziali vere. Al suo posto, su entrambe le piattaforme:
+
+1. la TV serve sulla rete di casa una pagina (`shared/assets/guest/google.html`, con le stesse regole della pagina degli invitati: chiave nel QR, `Host`, connessioni e tempi limitati, dieci minuti al massimo) e ne mostra il QR;
+2. il telefono apre la pagina, tocca «Continua con Google» e va alla schermata di consenso di Google con il flusso "authorization code" e PKCE (client di tipo "Applicazione web"; il `code_verifier` resta sulla TV); lo `state` porta in base64url l'indirizzo di ritorno sulla TV;
+3. Google rimanda il telefono a `site/google/`, una pagina statica del sito che legge lo `state`, accetta solo indirizzi privati e riporta il telefono alla TV con il codice (una navigazione, ammessa da https a http);
+4. la TV consegna il codice una volta sola, lo toglie dall'indirizzo del browser con un 303, lo scambia con i token e offre al telefono anche il link del Picker, così le foto si scelgono senza un secondo QR.
+
+Scelte: il client secret dell'applicazione web resta nell'app (il progetto non ha un server), come il secret del vecchio client per TV; serve solo insieme al codice protetto da PKCE. Il consenso tramite Google Play Services sulla TV è stato scartato perché userebbe l'account della TV, mentre le foto stanno di solito sul telefono dell'organizzatore. Verifiche: test JVM e XCTest dell'indirizzo di autorizzazione (PKCE, scope, `state`), dello scambio del codice, del flusso completo con un telefono finto e della pagina della TV su loopback (chiave, `Host`, ritorno dal sito, codice consegnato una volta sola, link del Picker). Non provato con credenziali vere: resta fra le prove su TV reale, con il sito pubblicato.
 
 ## Raccomandazioni aperte
 

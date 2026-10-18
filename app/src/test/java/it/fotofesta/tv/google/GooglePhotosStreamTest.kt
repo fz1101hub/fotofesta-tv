@@ -30,7 +30,7 @@ class GooglePhotosStreamTest {
     private val stream by lazy {
         GooglePhotosStream(
             GooglePhotosPickerRepository(server.client, server.apiBase) { now },
-            GoogleDeviceAuthRepository(server.client, tokens, "client", "secret", server.oauthBase) { now },
+            GoogleAuthRepository(server.client, tokens, "client", "secret", "https://site.test/google/", server.oauthBase) { now },
             store,
         ) { now }
     }

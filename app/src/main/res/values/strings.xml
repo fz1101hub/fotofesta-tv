@@ -24,9 +24,11 @@
     <string name="error_generic">Something went wrong. Check the network and settings.</string>
     <string name="error_network">Network unavailable. Check the TV’s internet connection.</string>
     <string name="error_google_http">Google service unavailable (%1$d).</string>
-    <string name="error_google_not_configured">This build has no Google Photos Picker credentials (PHOTOS_CLIENT_ID and PHOTOS_CLIENT_SECRET). Add them as explained in docs/CONFIGURATION.md and rebuild the app.</string>
+    <string name="error_google_not_configured">This build has no Google Photos Picker credentials (PHOTOS_CLIENT_ID, PHOTOS_CLIENT_SECRET and PHOTOS_REDIRECT_URI). Add them as explained in docs/CONFIGURATION.md and rebuild the app.</string>
     <string name="error_google_access_denied">Authorization cancelled on the phone.</string>
-    <string name="error_google_code_expired">The Google code has expired. Try again.</string>
+    <string name="error_google_code_expired">Time ran out for the authorization. Try again.</string>
+    <string name="error_google_consent_failed">Google refused the authorization request. Check the OAuth client configuration (docs/CONFIGURATION.md).</string>
+    <string name="error_google_no_network">The TV isn’t connected to the home network, so your phone couldn’t reach it.</string>
     <string name="error_google_session_expired">Access to Google has expired. Connect again.</string>
     <string name="error_picker_unavailable">The Android file picker did not open: choose the drive from the FotoFesta TV list.</string>
     <string name="error_google_selection_expired">The Google Photos selection has expired.</string>
@@ -38,8 +40,9 @@
     <string name="google_preparing">Preparing the connection…</string>
     <string name="google_qr_authorize">QR code to authorize Google Photos</string>
     <string name="google_step_scan">1. Scan the QR code</string>
-    <string name="google_open_url">Open %1$s on your phone and enter this code:</string>
-    <string name="google_scope_note">We only request access to the photos you choose. The code expires automatically.</string>
+    <string name="google_scope_note">We only request access to the photos you choose.</string>
+    <string name="google_same_network">The phone must be on the same Wi‑Fi as the TV. The page stays open for ten minutes.</string>
+    <string name="google_phone_steps">2. On the page that opens, tap “Continue with Google” and choose the account with your photos.</string>
     <string name="google_qr_pick">QR code to choose photos</string>
     <string name="google_step_pick">2. Choose your photos</string>
     <string name="google_pick_instructions">Scan the QR code, select the pictures in Google Photos and tap Done.</string>

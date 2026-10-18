@@ -24,6 +24,9 @@ targets:
       # Pagina che i telefoni degli invitati aprono: la stessa dell'app Android.
       - path: ../shared/assets/guest/index.html
         buildPhase: resources
+      # Pagina per autorizzare Google Foto dal telefono: anche questa condivisa con Android.
+      - path: ../shared/assets/guest/google.html
+        buildPhase: resources
     dependencies:
       - package: FotoFestaCore
     configFiles:
@@ -59,6 +62,7 @@ targets:
         NSPhotoLibraryUsageDescription: "FotoFesta TV shows the albums of your Photos library in the slideshow. Photos stay in your library and aren’t sent anywhere."
         PhotosClientID: $(PHOTOS_CLIENT_ID)
         PhotosClientSecret: $(PHOTOS_CLIENT_SECRET)
+        PhotosRedirectURI: $(PHOTOS_REDIRECT_URI)
         # Indirizzo pubblico di site/privacy/ (vedi docs/PUBLISHING.md): l'app lo mostra come QR nelle impostazioni.
         PrivacyPolicyURL: "https://EXAMPLE.github.io/fotofesta-tv/privacy/"
 schemes:

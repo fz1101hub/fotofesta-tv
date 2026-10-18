@@ -41,6 +41,7 @@ jobs:
         env:
           PHOTOS_CLIENT_ID: ${{ secrets.PHOTOS_CLIENT_ID }}
           PHOTOS_CLIENT_SECRET: ${{ secrets.PHOTOS_CLIENT_SECRET }}
+          PHOTOS_REDIRECT_URI: ${{ vars.PHOTOS_REDIRECT_URI }}
         run: ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug
 
       # La release passa da R8, che toglie e rinomina il codice: deve compilare anche lei, con le

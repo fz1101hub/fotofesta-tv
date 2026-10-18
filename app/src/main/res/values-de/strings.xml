@@ -23,9 +23,11 @@
     <string name="error_generic">Etwas ist schiefgelaufen. Prüfe Netzwerk und Einstellungen.</string>
     <string name="error_network">Kein Netzwerk verfügbar. Prüfe die Internetverbindung des Fernsehers.</string>
     <string name="error_google_http">Google-Dienst nicht verfügbar (%1$d).</string>
-    <string name="error_google_not_configured">Diesem Build fehlen die Zugangsdaten für den Google Photos Picker (PHOTOS_CLIENT_ID und PHOTOS_CLIENT_SECRET). Füge sie wie in docs/CONFIGURATION.md beschrieben hinzu und erstelle die App neu.</string>
+    <string name="error_google_not_configured">Dieser Build hat keine Zugangsdaten für den Google Photos Picker (PHOTOS_CLIENT_ID, PHOTOS_CLIENT_SECRET und PHOTOS_REDIRECT_URI). Füge sie wie in docs/CONFIGURATION.md beschrieben hinzu und baue die App neu.</string>
     <string name="error_google_access_denied">Autorisierung auf dem Smartphone abgebrochen.</string>
-    <string name="error_google_code_expired">Der Google-Code ist abgelaufen. Versuch es noch einmal.</string>
+    <string name="error_google_code_expired">Die Zeit für die Autorisierung ist abgelaufen. Versuch es noch einmal.</string>
+    <string name="error_google_consent_failed">Google hat die Autorisierungsanfrage abgelehnt. Prüfe die Konfiguration des OAuth-Clients (docs/CONFIGURATION.md).</string>
+    <string name="error_google_no_network">Der Fernseher ist nicht mit dem Heimnetzwerk verbunden: Das Smartphone könnte ihn nicht erreichen.</string>
     <string name="error_google_session_expired">Der Zugriff auf Google ist abgelaufen. Verbinde dich erneut.</string>
     <string name="error_picker_unavailable">Die Android-Dateiauswahl hat sich nicht geöffnet: Wähle den Speicher aus der Liste von FotoFesta TV.</string>
     <string name="error_google_selection_expired">Die Auswahl in Google Fotos ist abgelaufen.</string>
@@ -37,8 +39,9 @@
     <string name="google_preparing">Verbindung wird vorbereitet…</string>
     <string name="google_qr_authorize">QR‑Code zum Autorisieren von Google Fotos</string>
     <string name="google_step_scan">1. Scanne den QR‑Code</string>
-    <string name="google_open_url">Öffne %1$s auf deinem Smartphone und gib diesen Code ein:</string>
-    <string name="google_scope_note">Wir fordern nur Zugriff auf die Fotos an, die du auswählst. Der Code läuft automatisch ab.</string>
+    <string name="google_scope_note">Wir fordern nur Zugriff auf die Fotos an, die du auswählst.</string>
+    <string name="google_same_network">Das Smartphone muss im selben WLAN wie der Fernseher sein. Die Seite bleibt zehn Minuten geöffnet.</string>
+    <string name="google_phone_steps">2. Tippe auf der Seite, die sich öffnet, auf „Weiter mit Google“ und wähle das Konto mit deinen Fotos.</string>
     <string name="google_qr_pick">QR‑Code zum Auswählen der Fotos</string>
     <string name="google_step_pick">2. Wähle deine Fotos aus</string>
     <string name="google_pick_instructions">Scanne den QR‑Code, wähle die Bilder in Google Fotos aus und tippe auf „Fertig“.</string>

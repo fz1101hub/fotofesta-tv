@@ -38,7 +38,7 @@ final class HTTPClientTests: XCTestCase {
 }
 
 /// Richiesta HTTP scritta a mano su un socket, per provare quello che URLSession aggiunge da sé.
-private enum RawHTTP {
+enum RawHTTP {
     static func status(host: String, port: UInt16, request: String) async throws -> Int {
         let stream = try await Self.exchange(host: host, port: port, request: request)
         guard let line = stream.split(separator: "\r\n", maxSplits: 1).first,
