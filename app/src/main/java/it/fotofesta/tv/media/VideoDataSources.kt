@@ -11,7 +11,7 @@ import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSourceException
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultDataSource
-import androidx.media3.datasource.ResolvingDataSource
+import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.TransferListener
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import it.fotofesta.tv.google.GooglePhotosStream
@@ -31,6 +31,12 @@ import java.io.IOException
 private const val GOOGLE_SCHEME = "fotofesta-google"
 private const val ICLOUD_SCHEME = "fotofesta-icloud"
 private const val SMB_SCHEME = "fotofesta-smb"
+
+/** Google rifiuta un token scaduto con 401 o 403. */
+private val GOOGLE_RENEW_CODES = setOf(401, 403)
+
+/** Apple fa scadere gli indirizzi dei file: 403, 404 o 410 secondo il server. */
+private val ICLOUD_RENEW_CODES = setOf(403, 404, 410)
 
 /** Indirizzo da dare al lettore video per un elemento della raccolta. */
 fun PhotoRef.videoUri(): Uri = when (this) {
@@ -62,32 +68,35 @@ class VideoDataSources(
 ) : DataSource.Factory {
     private val local = DefaultDataSource.Factory(context)
 
-    private val google = ResolvingDataSource.Factory(OkHttpDataSource.Factory(http)) { spec ->
-        if (spec.uri.scheme != GOOGLE_SCHEME) return@Factory spec
+    // Token o indirizzo rifiutati a metà video (scaduti prima del previsto): si rinnovano una volta,
+    // come per le foto, passando a GooglePhotosStream e ICloudAlbumStream quello che non ha funzionato.
+    private val google = RenewingDataSource.Factory<GooglePhotosStream.Access>(OkHttpDataSource.Factory(http), GOOGLE_RENEW_CODES) { spec, failed ->
+        if (spec.uri.scheme != GOOGLE_SCHEME) throw IOException("Indirizzo inatteso: ${spec.uri}")
         val mediaId = spec.uri.lastPathSegment ?: throw IOException("Video Google senza identificativo")
         val access = try {
-            runBlocking { googleStream.access(mediaId) }
+            runBlocking { googleStream.access(mediaId, failed) }
         } catch (failure: IOException) {
             throw failure
         } catch (failure: Exception) {
             throw IOException("Video Google non disponibile", failure)
         }
         // "=dv" chiede il file del video; senza, Google manderebbe un fotogramma.
-        spec.withUri(Uri.parse(access.baseUrl + "=dv"))
+        val resolved = spec.withUri(Uri.parse(access.baseUrl + "=dv"))
             .withAdditionalHeaders(mapOf("Authorization" to "Bearer ${access.accessToken}"))
+        resolved to access
     }
 
-    private val icloud = ResolvingDataSource.Factory(OkHttpDataSource.Factory(http)) { spec ->
-        if (spec.uri.scheme != ICLOUD_SCHEME) return@Factory spec
+    private val icloud = RenewingDataSource.Factory<String>(OkHttpDataSource.Factory(http), ICLOUD_RENEW_CODES) { spec, failed ->
+        if (spec.uri.scheme != ICLOUD_SCHEME) throw IOException("Indirizzo inatteso: ${spec.uri}")
         val guid = spec.uri.lastPathSegment ?: throw IOException("Video iCloud senza identificativo")
         val url = try {
-            runBlocking { icloudStream.mediaUrl(guid) }
+            runBlocking { icloudStream.mediaUrl(guid, failed) }
         } catch (failure: IOException) {
             throw failure
         } catch (failure: Exception) {
             throw IOException("Video iCloud non disponibile", failure)
         }
-        spec.withUri(Uri.parse(url))
+        spec.withUri(Uri.parse(url)) to url
     }
 
     override fun createDataSource(): DataSource = RoutingDataSource { uri ->
@@ -98,6 +107,55 @@ class VideoDataSources(
             SMB_SCHEME -> SmbDataSource(smb)
             else -> local.createDataSource()
         }
+    }
+}
+
+/**
+ * Sorgente HTTP il cui indirizzo (e intestazioni) dipende da una credenziale che scade: [resolve]
+ * la ottiene all'apertura e, se il server risponde con uno dei [renewCodes], la riceve indietro come
+ * "non funzionante" per rinnovarla; si riprova una volta sola.
+ */
+@OptIn(UnstableApi::class)
+internal class RenewingDataSource<T : Any>(
+    private val upstream: DataSource,
+    private val renewCodes: Set<Int>,
+    private val resolve: (spec: DataSpec, failed: T?) -> Pair<DataSpec, T>,
+) : DataSource {
+    private var opened = false
+
+    override fun addTransferListener(transferListener: TransferListener) = upstream.addTransferListener(transferListener)
+
+    override fun open(dataSpec: DataSpec): Long {
+        val (first, credential) = resolve(dataSpec, null)
+        val length = try {
+            upstream.open(first)
+        } catch (refused: HttpDataSource.InvalidResponseCodeException) {
+            if (refused.responseCode !in renewCodes) throw refused
+            runCatching { upstream.close() }
+            val (renewed, _) = resolve(dataSpec, credential)
+            upstream.open(renewed)
+        }
+        opened = true
+        return length
+    }
+
+    override fun read(buffer: ByteArray, offset: Int, length: Int): Int = upstream.read(buffer, offset, length)
+
+    override fun getUri(): Uri? = if (opened) upstream.uri else null
+
+    override fun getResponseHeaders(): Map<String, List<String>> = if (opened) upstream.responseHeaders else emptyMap()
+
+    override fun close() {
+        opened = false
+        upstream.close()
+    }
+
+    class Factory<T : Any>(
+        private val upstream: DataSource.Factory,
+        private val renewCodes: Set<Int>,
+        private val resolve: (spec: DataSpec, failed: T?) -> Pair<DataSpec, T>,
+    ) : DataSource.Factory {
+        override fun createDataSource(): DataSource = RenewingDataSource(upstream.createDataSource(), renewCodes, resolve)
     }
 }
 
@@ -255,7 +313,7 @@ private class SmbDataSource(private val shares: SmbShares) : BaseDataSource(/* i
             val code = when (failure.reason) {
                 SmbException.Reason.NOT_FOUND -> PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND
                 SmbException.Reason.LOGIN, SmbException.Reason.DENIED -> PlaybackException.ERROR_CODE_IO_NO_PERMISSION
-                SmbException.Reason.UNREACHABLE -> PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED
+                SmbException.Reason.UNREACHABLE, SmbException.Reason.NOT_LOCAL -> PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED
             }
             throw DataSourceException(failure, code)
         }

@@ -2,6 +2,7 @@ package it.fotofesta.tv.smb
 
 import java.io.ByteArrayOutputStream
 import java.net.DatagramPacket
+import it.fotofesta.tv.network.LanHttp
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.MulticastSocket
@@ -25,8 +26,15 @@ object SmbDiscovery {
     private const val MDNS_PORT = 5353
     private const val MAX_PACKET = 9_000
 
-    /** Cerca per [timeoutMs]; la domanda parte due volte, perché un pacchetto UDP può perdersi. */
-    fun search(timeoutMs: Int = 2_500, target: InetSocketAddress = InetSocketAddress(MDNS_GROUP, MDNS_PORT)): List<SmbHost> {
+    /**
+     * Cerca per [timeoutMs]; la domanda parte due volte, perché un pacchetto UDP può perdersi.
+     * [allowLoopback] serve solo ai test, con chi risponde sulla stessa macchina.
+     */
+    fun search(
+        timeoutMs: Int = 2_500,
+        target: InetSocketAddress = InetSocketAddress(MDNS_GROUP, MDNS_PORT),
+        allowLoopback: Boolean = false,
+    ): List<SmbHost> {
         val query = query(SERVICE)
         val replies = mutableListOf<Pair<ByteArray, String>>()
         // Porta qualsiasi: chi risponde manda la risposta direttamente qui, senza multicast.
@@ -54,11 +62,14 @@ object SmbDiscovery {
                 replies += packet.data.copyOf(packet.length) to (packet.address.hostAddress ?: continue)
             }
         }
-        return hosts(replies)
+        return hosts(replies, allowLoopback)
     }
 
-    /** Computer dalle risposte ricevute (pacchetto e indirizzo di chi l'ha mandato), per nome. */
-    fun hosts(replies: List<Pair<ByteArray, String>>): List<SmbHost> {
+    /**
+     * Computer dalle risposte ricevute (pacchetto e indirizzo di chi l'ha mandato), per nome; solo
+     * con indirizzi della rete di casa, perché un record può dichiarare qualunque indirizzo.
+     */
+    fun hosts(replies: List<Pair<ByteArray, String>>, allowLoopback: Boolean = false): List<SmbHost> {
         val found = LinkedHashMap<String, SmbHost>()
         for ((packet, sender) in replies) {
             val records = runCatching { parse(packet) }.getOrNull() ?: continue
@@ -69,12 +80,18 @@ object SmbDiscovery {
                 val srv = records.firstOrNull { it.type == TYPE_SRV && it.name.equals(instance.name, ignoreCase = true) }
                 // L'indirizzo è nel record A del nome nel SRV; senza, è chi ha risposto.
                 val address = srv?.target?.let { addresses[it.name.lowercase()] } ?: sender
+                if (!isLocal(address, allowLoopback)) continue
                 val host = SmbHost(instance.labels.firstOrNull().orEmpty().ifBlank { address }, address, srv?.port ?: SmbLocation.DEFAULT_PORT)
                 found.putIfAbsent("${host.address}:${host.port}", host)
             }
         }
         return found.values.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name })
     }
+
+    private fun isLocal(address: String, allowLoopback: Boolean): Boolean = runCatching {
+        val parsed = InetAddress.getByName(address)
+        LanHttp.isLanAddress(parsed) || (allowLoopback && parsed.isLoopbackAddress)
+    }.getOrDefault(false)
 
     /** Domanda PTR per [service], con la risposta chiesta direttamente alla TV (bit "QU"). */
     fun query(service: String): ByteArray = ByteArrayOutputStream().apply {

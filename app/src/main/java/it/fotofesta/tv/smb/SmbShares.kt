@@ -25,6 +25,7 @@ import it.fotofesta.tv.files.FileBrowser
 import it.fotofesta.tv.model.PhotoItem
 import it.fotofesta.tv.model.PhotoRef
 import it.fotofesta.tv.model.SourceType
+import it.fotofesta.tv.network.LanHttp
 import java.io.Closeable
 import java.io.EOFException
 import java.io.FilterInputStream
@@ -57,6 +58,9 @@ class SmbException(val reason: Reason, cause: Throwable? = null) : IOException(r
 
         /** Condivisione o cartella che non c'è (più). */
         NOT_FOUND,
+
+        /** Indirizzo fuori dalla rete di casa: la TV parla SMB solo con i computer della stessa rete. */
+        NOT_LOCAL,
     }
 }
 
@@ -74,12 +78,16 @@ class SmbShares(
     private val videoExtensions: Set<String> = FileBrowser.VIDEO_EXTENSIONS,
     connectTimeoutMs: Int = 8_000,
     responseTimeoutMs: Long = 30_000,
+    /** Solo per i test: ammette anche un server sulla stessa macchina. */
+    allowLoopback: Boolean = false,
 ) : Closeable {
     private val client = SMBClient(
         SmbConfig.builder()
             // MD4 e AES-CMAC per NTLM e SMB 3 non ci sono in tutte le versioni di Android.
             .withSecurityProvider(BCSecurityProvider())
-            .withSocketFactory(ConnectTimeoutSocketFactory(connectTimeoutMs))
+            // Solo indirizzi della rete di casa, come per i server DLNA: un nome si risolve una volta
+            // sola e ci si collega proprio all'indirizzo controllato.
+            .withSocketFactory(LanSocketFactory(connectTimeoutMs, allowLoopback))
             .withTimeout(responseTimeoutMs, TimeUnit.MILLISECONDS)
             .withDfsEnabled(false)
             .build(),
@@ -269,7 +277,8 @@ class SmbShares(
         val connection = try {
             client.connect(server.host, server.port)
         } catch (failure: Exception) {
-            throw SmbException(SmbException.Reason.UNREACHABLE, failure)
+            val reason = if (causes(failure).any { it is NotLocalException }) SmbException.Reason.NOT_LOCAL else SmbException.Reason.UNREACHABLE
+            throw SmbException(reason, failure)
         }
         val session = try {
             connection.authenticate(login.context())
@@ -415,18 +424,35 @@ class SmbFile internal constructor(private val file: com.hierynomus.smbj.share.F
  * smbj apre le connessioni senza un limite di tempo: verso un indirizzo che non risponde si
  * aspetterebbero minuti. Qui la connessione rinuncia dopo [timeoutMs].
  */
-private class ConnectTimeoutSocketFactory(private val timeoutMs: Int) : SocketFactory() {
+/** Indirizzo che non è della rete di casa. */
+private class NotLocalException(host: String) : IOException("Indirizzo fuori dalla rete di casa: $host")
+
+/**
+ * Socket con un limite al tempo di connessione, aperti solo verso indirizzi della rete di casa
+ * (privati IPv4, link-local, IPv6 locali): un server pubblico, anche dietro un nome, viene rifiutato.
+ */
+private class LanSocketFactory(private val timeoutMs: Int, private val allowLoopback: Boolean) : SocketFactory() {
     override fun createSocket(): Socket = Socket()
 
-    override fun createSocket(host: String, port: Int): Socket = connect(InetSocketAddress(host, port))
+    override fun createSocket(host: String, port: Int): Socket = connect(InetSocketAddress(resolve(host), port))
 
     override fun createSocket(host: String, port: Int, localHost: InetAddress?, localPort: Int): Socket =
-        connect(InetSocketAddress(host, port), InetSocketAddress(localHost, localPort))
+        connect(InetSocketAddress(resolve(host), port), InetSocketAddress(localHost, localPort))
 
-    override fun createSocket(host: InetAddress, port: Int): Socket = connect(InetSocketAddress(host, port))
+    override fun createSocket(host: InetAddress, port: Int): Socket = connect(InetSocketAddress(check(host), port))
 
     override fun createSocket(address: InetAddress, port: Int, localAddress: InetAddress?, localPort: Int): Socket =
-        connect(InetSocketAddress(address, port), InetSocketAddress(localAddress, localPort))
+        connect(InetSocketAddress(check(address), port), InetSocketAddress(localAddress, localPort))
+
+    /** Il primo indirizzo del nome che è della rete di casa; gli altri non si provano nemmeno. */
+    private fun resolve(host: String): InetAddress =
+        InetAddress.getAllByName(host).firstOrNull(::allowed) ?: throw NotLocalException(host)
+
+    private fun check(address: InetAddress): InetAddress =
+        if (allowed(address)) address else throw NotLocalException(address.hostAddress.orEmpty())
+
+    private fun allowed(address: InetAddress): Boolean =
+        LanHttp.isLanAddress(address) || (allowLoopback && address.isLoopbackAddress)
 
     private fun connect(remote: InetSocketAddress, local: InetSocketAddress? = null): Socket {
         if (remote.isUnresolved) throw UnknownHostException(remote.hostString)

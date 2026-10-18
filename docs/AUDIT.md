@@ -236,6 +236,29 @@ Un audit esterno ha analizzato la revisione `e32ec4c`, cioè `main` prima della 
 | Licenza del codice e provenienza degli asset | Nessun file `LICENSE`; le foto demo sono immagini generate (`design/`), il carattere Figtree ha la OFL in `assets/licenses` |
 | `distributionSha256Sum` nel wrapper Gradle e verifica delle dipendenze | Non presenti |
 
+## Secondo audit indipendente sul branch (18 ottobre 2026, revisione `a777a1d`)
+
+Lo stesso auditor ha rianalizzato il branch della pull request: confermato aperto F01, chiusi gli altri rilievi del primo audit e segnalati nove punti nuovi (N01–N09) più alcune note. Tutti verificati sul codice e corretti, tranne F01 che richiede il nuovo flusso di autorizzazione Google.
+
+| Rilievo | Correzione |
+| --- | --- |
+| N01 La pagina per il link iCloud ripeteva il modulo, con la chiave del QR, anche nelle risposte 411 e 413, cioè a richieste che la chiave non avevano provato | Le pagine di errore non contengono più il modulo: la chiave compare solo nella pagina aperta con il QR |
+| N02 Dopo `close()` una richiesta già accettata poteva ancora consegnare un link al ViewModel | Il server chiude anche le connessioni aperte e, dopo `stop()`, risponde "scaduto" senza chiamare il callback; il ViewModel accetta il link solo se la pagina è ancora quella in uso e la schermata del link è aperta |
+| N03 Limiti insufficienti nel server del link: due thread senza coda limitata, nessun tetto per telefono, corpo letto senza scadenza complessiva | Esecutore con coda limitata (503 oltre), al massimo tre connessioni per telefono (429), scadenza complessiva anche sulla lettura del modulo, scarto del resto della richiesta prima di chiudere |
+| N04 Apple TV: i reindirizzamenti di URLSession e di AVPlayer potevano portare fuori dalla rete di casa | Client HTTP con un delegato che segue un reindirizzamento solo verso indirizzi ammessi (https per Google, rete di casa per i server DLNA); i video dei server di casa passano dallo stesso caricatore dei video di Google (`StreamingVideoLoader`), che applica la stessa regola |
+| N05 Apple TV: risposte della rete di casa lette senza tetto | Tetto in byte sul client HTTP (8 MB per le risposte DLNA, 16 MB di serie) e sulle foto dei server di casa (64 MB) |
+| N06 Android: il client OkHttp dei video aveva `callTimeout` di 90 secondi, che spezzava un video più lungo | Client dedicato ai video senza limite complessivo per chiamata; restano i limiti di connessione e di lettura |
+| N07 Android: un token Google o un indirizzo iCloud rifiutati a metà video non si rinnovavano | `RenewingDataSource`: dopo 401/403 (Google) o 403/404/410 (iCloud) chiede a `GooglePhotosStream`/`ICloudAlbumStream` un rinnovo, indicando cosa non ha funzionato, e riprova una volta |
+| N08 `LanHttp`: per un nome che risolve in IPv6 l'intestazione Host portava il nome fra parentesi quadre | Host com'è scritto nell'indirizzo: un nome resta un nome, un indirizzo IPv6 numerico tiene le sue parentesi |
+| N09 Pagina degli invitati: una risposta al gioco rifiutata dalla TV (409, 429, 503) era mostrata come data | La pagina controlla la risposta: se rifiutata, il pulsante torna attivo e, se la domanda è chiusa, lo dice |
+| Nota: nessuna regola di rete per SMB | La TV parla SMB solo con indirizzi della rete di casa (come per DLNA): il controllo precede la connessione, un nome si risolve una volta sola e la ricerca Bonjour scarta gli indirizzi esterni; messaggio dedicato in cinque lingue |
+| Nota: Apple TV, `GoogleVideoLoader` con la configurazione `.default` | Sessione effimera, senza cache su disco |
+| Nota: i server degli invitati accettavano richieste senza intestazione Host | Host obbligatorio su Android e Apple TV (421 senza) |
+| Nota: `LICENSE`, `distributionSha256Sum`, verifica delle dipendenze | Invariati: la licenza del progetto la sceglie il proprietario; la somma del wrapper e la verifica delle dipendenze sono in `docs/PUBLISHING.md` fra le cose da fare |
+| F01 Device flow OAuth con lo scope Photos Picker | **Aperto**: richiede un altro flusso di autorizzazione (vedi sopra) |
+
+Verifiche: test JVM nuovi per la pagina del link (chiave assente dalle pagine di errore, connessioni chiuse da `stop()` senza link consegnati, limite per telefono), per Host obbligatorio, per l'intestazione Host di `LanHttp`, per la regola di rete SMB e per la ricerca Bonjour; su Apple TV un test del client HTTP (tetto in byte) e del server degli invitati senza Host. `RenewingDataSource` non ha un test JVM: `DataSpec` richiede un `Uri` di Android, assente nei test senza Robolectric.
+
 ## Raccomandazioni aperte
 
 | Priorità | Raccomandazione |

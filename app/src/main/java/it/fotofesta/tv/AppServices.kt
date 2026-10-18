@@ -38,6 +38,13 @@ class AppServices(context: Context) {
         .callTimeout(90, TimeUnit.SECONDS)
         .build()
 
+    /**
+     * Client per i video in streaming: come [http] (stesse connessioni e stessi thread), ma senza il
+     * limite complessivo di 90 secondi per chiamata, che spezzerebbe un video più lungo. Restano i
+     * limiti di connessione e di attesa fra un pezzo e l'altro.
+     */
+    val streamingHttp: OkHttpClient = http.newBuilder().callTimeout(0, TimeUnit.SECONDS).build()
+
     val googleAuth = GoogleDeviceAuthRepository(
         client = http,
         tokens = SecureTokenStore(context),
@@ -66,7 +73,7 @@ class AppServices(context: Context) {
     val smbShares = SmbShares(FileBrowser.imageExtensions(Build.VERSION.SDK_INT))
 
     /** Da dove il lettore legge i video: TV e disco USB, rete di casa, Google Foto, iCloud, cartelle condivise. */
-    val videoDataSources = VideoDataSources(context.applicationContext, lanHttp, googleStream, icloudStream, http, smbShares)
+    val videoDataSources = VideoDataSources(context.applicationContext, lanHttp, googleStream, icloudStream, streamingHttp, smbShares)
 
     /** Gioco con i telefoni: la TV fa le domande, gli invitati rispondono dalla pagina della festa. */
     val phoneGame = PhoneGame()

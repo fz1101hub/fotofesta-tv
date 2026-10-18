@@ -456,6 +456,7 @@
     <string name="smb_error_guest">Cet ordinateur n’autorise pas l’accès invité : saisissez un nom d’utilisateur et un mot de passe.</string>
     <string name="smb_error_denied">Cet utilisateur ne peut pas ouvrir le dossier.</string>
     <string name="smb_error_not_found">Dossier partagé introuvable : vérifiez le nom.</string>
+    <string name="smb_error_not_local">Cette adresse n’est pas sur le réseau domestique : seuls les ordinateurs du même réseau que la TV peuvent être ouverts.</string>
     <string name="browser_section_smb">Dossiers partagés (PC, Mac, NAS)</string>
     <string name="browser_smb_saved">Utilisé · %1$s</string>
     <string name="browser_smb_add">Ajouter un ordinateur ou un NAS</string>

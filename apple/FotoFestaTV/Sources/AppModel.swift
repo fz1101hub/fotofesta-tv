@@ -100,7 +100,11 @@ final class AppModel {
         configuration.urlCache = nil
         configuration.timeoutIntervalForRequest = 20
         return NetworkMedia(
-            http: URLSessionHTTPClient(session: URLSession(configuration: configuration)),
+            http: URLSessionHTTPClient(
+                session: URLSession(configuration: configuration),
+                maxBytes: 8 * 1024 * 1024,
+                allowRedirect: { LANAddress.isLocal($0) }
+            ),
             screen: ScreenSize(longEdge: 3840, shortEdge: 2160)
         )
     }()

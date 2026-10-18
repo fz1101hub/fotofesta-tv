@@ -13,6 +13,14 @@ class LanHttpTest {
     private val http = LanHttp(allowLoopback = true)
 
     @Test
+    fun hostHeaderIsTheAddressAsWritten() {
+        assertEquals("nas.local", LanHttp.hostHeader("nas.local", 80))
+        assertEquals("nas.local:8200", LanHttp.hostHeader("nas.local", 8200))
+        assertEquals("192.168.1.20:8200", LanHttp.hostHeader("192.168.1.20", 8200))
+        assertEquals("[fe80::1]:8200", LanHttp.hostHeader("[fe80::1]", 8200))
+    }
+
+    @Test
     fun onlyHomeNetworkAddressesAreAccepted() {
         listOf("192.168.1.20", "10.0.0.5", "172.16.3.4", "172.31.255.1", "169.254.10.10", "fd12:3456::1", "fe80::1").forEach {
             assertTrue(it, LanHttp.isLanAddress(InetAddress.getByName(it)))

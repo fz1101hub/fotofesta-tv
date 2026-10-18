@@ -101,8 +101,7 @@ class LanHttp(
         val address = InetAddress.getAllByName(host.removePrefix("[").removeSuffix("]"))
             .firstOrNull { isLanAddress(it) || (allowLoopback && it.isLoopbackAddress) }
             ?: throw NotLanAddressException(url)
-        val hostHeader = (if (address is Inet6Address) "[${host.removePrefix("[").removeSuffix("]")}]" else host) +
-            if (port != 80) ":$port" else ""
+        val hostHeader = hostHeader(host, port)
         val path = (uri.rawPath?.ifEmpty { null } ?: "/") + (uri.rawQuery?.let { "?$it" } ?: "")
         if (path.any { it.isWhitespace() || it.code < 0x20 }) throw NotLanAddressException(url)
         return Target(address, port, hostHeader, path)
@@ -161,6 +160,12 @@ class LanHttp(
         private const val MAX_LINE = 8 * 1024
         private const val MAX_HEADERS = 100
         private val REDIRECTS = setOf(301, 302, 303, 307, 308)
+
+        /**
+         * Intestazione Host com'è scritto l'indirizzo: un nome resta un nome anche se risolve in IPv6,
+         * e un indirizzo IPv6 numerico tiene le sue parentesi.
+         */
+        internal fun hostHeader(host: String, port: Int): String = host + if (port != 80) ":$port" else ""
 
         /** Indirizzi privati IPv4, link-local e IPv6 locali (fc00::/7). */
         fun isLanAddress(address: InetAddress): Boolean = when (address) {

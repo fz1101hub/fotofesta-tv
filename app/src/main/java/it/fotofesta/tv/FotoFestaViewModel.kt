@@ -851,6 +851,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         SmbException.Reason.LOGIN -> if (guest) R.string.smb_error_guest else R.string.smb_error_login
         SmbException.Reason.DENIED -> R.string.smb_error_denied
         SmbException.Reason.NOT_FOUND -> R.string.smb_error_not_found
+        SmbException.Reason.NOT_LOCAL -> R.string.smb_error_not_local
         else -> R.string.smb_error_unreachable
     }
 
@@ -926,10 +927,16 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                 runCatching {
                     val address = LocalAddress.current(context) ?: return@runCatching null
                     val key = java.util.UUID.randomUUID().toString().replace("-", "")
-                    val server = LinkPairingServer(key, ICloudPairingTexts::forLanguage) { link ->
+                    lateinit var server: LinkPairingServer
+                    server = LinkPairingServer(key, ICloudPairingTexts::forLanguage) { link ->
                         val token = ICloudLink.token(link)
-                        // Il link arriva dal telefono: la TV apre l'album e lo mostra in anteprima.
-                        if (token != null) viewModelScope.launch { previewICloudAlbum(token) }
+                        // Il link arriva dal telefono: la TV apre l'album e lo mostra in anteprima, ma solo
+                        // se questa pagina è ancora quella in uso e la schermata del link è aperta.
+                        if (token != null) {
+                            viewModelScope.launch {
+                                if (pairingServer === server && _state.value.destination == Destination.ICLOUD_LINK) previewICloudAlbum(token)
+                            }
+                        }
                         token != null
                     }
                     val port = server.start(address)

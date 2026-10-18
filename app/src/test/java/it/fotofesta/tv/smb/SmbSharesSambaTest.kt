@@ -23,7 +23,7 @@ import java.io.File
  */
 class SmbSharesSambaTest {
     private lateinit var server: SmbLocation
-    private val shares = SmbShares(FileBrowser.imageExtensions(34), connectTimeoutMs = 2_000, responseTimeoutMs = 10_000)
+    private val shares = SmbShares(FileBrowser.imageExtensions(34), connectTimeoutMs = 2_000, responseTimeoutMs = 10_000, allowLoopback = true)
     private val user = SmbLogin("festa", "segreta123")
 
     @Before

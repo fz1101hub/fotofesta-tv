@@ -64,6 +64,58 @@ class LinkPairingServerTest {
     }
 
     @Test
+    fun errorPagesDoNotRepeatTheKey() {
+        val (noLength, noLengthPage) = send("POST /link HTTP/1.1\r\nHost: $host\r\nContent-Type: application/x-www-form-urlencoded\r\n\r\n")
+        assertEquals(411, noLength)
+        assertFalse(noLengthPage.contains("chiave-segreta"))
+        assertFalse(noLengthPage.contains("<form"))
+        val (tooBig, tooBigPage) = post(form("chiave-segreta", "x".repeat(5_000)))
+        assertEquals(413, tooBig)
+        assertFalse(tooBigPage.contains("chiave-segreta"))
+        assertFalse(tooBigPage.contains("<form"))
+        // La chiave compare solo nella pagina aperta con il QR.
+        assertTrue(get("/?k=chiave-segreta").second.contains("chiave-segreta"))
+        assertFalse(get("/?k=sbagliata").second.contains("chiave-segreta"))
+    }
+
+    @Test
+    fun stopClosesOpenConnectionsAndDropsLateLinks() {
+        val socket = Socket(loopback, port)
+        socket.soTimeout = 5_000
+        // Connessione già accettata, in attesa della richiesta.
+        Thread.sleep(300)
+        server.stop()
+        val raw = form("chiave-segreta", "https://www.icloud.com/sharedalbum/#B0aGWZuqDGKfHtd")
+        val status = runCatching {
+            socket.getOutputStream().write("POST /link HTTP/1.1\r\nHost: $host\r\nContent-Length: ${raw.length}\r\n\r\n$raw".toByteArray())
+            socket.getOutputStream().flush()
+            socket.getInputStream().readBytes().toString(Charsets.UTF_8).substringAfter(' ').substringBefore(' ').toInt()
+        }.getOrNull()
+        socket.close()
+        assertTrue("stato $status", status == null || status == 403)
+        assertTrue(received.isEmpty())
+    }
+
+    @Test
+    fun limitsTheConnectionsOfOnePhone() {
+        val idle = List(LinkPairingServer.MAX_CONNECTIONS_PER_CLIENT) { Socket(loopback, port) }
+        try {
+            Thread.sleep(300)
+            assertEquals(429, get("/?k=chiave-segreta").first)
+        } finally {
+            idle.forEach { it.close() }
+        }
+        // Chiuse le altre, la pagina torna.
+        var status = 0
+        for (attempt in 1..20) {
+            status = get("/?k=chiave-segreta").first
+            if (status == 200) break
+            Thread.sleep(100)
+        }
+        assertEquals(200, status)
+    }
+
+    @Test
     fun escapesTextAndPicksTheLanguage() {
         assertEquals("&lt;b&gt; &amp; &quot;x&quot; &#39;y&#39;", LinkPairingServer.escape("<b> & \"x\" 'y'"))
         assertEquals("fr", LinkPairingServer.language("fr-CA,fr;q=0.9,en;q=0.8", setOf("it", "en", "fr")))

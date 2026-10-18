@@ -9,8 +9,12 @@ import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketException
+import java.net.SocketTimeoutException
 import java.security.MessageDigest
-import java.util.concurrent.Executors
+import java.util.Collections
+import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
@@ -30,11 +34,15 @@ data class PairingTexts(
  * Pagina con un solo campo che la TV serve sulla rete di casa mentre è aperta la schermata che la
  * mostra: il telefono inquadra il QR, incolla un link e la TV lo riceve. Così un link lungo non si
  * scrive con il telecomando. Vuole la chiave del QR, controlla l'intestazione Host e accetta solo
- * moduli piccoli.
+ * moduli piccoli; poche connessioni per volta e per telefono, ognuna con una scadenza complessiva.
+ * Dopo [stop] nessun link viene più consegnato a [onLink].
  */
 class LinkPairingServer(
     private val key: String,
     private val texts: (acceptLanguage: String?) -> PairingTexts,
+    private val readTimeoutMillis: Int = READ_TIMEOUT_MS,
+    private val deadlineMillis: Long = DEADLINE_MS,
+    private val nowMillis: () -> Long = { System.nanoTime() / 1_000_000 },
     /** Chiamato con il testo incollato; true se è un link valido. */
     private val onLink: (String) -> Boolean,
 ) {
@@ -43,7 +51,15 @@ class LinkPairingServer(
 
     @Volatile
     private var expectedHost: String? = null
-    private val workers = Executors.newFixedThreadPool(2) { runnable -> Thread(runnable, "link-pairing").apply { isDaemon = true } }
+
+    /** Dopo stop(): le richieste ancora in corso rispondono "scaduto" e non consegnano link. */
+    @Volatile
+    private var closed = true
+    private val openSockets: MutableSet<Socket> = Collections.synchronizedSet(mutableSetOf())
+    private val perClient = mutableMapOf<InetAddress, Int>()
+    private val workers = ThreadPoolExecutor(
+        WORKERS, WORKERS, 30, TimeUnit.SECONDS, ArrayBlockingQueue(QUEUE_SIZE),
+    ) { runnable -> Thread(runnable, "link-pairing").apply { isDaemon = true } }
 
     /** Avvia la pagina su [address] e restituisce la porta. */
     @Synchronized
@@ -52,32 +68,28 @@ class LinkPairingServer(
         val socket = ServerSocket()
         socket.reuseAddress = true
         try {
-            socket.bind(InetSocketAddress(address, port), 8)
+            socket.bind(InetSocketAddress(address, port), BACKLOG)
         } catch (failure: IOException) {
             socket.close()
             throw failure
         }
         serverSocket = socket
         expectedHost = GuestUploadServer.hostHeader(address, socket.localPort)
-        thread(name = "link-pairing-accept", isDaemon = true) {
-            while (!socket.isClosed) {
-                val client = try {
-                    socket.accept()
-                } catch (_: SocketException) {
-                    break
-                } catch (_: IOException) {
-                    continue
-                }
-                runCatching { workers.execute { serve(client) } }.onFailure { runCatching { client.close() } }
-            }
-        }
+        closed = false
+        thread(name = "link-pairing-accept", isDaemon = true) { acceptLoop(socket) }
         return socket.localPort
     }
 
+    /** Chiude la porta e le connessioni aperte: da qui in poi [onLink] non viene più chiamato. */
     @Synchronized
     fun stop() {
+        closed = true
         runCatching { serverSocket?.close() }
         serverSocket = null
+        synchronized(openSockets) {
+            openSockets.forEach { runCatching { it.close() } }
+            openSockets.clear()
+        }
     }
 
     /** Ferma anche i thread: dopo non si può più riavviare. */
@@ -87,53 +99,133 @@ class LinkPairingServer(
         workers.awaitTermination(1, TimeUnit.SECONDS)
     }
 
-    private fun serve(client: Socket) {
-        client.use { socket ->
-            socket.soTimeout = READ_TIMEOUT_MS
-            val input = socket.getInputStream()
-            val output = socket.getOutputStream()
-            val response = try {
-                val deadline = System.currentTimeMillis() + DEADLINE_MS
-                val request = GuestUploadServer.readRequest(input, deadline) { System.currentTimeMillis() } ?: return
-                route(request, input)
+    private fun acceptLoop(socket: ServerSocket) {
+        while (!socket.isClosed) {
+            val client = try {
+                socket.accept()
+            } catch (_: SocketException) {
+                break
             } catch (_: IOException) {
-                return
-            } catch (_: Exception) {
-                // Richiesta malformata (riga, intestazioni o modulo).
-                Page(400, page(texts(null), message = null, form = false, status = null))
+                continue
             }
-            runCatching { write(output, response) }
+            val clientAddress = client.inetAddress
+            if (!acquireClient(clientAddress)) {
+                reject(client, 429)
+                continue
+            }
+            openSockets += client
+            try {
+                workers.execute { serve(client, clientAddress) }
+            } catch (_: RejectedExecutionException) {
+                openSockets -= client
+                releaseClient(clientAddress)
+                reject(client, 503)
+            }
         }
     }
 
-    private fun route(request: GuestUploadServer.Request, input: InputStream): Page {
+    /** Risposta breve dal thread di ascolto, senza leggere la richiesta. */
+    private fun reject(client: Socket, status: Int) {
+        runCatching {
+            client.use { socket ->
+                socket.soTimeout = 1_000
+                write(socket.getOutputStream(), Page(status, page(texts(null), message = null, form = false, status = null)), retryAfter = true)
+            }
+        }
+    }
+
+    private fun serve(client: Socket, clientAddress: InetAddress) {
+        try {
+            client.use { socket ->
+                socket.soTimeout = readTimeoutMillis
+                val deadline = nowMillis() + deadlineMillis
+                val input = socket.getInputStream()
+                val output = socket.getOutputStream()
+                val response = try {
+                    val request = GuestUploadServer.readRequest(input, deadline, nowMillis) ?: return
+                    route(request, input, deadline)
+                } catch (_: IOException) {
+                    return
+                } catch (_: Exception) {
+                    // Richiesta malformata (riga, intestazioni o modulo).
+                    Page(400, page(texts(null), message = null, form = false, status = null))
+                }
+                runCatching {
+                    write(output, response)
+                    // Chiudere con dati ancora da leggere (un modulo rifiutato per dimensione) farebbe
+                    // arrivare un reset al posto della risposta: si chiude l'invio e si scarta il resto.
+                    socket.shutdownOutput()
+                    socket.soTimeout = DRAIN_TIMEOUT_MS
+                    drain(input)
+                }
+            }
+        } catch (_: Throwable) {
+            // Connessione caduta o errore inatteso: non c'è nessuno a cui rispondere.
+        } finally {
+            openSockets -= client
+            releaseClient(clientAddress)
+        }
+    }
+
+    private fun route(request: GuestUploadServer.Request, input: InputStream, deadline: Long): Page {
         val language = request.headers["accept-language"]
         val text = texts(language)
         // Contro il DNS rebinding: la pagina risponde solo all'indirizzo del QR.
-        if (request.headers["host"] != expectedHost) return Page(421, page(text, text.expired, form = false))
+        if (!request.headers["host"].equals(expectedHost, ignoreCase = true)) return Page(421, page(text, text.expired, form = false))
         return when {
             request.path == "/" && request.method == "GET" ->
-                if (keyMatches(request.query["k"])) Page(200, page(text, null, form = true)) else Page(403, page(text, text.expired, form = false))
+                if (keyMatches(request.query["k"]) && !closed) Page(200, page(text, null, form = true)) else Page(403, page(text, text.expired, form = false))
             request.path == "/link" && request.method == "POST" -> {
                 val length = request.headers["content-length"]?.trim()?.toIntOrNull()
-                if (request.headers.containsKey("transfer-encoding") || length == null) return Page(411, page(text, text.invalid, form = true))
-                if (length > MAX_FORM_BYTES) return Page(413, page(text, text.invalid, form = true))
-                val body = ByteArray(length)
-                var read = 0
-                while (read < length) {
-                    val count = input.read(body, read, length - read)
-                    if (count < 0) throw IOException("Modulo incompleto")
-                    read += count
-                }
-                val form = GuestUploadServer.parseForm(String(body, Charsets.UTF_8))
+                // Le pagine di errore non ripetono il modulo: contengono la chiave del QR e qui non è stata provata.
+                if (request.headers.containsKey("transfer-encoding") || length == null) return Page(411, page(text, text.invalid, form = false))
+                if (length > MAX_FORM_BYTES) return Page(413, page(text, text.invalid, form = false))
+                val form = GuestUploadServer.parseForm(String(readBody(input, length, deadline), Charsets.UTF_8))
                 when {
-                    !keyMatches(form["k"]) -> Page(403, page(text, text.expired, form = false))
+                    !keyMatches(form["k"]) || closed -> Page(403, page(text, text.expired, form = false))
                     onLink(form["link"].orEmpty()) -> Page(200, page(text, text.received, form = false, status = "ok"))
                     else -> Page(400, page(text, text.invalid, form = true, status = "error"))
                 }
             }
             else -> Page(404, page(text, text.expired, form = false))
         }
+    }
+
+    private fun readBody(input: InputStream, length: Int, deadline: Long): ByteArray {
+        val body = ByteArray(length)
+        var read = 0
+        while (read < length) {
+            val count = input.read(body, read, length - read)
+            if (count < 0) throw IOException("Modulo incompleto")
+            if (nowMillis() > deadline) throw SocketTimeoutException("Modulo troppo lento")
+            read += count
+        }
+        return body
+    }
+
+    private fun drain(input: InputStream) {
+        val buffer = ByteArray(8 * 1024)
+        var total = 0
+        try {
+            while (total < MAX_DRAIN_BYTES) {
+                val read = input.read(buffer)
+                if (read < 0) break
+                total += read
+            }
+        } catch (_: IOException) {
+        }
+    }
+
+    private fun acquireClient(address: InetAddress): Boolean = synchronized(perClient) {
+        val count = perClient[address] ?: 0
+        if (count >= MAX_CONNECTIONS_PER_CLIENT) return false
+        perClient[address] = count + 1
+        true
+    }
+
+    private fun releaseClient(address: InetAddress) = synchronized(perClient) {
+        val count = (perClient[address] ?: 1) - 1
+        if (count <= 0) perClient.remove(address) else perClient[address] = count
     }
 
     private fun keyMatches(candidate: String?): Boolean =
@@ -166,7 +258,7 @@ class LinkPairingServer(
         append("</main></body></html>")
     }
 
-    private fun write(output: OutputStream, page: Page) {
+    private fun write(output: OutputStream, page: Page, retryAfter: Boolean = false) {
         val body = page.html.toByteArray(Charsets.UTF_8)
         val head = buildString {
             append("HTTP/1.1 ").append(page.status).append(" X\r\n")
@@ -177,6 +269,7 @@ class LinkPairingServer(
             append("Referrer-Policy: no-referrer\r\n")
             append("X-Content-Type-Options: nosniff\r\n")
             append("Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'\r\n")
+            if (retryAfter) append("Retry-After: 5\r\n")
             append("\r\n")
         }
         output.write(head.toByteArray(Charsets.ISO_8859_1))
@@ -185,9 +278,16 @@ class LinkPairingServer(
     }
 
     companion object {
-        private const val READ_TIMEOUT_MS = 10_000
-        private const val DEADLINE_MS = 20_000L
+        const val READ_TIMEOUT_MS = 10_000
+        const val DEADLINE_MS = 20_000L
         private const val MAX_FORM_BYTES = 4_096
+        private const val MAX_DRAIN_BYTES = 64 * 1024
+        private const val DRAIN_TIMEOUT_MS = 1_000
+        /** Un telefono apre una connessione per la pagina e una per il modulo, più qualcuna "di scorta". */
+        internal const val MAX_CONNECTIONS_PER_CLIENT = 3
+        private const val WORKERS = 3
+        private const val QUEUE_SIZE = 6
+        private const val BACKLOG = 8
 
         fun escape(text: String): String = buildString {
             for (char in text) {

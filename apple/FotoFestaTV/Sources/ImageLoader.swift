@@ -64,14 +64,18 @@ actor ImageLoader {
         return image
     }
 
-    /// Foto intera dal server di casa; la riduzione allo schermo la fa ImageIO.
+    /// Foto intera dal server di casa, con un tetto e senza seguire un reindirizzamento fuori dalla
+    /// rete di casa; la riduzione allo schermo la fa ImageIO.
     private func networkData(_ url: URL) async -> Data? {
         var request = URLRequest(url: url, timeoutInterval: 30)
         request.httpMethod = "GET"
-        guard let result = try? await network.data(for: request),
-              let http = result.1 as? HTTPURLResponse, (200..<300).contains(http.statusCode), !result.0.isEmpty else { return nil }
+        guard let result = try? await BoundedFetch.data(for: request, session: network, maxBytes: Self.maxNetworkPhotoBytes, allowRedirect: { LANAddress.isLocal($0) }),
+              (200..<300).contains(result.1.statusCode), !result.0.isEmpty else { return nil }
         return result.0
     }
+
+    /// Una foto di una fotocamera moderna pesa fino a qualche decina di MB.
+    private static let maxNetworkPhotoBytes = 64 * 1024 * 1024
 
     /// Svuota la cache in memoria (ad esempio dopo "Disconnetti e cancella").
     func removeAll() {

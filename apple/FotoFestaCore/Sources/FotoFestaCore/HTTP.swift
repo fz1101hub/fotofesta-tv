@@ -6,16 +6,115 @@ public protocol HTTPClient: Sendable {
 }
 
 public struct URLSessionHTTPClient: HTTPClient {
-    private let session: URLSession
+    public static let defaultMaxBytes = 16 * 1024 * 1024
 
-    public init(session: URLSession = .shared) {
+    private let session: URLSession
+    private let maxBytes: Int
+    private let allowRedirect: @Sendable (URL) -> Bool
+
+    /// - Parameters:
+    ///   - maxBytes: tetto alla risposta; oltre, la richiesta fallisce con `URLError.dataLengthExceedsMaximum`.
+    ///   - allowRedirect: dove un reindirizzamento può portare (di serie solo https); altrove la
+    ///     risposta 3xx arriva com'è e chi chiama la tratta come un errore.
+    public init(
+        session: URLSession = .shared,
+        maxBytes: Int = URLSessionHTTPClient.defaultMaxBytes,
+        allowRedirect: @escaping @Sendable (URL) -> Bool = { $0.scheme?.lowercased() == "https" }
+    ) {
         self.session = session
+        self.maxBytes = maxBytes
+        self.allowRedirect = allowRedirect
     }
 
     public func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
-        let (data, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
-        return (data, http)
+        try await BoundedFetch.data(for: request, session: session, maxBytes: maxBytes, allowRedirect: allowRedirect)
+    }
+}
+
+/// Scarica una risposta intera con un tetto in byte e segue i reindirizzamenti solo verso gli
+/// indirizzi ammessi: una risposta della rete di casa non può portare altrove né riempire la memoria.
+public final class BoundedFetch: NSObject, URLSessionDataDelegate, @unchecked Sendable {
+    private let maxBytes: Int
+    private let allowRedirect: @Sendable (URL) -> Bool
+    // Usati solo dalla coda della sessione, che consegna gli eventi di un task uno alla volta.
+    private var received = Data()
+    private var response: HTTPURLResponse?
+    private var failure: Error?
+    private var continuation: CheckedContinuation<(Data, HTTPURLResponse), Error>?
+
+    private init(maxBytes: Int, allowRedirect: @escaping @Sendable (URL) -> Bool) {
+        self.maxBytes = maxBytes
+        self.allowRedirect = allowRedirect
+    }
+
+    public static func data(
+        for request: URLRequest,
+        session: URLSession,
+        maxBytes: Int,
+        allowRedirect: @escaping @Sendable (URL) -> Bool
+    ) async throws -> (Data, HTTPURLResponse) {
+        let fetch = BoundedFetch(maxBytes: maxBytes, allowRedirect: allowRedirect)
+        let task = session.dataTask(with: request)
+        task.delegate = fetch
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                fetch.continuation = continuation
+                task.resume()
+            }
+        } onCancel: {
+            task.cancel()
+        }
+    }
+
+    public func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest,
+        completionHandler: @escaping (URLRequest?) -> Void
+    ) {
+        if let url = request.url, allowRedirect(url) {
+            completionHandler(request)
+        } else {
+            completionHandler(nil)
+        }
+    }
+
+    public func urlSession(
+        _ session: URLSession,
+        dataTask: URLSessionDataTask,
+        didReceive response: URLResponse,
+        completionHandler: @escaping (URLSession.ResponseDisposition) -> Void
+    ) {
+        if response.expectedContentLength > Int64(maxBytes) {
+            failure = URLError(.dataLengthExceedsMaximum)
+            completionHandler(.cancel)
+            return
+        }
+        self.response = response as? HTTPURLResponse
+        completionHandler(.allow)
+    }
+
+    public func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+        received.append(data)
+        if received.count > maxBytes {
+            failure = URLError(.dataLengthExceedsMaximum)
+            dataTask.cancel()
+        }
+    }
+
+    public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        guard let continuation else { return }
+        self.continuation = nil
+        if let failure {
+            continuation.resume(throwing: failure)
+        } else if let error {
+            continuation.resume(throwing: error)
+        } else if let response {
+            continuation.resume(returning: (received, response))
+        } else {
+            continuation.resume(throwing: URLError(.badServerResponse))
+        }
     }
 }
 

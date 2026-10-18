@@ -350,11 +350,16 @@ async function sendAnswer(index) {
   const name = Array.from(senderInput.value.trim()).slice(0, 40).join("") || T.guestName;
   const body = new URLSearchParams({ round: game.round, choice: String(index), player: PLAYER, name });
   try {
-    await fetch("/game/answer", {
+    const response = await fetch("/game/answer", {
       method: "POST",
       headers: { "X-FotoFesta-Key": KEY, "Content-Type": "application/x-www-form-urlencoded" },
       body: body.toString(),
     });
+    if (!response.ok) {
+      // La TV l'ha rifiutata (domanda già chiusa, TV occupata): non conta come data.
+      game.choice = null;
+      if (response.status === 409) $("gameStatus").textContent = T.gameClosed;
+    }
   } catch (e) {
     // Risposta non arrivata: si può toccare di nuovo.
     game.choice = null;

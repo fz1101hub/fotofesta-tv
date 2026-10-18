@@ -430,6 +430,7 @@
     <string name="smb_error_guest">This computer doesn’t allow guest access: enter a user name and password.</string>
     <string name="smb_error_denied">This user can’t open the folder.</string>
     <string name="smb_error_not_found">Shared folder not found: check the name.</string>
+    <string name="smb_error_not_local">This address isn’t on the home network: only computers on the same network as the TV can be opened.</string>
     <string name="browser_section_smb">Shared folders (PC, Mac, NAS)</string>
     <string name="browser_smb_saved">In use · %1$s</string>
     <string name="browser_smb_add">Add a computer or NAS</string>

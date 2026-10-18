@@ -429,6 +429,7 @@
     <string name="smb_error_guest">Dieser Computer erlaubt keinen Gastzugang: Gib Benutzername und Passwort ein.</string>
     <string name="smb_error_denied">Dieser Benutzer darf den Ordner nicht öffnen.</string>
     <string name="smb_error_not_found">Freigegebener Ordner nicht gefunden: Prüfe den Namen.</string>
+    <string name="smb_error_not_local">Diese Adresse gehört nicht zum Heimnetzwerk: Es lassen sich nur Computer im selben Netzwerk wie der Fernseher öffnen.</string>
     <string name="browser_section_smb">Freigegebene Ordner (PC, Mac, NAS)</string>
     <string name="browser_smb_saved">In Verwendung · %1$s</string>
     <string name="browser_smb_add">Computer oder NAS hinzufügen</string>

@@ -203,8 +203,9 @@ class GuestUploadServer(
     }
 
     private fun route(request: Request, body: InputStream, clientAddress: InetAddress, startedAt: Long): Response {
+        // Contro il DNS rebinding: solo l'indirizzo del QR; un client senza Host non è un browser.
         val host = request.headers["host"]
-        if (host != null && !host.equals(expectedHost, ignoreCase = true)) {
+        if (host == null || !host.equals(expectedHost, ignoreCase = true)) {
             throw HttpError(421, "host")
         }
         return when (request.path) {

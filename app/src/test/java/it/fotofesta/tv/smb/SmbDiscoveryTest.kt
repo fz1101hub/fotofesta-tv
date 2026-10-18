@@ -108,6 +108,15 @@ class SmbDiscoveryTest {
     }
 
     @Test
+    fun addressesOutsideTheHomeNetworkAreIgnored() {
+        val declared = answer("Finto", "finto.local", 445, byteArrayOf(8, 8, 8, 8))
+        val sender = answer("Mittente", "mittente.local", 445, null)
+        val home = answer("NAS", "nas.local", 445, byteArrayOf(10, 0, 0, 9))
+        val hosts = SmbDiscovery.hosts(listOf(declared to "192.168.1.9", sender to "203.0.113.5", home to "10.0.0.9"))
+        assertEquals(listOf(SmbHost("NAS", "10.0.0.9", 445)), hosts)
+    }
+
+    @Test
     fun brokenPacketsAreIgnored() {
         val good = answer("NAS", "nas.local", 445, byteArrayOf(10, 0, 0, 9))
         val truncated = good.copyOf(good.size - 3)
@@ -133,7 +142,7 @@ class SmbDiscoveryTest {
                     }
                 }
             }
-            val hosts = SmbDiscovery.search(timeoutMs = 1_200, target = InetSocketAddress(InetAddress.getLoopbackAddress(), responder.localPort))
+            val hosts = SmbDiscovery.search(timeoutMs = 1_200, target = InetSocketAddress(InetAddress.getLoopbackAddress(), responder.localPort), allowLoopback = true)
             responder.close()
             worker.join()
             assertEquals(listOf(SmbHost("NAS", "127.0.0.1", 445)), hosts)

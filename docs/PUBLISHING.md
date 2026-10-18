@@ -179,3 +179,4 @@ Note per la revisione Apple:
 | Album condiviso iCloud con link pubblico: QR dal telefono, codice scritto, foto aggiunte, link reso privato | ☐ | — |
 | Foto di iCloud: permesso concesso e negato, album condiviso, foto aggiunte da un iPhone | — | ☐ |
 | Informativa privacy pubblicata e URL inseriti negli store | ☐ | ☐ |
+| Catena di build: `distributionSha256Sum` in `gradle/wrapper/gradle-wrapper.properties` (somma dal sito di Gradle) e verifica delle dipendenze (`gradle/verification-metadata.xml`); `LICENSE` del progetto scelta | ☐ | — |

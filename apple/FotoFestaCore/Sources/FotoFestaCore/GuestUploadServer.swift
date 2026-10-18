@@ -353,7 +353,8 @@ public final class GuestUploadServer: @unchecked Sendable {
     }
 
     private func checkHost(_ request: GuestHTTPRequest) throws {
-        if let host = request.headers["host"], host.lowercased() != expectedHost.lowercased() {
+        // Contro il DNS rebinding: solo l'indirizzo del QR; un client senza Host non è un browser.
+        guard let host = request.headers["host"], host.lowercased() == expectedHost.lowercased() else {
             throw GuestHTTPError(status: 421, code: "host")
         }
     }

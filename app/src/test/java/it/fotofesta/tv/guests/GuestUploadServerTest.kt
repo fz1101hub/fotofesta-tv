@@ -260,6 +260,7 @@ class GuestUploadServerTest {
     fun `requests for another host are refused`() {
         assertEquals(421, get("/?k=$KEY", host = "attacker.example").status)
         assertEquals(421, post(jpeg, host = "attacker.example:$port").status)
+        assertEquals(421, send("GET /?k=$KEY HTTP/1.1\r\n\r\n".toByteArray()).status)
         assertTrue(received.isEmpty())
     }
 

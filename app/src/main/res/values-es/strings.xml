@@ -456,6 +456,7 @@
     <string name="smb_error_guest">Este ordenador no permite el acceso de invitado: escribe un nombre de usuario y una contraseña.</string>
     <string name="smb_error_denied">Este usuario no puede abrir la carpeta.</string>
     <string name="smb_error_not_found">Carpeta compartida no encontrada: comprueba el nombre.</string>
+    <string name="smb_error_not_local">Esta dirección no es de la red de casa: solo se abren los ordenadores de la misma red que la TV.</string>
     <string name="browser_section_smb">Carpetas compartidas (PC, Mac, NAS)</string>
     <string name="browser_smb_saved">En uso · %1$s</string>
     <string name="browser_smb_add">Añadir un ordenador o un NAS</string>
