@@ -1,6 +1,7 @@
 package it.fotofesta.tv.ui
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -220,7 +221,7 @@ private fun HomeBackdrop(state: AppState) {
     }
     Crossfade(
         targetState = photos[index.coerceIn(0, photos.lastIndex)],
-        animationSpec = tween(1_500),
+        animationSpec = if (LocalReducedMotion.current) snap() else tween(1_500),
         label = "homeBackdrop",
         modifier = Modifier.fillMaxSize(),
     ) { photo ->

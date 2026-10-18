@@ -4,6 +4,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -83,6 +84,12 @@ private val TvTypography = Typography(
     labelMedium = style(12, FontWeight.Bold, 16, tracking = 1.7),
     labelSmall = style(11, FontWeight.ExtraBold, 14),
 )
+
+/**
+ * "Riduci movimento" delle impostazioni: oltre a transizioni e movimento lento dello slideshow,
+ * spegne l'ingrandimento animato del fuoco e la dissolvenza delle foto nella home.
+ */
+val LocalReducedMotion = staticCompositionLocalOf { false }
 
 @Composable
 fun FotoFestaTheme(content: @Composable () -> Unit) {

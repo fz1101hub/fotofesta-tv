@@ -38,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -62,6 +63,7 @@ import it.fotofesta.tv.ui.GoogleConnectScreen
 import it.fotofesta.tv.ui.GuestReviewScreen
 import it.fotofesta.tv.ui.GuestWifiScreen
 import it.fotofesta.tv.ui.ICloudLinkScreen
+import it.fotofesta.tv.ui.LocalReducedMotion
 import it.fotofesta.tv.ui.GuestsScreen
 import it.fotofesta.tv.ui.HomeScreen
 import it.fotofesta.tv.ui.MemoryGameScreen
@@ -178,159 +180,161 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-                    when (state.destination) {
-                        Destination.HOME -> HomeScreen(
-                            state = state,
-                            showGoogle = viewModel.showGoogle,
-                            onGoogle = viewModel::startGoogleConnect,
-                            onGuests = { viewModel.navigate(Destination.GUESTS) },
-                            onUsb = { openBrowser(BrowserKind.PHOTOS) },
-                            onDemo = viewModel::useDemoAndPlay,
-                            onPlay = viewModel::playCurrent,
-                            onStartParty = viewModel::startPartyAndPlay,
-                            onSettings = { viewModel.navigate(Destination.SETTINGS) },
-                            onGames = { viewModel.navigate(Destination.GAMES) },
-                        )
-                        Destination.SETTINGS -> SettingsScreen(
-                            state = state,
-                            onCategory = viewModel::setSettingsCategory,
-                            onChange = viewModel::updateSettings,
-                            onPickMusic = { openBrowser(BrowserKind.MUSIC) },
-                            onRemoveMusic = viewModel::removeMusic,
-                            onDisconnectGoogle = viewModel::disconnectGoogle,
-                            onOpenScreensaverSettings = ::openScreensaverSettings,
-                            onApproval = viewModel::setGuestApproval,
-                            onQrInSlideshow = viewModel::setGuestQrInSlideshow,
-                            onWifi = viewModel::openGuestWifi,
-                            onRemoveWifi = viewModel::removeGuestWifi,
-                        )
-                        Destination.SLIDESHOW -> SlideshowScreen(
-                            state = state,
-                            upcoming = viewModel.upcomingPhoto(),
-                            onBack = viewModel::back,
-                            onToggle = viewModel::togglePlayback,
-                            onNext = viewModel::next,
-                            onPrevious = viewModel::previous,
-                            onSettings = { viewModel.pause(); viewModel.navigate(Destination.SETTINGS) },
-                            onVideoAudible = viewModel::setVideoAudible,
-                        )
-                        Destination.GAMES -> GamesScreen(
-                            // I giochi usano solo le foto: i video si guardano nello slideshow.
-                            photoCount = state.photos.count { !it.video },
-                            whoTookItPlayable = WhoTookIt.canPlay(state.photos),
-                            onBack = { viewModel.navigate(Destination.HOME) },
-                            onMemory = { viewModel.navigate(Destination.MEMORY) },
-                            onMystery = { viewModel.navigate(Destination.MYSTERY) },
-                            onPuzzle = { viewModel.navigate(Destination.PUZZLE) },
-                            onWhoTookIt = { viewModel.navigate(Destination.WHO_TOOK_IT) },
-                        )
-                        // Le partite usano le foto presenti all'apertura del gioco: quelle che arrivano
-                        // dagli invitati durante la partita non la fanno ricominciare.
-                        Destination.MEMORY -> {
-                            val photos = remember { state.photos.filterNot { it.video } }
-                            MemoryGameScreen(photos) { viewModel.navigate(Destination.GAMES) }
-                        }
-                        Destination.MYSTERY -> {
-                            val photos = remember { state.photos.filterNot { it.video } }
-                            MysteryGameScreen(photos, phonePlay(state)) { viewModel.navigate(Destination.GAMES) }
-                        }
-                        Destination.PUZZLE -> {
-                            val photos = remember { state.photos.filterNot { it.video } }
-                            PuzzleGameScreen(photos) { viewModel.navigate(Destination.GAMES) }
-                        }
-                        Destination.WHO_TOOK_IT -> {
-                            val photos = remember { state.photos }
-                            WhoTookItScreen(photos, phonePlay(state)) { viewModel.navigate(Destination.GAMES) }
-                        }
-                        Destination.GOOGLE_CONNECT -> GoogleConnectScreen(
-                            state = state.google,
-                            onCancel = viewModel::cancelGoogleConnect,
-                            onRetry = viewModel::startGoogleConnect,
-                            onPlay = viewModel::playCurrent,
-                        )
-                        Destination.GUESTS -> GuestsScreen(
-                            guests = state.guests,
-                            // Le ultime foto arrivate, dalla più recente.
-                            recent = state.photos.filter { it.source == SourceType.GUESTS }
-                                .sortedByDescending { it.receivedAtMillis ?: 0L }
-                                .take(4),
-                            onStart = viewModel::startGuestParty,
-                            onEnd = viewModel::endGuestParty,
-                            onPlay = viewModel::playCurrent,
-                            onReview = { viewModel.navigate(Destination.GUEST_REVIEW) },
-                            onAwards = { viewModel.navigate(Destination.AWARDS) },
-                            onApproval = viewModel::setGuestApproval,
-                            onWifi = viewModel::openGuestWifi,
-                        )
-                        Destination.AWARDS -> AwardsScreen(
-                            awards = remember(state.photos) { PartyAwards.from(state.photos) },
-                            onBack = { viewModel.navigate(Destination.GUESTS) },
-                        )
-                        Destination.GUEST_REVIEW -> GuestReviewScreen(
-                            pending = state.guests.pending,
-                            onBack = { viewModel.navigate(Destination.GUESTS) },
-                            onShow = viewModel::approveGuestPhoto,
-                            onDiscard = viewModel::discardGuestPhoto,
-                            onApproveAll = viewModel::approveAllGuestPhotos,
-                        )
-                        Destination.FILE_BROWSER -> FileBrowserScreen(
-                            state = state.browser,
-                            onOpen = viewModel::browserOpen,
-                            onUp = viewModel::browserUp,
-                            onUseFolder = viewModel::browserUseFolder,
-                            onChooseTrack = viewModel::browserChooseTrack,
-                            onUseMusicFolder = viewModel::browserUseMusicFolder,
-                            onSystemPicker = {
-                                launchSystemPicker(state.browser.kind, { usbPicker.launch(null) }, { musicPicker.launch(arrayOf("audio/*")) })
-                            },
-                            onSearchNetwork = viewModel::browserSearchNetwork,
-                            onICloud = viewModel::openICloudLink,
-                            onSmbAdd = { viewModel.openSmbLogin() },
-                            onBack = viewModel::closeBrowser,
-                            icloudAlbum = state.icloud.savedName,
-                        )
-                        Destination.ICLOUD_LINK -> ICloudLinkScreen(
-                            state = state.icloud,
-                            onSubmit = viewModel::previewICloudAlbum,
-                            onUse = viewModel::useICloudAlbum,
-                            onBack = viewModel::closeICloudLink,
-                        )
-                        Destination.SMB_LOGIN -> SmbLoginScreen(
-                            state = state.smb,
-                            onConnect = viewModel::smbConnect,
-                            onBack = viewModel::closeSmbLogin,
-                        )
-                        Destination.GUEST_WIFI -> GuestWifiScreen(
-                            initialName = state.guests.wifiName,
-                            initialPassword = state.guests.wifiPassword,
-                            onSave = viewModel::saveGuestWifi,
-                        )
-                    }
-
-                    // Messaggi e avanzamento in sovrimpressione, in basso: in alto coprirebbero
-                    // l'intestazione con la sorgente e l'indicatore della festa.
-                    if (state.message != null || state.busy) {
-                        Column(
-                            modifier = Modifier.align(Alignment.BottomCenter)
-                                .padding(bottom = 28.dp)
-                                .widthIn(max = 760.dp)
-                                .shadow(16.dp, RoundedCornerShape(14.dp))
-                                .background(SurfaceRaised, RoundedCornerShape(14.dp))
-                                .border(1.dp, Outline, RoundedCornerShape(14.dp))
-                                .padding(horizontal = 22.dp, vertical = 14.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
-                        ) {
-                            state.message?.let { message ->
-                                Text(
-                                    message,
-                                    color = TextPrimary,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                )
+                CompositionLocalProvider(LocalReducedMotion provides state.settings.reducedMotion) {
+                    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+                        when (state.destination) {
+                            Destination.HOME -> HomeScreen(
+                                state = state,
+                                showGoogle = viewModel.showGoogle,
+                                onGoogle = viewModel::startGoogleConnect,
+                                onGuests = { viewModel.navigate(Destination.GUESTS) },
+                                onUsb = { openBrowser(BrowserKind.PHOTOS) },
+                                onDemo = viewModel::useDemoAndPlay,
+                                onPlay = viewModel::playCurrent,
+                                onStartParty = viewModel::startPartyAndPlay,
+                                onSettings = { viewModel.navigate(Destination.SETTINGS) },
+                                onGames = { viewModel.navigate(Destination.GAMES) },
+                            )
+                            Destination.SETTINGS -> SettingsScreen(
+                                state = state,
+                                onCategory = viewModel::setSettingsCategory,
+                                onChange = viewModel::updateSettings,
+                                onPickMusic = { openBrowser(BrowserKind.MUSIC) },
+                                onRemoveMusic = viewModel::removeMusic,
+                                onDisconnectGoogle = viewModel::disconnectGoogle,
+                                onOpenScreensaverSettings = ::openScreensaverSettings,
+                                onApproval = viewModel::setGuestApproval,
+                                onQrInSlideshow = viewModel::setGuestQrInSlideshow,
+                                onWifi = viewModel::openGuestWifi,
+                                onRemoveWifi = viewModel::removeGuestWifi,
+                            )
+                            Destination.SLIDESHOW -> SlideshowScreen(
+                                state = state,
+                                upcoming = viewModel.upcomingPhoto(),
+                                onBack = viewModel::back,
+                                onToggle = viewModel::togglePlayback,
+                                onNext = viewModel::next,
+                                onPrevious = viewModel::previous,
+                                onSettings = { viewModel.pause(); viewModel.navigate(Destination.SETTINGS) },
+                                onVideoAudible = viewModel::setVideoAudible,
+                            )
+                            Destination.GAMES -> GamesScreen(
+                                // I giochi usano solo le foto: i video si guardano nello slideshow.
+                                photoCount = state.photos.count { !it.video },
+                                whoTookItPlayable = WhoTookIt.canPlay(state.photos),
+                                onBack = { viewModel.navigate(Destination.HOME) },
+                                onMemory = { viewModel.navigate(Destination.MEMORY) },
+                                onMystery = { viewModel.navigate(Destination.MYSTERY) },
+                                onPuzzle = { viewModel.navigate(Destination.PUZZLE) },
+                                onWhoTookIt = { viewModel.navigate(Destination.WHO_TOOK_IT) },
+                            )
+                            // Le partite usano le foto presenti all'apertura del gioco: quelle che arrivano
+                            // dagli invitati durante la partita non la fanno ricominciare.
+                            Destination.MEMORY -> {
+                                val photos = remember { state.photos.filterNot { it.video } }
+                                MemoryGameScreen(photos) { viewModel.navigate(Destination.GAMES) }
                             }
-                            if (state.busy) {
-                                LinearProgressIndicator(Modifier.width(320.dp), color = Accent, trackColor = TextPrimary.copy(alpha = .2f))
+                            Destination.MYSTERY -> {
+                                val photos = remember { state.photos.filterNot { it.video } }
+                                MysteryGameScreen(photos, phonePlay(state)) { viewModel.navigate(Destination.GAMES) }
+                            }
+                            Destination.PUZZLE -> {
+                                val photos = remember { state.photos.filterNot { it.video } }
+                                PuzzleGameScreen(photos) { viewModel.navigate(Destination.GAMES) }
+                            }
+                            Destination.WHO_TOOK_IT -> {
+                                val photos = remember { state.photos }
+                                WhoTookItScreen(photos, phonePlay(state)) { viewModel.navigate(Destination.GAMES) }
+                            }
+                            Destination.GOOGLE_CONNECT -> GoogleConnectScreen(
+                                state = state.google,
+                                onCancel = viewModel::cancelGoogleConnect,
+                                onRetry = viewModel::startGoogleConnect,
+                                onPlay = viewModel::playCurrent,
+                            )
+                            Destination.GUESTS -> GuestsScreen(
+                                guests = state.guests,
+                                // Le ultime foto arrivate, dalla più recente.
+                                recent = state.photos.filter { it.source == SourceType.GUESTS }
+                                    .sortedByDescending { it.receivedAtMillis ?: 0L }
+                                    .take(4),
+                                onStart = viewModel::startGuestParty,
+                                onEnd = viewModel::endGuestParty,
+                                onPlay = viewModel::playCurrent,
+                                onReview = { viewModel.navigate(Destination.GUEST_REVIEW) },
+                                onAwards = { viewModel.navigate(Destination.AWARDS) },
+                                onApproval = viewModel::setGuestApproval,
+                                onWifi = viewModel::openGuestWifi,
+                            )
+                            Destination.AWARDS -> AwardsScreen(
+                                awards = remember(state.photos) { PartyAwards.from(state.photos) },
+                                onBack = { viewModel.navigate(Destination.GUESTS) },
+                            )
+                            Destination.GUEST_REVIEW -> GuestReviewScreen(
+                                pending = state.guests.pending,
+                                onBack = { viewModel.navigate(Destination.GUESTS) },
+                                onShow = viewModel::approveGuestPhoto,
+                                onDiscard = viewModel::discardGuestPhoto,
+                                onApproveAll = viewModel::approveAllGuestPhotos,
+                            )
+                            Destination.FILE_BROWSER -> FileBrowserScreen(
+                                state = state.browser,
+                                onOpen = viewModel::browserOpen,
+                                onUp = viewModel::browserUp,
+                                onUseFolder = viewModel::browserUseFolder,
+                                onChooseTrack = viewModel::browserChooseTrack,
+                                onUseMusicFolder = viewModel::browserUseMusicFolder,
+                                onSystemPicker = {
+                                    launchSystemPicker(state.browser.kind, { usbPicker.launch(null) }, { musicPicker.launch(arrayOf("audio/*")) })
+                                },
+                                onSearchNetwork = viewModel::browserSearchNetwork,
+                                onICloud = viewModel::openICloudLink,
+                                onSmbAdd = { viewModel.openSmbLogin() },
+                                onBack = viewModel::closeBrowser,
+                                icloudAlbum = state.icloud.savedName,
+                            )
+                            Destination.ICLOUD_LINK -> ICloudLinkScreen(
+                                state = state.icloud,
+                                onSubmit = viewModel::previewICloudAlbum,
+                                onUse = viewModel::useICloudAlbum,
+                                onBack = viewModel::closeICloudLink,
+                            )
+                            Destination.SMB_LOGIN -> SmbLoginScreen(
+                                state = state.smb,
+                                onConnect = viewModel::smbConnect,
+                                onBack = viewModel::closeSmbLogin,
+                            )
+                            Destination.GUEST_WIFI -> GuestWifiScreen(
+                                initialName = state.guests.wifiName,
+                                initialPassword = state.guests.wifiPassword,
+                                onSave = viewModel::saveGuestWifi,
+                            )
+                        }
+
+                        // Messaggi e avanzamento in sovrimpressione, in basso: in alto coprirebbero
+                        // l'intestazione con la sorgente e l'indicatore della festa.
+                        if (state.message != null || state.busy) {
+                            Column(
+                                modifier = Modifier.align(Alignment.BottomCenter)
+                                    .padding(bottom = 28.dp)
+                                    .widthIn(max = 760.dp)
+                                    .shadow(16.dp, RoundedCornerShape(14.dp))
+                                    .background(SurfaceRaised, RoundedCornerShape(14.dp))
+                                    .border(1.dp, Outline, RoundedCornerShape(14.dp))
+                                    .padding(horizontal = 22.dp, vertical = 14.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(10.dp),
+                            ) {
+                                state.message?.let { message ->
+                                    Text(
+                                        message,
+                                        color = TextPrimary,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                    )
+                                }
+                                if (state.busy) {
+                                    LinearProgressIndicator(Modifier.width(320.dp), color = Accent, trackColor = TextPrimary.copy(alpha = .2f))
+                                }
                             }
                         }
                     }

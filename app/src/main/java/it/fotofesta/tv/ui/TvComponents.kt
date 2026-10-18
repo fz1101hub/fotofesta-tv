@@ -2,6 +2,8 @@ package it.fotofesta.tv.ui
 
 import androidx.annotation.PluralsRes
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -85,7 +87,12 @@ fun FocusSurface(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val focused by interactionSource.collectIsFocusedAsState()
-    val scale by animateFloatAsState(if (focused) focusScale else 1f, label = "focusScale")
+    // Con "Riduci movimento" il fuoco cambia di colpo: resta il bianco pieno a segnalarlo.
+    val scale by animateFloatAsState(
+        if (focused) focusScale else 1f,
+        animationSpec = if (LocalReducedMotion.current) snap() else spring(),
+        label = "focusScale",
+    )
     // Ombra e trasparenza stanno in livelli sempre presenti: shadow(0.dp) e alpha(1f) toglierebbero il
     // loro livello dalla catena, e nell'emulatore dopo il cambio lo sfondo del pulsante spariva
     // (pulsanti riabilitati, come "Connetti" dopo un errore o "Mostra la foto" a foto caricata).

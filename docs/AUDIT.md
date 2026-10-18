@@ -225,6 +225,17 @@ La CI apre l'app nell'emulatore Android TV 14 a 1080p in 32 schermate, in cinque
 | Bassa | Home: "Impostazioni" ed "Einstellungen" tagliati nella scheda stretta; descrizioni delle sorgenti tagliate a una riga; "Photos de démo" e "Fotos de demostración" tagliati | Scheda più larga, descrizioni su due righe e più corte dove non stavano; "Photos démo" e "Fotos demo" |
 | Bassa | Giochi: descrizioni di tre righe tagliate senza puntini; la fila finiva tagliata di netto sul margine | Schede più alte con i puntini; la fila arriva al bordo dello schermo |
 
+## Audit indipendente su `main` (18 ottobre 2026)
+
+Un audit esterno ha analizzato la revisione `e32ec4c`, cioè `main` prima della pull request: l'import iniziale con 24 file Kotlin, 5 test, Google Cast e senza CI. Dei 19 rilievi, 17 riguardano codice che la PR ha riscritto o rimosso (Cast, cache delle foto Google, thread e annullamento del collegamento Google, MediaPlayer, limite USB, selettore di documenti, sfocatura su Android 8–11, contrasto, backup, script SDK, orologio, errori delle immagini). Restano:
+
+| Rilievo | Stato sul branch |
+| --- | --- |
+| F01 Device flow OAuth con lo scope Photos Picker | **Aperto.** Google documenta per il flusso "TV e dispositivi con input limitato" un elenco chiuso di scope (Sign-In, Drive, YouTube) che non comprende `photospicker.mediaitems.readonly`. Il collegamento non è mai stato provato con credenziali vere; va cambiato il flusso di autorizzazione prima di promettere Google Foto |
+| F19 "Riduci movimento" non toccava le animazioni del fuoco | Corretto: spegne anche l'ingrandimento del fuoco e la dissolvenza delle foto nella home |
+| Licenza del codice e provenienza degli asset | Nessun file `LICENSE`; le foto demo sono immagini generate (`design/`), il carattere Figtree ha la OFL in `assets/licenses` |
+| `distributionSha256Sum` nel wrapper Gradle e verifica delle dipendenze | Non presenti |
+
 ## Raccomandazioni aperte
 
 | Priorità | Raccomandazione |
