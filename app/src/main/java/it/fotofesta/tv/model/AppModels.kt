@@ -1,17 +1,70 @@
 package it.fotofesta.tv.model
 
 import androidx.annotation.DrawableRes
+import androidx.annotation.StringRes
+import it.fotofesta.tv.R
 
-enum class Destination { HOME, SETTINGS, SLIDESHOW, GAMES, MEMORY, MYSTERY, GOOGLE_CONNECT }
-enum class TransitionType(val label: String) { FADE("Dissolvenza"), SLIDE("Scorrimento"), ZOOM("Zoom dolce") }
-enum class FitMode(val label: String) { CONTAIN("Foto intera"), CROP("Riempi schermo") }
-enum class SourceType { DEMO, USB, GOOGLE_PHOTOS, CAST }
+enum class Destination { HOME, SETTINGS, SLIDESHOW, GAMES, MEMORY, MYSTERY, PUZZLE, WHO_TOOK_IT, GOOGLE_CONNECT, GUESTS, GUEST_REVIEW, AWARDS, GUEST_WIFI, FILE_BROWSER, ICLOUD_LINK, SMB_LOGIN }
+
+enum class TransitionType(@StringRes val labelRes: Int) {
+    FADE(R.string.transition_fade),
+    SLIDE(R.string.transition_slide),
+    ZOOM(R.string.transition_zoom),
+}
+
+/**
+ * Come una foto riempie lo schermo. Con [BLUR] la foto è intera e le bande ai lati (foto verticali o
+ * non 16:9) mostrano la stessa foto ingrandita e sfocata.
+ */
+enum class FitMode(@StringRes val labelRes: Int, @StringRes val descriptionRes: Int) {
+    BLUR(R.string.fit_blur, R.string.fit_blur_body),
+    CONTAIN(R.string.fit_contain, R.string.fit_contain_body),
+    CROP(R.string.fit_crop, R.string.fit_crop_body),
+}
+
+/** Disposizione dello slideshow: una foto alla volta, o la foto nuova in grande con accanto le precedenti. */
+enum class SlideshowLayout(@StringRes val labelRes: Int, @StringRes val descriptionRes: Int) {
+    SINGLE(R.string.layout_single, R.string.layout_single_body),
+    MOSAIC(R.string.layout_mosaic, R.string.layout_mosaic_body),
+}
+
+/** Sezioni della schermata Impostazioni. */
+enum class SettingsCategory { SLIDESHOW, MUSIC, PARTY, SCREENSAVER, PRIVACY }
+
+/**
+ * Raccolta scelta, come la mostra la home: sorgente, nome (cartella, Google Foto, foto demo) e numero
+ * di foto. Con le foto demo e la festa in corso la raccolta sono le foto degli invitati.
+ */
+data class CollectionInfo(
+    val source: SourceType = SourceType.DEMO,
+    val title: String = "",
+    val count: Int = 0,
+)
+
+/** Errore da mostrare all'utente con un testo localizzato. */
+class UserFacingException(@StringRes val messageRes: Int) : Exception()
+
+enum class SourceType { DEMO, USB, NETWORK, ICLOUD, GOOGLE_PHOTOS, GUESTS }
 
 sealed interface PhotoRef {
     data class Resource(@DrawableRes val drawable: Int) : PhotoRef
     data class LocalUri(val value: String) : PhotoRef
     data class LocalFile(val path: String) : PhotoRef
-    data class Remote(val url: String) : PhotoRef
+
+    /** Foto di Google Foto caricata al momento da Google: sulla TV non ne resta una copia. */
+    data class GooglePhoto(val mediaId: String) : PhotoRef
+
+    /** Foto mandata da un invitato, tenuta da GuestPhotoStore solo per la durata della festa. */
+    data class GuestPhoto(val id: String) : PhotoRef
+
+    /** Foto di un server multimediale della rete di casa, caricata al momento (NetworkPhotoFetcher). */
+    data class NetworkPhoto(val url: String) : PhotoRef
+
+    /** Foto o video di un album condiviso di iCloud, caricato al momento (ICloudPhotoFetcher). */
+    data class ICloudPhoto(val guid: String) : PhotoRef
+
+    /** Foto o video di una cartella condivisa (SMB) di un computer o NAS, letto al momento (SmbPhotoFetcher). */
+    data class SmbPhoto(val path: String) : PhotoRef
 }
 
 data class PhotoItem(
@@ -19,30 +72,147 @@ data class PhotoItem(
     val title: String,
     val ref: PhotoRef,
     val source: SourceType,
+    /** Nome di chi ha mandato la foto, per le foto degli invitati. */
+    val sender: String? = null,
+    /** Quando la foto è arrivata alla TV (epoch ms), per le foto degli invitati. */
+    val receivedAtMillis: Long? = null,
+    /** È un video: nello slideshow si guarda fino alla fine; giochi e salvaschermo lo saltano. */
+    val video: Boolean = false,
 )
 
 data class SlideshowSettings(
     val intervalSeconds: Int = 8,
     val transition: TransitionType = TransitionType.FADE,
-    val fitMode: FitMode = FitMode.CONTAIN,
+    val fitMode: FitMode = FitMode.BLUR,
+    val layout: SlideshowLayout = SlideshowLayout.SINGLE,
     val shuffle: Boolean = false,
     val reducedMotion: Boolean = false,
     val showClock: Boolean = true,
     val musicVolume: Float = 0.35f,
+    /** Zoom e spostamento lenti durante la permanenza di ogni foto (disattivati da [reducedMotion]). */
+    val kenBurns: Boolean = false,
+    /** Minuti di riproduzione dopo i quali lo slideshow va in pausa; 0 = disattivato. */
+    val sleepTimerMinutes: Int = 0,
+    /** Conto alla rovescia nello slideshow verso [countdownMinutes] (minuti dalla mezzanotte, ora locale). */
+    val countdown: Boolean = false,
+    val countdownMinutes: Int = 0,
+    val countdownEvent: CountdownEvent = CountdownEvent.MIDNIGHT,
+    /** Video della raccolta nello slideshow, insieme alle foto. */
+    val videos: Boolean = true,
+    /** Audio dei video: mentre suona, la musica di sottofondo si ferma. */
+    val videoSound: Boolean = true,
 )
 
 sealed interface GoogleConnectState {
     data object Idle : GoogleConnectState
+    /** [pageUrl]: pagina della TV da inquadrare con il telefono; da lì si va da Google. */
     data class WaitingForAuthorization(
-        val verificationUrl: String,
-        val userCode: String,
+        val pageUrl: String,
         val expiresInSeconds: Int,
     ) : GoogleConnectState
     data class WaitingForPhotos(val pickerUri: String) : GoogleConnectState
-    data class Downloading(val completed: Int, val total: Int) : GoogleConnectState
     data class Error(val message: String) : GoogleConnectState
-    data class Complete(val count: Int) : GoogleConnectState
+
+    /** [expiresAtMillis]: fino a quando Google rende disponibili le foto scelte, se noto. */
+    data class Complete(val count: Int, val expiresAtMillis: Long? = null) : GoogleConnectState
 }
+
+/** Perché la TV non riesce a ricevere le foto degli invitati. */
+enum class GuestProblem { NO_NETWORK, SERVER_FAILED }
+
+/** Stato della ricezione delle foto degli invitati, come lo mostra l'interfaccia. */
+data class GuestsUiState(
+    /** La festa è in corso: la TV riceve foto quando l'app è in primo piano. */
+    val active: Boolean = false,
+    /** Indirizzo della pagina per i telefoni, codificato nel QR; null finché la TV non è in rete. */
+    val url: String? = null,
+    val problem: GuestProblem? = null,
+    /** Le foto compaiono solo dopo l'approvazione dalla TV. */
+    val approval: Boolean = false,
+    /** QR piccolo nell'angolo dello slideshow, così gli invitati possono inquadrarlo in ogni momento. */
+    val qrInSlideshow: Boolean = true,
+    /** Nome e password della rete Wi‑Fi del QR per entrare in rete, se impostata. */
+    val wifiName: String? = null,
+    val wifiPassword: String? = null,
+    val wifiQr: String? = null,
+    /** Foto approvate in mostra. */
+    val shown: Int = 0,
+    /** Foto in attesa di approvazione, dalla più vecchia. */
+    val pending: List<PhotoItem> = emptyList(),
+)
+
+/** Cosa si sta scegliendo nel browser di cartelle: una cartella di foto o un brano. */
+enum class BrowserKind { PHOTOS, MUSIC }
+
+/** Disco o memoria leggibile dalla TV. */
+data class BrowserRoot(val path: String, val label: String, val removable: Boolean)
+
+/** Cartella o file mostrato nel browser. */
+data class BrowserEntry(val name: String, val path: String)
+
+/**
+ * Server multimediale (DLNA) o computer con cartelle condivise (SMB) della rete di casa; [path] apre
+ * la sua cartella principale o l'elenco delle sue condivisioni.
+ */
+data class BrowserServer(val name: String, val path: String, val detail: String? = null)
+
+/**
+ * Browser di cartelle interno, usato al posto del selettore di documenti di Android, che molte TV
+ * non hanno. Con [directory] null mostra l'elenco dei dischi e, per le foto, dei server in rete.
+ */
+data class BrowserState(
+    val kind: BrowserKind = BrowserKind.PHOTOS,
+    val roots: List<BrowserRoot> = emptyList(),
+    val root: BrowserRoot? = null,
+    val directory: String? = null,
+    val folders: List<BrowserEntry> = emptyList(),
+    val files: List<BrowserEntry> = emptyList(),
+    /** Foto direttamente nella cartella aperta (senza sottocartelle). */
+    val photosHere: Int = 0,
+    val loading: Boolean = false,
+    /** Il selettore di documenti di Android è disponibile, come alternativa. */
+    val systemPickerAvailable: Boolean = false,
+    /** Server multimediali trovati nella rete di casa (solo per le foto). */
+    val servers: List<BrowserServer> = emptyList(),
+    val searchingNetwork: Boolean = false,
+    /** Su un server di rete: le cartelle aperte, dalla principale a quella mostrata. */
+    val trail: List<BrowserEntry> = emptyList(),
+    /** Computer e NAS con cartelle condivise (SMB) trovati nella rete di casa. */
+    val smbHosts: List<BrowserServer> = emptyList(),
+    /** Cartella condivisa già scelta, per riaprirla. */
+    val smbSaved: BrowserServer? = null,
+    /** "Usa questa cartella" ha senso: non sull'elenco delle condivisioni di un computer. */
+    val canUse: Boolean = true,
+)
+
+/** Accesso a un computer o NAS con le cartelle condivise (SMB). */
+data class SmbLoginState(
+    /** Indirizzo scritto o del computer scelto: "192.168.1.20", "nas.local", "\\NAS\Foto". */
+    val address: String = "",
+    /** Nome del computer trovato in rete, se scelto dall'elenco. */
+    val name: String? = null,
+    val user: String = "",
+    val loading: Boolean = false,
+    @StringRes val errorRes: Int? = null,
+    /** Il computer non sa elencare le condivisioni: se ne scrive il nome. */
+    val askShare: Boolean = false,
+)
+
+/** Collegamento di un album condiviso di iCloud: QR per il telefono, ricerca e anteprima dell'album. */
+data class ICloudLinkState(
+    /** Indirizzo della pagina per incollare il link dal telefono; null se la TV non è in rete. */
+    val pairingUrl: String? = null,
+    val loading: Boolean = false,
+    @StringRes val errorRes: Int? = null,
+    /** Album trovato, pronto per "Usa questo album". */
+    val token: String? = null,
+    val name: String = "",
+    val owner: String? = null,
+    val photos: Int = 0,
+    val videos: Int = 0,
+    /** Album già in uso, mostrato nel browser delle cartelle. */
+    val savedName: String? = null,
+)
 
 data class MemoryCard(
     val key: Int,
@@ -54,7 +224,10 @@ data class MemoryCard(
 data class AppState(
     val destination: Destination = Destination.HOME,
     val photos: List<PhotoItem> = emptyList(),
-    val sourceLabel: String = "Foto dimostrative",
+    val sourceLabel: String = "",
+    val collection: CollectionInfo = CollectionInfo(),
+    /** Sezione aperta nelle impostazioni: resta tale tornando dal browser della musica o dalla Wi‑Fi. */
+    val settingsCategory: SettingsCategory = SettingsCategory.SLIDESHOW,
     val settings: SlideshowSettings = SlideshowSettings(),
     val currentIndex: Int = 0,
     val isPlaying: Boolean = false,
@@ -63,5 +236,16 @@ data class AppState(
     val google: GoogleConnectState = GoogleConnectState.Idle,
     val busy: Boolean = false,
     val message: String? = null,
-    val castSenderConnected: Boolean = false,
+    val guests: GuestsUiState = GuestsUiState(),
+    val browser: BrowserState = BrowserState(),
+    val icloud: ICloudLinkState = ICloudLinkState(),
+    val smb: SmbLoginState = SmbLoginState(),
+    /**
+     * Cresce a ogni cambio di foto voluto (successiva, precedente, nuova raccolta). Il cambio
+     * automatico si basa su questo e non sull'indice, che si sposta quando arrivano o spariscono
+     * foto degli invitati anche se la foto mostrata resta la stessa.
+     */
+    val slideTick: Int = 0,
+    /** Istante (epoch ms) in cui scatterà la pausa automatica, se attiva. */
+    val sleepAtMillis: Long? = null,
 )

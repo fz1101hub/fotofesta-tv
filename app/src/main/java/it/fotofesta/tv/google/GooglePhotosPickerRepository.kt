@@ -1,12 +1,10 @@
 package it.fotofesta.tv.google
 
-import android.content.Context
-import it.fotofesta.tv.model.PhotoItem
-import it.fotofesta.tv.model.PhotoRef
-import it.fotofesta.tv.model.SourceType
-import kotlinx.coroutines.Dispatchers
+import it.fotofesta.tv.R
+import it.fotofesta.tv.model.UserFacingException
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
+import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -15,16 +13,31 @@ import org.json.JSONObject
 import java.io.File
 import java.util.UUID
 
+/**
+ * Fornisce un access token valido a ogni richiesta: durante una selezione lunga il token viene
+ * rinnovato invece di scadere a metà.
+ */
+typealias TokenProvider = suspend () -> String
+
+/**
+ * Google Photos Picker API: sessioni di selezione ed elenco delle foto scelte. Le immagini non
+ * vengono mai scaricate su disco: l'elenco fornisce indirizzi validi circa 60 minuti, che si
+ * rinnovano chiedendo di nuovo l'elenco finché la sessione non scade.
+ */
 class GooglePhotosPickerRepository(
-    private val context: Context,
     private val client: OkHttpClient,
+    private val apiBase: HttpUrl = DEFAULT_API_BASE,
+    private val clock: () -> Long = System::currentTimeMillis,
 ) {
     data class PickingSession(
         val id: String,
         val pickerUri: String,
         val mediaItemsSet: Boolean,
         val pollIntervalSeconds: Long,
-        val timeoutSeconds: Long,
+        /** Tempo residuo per scegliere le foto, come indicato da Google nell'ultima risposta. */
+        val timeoutSeconds: Long?,
+        /** Istante (epoch ms) dopo il quale la sessione e le sue foto non sono più accessibili. */
+        val expiresAtMillis: Long?,
     )
 
     data class PickedMedia(
@@ -32,133 +45,82 @@ class GooglePhotosPickerRepository(
         val filename: String,
         val baseUrl: String,
         val mimeType: String,
-    )
-
-    fun newRequestId(): String = UUID.randomUUID().toString()
-
-    suspend fun createSession(token: String, requestId: String): PickingSession = withContext(Dispatchers.IO) {
-        val request = Request.Builder()
-            .url("https://photospicker.googleapis.com/v1/sessions?requestId=$requestId")
-            .header("Authorization", "Bearer $token")
-            .post("{}".toRequestBody("application/json".toMediaType()))
-            .build()
-        parseSession(executeJson(request))
+    ) {
+        val isPhoto: Boolean get() = mimeType.startsWith("image/")
+        val isVideo: Boolean get() = mimeType.startsWith("video/")
     }
 
-    suspend fun awaitSelection(token: String, initial: PickingSession): PickingSession {
-        val started = System.currentTimeMillis()
+    suspend fun createSession(token: String): PickingSession {
+        val url = apiBase.newBuilder()
+            .addPathSegment("sessions")
+            .addQueryParameter("requestId", UUID.randomUUID().toString())
+            .build()
+        val request = authorized(url, token)
+            .post("{}".toRequestBody("application/json".toMediaType()))
+            .build()
+        return parseSession(client.fetchJson(request))
+    }
+
+    suspend fun awaitSelection(token: TokenProvider, initial: PickingSession): PickingSession {
         var current = initial
+        var deadline = deadlineFor(current, fallbackSeconds = DEFAULT_SESSION_TIMEOUT_SECONDS)
         while (!current.mediaItemsSet) {
-            val timeoutMillis = current.timeoutSeconds.coerceAtLeast(60L) * 1_000L
-            check(System.currentTimeMillis() - started < timeoutMillis) { "La selezione Google Foto è scaduta." }
+            if (clock() >= deadline) throw UserFacingException(R.string.error_google_selection_expired)
             delay(current.pollIntervalSeconds.coerceIn(2L, 30L) * 1_000L)
             current = getSession(token, current.id)
+            // timeoutIn è relativo alla risposta: la scadenza va ricalcolata a ogni polling.
+            current.timeoutSeconds?.let { deadline = deadlineFor(current, fallbackSeconds = it) }
         }
         return current
     }
 
-    suspend fun listPickedMedia(token: String, sessionId: String): List<PickedMedia> = withContext(Dispatchers.IO) {
+    /** Tutti gli elementi scelti (foto e video), con indirizzi validi circa 60 minuti. */
+    suspend fun listPickedMedia(token: TokenProvider, sessionId: String): List<PickedMedia> {
         val output = mutableListOf<PickedMedia>()
         var pageToken: String? = null
         do {
-            val url = buildString {
-                append("https://photospicker.googleapis.com/v1/mediaItems?sessionId=")
-                append(sessionId)
-                append("&pageSize=100")
-                pageToken?.let { append("&pageToken=").append(it) }
-            }
-            val json = executeJson(Request.Builder().url(url).header("Authorization", "Bearer $token").build())
+            val url = apiBase.newBuilder()
+                .addPathSegment("mediaItems")
+                .addQueryParameter("sessionId", sessionId)
+                .addQueryParameter("pageSize", "100")
+                .apply { pageToken?.let { addQueryParameter("pageToken", it) } }
+                .build()
+            val json = client.fetchJson(authorized(url, token()).build())
             val items = json.optJSONArray("mediaItems")
             if (items != null) {
                 for (index in 0 until items.length()) {
                     val item = items.getJSONObject(index)
                     val mediaFile = item.optJSONObject("mediaFile") ?: item
-                    val mime = mediaFile.optString("mimeType")
-                    if (mime.startsWith("image/")) {
-                        output += PickedMedia(
-                            id = item.optString("id", "photo-${output.size}"),
-                            filename = mediaFile.optString("filename", "Foto ${output.size + 1}"),
-                            baseUrl = mediaFile.getString("baseUrl"),
-                            mimeType = mime,
-                        )
-                    }
+                    val baseUrl = mediaFile.optString("baseUrl")
+                    val id = item.optString("id")
+                    if (baseUrl.isBlank() || id.isBlank()) continue
+                    output += PickedMedia(
+                        id = id,
+                        filename = mediaFile.optString("filename").ifBlank { "Foto ${output.size + 1}" },
+                        baseUrl = baseUrl,
+                        mimeType = mediaFile.optString("mimeType"),
+                    )
                 }
             }
             pageToken = json.optString("nextPageToken").takeIf(String::isNotBlank)
         } while (pageToken != null)
-        output
+        return output
     }
 
-    suspend fun downloadToPrivateCache(
-        token: String,
-        items: List<PickedMedia>,
-        onProgress: (Int, Int) -> Unit,
-    ): List<PhotoItem> = withContext(Dispatchers.IO) {
-        val directory = File(context.cacheDir, "google_photos").apply { mkdirs() }
-        directory.listFiles()?.forEach { it.delete() }
-        val downloaded = mutableListOf<PhotoItem>()
-        items.forEachIndexed { index, item ->
-            val extension = if (item.mimeType == "image/png") "png" else "jpg"
-            val safeId = item.id.replace(Regex("[^A-Za-z0-9_-]"), "_")
-            val target = File(directory, "$safeId.$extension")
-            val request = Request.Builder()
-                .url(item.baseUrl + "=w3840-h2160")
-                .header("Authorization", "Bearer $token")
-                .build()
-            runCatching {
-                client.newCall(request).execute().use { response ->
-                    check(response.isSuccessful) { "Download non riuscito (${response.code})" }
-                    response.body?.byteStream()?.use { input ->
-                        target.outputStream().use { output -> input.copyTo(output) }
-                    } ?: error("Foto vuota")
-                }
-                downloaded += PhotoItem(
-                    id = "google:${item.id}",
-                    title = item.filename,
-                    ref = PhotoRef.LocalFile(target.absolutePath),
-                    source = SourceType.GOOGLE_PHOTOS,
-                )
-            }
-            onProgress(index + 1, items.size)
-        }
-        downloaded
+    /** Elimina la sessione Picker lato Google. Best effort: la sessione scade comunque da sola. */
+    suspend fun deleteSession(token: TokenProvider, sessionId: String) {
+        val url = apiBase.newBuilder().addPathSegment("sessions").addPathSegment(sessionId).build()
+        runCatching { client.newCall(authorized(url, token()).delete().build()).await().close() }
     }
 
-    suspend fun deleteSession(token: String, sessionId: String) = withContext(Dispatchers.IO) {
-        val request = Request.Builder()
-            .url("https://photospicker.googleapis.com/v1/sessions/$sessionId")
-            .header("Authorization", "Bearer $token")
-            .delete()
-            .build()
-        client.newCall(request).execute().close()
+    /** Stato attuale della sessione Picker. */
+    suspend fun getSession(token: TokenProvider, id: String): PickingSession {
+        val url = apiBase.newBuilder().addPathSegment("sessions").addPathSegment(id).build()
+        return parseSession(client.fetchJson(authorized(url, token()).build()))
     }
 
-    fun clearCache() {
-        File(context.cacheDir, "google_photos").deleteRecursively()
-    }
-
-    fun cachedPhotos(): List<PhotoItem> =
-        File(context.cacheDir, "google_photos")
-            .listFiles()
-            .orEmpty()
-            .filter { it.isFile && it.length() > 0L }
-            .sortedBy { it.name.lowercase() }
-            .map { file ->
-                PhotoItem(
-                    id = "google-cache:${file.nameWithoutExtension}",
-                    title = file.name,
-                    ref = PhotoRef.LocalFile(file.absolutePath),
-                    source = SourceType.GOOGLE_PHOTOS,
-                )
-            }
-
-    private fun getSession(token: String, id: String): PickingSession {
-        val request = Request.Builder()
-            .url("https://photospicker.googleapis.com/v1/sessions/$id")
-            .header("Authorization", "Bearer $token")
-            .build()
-        return parseSession(executeJson(request))
-    }
+    private fun authorized(url: HttpUrl, token: String) =
+        Request.Builder().url(url).header("Authorization", "Bearer $token")
 
     private fun parseSession(json: JSONObject): PickingSession {
         val polling = json.optJSONObject("pollingConfig")
@@ -166,22 +128,28 @@ class GooglePhotosPickerRepository(
             id = json.getString("id"),
             pickerUri = json.getString("pickerUri"),
             mediaItemsSet = json.optBoolean("mediaItemsSet", false),
-            pollIntervalSeconds = durationSeconds(polling?.optString("pollInterval"), 5L),
-            timeoutSeconds = durationSeconds(polling?.optString("timeoutIn"), 900L),
+            pollIntervalSeconds = parseProtoDurationSeconds(polling?.optString("pollInterval")) ?: 5L,
+            timeoutSeconds = parseProtoDurationSeconds(polling?.optString("timeoutIn")),
+            expiresAtMillis = parseTimestampMillis(json.optString("expireTime")),
         )
     }
 
-    private fun durationSeconds(value: String?, fallback: Long): Long =
-        value?.removeSuffix("s")?.toDoubleOrNull()?.toLong() ?: fallback
+    private fun deadlineFor(session: PickingSession, fallbackSeconds: Long): Long =
+        clock() + (session.timeoutSeconds ?: fallbackSeconds).coerceAtLeast(60L) * 1_000L
 
-    private fun executeJson(request: Request): JSONObject {
-        client.newCall(request).execute().use { response ->
-            val text = response.body?.string().orEmpty()
-            if (!response.isSuccessful) {
-                val message = runCatching { JSONObject(text).optJSONObject("error")?.optString("message") }.getOrNull()
-                error(message?.takeIf(String::isNotBlank) ?: "Google Foto non disponibile (${response.code}).")
+    companion object {
+        /** Cartelle delle foto scaricate dalle versioni fino alla 1.2.0, che copiavano le immagini sulla TV. */
+        private const val LEGACY_DOWNLOAD_DIR = "google_photos"
+        val DEFAULT_API_BASE = "https://photospicker.googleapis.com/v1".toHttpUrl()
+        private const val DEFAULT_SESSION_TIMEOUT_SECONDS = 900L
+
+        /** Elimina le copie delle foto Google lasciate dalle versioni precedenti, che le scaricavano. */
+        fun deleteLegacyDownloads(vararg roots: File) {
+            roots.forEach { root ->
+                root.listFiles()
+                    ?.filter { it.name == LEGACY_DOWNLOAD_DIR || it.name.startsWith("$LEGACY_DOWNLOAD_DIR.") }
+                    ?.forEach { it.deleteRecursively() }
             }
-            return JSONObject(text.ifBlank { "{}" })
         }
     }
 }

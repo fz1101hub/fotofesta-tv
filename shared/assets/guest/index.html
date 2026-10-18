@@ -1,0 +1,657 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>FotoFesta</title>
+<style>
+  :root { --bg: #0b1222; --card: #17213a; --fg: #eef2fa; --muted: #aab4c8; --accent: #ff7a59; --ok: #6ee7b7; --warn: #fbbf24; --err: #fca5a5; --line: #2a3654; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-text-size-adjust: 100%; }
+  main { max-width: 560px; margin: 0 auto; padding: max(20px, env(safe-area-inset-top)) 16px max(32px, env(safe-area-inset-bottom)); }
+  .brand { color: var(--accent); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: .8rem; }
+  h1 { font-size: 1.6rem; line-height: 1.2; margin: .3rem 0 .6rem; }
+  p { margin: .4rem 0; overflow-wrap: anywhere; }
+  .muted { color: var(--muted); font-size: .92rem; }
+  label.field { display: block; margin: 1.2rem 0 .3rem; font-weight: 600; }
+  input[type=text] { width: 100%; font: inherit; color: var(--fg); background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+  input[type=text]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .pick { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; margin: 1.2rem 0 .4rem; padding: 18px; border: 0; border-radius: 16px; background: var(--accent); color: #1b1020; font-family: inherit; font-size: 1.15rem; font-weight: 700; line-height: 1.2; cursor: pointer; }
+  .pick:focus-within { outline: 3px solid #fff; outline-offset: 2px; }
+  .pick input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  .note { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-top: 1rem; }
+  #summary { margin-top: 1rem; font-weight: 600; min-height: 1.5em; }
+  ul { list-style: none; margin: .6rem 0 0; padding: 0; display: grid; gap: 8px; }
+  li { display: flex; align-items: center; gap: 12px; background: var(--card); border-radius: 12px; padding: 8px; }
+  li .thumb { width: 52px; height: 52px; flex: none; border-radius: 8px; background: #26314d center / cover no-repeat; }
+  li .text { min-width: 0; flex: 1; }
+  li .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: .92rem; }
+  li .state { font-size: .88rem; color: var(--muted); }
+  li.ok .state { color: var(--ok); }
+  li.wait .state { color: var(--warn); }
+  li.err .state { color: var(--err); }
+  progress { width: 100%; height: 6px; accent-color: var(--accent); }
+  #banner { display: none; margin-top: 1rem; padding: 12px 14px; border-radius: 14px; background: #3b1d24; color: var(--err); font-weight: 600; }
+  .game { margin: 1rem 0; padding: 14px; border-radius: 16px; background: var(--card); border: 2px solid var(--accent); }
+  .game-kicker { color: var(--accent); font-weight: 700; font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; }
+  .game-question { font-size: 1.2rem; font-weight: 700; line-height: 1.3; margin: .3rem 0 .8rem; }
+  .choices { display: grid; gap: 8px; }
+  .choices button { font: inherit; font-weight: 600; text-align: left; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--line); background: #22304f; color: var(--fg); cursor: pointer; overflow-wrap: anywhere; }
+  .choices button:disabled { cursor: default; }
+  .choices button.mine { border-color: var(--accent); background: #3a2a33; }
+  .choices button.right { border-color: var(--ok); background: var(--ok); color: #0b1222; }
+  #gameStatus { margin-top: .7rem; font-weight: 600; }
+  #banner button { display: block; margin-top: 10px; padding: 10px 18px; border: 0; border-radius: 12px; background: var(--accent); color: #1b1020; font: inherit; font-weight: 700; cursor: pointer; }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand">FotoFesta</div>
+  <h1 id="title"></h1>
+  <p class="muted" id="intro"></p>
+
+  <!-- Gioco con i telefoni: compare quando sulla TV c'è una domanda per gli invitati. -->
+  <section id="game" class="game" hidden aria-live="polite">
+    <div class="game-kicker" id="gameKicker"></div>
+    <p class="game-question" id="gameQuestion"></p>
+    <div class="choices" id="gameChoices"></div>
+    <p class="muted" id="gameStatus"></p>
+  </section>
+
+  <label class="field" for="sender" id="senderLabel"></label>
+  <input type="text" id="sender" maxlength="40" autocomplete="nickname" enterkeyhint="done">
+
+  <label class="pick"><span id="pickText"></span><input type="file" id="files" accept="image/*" multiple></label>
+  <p class="muted" id="keepOpen"></p>
+
+  <div id="banner" role="alert"><span id="bannerText"></span><button type="button" id="retry" hidden></button></div>
+  <div id="summary" aria-live="polite"></div>
+  <ul id="list"></ul>
+
+  <div class="note">
+    <p class="muted" id="approvalNote" hidden></p>
+    <p class="muted" id="privacy"></p>
+  </div>
+</main>
+<script>
+"use strict";
+// Valori impostati dalla TV quando serve la pagina: misura dello schermo e modalità di adattamento.
+const CONFIG = __FOTOFESTA_CONFIG__;
+
+const IT = {
+  title: "Manda le tue foto sulla TV",
+  intro: "Scegli le foto dal telefono: compariranno nello slideshow tra pochi secondi.",
+  senderLabel: "Il tuo nome (facoltativo)",
+  senderPlaceholder: "Comparirà accanto alle tue foto",
+  pick: "Scegli le foto",
+  keepOpen: "Tieni aperta questa pagina finché le foto non sono inviate.",
+  approval: "L'organizzatore controlla le foto prima che compaiano sulla TV.",
+  privacy: "Le foto vanno solo alla TV, attraverso la rete di casa, senza passare da internet. Vengono ridotte alla misura dello schermo, senza dati come la posizione, e cancellate a fine festa. Gli originali sul telefono restano come sono.",
+  preparing: "Preparazione…",
+  sending: "Invio…",
+  retrying: "La TV è occupata, nuovo tentativo tra poco…",
+  shown: "Inviata: tra poco sulla TV",
+  pending: "Inviata: in attesa di approvazione",
+  unsupported: "Formato non supportato",
+  heic: "Questo browser non sa aprire le foto HEIC. Mandala da un'altra app (ad esempio Google Foto) o imposta la fotocamera su JPEG.",
+  tooLarge: "Foto troppo grande",
+  full: "La TV non ha più spazio: riprova più tardi",
+  pendingFull: "Ci sono già molte foto in attesa di approvazione: riprova più tardi",
+  offline: "La TV non risponde. Il telefono è collegato alla stessa Wi‑Fi della TV?",
+  expired: "Questo link non è più valido: inquadra di nuovo il QR sulla TV.",
+  retry: "Riprova",
+  failed: "Invio non riuscito",
+  waiting: "In coda",
+  summary: (done, total) => done + " di " + total + " inviate",
+  gameKicker: "Gioco sulla TV",
+  gameAnswered: "Risposta inviata: guarda la TV!",
+  gameClosed: "Risposte chiuse: aspetta la prossima domanda.",
+  gameNoName: "Scrivi il tuo nome qui sotto per comparire in classifica.",
+  guestName: "Invitato",
+  gameRight: (points) => "Giusto! Hai " + points + (points === 1 ? " punto." : " punti."),
+  gameWrong: (points) => "Peccato! Hai " + points + (points === 1 ? " punto." : " punti."),
+};
+const EN = {
+  title: "Send your photos to the TV",
+  intro: "Choose photos on your phone: they will appear in the slideshow within a few seconds.",
+  senderLabel: "Your name (optional)",
+  senderPlaceholder: "Shown next to your photos",
+  pick: "Choose photos",
+  keepOpen: "Keep this page open until your photos are sent.",
+  approval: "The host reviews photos before they appear on the TV.",
+  privacy: "Photos only go to the TV, over the home network, without passing through the internet. They are resized to fit the screen, stripped of data such as location, and deleted when the party ends. The originals on your phone stay as they are.",
+  preparing: "Preparing…",
+  sending: "Sending…",
+  retrying: "The TV is busy, trying again shortly…",
+  shown: "Sent: on the TV shortly",
+  pending: "Sent: waiting for approval",
+  unsupported: "Unsupported format",
+  heic: "This browser can't open HEIC photos. Send it from another app (for example Google Photos) or set your camera to JPEG.",
+  tooLarge: "Photo too large",
+  full: "The TV is out of space: try again later",
+  pendingFull: "Many photos are already waiting for approval: try again later",
+  offline: "The TV is not responding. Is your phone on the same Wi‑Fi as the TV?",
+  expired: "This link is no longer valid: scan the QR code on the TV again.",
+  retry: "Try again",
+  failed: "Sending failed",
+  waiting: "Queued",
+  summary: (done, total) => done + " of " + total + " sent",
+  gameKicker: "Game on the TV",
+  gameAnswered: "Answer sent: watch the TV!",
+  gameClosed: "Answers are closed: wait for the next question.",
+  gameNoName: "Write your name below to appear in the leaderboard.",
+  guestName: "Guest",
+  gameRight: (points) => "Right! You have " + points + (points === 1 ? " point." : " points."),
+  gameWrong: (points) => "Not this time! You have " + points + (points === 1 ? " point." : " points."),
+};
+const FR = {
+  title: "Envoyez vos photos sur le téléviseur",
+  intro: "Choisissez des photos sur votre téléphone : elles apparaîtront dans le diaporama en quelques secondes.",
+  senderLabel: "Votre nom (facultatif)",
+  senderPlaceholder: "Affiché à côté de vos photos",
+  pick: "Choisir des photos",
+  keepOpen: "Gardez cette page ouverte jusqu’à l’envoi de vos photos.",
+  approval: "L’organisateur vérifie les photos avant qu’elles n’apparaissent sur le téléviseur.",
+  privacy: "Les photos sont envoyées uniquement au téléviseur, via le réseau domestique, sans passer par Internet. Elles sont redimensionnées à la taille de l’écran, débarrassées des données comme la position, puis supprimées à la fin de la fête. Les originaux restent intacts sur votre téléphone.",
+  preparing: "Préparation…",
+  sending: "Envoi…",
+  retrying: "Le téléviseur est occupé, nouvelle tentative dans un instant…",
+  shown: "Envoyée : bientôt sur le téléviseur",
+  pending: "Envoyée : en attente d’approbation",
+  unsupported: "Format non pris en charge",
+  heic: "Ce navigateur ne peut pas ouvrir les photos HEIC. Envoyez-la depuis une autre app (par exemple Google Photos) ou réglez votre appareil photo sur JPEG.",
+  tooLarge: "Photo trop volumineuse",
+  full: "Le téléviseur n’a plus d’espace : réessayez plus tard",
+  pendingFull: "De nombreuses photos attendent déjà d’être approuvées : réessayez plus tard",
+  offline: "Le téléviseur ne répond pas. Votre téléphone est-il connecté au même Wi‑Fi que le téléviseur ?",
+  expired: "Ce lien n’est plus valide : scannez à nouveau le code QR sur le téléviseur.",
+  retry: "Réessayer",
+  failed: "Échec de l’envoi",
+  waiting: "En attente",
+  summary: (done, total) => "Photos envoyées : " + done + " sur " + total,
+  gameKicker: "Jeu sur la TV",
+  gameAnswered: "Réponse envoyée : regardez la TV !",
+  gameClosed: "Réponses fermées : attendez la prochaine question.",
+  gameNoName: "Écrivez votre nom ci-dessous pour apparaître au classement.",
+  guestName: "Invité",
+  gameRight: (points) => "Bravo ! Vous avez " + points + (points <= 1 ? " point." : " points."),
+  gameWrong: (points) => "Dommage ! Vous avez " + points + (points <= 1 ? " point." : " points."),
+};
+const ES = {
+  title: "Envía tus fotos a la TV",
+  intro: "Elige fotos en tu teléfono: aparecerán en la presentación en unos segundos.",
+  senderLabel: "Tu nombre (opcional)",
+  senderPlaceholder: "Aparecerá junto a tus fotos",
+  pick: "Elegir fotos",
+  keepOpen: "Mantén esta página abierta hasta que se envíen tus fotos.",
+  approval: "El anfitrión revisa las fotos antes de que aparezcan en la TV.",
+  privacy: "Las fotos solo van a la TV, a través de la red doméstica, sin pasar por internet. Se reducen al tamaño de la pantalla, se les quitan datos como la ubicación y se borran al terminar la fiesta. Los originales de tu teléfono no cambian.",
+  preparing: "Preparando…",
+  sending: "Enviando…",
+  retrying: "La TV está ocupada, se reintentará enseguida…",
+  shown: "Enviada: en la TV en breve",
+  pending: "Enviada: pendiente de aprobación",
+  unsupported: "Formato no compatible",
+  heic: "Este navegador no puede abrir fotos HEIC. Envíala desde otra app (por ejemplo, Google Fotos) o configura la cámara en JPEG.",
+  tooLarge: "Foto demasiado grande",
+  full: "La TV no tiene más espacio: inténtalo más tarde",
+  pendingFull: "Ya hay muchas fotos pendientes de aprobación: inténtalo más tarde",
+  offline: "La TV no responde. ¿Tu teléfono está en la misma red Wi‑Fi que la TV?",
+  expired: "Este enlace ya no es válido: vuelve a escanear el código QR de la TV.",
+  retry: "Reintentar",
+  failed: "Error al enviar",
+  waiting: "En cola",
+  summary: (done, total) => done + " de " + total + " enviadas",
+  gameKicker: "Juego en la TV",
+  gameAnswered: "Respuesta enviada: ¡mira la TV!",
+  gameClosed: "Respuestas cerradas: espera la siguiente pregunta.",
+  gameNoName: "Escribe tu nombre abajo para aparecer en la clasificación.",
+  guestName: "Invitado",
+  gameRight: (points) => "¡Correcto! Tienes " + points + (points === 1 ? " punto." : " puntos."),
+  gameWrong: (points) => "¡Esta vez no! Tienes " + points + (points === 1 ? " punto." : " puntos."),
+};
+const DE = {
+  title: "Schick deine Fotos an den Fernseher",
+  intro: "Wähle Fotos auf deinem Smartphone aus – in wenigen Sekunden erscheinen sie in der Diashow.",
+  senderLabel: "Dein Name (optional)",
+  senderPlaceholder: "Wird neben deinen Fotos angezeigt",
+  pick: "Fotos auswählen",
+  keepOpen: "Lass diese Seite geöffnet, bis deine Fotos gesendet sind.",
+  approval: "Die Gastgeber prüfen die Fotos, bevor sie auf dem Fernseher erscheinen.",
+  privacy: "Die Fotos gehen nur an den Fernseher, über das Heimnetz und ohne Umweg über das Internet. Dabei werden sie auf Bildschirmgröße verkleinert, ohne Daten wie den Standort übertragen und am Ende der Party gelöscht. Die Originale auf deinem Smartphone bleiben unverändert.",
+  preparing: "Wird vorbereitet…",
+  sending: "Wird gesendet…",
+  retrying: "Der Fernseher ist beschäftigt, gleich neuer Versuch…",
+  shown: "Gesendet: gleich auf dem Fernseher",
+  pending: "Gesendet: wartet auf Freigabe",
+  unsupported: "Format nicht unterstützt",
+  heic: "Dieser Browser kann keine HEIC-Fotos öffnen. Sende das Foto aus einer anderen App (zum Beispiel Google Fotos) oder stell deine Kamera auf JPEG um.",
+  tooLarge: "Foto zu groß",
+  full: "Der Fernseher hat keinen Speicherplatz mehr: Versuch es später noch einmal",
+  pendingFull: "Es warten schon viele Fotos auf Freigabe: Versuch es später noch einmal",
+  offline: "Der Fernseher antwortet nicht. Ist dein Smartphone im selben WLAN wie der Fernseher?",
+  expired: "Dieser Link ist nicht mehr gültig: Scanne den QR‑Code auf dem Fernseher erneut.",
+  retry: "Erneut versuchen",
+  failed: "Senden fehlgeschlagen",
+  waiting: "In der Warteschlange",
+  summary: (done, total) => done + " von " + total + " gesendet",
+  gameKicker: "Spiel auf dem Fernseher",
+  gameAnswered: "Antwort gesendet: schau auf den Fernseher!",
+  gameClosed: "Antworten geschlossen: warte auf die nächste Frage.",
+  gameNoName: "Schreib unten deinen Namen, um in der Rangliste zu erscheinen.",
+  guestName: "Gast",
+  gameRight: (points) => "Richtig! Du hast " + points + (points === 1 ? " Punkt." : " Punkte."),
+  gameWrong: (points) => "Leider nicht! Du hast " + points + (points === 1 ? " Punkt." : " Punkte."),
+};
+const TEXTS = { it: IT, en: EN, fr: FR, es: ES, de: DE };
+// Prima lingua del telefono che la pagina conosce, altrimenti inglese.
+const LANG = (navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ""])
+  .map((tag) => String(tag).toLowerCase().split("-")[0])
+  .find((code) => Object.prototype.hasOwnProperty.call(TEXTS, code)) || "en";
+const T = TEXTS[LANG];
+document.documentElement.lang = LANG;
+
+const $ = (id) => document.getElementById(id);
+$("title").textContent = T.title;
+$("intro").textContent = T.intro;
+$("senderLabel").textContent = T.senderLabel;
+$("sender").placeholder = T.senderPlaceholder;
+$("pickText").textContent = T.pick;
+$("keepOpen").textContent = T.keepOpen;
+$("privacy").textContent = T.privacy;
+$("retry").textContent = T.retry;
+$("gameKicker").textContent = T.gameKicker;
+if (CONFIG.approval) {
+  $("approvalNote").textContent = T.approval;
+  $("approvalNote").hidden = false;
+}
+
+const KEY = new URLSearchParams(location.search).get("k") || "";
+const senderInput = $("sender");
+try { senderInput.value = localStorage.getItem("fotofesta.sender") || ""; } catch (e) {}
+senderInput.addEventListener("input", () => {
+  try { localStorage.setItem("fotofesta.sender", senderInput.value.trim()); } catch (e) {}
+});
+
+// Gioco con i telefoni: la pagina chiede alla TV se c'è una domanda e manda la risposta scelta.
+// Il telefono ha un identificativo casuale, così la TV conta una risposta per telefono e i punti.
+const PLAYER = (() => {
+  try {
+    let id = localStorage.getItem("fotofesta.player");
+    if (!id || !/^[A-Za-z0-9_-]{8,64}$/.test(id)) {
+      id = randomId();
+      localStorage.setItem("fotofesta.player", id);
+    }
+    return id;
+  } catch (e) {
+    return randomId();
+  }
+})();
+const game = { round: null, choice: null };
+
+async function pollGame() {
+  if (document.hidden || expired) return;
+  try {
+    const response = await fetch("/game?player=" + encodeURIComponent(PLAYER), {
+      headers: { "X-FotoFesta-Key": KEY },
+      cache: "no-store",
+    });
+    if (response.ok) showGame(await response.json());
+  } catch (e) {
+    // La TV non risponde per un momento: si riprova al giro successivo.
+  }
+}
+
+function showGame(state) {
+  const box = $("game");
+  if (!state || !state.round || !Array.isArray(state.choices)) {
+    box.hidden = true;
+    game.round = null;
+    return;
+  }
+  if (state.round !== game.round) {
+    game.round = state.round;
+    game.choice = null;
+  }
+  box.hidden = false;
+  $("gameQuestion").textContent = state.question;
+  const choices = $("gameChoices");
+  if (choices.dataset.round !== state.round) {
+    choices.textContent = "";
+    choices.dataset.round = state.round;
+    state.choices.forEach((label, index) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = label;
+      button.addEventListener("click", () => sendAnswer(index));
+      choices.appendChild(button);
+    });
+  }
+  Array.from(choices.children).forEach((button, index) => {
+    button.disabled = game.choice !== null || !state.open;
+    button.classList.toggle("mine", index === game.choice);
+    button.classList.toggle("right", state.answer === index);
+  });
+  let status = "";
+  if (state.open) {
+    status = game.choice !== null ? T.gameAnswered : (senderInput.value.trim() ? "" : T.gameNoName);
+  } else if (typeof state.answer === "number") {
+    status = game.choice === null ? T.gameClosed : (game.choice === state.answer ? T.gameRight(state.points) : T.gameWrong(state.points));
+  } else {
+    status = T.gameClosed;
+  }
+  $("gameStatus").textContent = status;
+}
+
+async function sendAnswer(index) {
+  if (game.choice !== null || !game.round) return;
+  game.choice = index;
+  const name = Array.from(senderInput.value.trim()).slice(0, 40).join("") || T.guestName;
+  const body = new URLSearchParams({ round: game.round, choice: String(index), player: PLAYER, name });
+  try {
+    const response = await fetch("/game/answer", {
+      method: "POST",
+      headers: { "X-FotoFesta-Key": KEY, "Content-Type": "application/x-www-form-urlencoded" },
+      body: body.toString(),
+    });
+    if (!response.ok) {
+      // La TV l'ha rifiutata (domanda già chiusa, TV occupata): non conta come data.
+      game.choice = null;
+      if (response.status === 409) $("gameStatus").textContent = T.gameClosed;
+    }
+  } catch (e) {
+    // Risposta non arrivata: si può toccare di nuovo.
+    game.choice = null;
+  }
+  pollGame();
+}
+
+setInterval(pollGame, 1500);
+document.addEventListener("visibilitychange", pollGame);
+
+// Attese tra un tentativo e l'altro quando la TV non risponde o è occupata: circa un minuto in tutto.
+const RETRY_DELAYS = [2000, 4000, 8000, 16000, 30000];
+
+const queue = [];
+let total = 0;
+let done = 0;
+let running = false;
+// La TV non risponde: la coda aspetta "Riprova" o una nuova scelta di foto.
+let paused = false;
+// La chiave non vale più (festa finita o ricominciata): serve un nuovo QR.
+let expired = false;
+
+$("files").addEventListener("change", (event) => {
+  const files = Array.from(event.target.files || []);
+  event.target.value = "";
+  if (expired) {
+    showBanner(T.expired, false);
+    return;
+  }
+  for (const file of files) {
+    queue.push({ file, item: addRow(file.name || "foto"), uploadId: randomId(), prepared: null });
+    total++;
+  }
+  updateSummary();
+  resume();
+});
+
+$("retry").addEventListener("click", resume);
+
+function resume() {
+  if (expired) return;
+  paused = false;
+  hideBanner();
+  for (const job of queue) setState(job.item, T.waiting);
+  if (!running) run();
+}
+
+function randomId() {
+  const bytes = new Uint8Array(12);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function addRow(name) {
+  const li = document.createElement("li");
+  const thumb = document.createElement("div");
+  thumb.className = "thumb";
+  const text = document.createElement("div");
+  text.className = "text";
+  const label = document.createElement("div");
+  label.className = "name";
+  label.textContent = name;
+  const state = document.createElement("div");
+  state.className = "state";
+  state.textContent = T.waiting;
+  const bar = document.createElement("progress");
+  bar.max = 1;
+  bar.value = 0;
+  bar.hidden = true;
+  text.append(label, state, bar);
+  li.append(thumb, text);
+  $("list").prepend(li);
+  return { li, thumb, state, bar };
+}
+
+function setState(item, text, kind) {
+  item.state.textContent = text;
+  item.li.className = kind || "";
+}
+
+function updateSummary() {
+  $("summary").textContent = total ? T.summary(done, total) : "";
+}
+
+function showBanner(text, withRetry) {
+  $("bannerText").textContent = text;
+  $("retry").hidden = !withRetry;
+  $("banner").style.display = "block";
+}
+
+function hideBanner() {
+  $("banner").style.display = "none";
+}
+
+async function run() {
+  running = true;
+  try {
+    while (queue.length && !paused && !expired) {
+      const job = queue[0];
+      let outcome;
+      try {
+        outcome = await processOne(job);
+      } catch (e) {
+        outcome = "failed";
+        setState(job.item, T.failed, "err");
+      }
+      if (outcome === "offline") {
+        // La foto resta in testa alla coda: "Riprova" ricomincia da lei.
+        paused = true;
+        setState(job.item, T.failed, "err");
+        showBanner(T.offline, true);
+        break;
+      }
+      queue.shift();
+      job.prepared = null;
+      if (outcome === "expired") {
+        expired = true;
+        while (queue.length) setState(queue.shift().item, T.failed, "err");
+        showBanner(T.expired, false);
+      }
+      updateSummary();
+    }
+  } finally {
+    running = false;
+  }
+}
+
+/** Prepara e invia una foto. Restituisce "done", "failed", "offline" o "expired". */
+async function processOne(job) {
+  const { file, item } = job;
+  if (!job.prepared) {
+    setState(item, T.preparing);
+    try {
+      job.prepared = await resize(file);
+    } catch (e) {
+      const heic = /hei[cf]/i.test(file.type || "") || /\.hei[cf]$/i.test(file.name || "");
+      setState(item, heic ? T.heic : T.unsupported, "err");
+      return "failed";
+    }
+    if (job.prepared.blob.size > CONFIG.maxBytes) {
+      setState(item, T.tooLarge, "err");
+      return "failed";
+    }
+    if (job.prepared.thumb) {
+      item.thumb.style.backgroundImage = "url(" + URL.createObjectURL(job.prepared.thumb) + ")";
+    }
+  }
+  item.bar.hidden = false;
+  setState(item, T.sending);
+  let result = await upload(job);
+  for (const delay of RETRY_DELAYS) {
+    if (![0, 429, 503].includes(result.status)) break;
+    setState(item, T.retrying);
+    await sleep(Math.max(delay, Math.min(result.retryAfter * 1000, 30000)));
+    setState(item, T.sending);
+    result = await upload(job);
+  }
+  item.bar.hidden = true;
+  const error = result.body && result.body.error;
+  if (result.status === 200) {
+    done++;
+    if (result.body && result.body.status === "pending") setState(item, T.pending, "wait");
+    else setState(item, T.shown, "ok");
+    return "done";
+  }
+  if (result.status === 401 || result.status === 403 || result.status === 421) {
+    setState(item, T.failed, "err");
+    return "expired";
+  }
+  if ([0, 429, 503].includes(result.status)) return "offline";
+  if (result.status === 413) setState(item, T.tooLarge, "err");
+  else if (result.status === 415) setState(item, T.unsupported, "err");
+  else if (result.status === 507) setState(item, error === "pending_full" ? T.pendingFull : T.full, "err");
+  else setState(item, T.failed, "err");
+  return "failed";
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => { URL.revokeObjectURL(url); resolve(image); };
+    image.onerror = () => { URL.revokeObjectURL(url); reject(new Error("decode")); };
+    image.src = url;
+  });
+}
+
+// Riduce la foto alla misura dello schermo della TV e la ricodifica in JPEG: l'orientamento viene
+// applicato dal browser e i metadati (posizione, modello del telefono) non vengono copiati.
+// Restituisce anche una miniatura per l'elenco, così nella pagina non restano foto grandi in memoria.
+async function resize(file) {
+  const image = await loadImage(file);
+  const width = image.naturalWidth;
+  const height = image.naturalHeight;
+  if (!width || !height) throw new Error("size");
+  const boxW = CONFIG.maxWidth;
+  const boxH = CONFIG.maxHeight;
+  let scale = CONFIG.fit === "cover" ? Math.max(boxW / width, boxH / height) : Math.min(boxW / width, boxH / height);
+  scale = Math.min(1, scale);
+  // Panorami molto lunghi in modalità "riempi": mai più di due schermi di pixel, e comunque mai più
+  // di quello che la TV accetta (pixel totali e lato massimo), altrimenti rifiuterebbe la foto.
+  const maxPixels = Math.min(boxW * boxH * 2, CONFIG.maxPixels || Infinity);
+  const maxSide = CONFIG.maxSide || Infinity;
+  if (width * height * scale * scale > maxPixels) scale = Math.sqrt(maxPixels / (width * height));
+  if (Math.max(width, height) * scale > maxSide) scale = maxSide / Math.max(width, height);
+  let targetW = Math.max(1, Math.round(width * scale));
+  let targetH = Math.max(1, Math.round(height * scale));
+  // L'arrotondamento non deve superare i limiti nemmeno di un pixel.
+  if (targetW * targetH > maxPixels) {
+    const k = Math.sqrt(maxPixels / (targetW * targetH));
+    targetW = Math.max(1, Math.floor(targetW * k));
+    targetH = Math.max(1, Math.floor(targetH * k));
+  }
+  targetW = Math.min(targetW, maxSide);
+  targetH = Math.min(targetH, maxSide);
+
+  // Riduzione a metà per passi: con un solo passaggio alcuni browser producono immagini seghettate.
+  let source = image;
+  let sourceW = width;
+  let sourceH = height;
+  const canvases = [];
+  while (sourceW / 2 >= targetW && sourceH / 2 >= targetH) {
+    const step = makeCanvas(Math.round(sourceW / 2), Math.round(sourceH / 2));
+    step.context.drawImage(source, 0, 0, step.canvas.width, step.canvas.height);
+    canvases.push(step.canvas);
+    source = step.canvas;
+    sourceW = step.canvas.width;
+    sourceH = step.canvas.height;
+  }
+  const final = makeCanvas(targetW, targetH);
+  final.context.fillStyle = "#000";
+  final.context.fillRect(0, 0, targetW, targetH);
+  final.context.drawImage(source, 0, 0, targetW, targetH);
+  let blob = await toJpeg(final.canvas, CONFIG.quality);
+  if (blob && blob.size > CONFIG.maxBytes) blob = await toJpeg(final.canvas, 0.7);
+  const thumbScale = Math.min(1, 120 / Math.max(targetW, targetH));
+  const small = makeCanvas(Math.max(1, Math.round(targetW * thumbScale)), Math.max(1, Math.round(targetH * thumbScale)));
+  small.context.drawImage(final.canvas, 0, 0, small.canvas.width, small.canvas.height);
+  const thumb = await toJpeg(small.canvas, 0.7);
+  // Su iPhone i canvas restano in memoria finché non si azzerano le dimensioni.
+  for (const canvas of canvases.concat(final.canvas, small.canvas)) { canvas.width = 0; canvas.height = 0; }
+  if (!blob) throw new Error("encode");
+  return { blob, thumb };
+}
+
+function makeCanvas(width, height) {
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
+  return { canvas, context };
+}
+
+function toJpeg(canvas, quality) {
+  return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+}
+
+function upload(job) {
+  return new Promise((resolve) => {
+    const request = new XMLHttpRequest();
+    request.open("POST", "/photos");
+    request.timeout = 120000;
+    request.setRequestHeader("Content-Type", "image/jpeg");
+    request.setRequestHeader("X-FotoFesta-Key", KEY);
+    // Lo stesso identificativo a ogni tentativo: la TV non salva due volte la stessa foto.
+    request.setRequestHeader("X-FotoFesta-Upload", job.uploadId);
+    // Taglio per caratteri e non per unità UTF-16: un'emoji tagliata a metà non sarebbe codificabile.
+    const sender = Array.from(senderInput.value.trim()).slice(0, 40).join("");
+    if (sender) request.setRequestHeader("X-FotoFesta-Sender", encodeURIComponent(sender));
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable) job.item.bar.value = event.loaded / event.total;
+    };
+    request.onload = () => {
+      let body = null;
+      try { body = JSON.parse(request.responseText); } catch (e) {}
+      const retryAfter = parseInt(request.getResponseHeader("Retry-After") || "0", 10) || 0;
+      resolve({ status: request.status, body, retryAfter });
+    };
+    request.onerror = () => resolve({ status: 0, retryAfter: 0 });
+    request.ontimeout = () => resolve({ status: 0, retryAfter: 0 });
+    request.send(job.prepared.blob);
+  });
+}
+
+// Domanda già in corso sulla TV: si mostra subito, senza aspettare il primo giro.
+pollGame();
+</script>
+</body>
+</html>

@@ -1,0 +1,130 @@
+# Pubblicazione dell'app Apple TV su App Store Connect con fastlane.
+# Prerequisiti: Mac con Xcode, XcodeGen, app creata in App Store Connect con bundle it.fotofesta.tv,
+# chiave API App Store Connect (.p8) indicata da ASC_KEY_ID, ASC_ISSUER_ID e ASC_KEY_PATH.
+# Eseguire dalla cartella apple/:  bundle exec fastlane tvos beta | metadata | release
+# L'account Google di test per la revisione non sta nel repository: si passa con le variabili
+# REVIEW_DEMO_USER e REVIEW_DEMO_PASSWORD. Senza, le note per i revisori non lo citano.
+
+default_platform(:tvos)
+
+DEMO_ACCOUNT_NOTE = "A Google test account is provided in the demo account fields."
+
+platform :tvos do
+  def api_key
+    app_store_connect_api_key(
+      key_id: ENV.fetch("ASC_KEY_ID"),
+      issuer_id: ENV.fetch("ASC_ISSUER_ID"),
+      key_filepath: ENV.fetch("ASC_KEY_PATH"),
+    )
+  end
+
+  # Si ferma prima di caricare testi con segnaposto ("[da completare]", "EXAMPLE", "[Titolare]").
+  def check_metadata
+    pending = Dir.glob("metadata/**/*.txt").select do |path|
+      File.read(path).match?(/\[da completare\]|EXAMPLE|\[Titolare\]/)
+    end
+    UI.user_error!("Completa questi file prima di caricare la scheda: #{pending.join(", ")}") unless pending.empty?
+  end
+
+  def review_information
+    notes = File.read("metadata/review_information/notes.txt").strip
+    user = ENV["REVIEW_DEMO_USER"].to_s
+    password = ENV["REVIEW_DEMO_PASSWORD"].to_s
+    if user.empty? || password.empty?
+      UI.important("REVIEW_DEMO_USER e REVIEW_DEMO_PASSWORD non impostati: i revisori proveranno Google Foto con un proprio account")
+      return { notes: notes }
+    end
+    { notes: "#{notes}\n#{DEMO_ACCOUNT_NOTE}", demo_user: user, demo_password: password }
+  end
+
+  # Per l'App Store l'informativa deve essere raggiungibile anche dall'app (QR nelle impostazioni).
+  def check_privacy_url
+    UI.user_error!("Scrivi l'URL dell'informativa in PrivacyPolicyURL di apple/project.yml") if File.read("../project.yml").include?("EXAMPLE")
+  end
+
+  # Valore di una chiave di Config/Secrets.xcconfig ("" se manca). [ \t] e non \s: una riga vuota
+  # non deve far leggere il valore dalla riga successiva.
+  def secret(name)
+    path = "../Config/Secrets.xcconfig"
+    return "" unless File.exist?(path)
+    # L'URI di reindirizzamento contiene "/" (scritto come "$()/" perché "//" apre un commento).
+    File.read(path)[/^[ \t]*#{name}[ \t]*=[ \t]*(\S*)/, 1].to_s.sub(%r{//.*\z}, "")
+  end
+
+  # Si ferma se la build porterebbe un client Google di esempio. Per l'App Store una build senza
+  # Google Foto è ammessa solo con ALLOW_NO_GOOGLE=1, perché descrizione e note lo presentano.
+  def check_build_settings(for_release:)
+    keys = %w[PHOTOS_CLIENT_ID PHOTOS_CLIENT_SECRET PHOTOS_REDIRECT_URI]
+    keys.each do |name|
+      UI.user_error!("#{name} in Config/Secrets.xcconfig è un valore di esempio") if secret(name).downcase.include?("example")
+    end
+    # L'app mostra Google Foto solo con tutti e tre i valori: uno mancante equivale a nessuno.
+    missing = keys.select { |name| secret(name).empty? }
+    return if missing.empty?
+    if for_release && ENV["ALLOW_NO_GOOGLE"] != "1"
+      UI.user_error!("#{missing.join(', ')} vuoto in Config/Secrets.xcconfig: la build non mostrerebbe Google Foto, che la scheda descrive. Completa il client o, dopo aver tolto Google Foto da descrizione e note, usa ALLOW_NO_GOOGLE=1")
+    end
+    UI.important("#{missing.join(', ')} vuoto: la build non mostrerà Google Foto")
+  end
+
+  # Ogni build caricata su App Store Connect deve avere un numero nuovo.
+  def next_build_number
+    latest_testflight_build_number(api_key: api_key, platform: "appletvos", initial_build_number: 0) + 1
+  end
+
+  def build(build_number, for_release: false)
+    check_build_settings(for_release: for_release)
+    sh("cd .. && xcodegen generate")
+    build_app(
+      project: "FotoFestaTV.xcodeproj",
+      scheme: "FotoFestaTV",
+      configuration: "Release",
+      export_method: "app-store",
+      destination: "generic/platform=tvOS",
+      output_directory: "build",
+      xcargs: "-allowProvisioningUpdates CURRENT_PROJECT_VERSION=#{build_number}",
+    )
+  end
+
+  desc "Esegue i test del nucleo logico (FotoFestaCore)"
+  lane :test do
+    sh("cd ../FotoFestaCore && swift test")
+  end
+
+  desc "Compila, firma e carica una build su TestFlight"
+  lane :beta do
+    test
+    build(next_build_number)
+    upload_to_testflight(api_key: api_key, skip_waiting_for_build_processing: true)
+  end
+
+  desc "Aggiorna testi della scheda App Store da fastlane/metadata (gli screenshot vanno aggiunti a parte)"
+  lane :metadata do
+    check_metadata
+    upload_to_app_store(
+      api_key: api_key,
+      app_review_information: review_information,
+      platform: "appletvos",
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      force: true,
+      precheck_include_in_app_purchases: false,
+    )
+  end
+
+  desc "Carica build e scheda e prepara la versione per la revisione (l'invio resta manuale)"
+  lane :release do
+    check_metadata
+    check_privacy_url
+    test
+    build(next_build_number, for_release: true)
+    upload_to_app_store(
+      api_key: api_key,
+      app_review_information: review_information,
+      platform: "appletvos",
+      submit_for_review: false,
+      force: true,
+      precheck_include_in_app_purchases: false,
+    )
+  end
+end

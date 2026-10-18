@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Backup fino ad Android 11: solo le impostazioni dello slideshow. Restano esclusi i token Google
+     (cifrati con una chiave Keystore che non viene trasferita), le foto scaricate e il file device_sources
+     con cartella USB e brano, che valgono solo su questa TV. -->
+<full-backup-content>
+    <include domain="sharedpref" path="slideshow_settings.xml" />
+</full-backup-content>

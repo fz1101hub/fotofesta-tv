@@ -1,0 +1,47 @@
+# Pubblicazione su Google Play con fastlane (https://docs.fastlane.tools/actions/upload_to_play_store/).
+# Prerequisiti: app già creata in Play Console e primo AAB caricato a mano, account di servizio
+# con accesso all'app, AAB firmato in app/build/outputs/bundle/release/ (./gradlew bundleRelease).
+
+default_platform(:android)
+
+AAB = "app/build/outputs/bundle/release/app-release.aab"
+MAPPING = "app/build/outputs/mapping/release/mapping.txt"
+
+platform :android do
+  desc "Carica l'AAB firmato sulla traccia di test interno come bozza"
+  lane :internal do
+    upload_to_play_store(
+      track: "internal",
+      release_status: "draft",
+      aab: AAB,
+      # Le lane girano dentro fastlane/, mentre i percorsi passati a supply partono dalla radice del progetto.
+      mapping: File.exist?(File.join("..", MAPPING)) ? MAPPING : nil,
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+    )
+  end
+
+  desc "Promuove la release dalla traccia interna alla produzione (bozza da confermare in Play Console)"
+  lane :promote_production do
+    upload_to_play_store(
+      track: "internal",
+      track_promote_to: "production",
+      release_status: "draft",
+      skip_upload_aab: true,
+      skip_upload_apk: true,
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+    )
+  end
+
+  desc "Aggiorna testi e grafica della scheda store da fastlane/metadata/android"
+  lane :metadata do
+    upload_to_play_store(
+      skip_upload_aab: true,
+      skip_upload_apk: true,
+      skip_upload_changelogs: true,
+    )
+  end
+end
