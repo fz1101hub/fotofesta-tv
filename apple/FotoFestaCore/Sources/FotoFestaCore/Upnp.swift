@@ -76,6 +76,9 @@ public enum UpnpError: Error, Equatable {
 
 /// XML di UPnP: descrizione del dispositivo, richiesta e risposta Browse, elenco DIDL-Lite.
 public enum UpnpXML {
+    /// Lato massimo plausibile di una foto dichiarata da un server: oltre, il valore è un errore.
+    static let maxDeclaredSide = 100_000
+
     public static let browseAction = "\"urn:schemas-upnp-org:service:ContentDirectory:1#Browse\""
     private static let contentDirectoryPrefix = "urn:schemas-upnp-org:service:ContentDirectory:"
 
@@ -199,7 +202,8 @@ public enum UpnpXML {
                 width = Int(parts[0].trimmingCharacters(in: .whitespaces)) ?? 0
                 height = Int(parts[1].trimmingCharacters(in: .whitespaces)) ?? 0
             }
-            let known = width > 0 && height > 0
+            // Oltre un lato plausibile il valore è un errore del server: moltiplicarlo farebbe traboccare Int64.
+            let known = (1...Self.maxDeclaredSide).contains(width) && (1...Self.maxDeclaredSide).contains(height)
             candidates.append(Candidate(
                 url: url,
                 mime: mime,

@@ -2,6 +2,8 @@ package it.fotofesta.tv.google
 
 import it.fotofesta.tv.R
 import it.fotofesta.tv.model.UserFacingException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.junit.After
@@ -143,6 +145,32 @@ class GoogleAuthRepositoryTest {
         tokens.refreshToken = "revoked"
         server.enqueue("POST", "/oauth/token", oauthError("invalid_grant"))
 
+        assertNull(repository().validAccessToken())
+        assertTrue(tokens.cleared)
+    }
+
+    @Test
+    fun `a late refusal of an old refresh does not clear tokens obtained after it`() = runTest {
+        tokens.refreshToken = "vecchio"
+        // Il rinnovo del vecchio token arriva in ritardo, già rifiutato, quando il nuovo collegamento ha finito.
+        server.enqueue("POST", "/oauth/token", oauthError("invalid_grant").setBodyDelay(400, java.util.concurrent.TimeUnit.MILLISECONDS))
+        server.enqueue("POST", "/oauth/token", json("""{"access_token":"nuovo","refresh_token":"nuovo-refresh","expires_in":3600}"""))
+        val auth = repository()
+        val lateRefresh = async(Dispatchers.IO) { auth.validAccessToken() }
+        Thread.sleep(100)
+        auth.exchangeCode(auth.beginAuthorization(), "codice")
+
+        assertNull(lateRefresh.await())
+
+        assertEquals("nuovo", tokens.accessToken)
+        assertEquals("nuovo-refresh", tokens.refreshToken)
+        assertFalse(tokens.cleared)
+    }
+
+    @Test
+    fun `a refused refresh with no newer tokens clears storage`() = runTest {
+        tokens.refreshToken = "revocato"
+        server.enqueue("POST", "/oauth/token", oauthError("invalid_grant"))
         assertNull(repository().validAccessToken())
         assertTrue(tokens.cleared)
     }

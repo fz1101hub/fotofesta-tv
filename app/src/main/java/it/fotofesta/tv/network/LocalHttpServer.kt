@@ -183,7 +183,7 @@ class LocalHttpServer(
                     // arrivare un reset al posto della risposta: si chiude l'invio e si scarta il resto.
                     socket.shutdownOutput()
                     socket.soTimeout = DRAIN_TIMEOUT_MS
-                    drain(input)
+                    drain(input, nowMillis() + DRAIN_TIMEOUT_MS)
                 }
             }
         } catch (_: Throwable) {
@@ -224,11 +224,12 @@ class LocalHttpServer(
         return body
     }
 
-    private fun drain(input: InputStream) {
+    /** Scarta al massimo [MAX_DRAIN_BYTES] e per al massimo un secondo in tutto: un client che manda un byte alla volta non tiene occupato il worker. */
+    private fun drain(input: InputStream, deadline: Long) {
         val buffer = ByteArray(8 * 1024)
         var total = 0
         try {
-            while (total < MAX_DRAIN_BYTES) {
+            while (total < MAX_DRAIN_BYTES && nowMillis() < deadline) {
                 val read = input.read(buffer)
                 if (read < 0) break
                 total += read

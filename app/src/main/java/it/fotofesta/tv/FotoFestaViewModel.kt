@@ -119,6 +119,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private var googleJob: Job? = null
     private var usbJob: Job? = null
     private var restoreJob: Job? = null
+    /** Lettura all'avvio della cartella musicale salvata; annullata se la musica cambia prima. */
+    private var musicRestoreJob: Job? = null
     private var disconnectJob: Job? = null
     private var sleepJob: Job? = null
     private var sleepJobMinutes = 0
@@ -159,10 +161,13 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     init {
         playbackOrder.reset(demoPhotos.size, _state.value.settings.shuffle)
         savedMusic?.takeIf { it.folder }?.let { saved ->
-            viewModelScope.launch {
+            musicRestoreJob = viewModelScope.launch {
                 val path = Uri.parse(saved.uri).path ?: return@launch
-                musicTracks = folderTracks(path)
-                if (musicTracks.isNotEmpty()) _state.update { it.copy(musicName = folderMusicName(saved.name, musicTracks.size)) }
+                val tracks = folderTracks(path)
+                // Nel frattempo la musica può essere stata tolta o cambiata dalle impostazioni.
+                if (_state.value.musicUri != saved.uri) return@launch
+                musicTracks = tracks
+                if (tracks.isNotEmpty()) _state.update { it.copy(musicName = folderMusicName(saved.name, tracks.size)) }
                 syncMusic()
             }
         }
@@ -1076,6 +1081,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     )
 
     fun selectMusic(uri: Uri, displayName: String?) {
+        musicRestoreJob?.cancel()
         runCatching {
             context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
@@ -1087,6 +1093,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun removeMusic() {
+        musicRestoreJob?.cancel()
         musicPlayer.release()
         musicTracks = emptyList()
         settingsRepository.clearMusic()

@@ -40,6 +40,8 @@ data class BrowsePage(
 
 /** XML di UPnP: descrizione del dispositivo, richiesta e risposta Browse, elenco DIDL-Lite. */
 object UpnpXml {
+    /** Lato massimo plausibile di una foto dichiarata da un server: oltre, il valore è un errore. */
+    private const val MAX_DECLARED_SIDE = 100_000
     private const val CONTENT_DIRECTORY_PREFIX = "urn:schemas-upnp-org:service:ContentDirectory:"
 
     /** Classi UPnP delle cartelle senza foto (gli album di foto sono object.container.album.photoAlbum). */
@@ -158,7 +160,7 @@ object UpnpXml {
             val thumbnail = "_TN" in profile || "JPEG_SM" in profile
             val size = res.getAttribute("resolution").split('x', 'X').takeIf { it.size == 2 }
                 ?.map { it.trim().toIntOrNull() ?: 0 }
-                ?.takeIf { (w, h) -> w > 0 && h > 0 }
+                ?.takeIf { (w, h) -> w in 1..MAX_DECLARED_SIDE && h in 1..MAX_DECLARED_SIDE }
             val pixels = size?.let { (w, h) -> w.toLong() * h } ?: Long.MAX_VALUE
             Candidate(url, mime, thumbnail, pixels, index, size?.max() ?: 0, size?.min() ?: 0)
         }

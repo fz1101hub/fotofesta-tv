@@ -37,6 +37,8 @@ final class StreamingVideoLoader: NSObject, AVAssetResourceLoaderDelegate, URLSe
         let origin: VideoOrigin
         let retried: Bool
         var skip: Int64
+        /// Byte ancora da consegnare per questa richiesta; nil se AVPlayer vuole tutto fino alla fine.
+        var remaining: Int64?
     }
 
     // Usato solo sulla coda `queue`.
@@ -129,13 +131,15 @@ final class StreamingVideoLoader: NSObject, AVAssetResourceLoaderDelegate, URLSe
             urlRequest.setValue(value, forHTTPHeaderField: name)
         }
         var offset: Int64 = 0
+        var remaining: Int64?
         if let data = request.dataRequest {
             offset = data.requestedOffset
             let end = data.requestsAllDataToEndOfResource ? "" : String(offset + Int64(data.requestedLength) - 1)
             urlRequest.setValue("bytes=\(offset)-\(end)", forHTTPHeaderField: "Range")
+            if !data.requestsAllDataToEndOfResource { remaining = Int64(data.requestedLength) }
         }
         let task = session.dataTask(with: urlRequest)
-        pending[task.taskIdentifier] = Pending(task: task, request: request, origin: origin, retried: retried, skip: offset)
+        pending[task.taskIdentifier] = Pending(task: task, request: request, origin: origin, retried: retried, skip: offset, remaining: remaining)
         task.resume()
     }
 
@@ -197,7 +201,19 @@ final class StreamingVideoLoader: NSObject, AVAssetResourceLoaderDelegate, URLSe
             item.skip -= dropped
             pending[dataTask.taskIdentifier] = item
         }
+        // Un server che ignora Range manda il file intero: si consegna solo il tratto chiesto e si
+        // chiude la connessione, invece di scaricare tutto il video a ogni richiesta parziale.
+        if let remaining = item.remaining {
+            if Int64(chunk.count) > remaining { chunk = chunk.prefix(Int(remaining)) }
+            item.remaining = remaining - Int64(chunk.count)
+            pending[dataTask.taskIdentifier] = item
+        }
         if !chunk.isEmpty { item.request.dataRequest?.respond(with: chunk) }
+        if item.remaining == 0 {
+            pending[dataTask.taskIdentifier] = nil
+            dataTask.cancel()
+            Self.finish(item.request, error: nil)
+        }
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
@@ -359,7 +375,9 @@ struct VideoSlideView: View {
                         .padding(.horizontal, 32)
                         .padding(.vertical, 18)
                         .background(.regularMaterial, in: Capsule())
-                        .task {
+                        .task(id: playing) {
+                            // In pausa non si passa oltre: il timer riparte quando la riproduzione riprende.
+                            guard playing else { return }
                             try? await Task.sleep(nanoseconds: 2_500_000_000)
                             guard !Task.isCancelled else { return }
                             onEnded()

@@ -334,7 +334,8 @@ final class GuestParty {
             let width = Int((Double(screen.width) * 1.1).rounded())
             let height = Int((Double(screen.height) * 1.1).rounded())
             let config = "{\"maxWidth\":\(width),\"maxHeight\":\(height),\"fit\":\"\(fit)\",\"quality\":0.88," +
-                "\"maxBytes\":\(GuestUploadServer.maxUploadBytes),\"approval\":\(flag.value)}"
+                "\"maxBytes\":\(GuestUploadServer.maxUploadBytes),\"maxPixels\":\(GuestImageFormat.maxImagePixels),\"maxSide\":\(GuestImageFormat.maxImageSide)," +
+                "\"approval\":\(flag.value)}"
             return template.replacingOccurrences(of: "__FOTOFESTA_CONFIG__", with: config)
         }
     }

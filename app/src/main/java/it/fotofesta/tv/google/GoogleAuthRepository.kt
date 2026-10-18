@@ -107,21 +107,13 @@ class GoogleAuthRepository(
             tokens.accessToken?.takeIf { !forceRefresh && tokens.expiresAtEpochSeconds > now + 60 }
         }
         if (cached != null) return cached
-        return try {
-            refreshAccessToken()
-        } catch (failure: HttpStatusException) {
-            if (failure.oauthError == "invalid_grant" || failure.code == 401) {
-                disconnect()
-                null
-            } else {
-                throw failure
-            }
-        }
+        return refreshAccessToken()
     }
 
     private suspend fun refreshAccessToken(): String? {
         requireConfigured()
-        // Un "Disconnetti" arrivato durante la richiesta invalida il risultato: il token non va salvato.
+        // Un "Disconnetti" o un nuovo collegamento arrivati durante la richiesta invalidano il
+        // risultato: né il token ottenuto va salvato, né un rifiuto deve cancellare i token nuovi.
         val generation = this.generation
         val refresh = withContext(Dispatchers.IO) { tokens.refreshToken } ?: return null
         val body = FormBody.Builder()
@@ -130,12 +122,23 @@ class GoogleAuthRepository(
             .add("refresh_token", refresh)
             .add("grant_type", "refresh_token")
             .build()
-        val json = client.fetchJson(Request.Builder().url(tokenUrl).post(body).build())
-        if (generation != this.generation) return null
+        val json = try {
+            client.fetchJson(Request.Builder().url(tokenUrl).post(body).build())
+        } catch (failure: HttpStatusException) {
+            if (failure.oauthError != "invalid_grant" && failure.code != 401) throw failure
+            // Refresh token revocato o scaduto: si cancella tutto, ma solo se nel frattempo nessun
+            // nuovo collegamento ha salvato token diversi (un rifiuto tardivo riguarda i vecchi).
+            if (generation == this.generation) disconnect()
+            return null
+        }
+        if (generation != this.generation) return withContext(Dispatchers.IO) { tokens.accessToken }
         return persistToken(json).accessToken
     }
 
-    /** Cresce a ogni disconnessione: i rinnovi partiti prima non salvano il token ottenuto. */
+    /**
+     * Cresce a ogni disconnessione e a ogni token nuovo: i rinnovi partiti prima non salvano il
+     * token ottenuto e, se falliscono, non cancellano quelli arrivati dopo.
+     */
     @Volatile
     private var generation = 0
 
@@ -174,6 +177,7 @@ class GoogleAuthRepository(
         tokens.accessToken = result.accessToken
         result.refreshToken?.let { tokens.refreshToken = it }
         tokens.expiresAtEpochSeconds = clock() / 1_000L + result.expiresIn
+        generation++
         result
     }
 

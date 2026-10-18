@@ -47,20 +47,24 @@ platform :tvos do
   def secret(name)
     path = "../Config/Secrets.xcconfig"
     return "" unless File.exist?(path)
-    File.read(path)[/^[ \t]*#{name}[ \t]*=[ \t]*([^\s\/]*)/, 1].to_s
+    # L'URI di reindirizzamento contiene "/" (scritto come "$()/" perché "//" apre un commento).
+    File.read(path)[/^[ \t]*#{name}[ \t]*=[ \t]*(\S*)/, 1].to_s.sub(%r{//.*\z}, "")
   end
 
   # Si ferma se la build porterebbe un client Google di esempio. Per l'App Store una build senza
   # Google Foto è ammessa solo con ALLOW_NO_GOOGLE=1, perché descrizione e note lo presentano.
   def check_build_settings(for_release:)
-    %w[PHOTOS_CLIENT_ID PHOTOS_CLIENT_SECRET].each do |name|
+    keys = %w[PHOTOS_CLIENT_ID PHOTOS_CLIENT_SECRET PHOTOS_REDIRECT_URI]
+    keys.each do |name|
       UI.user_error!("#{name} in Config/Secrets.xcconfig è un valore di esempio") if secret(name).downcase.include?("example")
     end
-    return unless secret("PHOTOS_CLIENT_ID").empty?
+    # L'app mostra Google Foto solo con tutti e tre i valori: uno mancante equivale a nessuno.
+    missing = keys.select { |name| secret(name).empty? }
+    return if missing.empty?
     if for_release && ENV["ALLOW_NO_GOOGLE"] != "1"
-      UI.user_error!("PHOTOS_CLIENT_ID vuoto: la build non mostrerebbe Google Foto, che la scheda descrive. Inserisci il client o, dopo aver tolto Google Foto da descrizione e note, usa ALLOW_NO_GOOGLE=1")
+      UI.user_error!("#{missing.join(', ')} vuoto in Config/Secrets.xcconfig: la build non mostrerebbe Google Foto, che la scheda descrive. Completa il client o, dopo aver tolto Google Foto da descrizione e note, usa ALLOW_NO_GOOGLE=1")
     end
-    UI.important("PHOTOS_CLIENT_ID vuoto: la build non mostrerà Google Foto")
+    UI.important("#{missing.join(', ')} vuoto: la build non mostrerà Google Foto")
   end
 
   # Ogni build caricata su App Store Connect deve avere un numero nuovo.

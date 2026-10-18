@@ -132,10 +132,13 @@ public actor GoogleAuth {
         ])
         do {
             let response = try await http.json(TokenResponse.self, for: request)
-            guard generation == self.generation else { return nil }
+            // Nel frattempo un nuovo collegamento ha salvato token diversi: valgono quelli.
+            guard generation == self.generation else { return tokens.accessToken }
             return persist(response)
         } catch let failure as HTTPStatusError where failure.oauthError == "invalid_grant" || failure.code == 401 {
-            disconnect()
+            // Refresh token revocato o scaduto: si cancella tutto, ma solo se nel frattempo nessun
+            // nuovo collegamento ha salvato token diversi (un rifiuto tardivo riguarda i vecchi).
+            if generation == self.generation { disconnect() }
             return nil
         }
     }
@@ -145,7 +148,8 @@ public actor GoogleAuth {
         tokens.clear()
     }
 
-    /// Cresce a ogni disconnessione: i rinnovi partiti prima non salvano il token ottenuto.
+    /// Cresce a ogni disconnessione e a ogni token nuovo: i rinnovi partiti prima non salvano il
+    /// token ottenuto e, se falliscono, non cancellano quelli arrivati dopo.
     private var generation = 0
 
     /// Revoca l'accesso anche sui server Google (best effort) e cancella i token locali.
@@ -162,6 +166,7 @@ public actor GoogleAuth {
         tokens.accessToken = response.access_token
         if let refresh = response.refresh_token, !refresh.isEmpty { tokens.refreshToken = refresh }
         tokens.expiresAt = now().addingTimeInterval(TimeInterval(response.expires_in ?? 3_600))
+        generation += 1
         return response.access_token
     }
 

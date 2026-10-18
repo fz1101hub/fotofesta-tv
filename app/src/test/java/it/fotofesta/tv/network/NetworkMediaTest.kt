@@ -167,7 +167,7 @@ class NetworkMediaTest {
     }
 
     /** Server DLNA finto: cartella principale con due sottocartelle, una delle quali a più pagine. */
-    private fun fakeNas(failing: Set<String> = emptySet()): FakeLanServer {
+    private fun fakeNas(failing: Set<String> = emptySet(), totalUnknown: Boolean = false): FakeLanServer {
         lateinit var server: FakeLanServer
         server = FakeLanServer { request ->
             when {
@@ -192,7 +192,9 @@ class NetworkMediaTest {
                         else -> emptyList()
                     }
                     val page = all.drop(start).take(500)
-                    FakeResponse(body = browseResponse(didl(page.joinToString("")), page.size, all.size).toByteArray(), chunked = id == "A")
+                    // Alcuni server dichiarano sempre TotalMatches 0: si va avanti finché una pagina è vuota.
+                    val total = if (totalUnknown) 0 else all.size
+                    FakeResponse(body = browseResponse(didl(page.joinToString("")), page.size, total).toByteArray(), chunked = id == "A")
                 }
                 else -> FakeResponse(404)
             }
@@ -223,6 +225,44 @@ class NetworkMediaTest {
             assertEquals(5, media.scanPhotos(servers[0], NetworkMedia.ROOT, limit = 5).size)
             assertTrue(synchronized(nas.requests) { nas.requests.none { it.text.contains("<ObjectID>M</ObjectID>") } })
         }
+    }
+
+    @Test
+    fun keepsPagingWhenTheServerDoesNotKnowTheTotal() {
+        fakeNas(totalUnknown = true).use { nas ->
+            val media = NetworkMedia(LanHttp(allowLoopback = true), mimeTypes, search = { emptyList() })
+            val server = media.find("uuid:nas-1", "${nas.base}/rootDesc.xml")!!
+            assertEquals(600, media.list(server, "B").files.size)
+            assertEquals(605, media.scanPhotos(server, NetworkMedia.ROOT).size)
+            // Una pagina vuota chiude l'elenco: tre richieste per lettura (0, 500, 1000), due letture.
+            val requestsForB = synchronized(nas.requests) { nas.requests.count { it.text.contains("<ObjectID>B</ObjectID>") } }
+            assertEquals(6, requestsForB)
+        }
+    }
+
+    @Test
+    fun aForgottenServerIsLookedUpAgain() {
+        fakeNas().use { nas ->
+            val location = "${nas.base}/rootDesc.xml"
+            var searches = 0
+            val media = NetworkMedia(LanHttp(allowLoopback = true), mimeTypes, search = { searches++; emptyList() })
+            assertEquals("uuid:nas-1", media.find("uuid:nas-1", location)?.udn)
+            assertEquals(0, searches)
+            media.forget("uuid:nas-1")
+            assertNull(media.known("uuid:nas-1"))
+            // Senza l'indirizzo noto si torna a cercare in rete.
+            assertNull(media.find("uuid:nas-1", "http://127.0.0.1:9/rootDesc.xml"))
+            assertEquals(1, searches)
+        }
+    }
+
+    @Test
+    fun absurdResolutionsCountAsUnknown() {
+        val huge = photo("p1", "IMG.jpg", "/m/1.jpg").replace("resolution=\"4000x3000\"", "resolution=\"4294967296x4294967296\"")
+        val page = UpnpXml.parseBrowseResponse(browseResponse(didl(huge), 1, 1).toByteArray(), "http://192.168.1.10:8200/ctl", mimeTypes::contains, ScreenSize(1920, 1080))
+        // La versione con la risoluzione assurda conta come "senza risoluzione": nessuna copre lo
+        // schermo con misure note, e fra le restanti si prende quella di misura ignota (la più grande).
+        assertEquals("http://192.168.1.10:8200/m/1.jpg", page.files.single().url)
     }
 
     @Test

@@ -42,6 +42,11 @@ class NetworkMedia(
     /** Server già trovato in questa sessione. */
     fun known(udn: String): MediaServer? = servers[udn]
 
+    /** Il server non risponde più all'indirizzo noto (ha cambiato IP): la prossima [find] lo ricerca. */
+    fun forget(udn: String) {
+        servers.remove(udn)
+    }
+
     /**
      * Server della cartella salvata: prima all'indirizzo noto, poi (se ha cambiato IP) cercandolo in
      * rete per UDN.
@@ -74,7 +79,7 @@ class NetworkMedia(
             total = page.total
             start += page.returned
             if (page.returned <= 0) break
-        } while (start < total && start < MAX_CHILDREN)
+        } while ((total <= 0 || start < total) && start < MAX_CHILDREN)
         return BrowsePage(containers, files, start, total)
     }
 

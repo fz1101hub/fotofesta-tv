@@ -271,6 +271,7 @@
     "library.count.one": "%ld Objekt",
     "library.count.other": "%ld Objekte",
     "library.empty_album": "Dieses Album enthält keine Fotos oder Videos.",
+    "library.album_gone": "Das gewählte Album ist nicht mehr in der Fotomediathek: Es werden die Demofotos gezeigt.",
     "library.unavailable": "Das Album aus iCloud-Fotos ist nicht mehr verfügbar: Wähle ein anderes.",
     "source.library": "iCloud-Fotos · Objekte: %ld",
     "message.library_ready": "iCloud-Fotos sind bereit für die Diashow.",

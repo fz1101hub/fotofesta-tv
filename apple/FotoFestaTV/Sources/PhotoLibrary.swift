@@ -119,10 +119,18 @@ enum PhotoLibrary {
         return photos
     }
 
+    /// Data e ora dello scatto: nei giochi fanno da titolo, perché PhotoKit non dà un nome al file.
+    private static let titleFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter
+    }()
+
     private static func photo(_ asset: PHAsset) -> Photo {
         Photo(
             id: "library:\(asset.localIdentifier)",
-            title: "",
+            title: asset.creationDate.map { titleFormatter.string(from: $0) } ?? "",
             source: .library(localIdentifier: asset.localIdentifier),
             isVideo: asset.mediaType == .video
         )

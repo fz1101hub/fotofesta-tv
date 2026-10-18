@@ -457,6 +457,8 @@ final class AppModel {
     /// "Usa questo album": diventa la raccolta e si aggiorna da solo quando l'album cambia.
     func useLibraryAlbum(_ album: LibraryAlbum) {
         libraryTask?.cancel()
+        // Un aggiornamento dell'album precedente ancora in attesa non deve sostituire quello nuovo.
+        libraryReload?.cancel()
         libraryLoading = true
         libraryTask = Task { [weak self] in
             let photos = await Task.detached(priority: .userInitiated) { PhotoLibrary.photos(albumID: album.id) }.value
@@ -523,8 +525,17 @@ final class AppModel {
             try? await Task.sleep(nanoseconds: 2_000_000_000)
             guard !Task.isCancelled else { return }
             let photos = await Task.detached(priority: .utility) { PhotoLibrary.photos(albumID: albumID) }.value
+            // Nel frattempo l'utente può aver scelto un altro album o un'altra sorgente.
             guard let self, !Task.isCancelled, self.baseSource == .library,
-                  let photos, !photos.isEmpty, photos != self.basePhotos else { return }
+                  self.defaults.string(forKey: Self.libraryAlbumKey) == albumID else { return }
+            guard let photos, !photos.isEmpty else {
+                // Album svuotato o eliminato: non si continua a mostrare foto che non ci sono più.
+                self.defaults.set("demo", forKey: Self.sourceKey)
+                self.show(Self.demoPhotos, label: L("source.demo"), isDemo: true)
+                self.showMessage(photos == nil ? L("library.album_gone") : L("library.empty_album"))
+                return
+            }
+            guard photos != self.basePhotos else { return }
             self.basePhotos = photos
             self.baseLabel = L("source.library", photos.count)
             self.applyCollection(restart: false)
@@ -609,7 +620,7 @@ final class AppModel {
         networkTask?.cancel()
         networkLoading = true
         networkTask = Task { [weak self, networkMedia] in
-            let server = await networkMedia.find(udn: folder.udn, location: folder.location)
+            let server = await Self.findSavedServer(folder, networkMedia)
             guard let self, !Task.isCancelled else { return }
             self.networkLoading = false
             guard let server else {
@@ -680,11 +691,23 @@ final class AppModel {
         show(photos, label: L("source.network", photos.count), isDemo: false, source: .network, title: folder.title)
     }
 
+    /// Server della cartella salvata. Quello ricordato in questa sessione può aver cambiato
+    /// indirizzo dopo lo standby: se non risponde più si dimentica e si ricerca una volta.
+    private nonisolated static func findSavedServer(_ folder: NetworkFolder, _ networkMedia: NetworkMedia) async -> MediaServer? {
+        let remembered = await networkMedia.known(folder.udn) != nil
+        guard let server = await networkMedia.find(udn: folder.udn, location: folder.location) else { return nil }
+        if remembered, (try? await networkMedia.list(server, containerID: NetworkMedia.root)) == nil {
+            await networkMedia.forget(folder.udn)
+            return await networkMedia.find(udn: folder.udn, location: folder.location)
+        }
+        return server
+    }
+
     /// All'avvio: la cartella salvata, se il server è acceso (anche con un nuovo indirizzo).
     private func restoreNetworkFolder(_ folder: NetworkFolder) {
         networkTask = Task { [weak self, networkMedia] in
             var photos: [Photo]?
-            if let server = await networkMedia.find(udn: folder.udn, location: folder.location) {
+            if let server = await Self.findSavedServer(folder, networkMedia) {
                 photos = try? await networkMedia.scanPhotos(server, containerID: folder.containerID)
             }
             guard let self, !Task.isCancelled else { return }

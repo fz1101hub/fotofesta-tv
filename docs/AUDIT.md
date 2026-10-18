@@ -270,6 +270,29 @@ Il flusso per TV di Google (device flow) non ammette lo scope del Photos Picker,
 
 Scelte: il client secret dell'applicazione web resta nell'app (il progetto non ha un server), come il secret del vecchio client per TV; serve solo insieme al codice protetto da PKCE. Il consenso tramite Google Play Services sulla TV è stato scartato perché userebbe l'account della TV, mentre le foto stanno di solito sul telefono dell'organizzatore. Verifiche: test JVM e XCTest dell'indirizzo di autorizzazione (PKCE, scope, `state`), dello scambio del codice, del flusso completo con un telefono finto e della pagina della TV su loopback (chiave, `Host`, ritorno dal sito, codice consegnato una volta sola, link del Picker); in Chromium (profilo telefono, italiano e tedesco) la catena intera contro il server JVM vero e la pagina del sito servita in locale: pulsante verso Google con lo `state` giusto, ritorno con il codice fino a `#done` e al pulsante del Picker, annullamento, `state` verso un indirizzo pubblico rifiutato dal sito, chiave sbagliata rifiutata dalla TV. Non provato con credenziali vere: resta fra le prove su TV reale, con il sito pubblicato.
 
+## Terzo audit indipendente (18 ottobre 2026, revisione `9bc97fa`)
+
+Un terzo auditor ha esaminato l'intero snapshot (351 file testuali, hash verificati) e segnalato 14 difetti, 13 P2 e 1 P3, nessun P0/P1. Tutti confermati sul codice e corretti:
+
+| Rilievo | Correzione |
+| --- | --- |
+| F01 La pagina dei telefoni riduceva le foto a due schermi di pixel con il margine dello zoom (fino a 20 Mpx, lato fino a 8960), oltre i limiti dei server (16,6 Mpx, lato 8192): foto verticali e panorami validi rifiutati con 415 | La TV comunica alla pagina anche `maxPixels` e `maxSide`, rispettati nel fattore di scala e dopo l'arrotondamento, su entrambe le piattaforme |
+| F02 Android: brani illeggibili di fila (USB scollegato) passavano al successivo in ricorsione, fino a esaurire la pila con una cartella grande | Il passaggio al brano successivo è un ciclo; un errore sincrono di apertura non richiama più se stesso |
+| F03 Apple TV: `resolution` assurde dall'XML del server (es. 4294967296×4294967296) traboccavano in `Int64` con un trap; su Android il prodotto girava negativo | Dimensioni plausibili fino a 100 000 per lato; oltre, la versione conta come "senza risoluzione" |
+| F04 Un rinnovo tardivo di un vecchio refresh token, rifiutato dopo un nuovo collegamento, cancellava i token nuovi | La generazione cresce anche a ogni token nuovo: un rinnovo partito prima non salva né cancella nulla (se riesce, restituisce il token attuale) |
+| F05 Android: lo scarto del resto della richiesta dopo la risposta aveva solo un timeout per lettura: un client che manda un byte al secondo occupava un worker a lungo | Scadenza complessiva di un secondo sullo scarto, nei due server |
+| F06 Apple TV: l'aggiornamento differito dell'album A poteva sostituire le foto dell'album B scelto nel frattempo | Scegliere un album annulla l'aggiornamento in attesa, che comunque riapplica solo se l'album salvato è ancora lo stesso |
+| F07 Apple TV: album svuotato o eliminato lasciava la raccolta precedente | Si torna alle foto demo con un messaggio ("album vuoto" o "album non più nella libreria") |
+| F08 Apple TV: le foto della libreria avevano titolo vuoto, quindi "Foto misteriosa" offriva risposte vuote, anche ai telefoni | Il titolo è data e ora dello scatto |
+| F09 Con `TotalMatches` 0 il catalogo DLNA si fermava alla prima pagina, contro quanto diceva il commento | Con totale ignoto si continua fino a una pagina vuota (entro il tetto di elementi) |
+| F10 Il server DLNA ricordato per UDN non veniva mai ricercato se cambiava indirizzo | `forget(udn)`: dopo un errore di lettura si dimentica il server e lo si cerca una volta (Android alla scansione, Apple TV all'apertura e al ripristino) |
+| F11 Android: la lettura all'avvio della cartella musicale salvata reinseriva la musica tolta o cambiata nel frattempo | Il ripristino è un job annullato da "Rimuovi" e da una nuova scelta, e applica il risultato solo se la musica salvata è ancora quella |
+| F12 Apple TV: con un server che ignora `Range` il caricatore consegnava il file intero a ogni richiesta parziale | Si consegnano solo i byte chiesti, poi la richiesta si chiude e la connessione si annulla |
+| F13 Il gate di rilascio Apple controllava solo `PHOTOS_CLIENT_ID`: secret o redirect vuoti passavano | Controlla tutti e tre i valori (e legge l'URI con le barre) |
+| F14 Dopo un video fallito si passava oltre anche in pausa | Il timer vale solo durante la riproduzione |
+
+Verifiche: test JVM nuovi per paginazione con totale ignoto, server dimenticato, risoluzione assurda e rinnovo tardivo del token; limite dell'upload provato con la funzione reale della pagina. Lato Apple compila e testa la CI; il ciclo dei brani e il caricatore video vanno riprovati su dispositivo (USB scollegata, server che risponde 200 a `Range`).
+
 ## Raccomandazioni aperte
 
 | Priorità | Raccomandazione |

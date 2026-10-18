@@ -190,7 +190,7 @@ class GuestUploadServer(
                 // (ad esempio dopo un rifiuto per dimensione): si chiude prima l'invio e si scarta il resto.
                 socket.shutdownOutput()
                 socket.soTimeout = DRAIN_TIMEOUT_MS
-                drain(input)
+                drain(input, deadline = nowMillis() + DRAIN_TIMEOUT_MS, now = nowMillis)
             }
         } catch (_: IOException) {
             // Connessione caduta o troppo lenta: non c'è nessuno a cui rispondere.
@@ -467,11 +467,12 @@ class GuestUploadServer(
             return buffer.toString(Charsets.ISO_8859_1.name()).trimEnd()
         }
 
-        private fun drain(input: InputStream) {
+        /** Scarta al massimo [MAX_DRAIN_BYTES] ed entro [deadline]: un client che manda un byte alla volta non tiene occupato il worker. */
+        private fun drain(input: InputStream, deadline: Long, now: () -> Long) {
             val buffer = ByteArray(8 * 1024)
             var total = 0
             try {
-                while (total < MAX_DRAIN_BYTES) {
+                while (total < MAX_DRAIN_BYTES && now() < deadline) {
                     val read = input.read(buffer)
                     if (read == -1) break
                     total += read

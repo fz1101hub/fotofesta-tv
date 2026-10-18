@@ -98,8 +98,9 @@ fun VideoSlide(
     LaunchedEffect(player, active, playing) { player.playWhenReady = active && playing }
     LaunchedEffect(player, active, sound) { player.volume = if (active && sound) 1f else 0f }
     LaunchedEffect(player, loop) { player.repeatMode = if (loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF }
-    LaunchedEffect(failed, active) {
-        if (failed && active) {
+    LaunchedEffect(failed, active, playing) {
+        // In pausa non si passa oltre: il timer riparte quando la riproduzione riprende.
+        if (failed && active && playing) {
             delay(FAILED_VIDEO_MS)
             currentOnEnded()
         }

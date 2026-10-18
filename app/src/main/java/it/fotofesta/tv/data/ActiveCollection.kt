@@ -14,6 +14,7 @@ import it.fotofesta.tv.network.NetworkFolder
 import it.fotofesta.tv.smb.SmbFolder
 import it.fotofesta.tv.smb.SmbLogin
 import java.io.File
+import java.io.IOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -67,7 +68,14 @@ class ActiveCollection(private val context: Context) {
     private fun scanNetwork(folder: NetworkFolder): List<PhotoItem> = runCatching {
         val media = context.appServices.networkMedia
         val server = media.find(folder.udn, folder.location) ?: return@runCatching emptyList()
-        media.scanPhotos(server, folder.containerId)
+        try {
+            media.scanPhotos(server, folder.containerId)
+        } catch (failure: IOException) {
+            // Il server ricordato non risponde (ha cambiato indirizzo dopo lo standby): si ricerca una volta.
+            media.forget(folder.udn)
+            val found = media.find(folder.udn, folder.location) ?: throw failure
+            media.scanPhotos(found, folder.containerId)
+        }
     }.onFailure { Log.w("ActiveCollection", "Cartella di rete non disponibile", it) }.getOrDefault(emptyList())
 
     /** Cartella condivisa (SMB); vuota se il computer è spento o l'accesso non vale più. */

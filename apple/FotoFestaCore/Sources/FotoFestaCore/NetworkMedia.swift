@@ -96,6 +96,9 @@ public actor NetworkMedia {
     /// Server già trovato in questa sessione.
     public func known(_ udn: String) -> MediaServer? { cache[udn] }
 
+    /// Il server non risponde più all'indirizzo noto (ha cambiato IP): la prossima `find` lo ricerca.
+    public func forget(_ udn: String) { cache[udn] = nil }
+
     /// Server della cartella salvata: prima all'indirizzo noto, poi (se ha cambiato IP) cercandolo per UDN.
     public func find(udn: String, location: URL) async -> MediaServer? {
         if let server = cache[udn] { return server }
@@ -158,7 +161,7 @@ public actor NetworkMedia {
             total = page.total
             start += page.returned
             if page.returned <= 0 { break }
-        } while start < total && start < Self.maxChildren
+        } while (total <= 0 || start < total) && start < Self.maxChildren
         return BrowsePage(containers: containers, files: files, returned: start, total: total)
     }
 

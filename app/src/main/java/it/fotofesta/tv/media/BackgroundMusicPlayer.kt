@@ -47,7 +47,10 @@ class BackgroundMusicPlayer(
             index = 0
             failures = 0
             wantPlaying = true
-            if (!prepare(playlist[index])) return
+            if (!prepare(playlist[index])) {
+                trackFailed()
+                return
+            }
         }
         startIfReady()
     }
@@ -77,12 +80,26 @@ class BackgroundMusicPlayer(
         prepared = false
     }
 
-    /** Brano successivo della cartella, ricominciando dal primo dopo l'ultimo. */
+    /**
+     * Brano successivo della cartella, ricominciando dal primo dopo l'ultimo. I brani che non si
+     * aprono (disco USB scollegato) si saltano in un ciclo, non in ricorsione: con una cartella
+     * grande la pila finirebbe prima dei brani.
+     */
     private fun advance() {
-        if (playlist.isEmpty()) return
-        releasePlayer()
-        index = (index + 1) % playlist.size
-        if (prepare(playlist[index])) startIfReady()
+        while (playlist.isNotEmpty()) {
+            releasePlayer()
+            index = (index + 1) % playlist.size
+            if (prepare(playlist[index])) {
+                startIfReady()
+                return
+            }
+            failures++
+            if (failures >= playlist.size) {
+                release()
+                onError()
+                return
+            }
+        }
     }
 
     /** Un brano non si riproduce: si passa al successivo, finché ce n'è almeno uno che va. */
@@ -120,9 +137,8 @@ class BackgroundMusicPlayer(
         }
         true
     } catch (failure: Exception) {
-        // File rimosso, permesso revocato o formato non supportato.
+        // File rimosso, permesso revocato o formato non supportato: chi chiama passa al successivo.
         Log.w(TAG, "Brano non riproducibile", failure)
-        trackFailed()
         false
     }
 

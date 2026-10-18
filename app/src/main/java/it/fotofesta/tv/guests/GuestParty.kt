@@ -314,7 +314,8 @@ class GuestParty(
         // Un 10% in più lascia spazio allo zoom lento dello slideshow senza perdere nitidezza.
         val config = """{"maxWidth":${(longSide * ZOOM_MARGIN).roundToInt()},""" +
             """"maxHeight":${(shortSide * ZOOM_MARGIN).roundToInt()},"fit":"$fit","quality":$JPEG_QUALITY,""" +
-            """"maxBytes":${GuestUploadServer.MAX_UPLOAD_BYTES},"approval":${_state.value.approval}}"""
+            """"maxBytes":${GuestUploadServer.MAX_UPLOAD_BYTES},"maxPixels":$MAX_IMAGE_PIXELS,"maxSide":$MAX_IMAGE_SIDE,""" +
+            """"approval":${_state.value.approval}}"""
         return template.replace("__FOTOFESTA_CONFIG__", config)
     }
 

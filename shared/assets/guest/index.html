@@ -563,11 +563,22 @@ async function resize(file) {
   const boxH = CONFIG.maxHeight;
   let scale = CONFIG.fit === "cover" ? Math.max(boxW / width, boxH / height) : Math.min(boxW / width, boxH / height);
   scale = Math.min(1, scale);
-  // Panorami molto lunghi in modalità "riempi": mai più di due schermi di pixel.
-  const maxPixels = boxW * boxH * 2;
+  // Panorami molto lunghi in modalità "riempi": mai più di due schermi di pixel, e comunque mai più
+  // di quello che la TV accetta (pixel totali e lato massimo), altrimenti rifiuterebbe la foto.
+  const maxPixels = Math.min(boxW * boxH * 2, CONFIG.maxPixels || Infinity);
+  const maxSide = CONFIG.maxSide || Infinity;
   if (width * height * scale * scale > maxPixels) scale = Math.sqrt(maxPixels / (width * height));
-  const targetW = Math.max(1, Math.round(width * scale));
-  const targetH = Math.max(1, Math.round(height * scale));
+  if (Math.max(width, height) * scale > maxSide) scale = maxSide / Math.max(width, height);
+  let targetW = Math.max(1, Math.round(width * scale));
+  let targetH = Math.max(1, Math.round(height * scale));
+  // L'arrotondamento non deve superare i limiti nemmeno di un pixel.
+  if (targetW * targetH > maxPixels) {
+    const k = Math.sqrt(maxPixels / (targetW * targetH));
+    targetW = Math.max(1, Math.floor(targetW * k));
+    targetH = Math.max(1, Math.floor(targetH * k));
+  }
+  targetW = Math.min(targetW, maxSide);
+  targetH = Math.min(targetH, maxSide);
 
   // Riduzione a metà per passi: con un solo passaggio alcuni browser producono immagini seghettate.
   let source = image;

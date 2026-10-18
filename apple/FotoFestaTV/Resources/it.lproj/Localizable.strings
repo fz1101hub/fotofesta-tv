@@ -271,6 +271,7 @@
 "library.count.one" = "%ld elemento";
 "library.count.other" = "%ld elementi";
 "library.empty_album" = "Questo album non ha foto né video.";
+"library.album_gone" = "L’album scelto non è più nella libreria Foto: si mostrano le foto demo.";
 "library.unavailable" = "L’album di Foto di iCloud non è più disponibile: scegline un altro.";
 "source.library" = "Foto di iCloud · elementi: %ld";
 "message.library_ready" = "Foto di iCloud pronte per lo slideshow.";

@@ -300,6 +300,7 @@ STRINGS = {
     "library.count.one": ("%ld item", "%ld elemento"),
     "library.count.other": ("%ld items", "%ld elementi"),
     "library.empty_album": ("This album has no photos or videos.", "Questo album non ha foto né video."),
+    "library.album_gone": ("The chosen album is no longer in the Photos library: showing the demo photos.", "L’album scelto non è più nella libreria Foto: si mostrano le foto demo."),
     "library.unavailable": ("The iCloud Photos album is no longer available: choose another one.", "L’album di Foto di iCloud non è più disponibile: scegline un altro."),
     "source.library": ("iCloud Photos · items: %ld", "Foto di iCloud · elementi: %ld"),
     "message.library_ready": ("iCloud Photos ready for the slideshow.", "Foto di iCloud pronte per lo slideshow."),
