@@ -1,46 +1,130 @@
 package it.fotofesta.tv.ui
 
+import androidx.annotation.PluralsRes
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CastConnected
-import androidx.compose.material.icons.rounded.PhotoLibrary
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import it.fotofesta.tv.R
+import java.util.Locale
 
+/**
+ * Superficie selezionabile con il telecomando. A riposo ha il colore [color]; con il fuoco diventa
+ * bianca con il testo scuro, si ingrandisce di [focusScale] e proietta un'ombra, così si vede da
+ * lontano dove si trova il fuoco. [content] riceve se ha il fuoco, per adattare i colori secondari.
+ */
+@Composable
+fun FocusSurface(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    shape: Shape = RoundedCornerShape(12.dp),
+    color: Color = SurfaceRaised,
+    contentColor: Color = TextPrimary,
+    border: BorderStroke? = null,
+    focusScale: Float = 1.06f,
+    enabled: Boolean = true,
+    role: Role = Role.Button,
+    content: @Composable (focused: Boolean) -> Unit,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val focused by interactionSource.collectIsFocusedAsState()
+    // Con "Riduci movimento" il fuoco cambia di colpo: resta il bianco pieno a segnalarlo.
+    val scale by animateFloatAsState(
+        if (focused) focusScale else 1f,
+        animationSpec = if (LocalReducedMotion.current) snap() else spring(),
+        label = "focusScale",
+    )
+    // Ombra e trasparenza stanno in livelli sempre presenti: shadow(0.dp) e alpha(1f) toglierebbero il
+    // loro livello dalla catena, e nell'emulatore dopo il cambio lo sfondo del pulsante spariva
+    // (pulsanti riabilitati, come "Connetti" dopo un errore o "Mostra la foto" a foto caricata).
+    val surfaceShape = shape
+    var base = modifier
+        .graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+            shadowElevation = if (focused) 14.dp.toPx() else 0f
+            this.shape = surfaceShape
+            clip = false
+        }
+        .clip(shape)
+        .background(if (focused) FocusWhite else color, shape)
+    if (border != null && !focused) base = base.border(border, shape)
+    Box(
+        base
+            .graphicsLayer { alpha = if (enabled) 1f else .45f }
+            // Nessun effetto "ripple": su TV il fuoco bianco è già il segnale.
+            .clickable(interactionSource = interactionSource, indication = null, enabled = enabled, role = role, onClick = onClick),
+        propagateMinConstraints = true,
+    ) {
+        CompositionLocalProvider(LocalContentColor provides if (focused) OnFocus else contentColor) {
+            content(focused)
+        }
+    }
+}
+
+/**
+ * Pulsante a pillola. [selected] lo colora con l'accento (opzione scelta, azione principale già
+ * attiva); [ghost] lo rende trasparente con un bordo, per le azioni secondarie o distruttive.
+ */
 @Composable
 fun TvButton(
     text: String,
@@ -49,120 +133,361 @@ fun TvButton(
     icon: ImageVector? = null,
     selected: Boolean = false,
     enabled: Boolean = true,
+    ghost: Boolean = false,
 ) {
-    var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(if (focused) 1.05f else 1f, label = "focus")
-    Button(
+    FocusSurface(
         onClick = onClick,
+        modifier = modifier,
+        shape = CircleShape,
+        color = when {
+            selected -> Accent
+            ghost -> Color.Transparent
+            else -> SurfaceRaised.copy(alpha = .92f)
+        },
+        contentColor = if (selected) OnAccent else TextPrimary,
+        border = if (ghost) BorderStroke(1.dp, TextPrimary.copy(alpha = .28f)) else null,
         enabled = enabled,
-        modifier = modifier
-            .scale(scale)
-            .onFocusChanged { focused = it.isFocused }
-            .semantics { role = Role.Button },
-        shape = RoundedCornerShape(14.dp),
-        border = if (focused) BorderStroke(3.dp, Amber) else BorderStroke(1.dp, if (selected) Coral else Color.Transparent),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = when {
-                selected -> Coral
-                focused -> Color(0xFF2B3859)
-                else -> SurfaceBlue
-            },
-            contentColor = TextPrimary,
-            disabledContainerColor = Color(0xFF232A3A),
-            disabledContentColor = TextSecondary,
-        ),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 22.dp, vertical = 15.dp),
     ) {
-        if (icon != null) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp))
-            Spacer(Modifier.size(10.dp))
+        Row(
+            Modifier.padding(horizontal = if (ghost) 18.dp else 22.dp, vertical = if (ghost) 9.dp else 11.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            if (icon != null) {
+                Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(9.dp))
+            }
+            Text(
+                text,
+                style = if (ghost) MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp) else MaterialTheme.typography.labelLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
-        Text(text, style = MaterialTheme.typography.labelLarge)
     }
 }
 
+/** Pulsante rotondo con la sola icona, per comandi ovvi come precedente e successiva. [label] è letto da TalkBack. */
 @Composable
-fun SourceCard(
+fun TvIconButton(
+    label: String,
+    onClick: () -> Unit,
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+) {
+    FocusSurface(onClick = onClick, modifier = modifier, shape = CircleShape, color = SurfaceRaised.copy(alpha = .92f), focusScale = 1.1f) {
+        Box(Modifier.padding(11.dp), contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = label, modifier = Modifier.size(22.dp))
+        }
+    }
+}
+
+/** Scheda di una sorgente di foto nella home; [badge] segna quella in uso. */
+@Composable
+fun SourceTile(
     title: String,
     subtitle: String,
     icon: ImageVector,
-    accent: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    badge: String? = null,
 ) {
-    var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(if (focused) 1.035f else 1f, label = "cardFocus")
-    Button(
+    FocusSurface(
         onClick = onClick,
-        modifier = modifier.scale(scale).onFocusChanged { focused = it.isFocused },
-        shape = RoundedCornerShape(22.dp),
-        border = BorderStroke(if (focused) 3.dp else 1.dp, if (focused) Amber else Color(0xFF394563)),
-        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = TextPrimary),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+        modifier = modifier.height(112.dp),
+        shape = RoundedCornerShape(14.dp),
+        color = SurfaceDark.copy(alpha = .94f),
+        border = BorderStroke(1.dp, TextPrimary.copy(alpha = .08f)),
+    ) { focused ->
+        Box(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 14.dp)) {
+            Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
+                Icon(icon, contentDescription = null, modifier = Modifier.size(26.dp))
+                Column {
+                    Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    // Due righe: in francese e in tedesco una sola taglierebbe quasi tutte le descrizioni.
+                    Text(
+                        subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (focused) OnFocusSecondary else TextSecondary,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            if (badge != null) Badge(badge, Modifier.align(Alignment.TopEnd))
+        }
+    }
+}
+
+/** Scheda stretta con icona e nome, per Giochi e Impostazioni accanto alle sorgenti. */
+@Composable
+fun SmallTile(title: String, icon: ImageVector, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    FocusSurface(
+        onClick = onClick,
+        modifier = modifier.height(112.dp),
+        shape = RoundedCornerShape(14.dp),
+        color = SurfaceDark.copy(alpha = .94f),
+        border = BorderStroke(1.dp, TextPrimary.copy(alpha = .08f)),
     ) {
         Column(
-            Modifier.fillMaxWidth().background(
-                Brush.linearGradient(listOf(accent.copy(alpha = .34f), SurfaceBlue, NavySoft))
-            ).padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            Modifier.fillMaxSize().padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
         ) {
-            Surface(color = accent.copy(alpha = .18f), shape = RoundedCornerShape(14.dp)) {
-                Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.padding(12.dp).size(34.dp))
-            }
-            Text(title, style = MaterialTheme.typography.titleLarge)
-            Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+            Icon(icon, contentDescription = null, modifier = Modifier.size(26.dp))
+            Text(
+                title,
+                style = MaterialTheme.typography.titleSmall.copy(fontSize = 14.sp),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
 
+/** Etichetta piccola con l'accento, come "In uso". */
 @Composable
-fun AppHeader(sourceLabel: String, castConnected: Boolean) {
+fun Badge(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text,
+        modifier = modifier.background(Accent, CircleShape).padding(horizontal = 9.dp, vertical = 3.dp),
+        style = MaterialTheme.typography.labelSmall,
+        color = OnAccent,
+        maxLines = 1,
+    )
+}
+
+/** Voce di un elenco di impostazioni: titolo, descrizione e a destra il valore o un interruttore. */
+@Composable
+fun SettingsItem(
+    title: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    value: String? = null,
+    checked: Boolean? = null,
+    enabled: Boolean = true,
+) {
+    val state = checked?.let { stringResource(if (it) R.string.settings_on else R.string.settings_off) }
+    FocusSurface(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth().semantics { if (state != null) stateDescription = state },
+        shape = RoundedCornerShape(12.dp),
+        color = SurfaceDark,
+        focusScale = 1.025f,
+        enabled = enabled,
+        role = if (checked != null) Role.Switch else Role.Button,
+    ) { focused ->
+        Row(
+            Modifier.heightIn(min = 52.dp).padding(horizontal = 18.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleSmall)
+                if (subtitle != null) {
+                    Text(subtitle, style = MaterialTheme.typography.bodySmall, color = if (focused) OnFocusSecondary else TextSecondary)
+                }
+            }
+            when {
+                checked != null -> TvSwitch(checked)
+                value != null -> Text(
+                    "$value ›",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = if (focused) OnFocusSecondary else TextSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+/** Interruttore acceso/spento, solo visivo: lo comanda la voce che lo contiene. */
+@Composable
+fun TvSwitch(checked: Boolean, modifier: Modifier = Modifier) {
+    Box(modifier.size(width = 40.dp, height = 22.dp).background(if (checked) Accent else SwitchOff, CircleShape)) {
+        Box(
+            Modifier.align(if (checked) Alignment.CenterEnd else Alignment.CenterStart)
+                .padding(3.dp)
+                .size(16.dp)
+                .background(if (checked) TextPrimary else SwitchThumbOff, CircleShape)
+        )
+    }
+}
+
+/**
+ * Sezione nella colonna di sinistra delle impostazioni. Quella aperta ha lo sfondo più chiaro e una
+ * barra con l'accento; spostando il fuoco su una sezione la si apre ([onFocused]).
+ */
+@Composable
+fun CategoryItem(
+    label: String,
+    icon: ImageVector,
+    selected: Boolean,
+    onClick: () -> Unit,
+    onFocused: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    FocusSurface(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth().onFocusChanged { if (it.isFocused) onFocused() },
+        shape = RoundedCornerShape(10.dp),
+        color = if (selected) SurfaceRaised else Color.Transparent,
+        contentColor = if (selected) TextPrimary else TextSecondary,
+        focusScale = 1.03f,
+    ) { focused ->
+        Row(
+            Modifier.fillMaxWidth()
+                .drawBehind { if (selected && !focused) drawRect(Accent, size = Size(3.dp.toPx(), size.height)) }
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(10.dp))
+            Text(label, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+/** Logo e nome dell'app, in alto a sinistra. */
+@Composable
+fun BrandMark(modifier: Modifier = Modifier) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(30.dp).background(Accent, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
+            Icon(Icons.Rounded.Tv, contentDescription = null, tint = OnAccent, modifier = Modifier.size(19.dp))
+        }
+        Spacer(Modifier.width(10.dp))
+        Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleMedium.copy(fontSize = 17.sp), color = TextPrimary)
+    }
+}
+
+/** Indicatore della festa in corso, con il pallino dell'accento. */
+@Composable
+fun PartyChip(text: String, modifier: Modifier = Modifier) {
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 42.dp, vertical = 22.dp),
+        modifier.background(Background.copy(alpha = .72f), CircleShape)
+            .border(1.dp, TextPrimary.copy(alpha = .18f), CircleShape)
+            .padding(horizontal = 11.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Surface(shape = RoundedCornerShape(14.dp), color = Coral.copy(alpha = .16f)) {
-            Icon(Icons.Rounded.PhotoLibrary, contentDescription = null, tint = Coral, modifier = Modifier.padding(10.dp).size(30.dp))
-        }
-        Spacer(Modifier.size(14.dp))
-        Column {
-            Text("FotoFesta TV", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Text(sourceLabel, style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
-        }
-        Spacer(Modifier.weight(1f))
-        if (castConnected) {
-            Row(
-                Modifier.border(1.dp, Cyan, RoundedCornerShape(18.dp)).padding(horizontal = 14.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(Icons.Rounded.CastConnected, contentDescription = null, tint = Cyan, modifier = Modifier.size(22.dp))
-                Spacer(Modifier.size(8.dp))
-                Text("Chromecast collegato", color = Cyan, style = MaterialTheme.typography.bodyMedium)
-            }
-        }
+        Box(Modifier.size(7.dp).background(Accent, CircleShape))
+        Spacer(Modifier.width(6.dp))
+        Text(text, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold), color = TextPrimary, maxLines = 1)
     }
 }
 
+/** Ora attuale, aggiornata a ogni minuto. */
 @Composable
-fun SectionTitle(kicker: String, title: String, subtitle: String? = null) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(kicker.uppercase(), color = Coral, style = MaterialTheme.typography.labelLarge)
-        Text(title, style = MaterialTheme.typography.headlineLarge)
+fun ClockText(modifier: Modifier = Modifier) {
+    Text(
+        rememberCurrentTime(),
+        modifier = modifier,
+        style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum"),
+        color = TextPrimary,
+    )
+}
+
+/** Etichetta maiuscola sopra un titolo. */
+@Composable
+fun Kicker(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text.uppercase(Locale.getDefault()),
+        modifier = modifier,
+        style = MaterialTheme.typography.labelMedium,
+        color = TextSecondary,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
+}
+
+/** Intestazione delle schermate: etichetta, titolo ed eventuale descrizione. */
+@Composable
+fun SectionTitle(kicker: String, title: String, subtitle: String? = null, modifier: Modifier = Modifier, large: Boolean = false) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Kicker(kicker)
+        Text(
+            title,
+            style = if (large) MaterialTheme.typography.headlineLarge else MaterialTheme.typography.headlineMedium,
+            color = TextPrimary,
+        )
         if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodyLarge, color = TextSecondary)
     }
 }
 
+/** Testo descrittivo su sfondo scuro, ad esempio per un elenco vuoto. */
 @Composable
-fun SettingRow(title: String, description: String, content: @Composable () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().background(NavySoft, RoundedCornerShape(18.dp)).padding(20.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleLarge)
-            Spacer(Modifier.height(4.dp))
-            Text(description, style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) { content() }
+fun HintText(text: String, modifier: Modifier = Modifier, color: Color = TextSecondary) {
+    Text(text, modifier = modifier.fillMaxWidth(), style = MaterialTheme.typography.bodyLarge, color = color)
+}
+
+/** Testo plurale localizzato con [count] come unico argomento di formato. */
+@Composable
+fun quantityStringResource(@PluralsRes id: Int, count: Int): String =
+    LocalContext.current.resources.getQuantityString(id, count, count)
+
+/**
+ * Dà il focus a questo elemento quando compare, o di nuovo quando cambia [key]. Sulla TV, senza
+ * un elemento a fuoco, la prima pressione del telecomando andrebbe persa.
+ */
+@Composable
+fun Modifier.initialFocus(key: Any? = Unit): Modifier {
+    val requester = remember { FocusRequester() }
+    LaunchedEffect(key) { runCatching { requester.requestFocus() } }
+    return this.focusRequester(requester)
+}
+
+/**
+ * Campo di testo per il telecomando. Con le frecce il fuoco si ferma sul campo senza aprire la
+ * tastiera, che coprirebbe metà schermata (errori, pulsanti, la didascalia del QR): si scrive dopo
+ * aver premuto OK, che dà il fuoco al campo vero e apre la tastiera. Spostandosi su un'altra voce si
+ * torna come prima. Compose apre la tastiera appena un campo riceve il fuoco, anche con
+ * KeyboardOptions(showKeyboardOnFocus = false) e la tastiera nascosta nell'attività.
+ */
+@Composable
+fun TvTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    placeholder: String? = null,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
+) {
+    var editing by remember { mutableStateOf(false) }
+    val field = remember { FocusRequester() }
+    val interactionSource = remember { MutableInteractionSource() }
+    val selected by interactionSource.collectIsFocusedAsState()
+    LaunchedEffect(editing) { if (editing) runCatching { field.requestFocus() } }
+    // Con il fuoco sulla cornice il campo appare selezionato come quando si scrive.
+    val colors = OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = FocusWhite,
+        unfocusedBorderColor = if (selected) FocusWhite else Outline,
+        focusedLabelColor = TextPrimary,
+        unfocusedLabelColor = if (selected) TextPrimary else TextSecondary,
+        focusedTextColor = TextPrimary,
+        unfocusedTextColor = TextPrimary,
+        focusedContainerColor = SurfaceDark,
+        unfocusedContainerColor = SurfaceDark,
+        cursorColor = Accent,
+    )
+    Box(modifier.clickable(interactionSource = interactionSource, indication = null) { editing = true }) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            label = { Text(label) },
+            placeholder = if (placeholder != null) { { Text(placeholder) } } else null,
+            singleLine = true,
+            keyboardOptions = keyboardOptions,
+            keyboardActions = keyboardActions,
+            visualTransformation = visualTransformation,
+            colors = colors,
+            textStyle = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.fillMaxWidth()
+                .focusRequester(field)
+                .focusProperties { canFocus = editing }
+                .onFocusChanged { if (!it.hasFocus) editing = false },
+        )
     }
 }

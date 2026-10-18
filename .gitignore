@@ -7,12 +7,18 @@ build/
 *.iml
 
 # Percorsi e credenziali del proprietario
+fastlane/play-service-account.json
+fastlane/report.xml
+apple/fastlane/*.p8
+apple/FotoFestaTV.xcodeproj/
 local.properties
 .env
 .env.*
 google-services.json
 *.jks
 *.keystore
+# Chiave di debug pubblica per le build di test (vedi app/build.gradle.kts): non è un segreto.
+!app/debug.keystore
 *.pem
 *.p12
 
@@ -25,3 +31,18 @@ dist/
 .DS_Store
 __pycache__/
 *.pyc
+
+# App Apple TV: file generati e segreti
+apple/Config/Secrets.xcconfig
+apple/FotoFestaTV/Info.plist
+apple/build/
+apple/fastlane/report.xml
+apple/FotoFestaCore/.build/
+apple/FotoFestaCore/.swiftpm/
+# Account di test per la revisione Apple: si passa con REVIEW_DEMO_USER e REVIEW_DEMO_PASSWORD
+apple/fastlane/metadata/review_information/demo_user.txt
+apple/fastlane/metadata/review_information/demo_password.txt
+
+# Bundler locale
+vendor/bundle/
+.bundle/

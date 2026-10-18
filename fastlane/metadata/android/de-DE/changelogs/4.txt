@@ -1,0 +1,7 @@
+• Gästefotos: Gäste scannen einen QR-Code und senden Fotos von ihrem Smartphone über dein Heimnetz an den Fernseher
+• Neue Fotos erscheinen sofort in der Diashow, mit dem Namen des Absenders
+• Fotos mit der Fernbedienung freigeben und dein WLAN per QR-Code teilen
+• Am Ende alle Partyfotos mit einer Taste löschen
+• Google Fotos per Streaming: keine Fotos auf den Fernseher kopiert
+• USB-Ordner und Musik auf jedem Fernseher auswählen, auch ohne Dateimanager
+• Google Cast entfernt

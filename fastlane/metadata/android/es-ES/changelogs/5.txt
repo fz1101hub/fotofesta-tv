@@ -1,0 +1,7 @@
+• Carpetas compartidas de PC, Mac y NAS (SMB) y servidores DLNA
+• Álbumes compartidos de iCloud con el enlace público
+• Vídeos en la presentación desde USB, red, iCloud y Google Fotos; desactivables
+• Nuevos juegos: Rompecabezas con tres niveles y “¿Quién hizo la foto?”
+• Los invitados responden desde el móvil, con clasificación
+• Premios de la fiesta, mosaico y cuenta atrás
+• Música de fondo desde una carpeta entera

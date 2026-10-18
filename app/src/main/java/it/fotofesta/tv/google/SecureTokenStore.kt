@@ -10,23 +10,23 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
-class SecureTokenStore(context: Context) {
+class SecureTokenStore(context: Context) : TokenStore {
     private val prefs = context.getSharedPreferences("google_tokens", Context.MODE_PRIVATE)
     private val alias = "fotofesta_google_tokens_v1"
 
-    var accessToken: String?
+    override var accessToken: String?
         get() = readEncrypted("access_token")
         set(value) = writeEncrypted("access_token", value)
 
-    var refreshToken: String?
+    override var refreshToken: String?
         get() = readEncrypted("refresh_token")
         set(value) = writeEncrypted("refresh_token", value)
 
-    var expiresAtEpochSeconds: Long
+    override var expiresAtEpochSeconds: Long
         get() = prefs.getLong("expires_at", 0L)
         set(value) = prefs.edit().putLong("expires_at", value).apply()
 
-    fun clear() {
+    override fun clear() {
         prefs.edit().clear().apply()
         runCatching {
             keyStore().apply { if (containsAlias(alias)) deleteEntry(alias) }

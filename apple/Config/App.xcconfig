@@ -1,0 +1,11 @@
+// Impostazioni comuni dell'app Apple TV.
+// Le credenziali Google si mettono in Secrets.xcconfig (escluso da Git), copiando Secrets.example.xcconfig.
+PHOTOS_CLIENT_ID =
+PHOTOS_CLIENT_SECRET =
+DEVELOPMENT_TEAM =
+// Cartelle di rete: senza l'entitlement multicast di Apple i server si aggiungono con l'indirizzo.
+// Dopo l'approvazione della richiesta (developer.apple.com/contact/request/networking-multicast),
+// impostare: FOTOFESTA_ENTITLEMENTS = FotoFestaTV/Multicast.entitlements
+FOTOFESTA_ENTITLEMENTS =
+
+#include? "Secrets.xcconfig"

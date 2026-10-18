@@ -1,0 +1,7 @@
+• Dossiers partagés de PC, Mac et NAS (SMB) et serveurs DLNA
+• Albums partagés iCloud avec le lien public
+• Vidéos dans le diaporama (USB, réseau, iCloud, Google Photos) ; désactivables
+• Nouveaux jeux : Puzzle à trois niveaux et « Qui l’a prise ? »
+• Les invités répondent depuis leur téléphone, avec classement
+• Prix de la fête, mosaïque et compte à rebours
+• Musique de fond depuis un dossier entier

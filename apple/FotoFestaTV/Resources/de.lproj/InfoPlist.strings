@@ -1,0 +1,4 @@
+/* Generato da apple/scripts/strings.py: modificare lì, non qui. */
+
+"NSLocalNetworkUsageDescription" = "FotoFesta TV empfängt die Fotos, die deine Gäste vom Handy senden, und zeigt die Fotos der Medienserver (NAS, PC) in deinem Heimnetz.";
+"NSPhotoLibraryUsageDescription" = "FotoFesta TV zeigt die Alben deiner Fotomediathek in der Diashow. Die Fotos bleiben in deiner Mediathek und werden nirgendwohin gesendet.";

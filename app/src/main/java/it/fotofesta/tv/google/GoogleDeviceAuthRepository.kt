@@ -1,17 +1,30 @@
 package it.fotofesta.tv.google
 
-import it.fotofesta.tv.BuildConfig
+import it.fotofesta.tv.R
+import it.fotofesta.tv.model.UserFacingException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import okhttp3.FormBody
+import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
+import java.io.IOException
 
+/**
+ * OAuth 2.0 per TV e dispositivi a input limitato. Credenziali, archivio dei token, endpoint e
+ * orologio sono iniettati, così il flusso è verificabile nei test contro un server finto.
+ */
 class GoogleDeviceAuthRepository(
     private val client: OkHttpClient,
-    private val tokens: SecureTokenStore,
+    private val tokens: TokenStore,
+    private val clientId: String,
+    private val clientSecret: String,
+    oauthBase: HttpUrl = DEFAULT_OAUTH_BASE,
+    private val clock: () -> Long = System::currentTimeMillis,
 ) {
     data class DeviceCode(
         val deviceCode: String,
@@ -27,84 +40,133 @@ class GoogleDeviceAuthRepository(
         val expiresIn: Int,
     )
 
-    private val scope = "https://www.googleapis.com/auth/photospicker.mediaitems.readonly"
+    private val deviceCodeUrl = oauthBase.newBuilder().addPathSegments("device/code").build()
+    private val tokenUrl = oauthBase.newBuilder().addPathSegment("token").build()
+    private val revokeUrl = oauthBase.newBuilder().addPathSegment("revoke").build()
 
-    fun isConfigured(): Boolean =
-        BuildConfig.PHOTOS_CLIENT_ID.isNotBlank() && BuildConfig.PHOTOS_CLIENT_SECRET.isNotBlank()
+    fun isConfigured(): Boolean = clientId.isNotBlank() && clientSecret.isNotBlank()
 
-    suspend fun requestDeviceCode(requestId: String): DeviceCode = withContext(Dispatchers.IO) {
+    suspend fun requestDeviceCode(): DeviceCode {
         requireConfigured()
         val body = FormBody.Builder()
-            .add("client_id", BuildConfig.PHOTOS_CLIENT_ID)
-            .add("scope", scope)
-            .add("state", requestId)
+            .add("client_id", clientId)
+            .add("scope", SCOPE)
             .build()
-        val json = executeJson(
-            Request.Builder()
-                .url("https://oauth2.googleapis.com/device/code")
-                .post(body)
-                .build()
+        val json = client.fetchJson(
+            Request.Builder().url(deviceCodeUrl).post(body).build(),
         )
-        DeviceCode(
+        return DeviceCode(
             deviceCode = json.getString("device_code"),
             userCode = json.getString("user_code"),
-            verificationUrl = json.optString("verification_url", json.optString("verification_uri")),
+            verificationUrl = json.optString("verification_url").ifBlank { json.optString("verification_uri") },
             expiresIn = json.getInt("expires_in"),
             interval = json.optInt("interval", 5).coerceAtLeast(1),
         )
     }
 
-    suspend fun pollForToken(code: DeviceCode): TokenResult = withContext(Dispatchers.IO) {
-        val deadline = System.currentTimeMillis() + code.expiresIn * 1_000L
+    suspend fun pollForToken(code: DeviceCode): TokenResult {
+        val deadline = clock() + code.expiresIn * 1_000L
         var intervalSeconds = code.interval
-        while (System.currentTimeMillis() < deadline) {
+        while (clock() < deadline) {
             delay(intervalSeconds * 1_000L)
             val body = FormBody.Builder()
-                .add("client_id", BuildConfig.PHOTOS_CLIENT_ID)
-                .add("client_secret", BuildConfig.PHOTOS_CLIENT_SECRET)
+                .add("client_id", clientId)
+                .add("client_secret", clientSecret)
                 .add("device_code", code.deviceCode)
                 .add("grant_type", "urn:ietf:params:oauth:grant-type:device_code")
                 .build()
-            val request = Request.Builder().url("https://oauth2.googleapis.com/token").post(body).build()
-            client.newCall(request).execute().use { response ->
-                val text = response.body?.string().orEmpty()
-                val json = JSONObject(text.ifBlank { "{}" })
-                if (response.isSuccessful) {
-                    return@withContext persistToken(json)
+            val json = try {
+                client.fetchJson(Request.Builder().url(tokenUrl).post(body).build())
+            } catch (failure: HttpStatusException) {
+                when (failure.oauthError) {
+                    "authorization_pending" -> continue
+                    "slow_down" -> {
+                        intervalSeconds += 5
+                        continue
+                    }
+                    "access_denied" -> throw UserFacingException(R.string.error_google_access_denied)
+                    "expired_token" -> throw UserFacingException(R.string.error_google_code_expired)
+                    else -> throw failure
                 }
-                when (json.optString("error")) {
-                    "authorization_pending" -> Unit
-                    "slow_down" -> intervalSeconds += 5
-                    "access_denied" -> error("Autorizzazione annullata sul telefono.")
-                    "expired_token" -> error("Il codice Google è scaduto. Riprova.")
-                    else -> error(json.optString("error_description", "Autorizzazione Google non riuscita."))
-                }
+            } catch (_: IOException) {
+                // Rete instabile durante l'attesa (fino a 30 minuti): si riprova al giro successivo.
+                continue
+            }
+            return persistToken(json)
+        }
+        throw UserFacingException(R.string.error_google_code_expired)
+    }
+
+    /**
+     * Restituisce un access token valido, rinnovandolo se necessario. Se il refresh token è stato
+     * revocato o è scaduto, cancella i token salvati e restituisce `null` per avviare un nuovo collegamento.
+     * Con [forceRefresh] il token viene rinnovato anche se non è scaduto (ad esempio dopo un 401).
+     */
+    suspend fun validAccessToken(forceRefresh: Boolean = false): String? {
+        val now = clock() / 1_000L
+        val cached = withContext(Dispatchers.IO) {
+            tokens.accessToken?.takeIf { !forceRefresh && tokens.expiresAtEpochSeconds > now + 60 }
+        }
+        if (cached != null) return cached
+        return try {
+            refreshAccessToken()
+        } catch (failure: HttpStatusException) {
+            if (failure.oauthError == "invalid_grant" || failure.code == 401) {
+                disconnect()
+                null
+            } else {
+                throw failure
             }
         }
-        error("Il codice Google è scaduto. Riprova.")
     }
 
-    suspend fun validAccessToken(): String? = withContext(Dispatchers.IO) {
-        val now = System.currentTimeMillis() / 1_000L
-        tokens.accessToken?.takeIf { tokens.expiresAtEpochSeconds > now + 60 } ?: refreshAccessToken()
-    }
-
-    suspend fun refreshAccessToken(): String? = withContext(Dispatchers.IO) {
+    private suspend fun refreshAccessToken(): String? {
         requireConfigured()
-        val refresh = tokens.refreshToken ?: return@withContext null
+        // Un "Disconnetti" arrivato durante la richiesta invalida il risultato: il token non va salvato.
+        val generation = this.generation
+        val refresh = withContext(Dispatchers.IO) { tokens.refreshToken } ?: return null
         val body = FormBody.Builder()
-            .add("client_id", BuildConfig.PHOTOS_CLIENT_ID)
-            .add("client_secret", BuildConfig.PHOTOS_CLIENT_SECRET)
+            .add("client_id", clientId)
+            .add("client_secret", clientSecret)
             .add("refresh_token", refresh)
             .add("grant_type", "refresh_token")
             .build()
-        val json = executeJson(Request.Builder().url("https://oauth2.googleapis.com/token").post(body).build())
-        persistToken(json).accessToken
+        val json = client.fetchJson(Request.Builder().url(tokenUrl).post(body).build())
+        if (generation != this.generation) return null
+        return persistToken(json).accessToken
     }
 
-    fun disconnect() = tokens.clear()
+    /** Cresce a ogni disconnessione: i rinnovi partiti prima non salvano il token ottenuto. */
+    @Volatile
+    private var generation = 0
 
-    private fun persistToken(json: JSONObject): TokenResult {
+    fun disconnect() {
+        generation++
+        tokens.clear()
+    }
+
+    /**
+     * Revoca l'accesso anche sui server Google (best effort) e cancella i token locali.
+     * Senza revoca il refresh token resterebbe valido finché l'utente non lo rimuove dal suo account.
+     */
+    suspend fun revokeAndDisconnect() {
+        // Prima si cancellano i token locali (subito, anche se la rete è lenta), poi si revoca.
+        val token = withContext(Dispatchers.IO) {
+            (tokens.refreshToken ?: tokens.accessToken).also { disconnect() }
+        }
+        if (token != null) {
+            val body = FormBody.Builder().add("token", token).build()
+            try {
+                client.newCall(Request.Builder().url(revokeUrl).post(body).build()).await().close()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                // Best effort: l'utente può sempre revocare dall'Account Google.
+            }
+        }
+    }
+
+    private suspend fun persistToken(json: JSONObject): TokenResult = withContext(Dispatchers.IO) {
         val result = TokenResult(
             accessToken = json.getString("access_token"),
             refreshToken = json.optString("refresh_token").takeIf(String::isNotBlank),
@@ -112,24 +174,16 @@ class GoogleDeviceAuthRepository(
         )
         tokens.accessToken = result.accessToken
         result.refreshToken?.let { tokens.refreshToken = it }
-        tokens.expiresAtEpochSeconds = System.currentTimeMillis() / 1_000L + result.expiresIn
-        return result
-    }
-
-    private fun executeJson(request: Request): JSONObject {
-        client.newCall(request).execute().use { response ->
-            val text = response.body?.string().orEmpty()
-            if (!response.isSuccessful) {
-                val message = runCatching { JSONObject(text).optJSONObject("error")?.optString("message") }.getOrNull()
-                error(message?.takeIf(String::isNotBlank) ?: "Errore di rete Google (${response.code}).")
-            }
-            return JSONObject(text.ifBlank { "{}" })
-        }
+        tokens.expiresAtEpochSeconds = clock() / 1_000L + result.expiresIn
+        result
     }
 
     private fun requireConfigured() {
-        check(isConfigured()) {
-            "Configura PHOTOS_CLIENT_ID e PHOTOS_CLIENT_SECRET nel file local.properties."
-        }
+        if (!isConfigured()) throw UserFacingException(R.string.error_google_not_configured)
+    }
+
+    companion object {
+        const val SCOPE = "https://www.googleapis.com/auth/photospicker.mediaitems.readonly"
+        val DEFAULT_OAUTH_BASE = "https://oauth2.googleapis.com/".toHttpUrl()
     }
 }

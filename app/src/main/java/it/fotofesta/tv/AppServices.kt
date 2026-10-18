@@ -1,0 +1,106 @@
+package it.fotofesta.tv
+
+import android.app.ActivityManager
+import android.content.Context
+import android.os.Build
+import it.fotofesta.tv.files.FileBrowser
+import it.fotofesta.tv.google.GoogleDeviceAuthRepository
+import it.fotofesta.tv.google.GooglePhotosPickerRepository
+import it.fotofesta.tv.google.GooglePhotosStream
+import it.fotofesta.tv.google.GoogleSelectionStore
+import it.fotofesta.tv.google.SecureTokenStore
+import it.fotofesta.tv.guests.GuestParty
+import it.fotofesta.tv.guests.PhoneGame
+import it.fotofesta.tv.icloud.ICloudAlbumClient
+import it.fotofesta.tv.icloud.ICloudAlbumStream
+import it.fotofesta.tv.guests.GuestPhotoStore
+import it.fotofesta.tv.media.VideoDataSources
+import it.fotofesta.tv.network.LanHttp
+import it.fotofesta.tv.network.NetworkMedia
+import it.fotofesta.tv.network.ScreenSize
+import it.fotofesta.tv.smb.SmbShares
+import okhttp3.OkHttpClient
+import java.io.File
+import java.util.concurrent.TimeUnit
+
+/**
+ * Oggetti condivisi da app, salvaschermo e caricamento delle immagini: una sola istanza per
+ * processo, creata da [FotoFestaApplication].
+ */
+class AppServices(context: Context) {
+    /**
+     * Unico client HTTP, mai chiuso: la revoca di "Disconnetti e cancella" deve poter terminare
+     * anche dopo la chiusura dell'Activity, e app e salvaschermo riusano connessioni e thread.
+     */
+    val http: OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .callTimeout(90, TimeUnit.SECONDS)
+        .build()
+
+    val googleAuth = GoogleDeviceAuthRepository(
+        client = http,
+        tokens = SecureTokenStore(context),
+        clientId = BuildConfig.PHOTOS_CLIENT_ID,
+        clientSecret = BuildConfig.PHOTOS_CLIENT_SECRET,
+    )
+
+    val googlePicker = GooglePhotosPickerRepository(http)
+
+    // noBackupFilesDir: la sessione Picker vale solo per questo collegamento, non va nei backup.
+    val googleSelection = GoogleSelectionStore(File(context.noBackupFilesDir, "google_selection.json"))
+
+    val googleStream = GooglePhotosStream(googlePicker, googleAuth, googleSelection)
+
+    /** HTTP in chiaro, solo verso i server multimediali della rete di casa. */
+    val lanHttp = LanHttp()
+
+    /** Cartelle dei server multimediali (DLNA) della rete di casa. */
+    val networkMedia = NetworkMedia(lanHttp, NetworkMedia.imageMimeTypes(Build.VERSION.SDK_INT), screenSize(context))
+
+    /** Album condiviso di iCloud in uso, con gli indirizzi dei file che Apple fa scadere. */
+    val icloudClient = ICloudAlbumClient(http)
+    val icloudStream = ICloudAlbumStream(icloudClient, screenSize(context))
+
+    /** Cartelle condivise (SMB) di computer e NAS: una connessione per computer, riaperta se cade. */
+    val smbShares = SmbShares(FileBrowser.imageExtensions(Build.VERSION.SDK_INT))
+
+    /** Da dove il lettore legge i video: TV e disco USB, rete di casa, Google Foto, iCloud, cartelle condivise. */
+    val videoDataSources = VideoDataSources(context.applicationContext, lanHttp, googleStream, icloudStream, http, smbShares)
+
+    /** Gioco con i telefoni: la TV fa le domande, gli invitati rispondono dalla pagina della festa. */
+    val phoneGame = PhoneGame()
+
+    /** Foto degli invitati: in RAM finché c'è posto, poi in una cartella temporanea con un limite. */
+    val guests = GuestParty(context, guestStore(context), phoneGame)
+
+    private companion object {
+        const val MB = 1024L * 1024
+
+        /** Le foto in rete e su iCloud si chiedono nella versione che basta a riempire lo schermo. */
+        fun screenSize(context: Context): ScreenSize = context.resources.displayMetrics.let {
+            ScreenSize(maxOf(it.widthPixels, it.heightPixels), minOf(it.widthPixels, it.heightPixels))
+        }
+
+        fun guestStore(context: Context): GuestPhotoStore {
+            val activities = context.getSystemService(ActivityManager::class.java)
+            // Un quarto della memoria concessa all'app, tra 16 e 64 MB: il resto serve a Compose e a Coil.
+            val memory = when {
+                activities == null || activities.isLowRamDevice -> 16 * MB
+                else -> (activities.memoryClass * MB / 4).coerceIn(16 * MB, 64 * MB)
+            }
+            // Sulle TV che disegnano l'app in 4K le foto pesano circa quattro volte di più.
+            val metrics = context.resources.displayMetrics
+            val disk = if (maxOf(metrics.widthPixels, metrics.heightPixels) > 1920) 300 * MB else 100 * MB
+            return GuestPhotoStore(
+                directory = File(context.noBackupFilesDir, "guest_photos"),
+                memoryBudgetBytes = memory,
+                maxDiskBytes = disk,
+            )
+        }
+    }
+}
+
+/** Servizi condivisi dell'app, raggiungibili da qualunque Context. */
+val Context.appServices: AppServices
+    get() = (applicationContext as FotoFestaApplication).services

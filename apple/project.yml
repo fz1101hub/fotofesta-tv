@@ -1,0 +1,72 @@
+# Progetto Xcode dell'app Apple TV, generato con XcodeGen: `brew install xcodegen && xcodegen generate`.
+name: FotoFestaTV
+options:
+  bundleIdPrefix: it.fotofesta
+  developmentLanguage: en
+  deploymentTarget:
+    tvOS: "17.0"
+packages:
+  FotoFestaCore:
+    path: FotoFestaCore
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.2.0"
+    CURRENT_PROJECT_VERSION: "3"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+targets:
+  FotoFestaTV:
+    type: application
+    platform: tvOS
+    sources:
+      - path: FotoFestaTV/Sources
+      - path: FotoFestaTV/Resources
+      # Pagina che i telefoni degli invitati aprono: la stessa dell'app Android.
+      - path: ../shared/assets/guest/index.html
+        buildPhase: resources
+    dependencies:
+      - package: FotoFestaCore
+    configFiles:
+      Debug: Config/App.xcconfig
+      Release: Config/App.xcconfig
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: it.fotofesta.tv
+        PRODUCT_NAME: FotoFesta TV
+        TARGETED_DEVICE_FAMILY: "3"
+        ASSETCATALOG_COMPILER_APPICON_NAME: "App Icon & Top Shelf Image"
+        CODE_SIGN_STYLE: Automatic
+        # Vuoto finché Apple non concede l'entitlement multicast (vedi Config/App.xcconfig).
+        CODE_SIGN_ENTITLEMENTS: $(FOTOFESTA_ENTITLEMENTS)
+        LOCALIZATION_PREFERS_STRING_CATALOGS: NO
+    info:
+      path: FotoFestaTV/Info.plist
+      properties:
+        CFBundleDisplayName: FotoFesta TV
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleDevelopmentRegion: en
+        CFBundleLocalizations: [en, it, fr, es, de]
+        LSApplicationCategoryType: public.app-category.photography
+        UIRequiredDeviceCapabilities: [arm64]
+        UILaunchScreen: {}
+        UIUserInterfaceStyle: Dark
+        ITSAppUsesNonExemptEncryption: false
+        NSLocalNetworkUsageDescription: "FotoFesta TV receives the photos your guests send from their phones and shows the photos of the media servers (NAS, PC) on your home network."
+        # Cartelle di rete: i server DLNA parlano solo http, e solo nella rete di casa.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        NSPhotoLibraryUsageDescription: "FotoFesta TV shows the albums of your Photos library in the slideshow. Photos stay in your library and aren’t sent anywhere."
+        PhotosClientID: $(PHOTOS_CLIENT_ID)
+        PhotosClientSecret: $(PHOTOS_CLIENT_SECRET)
+        # Indirizzo pubblico di site/privacy/ (vedi docs/PUBLISHING.md): l'app lo mostra come QR nelle impostazioni.
+        PrivacyPolicyURL: "https://EXAMPLE.github.io/fotofesta-tv/privacy/"
+schemes:
+  FotoFestaTV:
+    build:
+      targets:
+        FotoFestaTV: all
+    run:
+      config: Debug
+    archive:
+      config: Release

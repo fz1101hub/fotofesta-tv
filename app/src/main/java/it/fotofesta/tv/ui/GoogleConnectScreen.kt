@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -16,15 +17,19 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import it.fotofesta.tv.R
 import it.fotofesta.tv.model.GoogleConnectState
 
 @Composable
@@ -34,66 +39,89 @@ fun GoogleConnectScreen(
     onRetry: () -> Unit,
     onPlay: () -> Unit,
 ) {
-    Column(Modifier.fillMaxSize().padding(46.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
+    Column(Modifier.fillMaxSize().background(Background).padding(horizontal = 48.dp, vertical = 27.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            SectionTitle("Collegamento sicuro", "Google Foto", "Usa il telefono: non dovrai digitare password con il telecomando.")
-            Spacer(Modifier.weight(1f))
-            TvButton("Indietro", onCancel, icon = Icons.AutoMirrored.Rounded.ArrowBack)
+            SectionTitle(
+                stringResource(R.string.google_kicker),
+                stringResource(R.string.google_title),
+                stringResource(R.string.google_subtitle),
+                modifier = Modifier.weight(1f),
+            )
+            Spacer(Modifier.width(16.dp))
+            TvButton(
+                stringResource(R.string.action_back),
+                onCancel,
+                // Indietro riprende il focus quando sparisce il pulsante principale dello stato precedente.
+                modifier = if (state is GoogleConnectState.Error || state is GoogleConnectState.Complete) Modifier
+                else Modifier.initialFocus(state::class),
+                icon = Icons.AutoMirrored.Rounded.ArrowBack,
+            )
         }
         Box(
-            Modifier.fillMaxSize().background(NavySoft, RoundedCornerShape(28.dp)).padding(30.dp),
+            Modifier.fillMaxSize().background(SurfaceDark, RoundedCornerShape(16.dp)).padding(30.dp),
             contentAlignment = Alignment.Center,
         ) {
             when (state) {
                 GoogleConnectState.Idle -> Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                    CircularProgressIndicator(color = Coral)
-                    Text("Preparazione del collegamento…", style = MaterialTheme.typography.titleLarge)
+                    CircularProgressIndicator(color = TextSecondary)
+                    Text(stringResource(R.string.google_preparing), style = MaterialTheme.typography.titleLarge)
                 }
                 is GoogleConnectState.WaitingForAuthorization -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(44.dp)) {
-                    QrCode(state.verificationUrl, "Codice QR per autorizzare Google Foto")
+                    QrCode(state.verificationUrl, stringResource(R.string.google_qr_authorize), Modifier.clip(RoundedCornerShape(16.dp)), padding = 16.dp)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                        Text("1. Scansiona il QR", style = MaterialTheme.typography.headlineMedium)
-                        Text("Apri ${state.verificationUrl} sul telefono e inserisci questo codice:", style = MaterialTheme.typography.bodyLarge, color = TextSecondary)
+                        Text(stringResource(R.string.google_step_scan), style = MaterialTheme.typography.headlineMedium)
+                        Text(stringResource(R.string.google_open_url, state.verificationUrl), style = MaterialTheme.typography.bodyLarge, color = TextSecondary)
                         Text(
                             state.userCode,
                             style = MaterialTheme.typography.displayLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = Amber,
-                            modifier = Modifier.background(Navy, RoundedCornerShape(16.dp)).padding(horizontal = 24.dp, vertical = 14.dp),
+                            fontWeight = FontWeight.ExtraBold,
+                            color = TextPrimary,
+                            modifier = Modifier.background(Background, RoundedCornerShape(14.dp)).padding(horizontal = 24.dp, vertical = 14.dp),
                         )
-                        Text("Richiediamo soltanto l’accesso alle foto che sceglierai. Il codice scade automaticamente.", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                        Text(stringResource(R.string.google_scope_note), style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
                     }
                 }
                 is GoogleConnectState.WaitingForPhotos -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(44.dp)) {
-                    QrCode(state.pickerUri, "Codice QR per scegliere le foto")
+                    QrCode(state.pickerUri, stringResource(R.string.google_qr_pick), Modifier.clip(RoundedCornerShape(16.dp)), padding = 16.dp)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                        Text("2. Scegli le foto", style = MaterialTheme.typography.headlineMedium)
-                        Text("Scansiona il QR, seleziona le immagini in Google Foto e premi Fine.", style = MaterialTheme.typography.bodyLarge)
-                        Text("Puoi cercare per data, luogo o nome dell’album. La TV rileverà automaticamente quando hai finito.", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
-                        CircularProgressIndicator(color = Cyan)
+                        Text(stringResource(R.string.google_step_pick), style = MaterialTheme.typography.headlineMedium)
+                        Text(stringResource(R.string.google_pick_instructions), style = MaterialTheme.typography.bodyLarge)
+                        Text(stringResource(R.string.google_pick_hint), style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                        CircularProgressIndicator(color = Accent)
                     }
                 }
-                is GoogleConnectState.Downloading -> Column(
-                    Modifier.fillMaxWidth(.72f),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(18.dp),
-                ) {
-                    Text("Preparazione foto in 4K", style = MaterialTheme.typography.headlineMedium)
-                    Text("${state.completed} di ${state.total}", style = MaterialTheme.typography.titleLarge, color = Amber)
-                    LinearProgressIndicator(progress = { state.completed.toFloat() / state.total.coerceAtLeast(1) }, modifier = Modifier.fillMaxWidth())
-                    Text("La cache privata evita interruzioni durante lo slideshow. Non viene aggiunto nulla alla galleria della TV.", style = MaterialTheme.typography.bodyMedium, color = TextSecondary, textAlign = TextAlign.Center)
-                }
                 is GoogleConnectState.Error -> Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                    Text("Collegamento non disponibile", style = MaterialTheme.typography.headlineMedium)
+                    Text(stringResource(R.string.google_unavailable), style = MaterialTheme.typography.headlineMedium)
                     Text(state.message, style = MaterialTheme.typography.bodyLarge, color = TextSecondary, textAlign = TextAlign.Center)
-                    TvButton("Riprova", onRetry, icon = Icons.Rounded.Refresh)
+                    TvButton(stringResource(R.string.action_retry), onRetry, modifier = Modifier.initialFocus(), icon = Icons.Rounded.Refresh)
                 }
                 is GoogleConnectState.Complete -> Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                    Text("${state.count} foto pronte", style = MaterialTheme.typography.headlineLarge, color = Cyan)
-                    Text("Puoi avviare subito lo slideshow o tornare indietro per cambiare musica e transizioni.", style = MaterialTheme.typography.bodyLarge, color = TextSecondary, textAlign = TextAlign.Center)
-                    TvButton("Avvia slideshow", onPlay, icon = Icons.Rounded.PlayArrow)
+                    Text(quantityStringResource(R.plurals.google_photos_ready, state.count), style = MaterialTheme.typography.headlineLarge, color = TextPrimary)
+                    Text(stringResource(R.string.google_complete_body), style = MaterialTheme.typography.bodyLarge, color = TextSecondary, textAlign = TextAlign.Center)
+                    Text(stringResource(R.string.google_streaming_note), style = MaterialTheme.typography.bodyMedium, color = TextSecondary, textAlign = TextAlign.Center)
+                    state.expiresAtMillis?.let { expiresAt ->
+                        Text(
+                            stringResource(R.string.google_available_until, rememberDateText(expiresAt)),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Accent,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                    TvButton(stringResource(R.string.action_start_slideshow), onPlay, modifier = Modifier.initialFocus(), icon = Icons.Rounded.PlayArrow)
                 }
             }
         }
+    }
+}
+
+/** Data e ora di [epochMillis] nel formato del sistema (es. "22 ott, 18:30"). */
+@Composable
+private fun rememberDateText(epochMillis: Long): String {
+    val context = LocalContext.current
+    return remember(context, epochMillis) {
+        val date = java.util.Date(epochMillis)
+        val day = android.text.format.DateFormat.getMediumDateFormat(context).format(date)
+        val time = android.text.format.DateFormat.getTimeFormat(context).format(date)
+        "$day, $time"
     }
 }

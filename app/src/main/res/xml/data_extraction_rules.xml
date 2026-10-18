@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Backup da Android 12: stesse regole di backup_rules.xml. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="sharedpref" path="slideshow_settings.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="sharedpref" path="slideshow_settings.xml" />
+    </device-transfer>
+</data-extraction-rules>
