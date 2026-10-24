@@ -7,7 +7,12 @@ public enum GuestSender {
 
     /// Toglie caratteri di controllo, invisibili o che cambiano la direzione del testo, compatta gli
     /// spazi e tiene al massimo `maxLength` caratteri Unicode. Nil se non resta nulla.
-    public static func clean(_ value: String?, maxLength: Int = GuestSender.maxLength) -> String? {
+    public static func clean(_ value: String?) -> String? {
+        clean(value, maxLength: maxLength)
+    }
+
+    /// Come `clean(_:)`, con un limite diverso (le dediche arrivano a 160 caratteri).
+    public static func clean(_ value: String?, maxLength: Int) -> String? {
         guard let value else { return nil }
         var result = String.UnicodeScalarView()
         var count = 0

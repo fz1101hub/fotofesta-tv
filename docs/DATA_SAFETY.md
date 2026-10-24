@@ -15,6 +15,7 @@ Dalla versione 1.3.0 l'app per Android TV non include più Google Cast né altri
 - **Album condiviso di iCloud**: su richiesta dell'utente la TV chiede ad Apple l'elenco dell'album pubblico indicato dal link e scarica le foto da Apple solo per mostrarle. Il codice del link va ad Apple, che lo gestisce già perché è un album pubblico; allo sviluppatore non arriva nulla. Il link arriva dal telefono attraverso una pagina servita dalla TV sulla rete di casa. Sulla TV restano il codice e il nome dell'album.
 - **Video di Google Foto**: letti da Google come le foto, solo per mostrarli, senza copie sulla TV.
 - **Gioco con i telefoni**: durante la festa gli invitati rispondono dalla pagina servita dalla TV; risposte, nome facoltativo e punti restano in memoria sulla TV e spariscono alla fine del gioco o della festa.
+- **Reazioni, dediche e sondaggi**: le emoji, le dediche (al massimo 160 caratteri) e i voti mandati dalla pagina della festa restano in memoria sulla TV, servono solo a mostrarli sullo schermo, al libro degli ospiti, al premio "Foto della serata" e all'estrazione a premi, e vengono cancellati con "Termina la festa". Con l'approvazione attiva le dediche compaiono solo dopo il via libera dell'organizzatore.
 
 | Domanda di Play Console | Risposta |
 | --- | --- |
@@ -30,7 +31,7 @@ Se il revisore chiede comunque di dichiarare le foto (di Google Foto o degli inv
 - **Accesso all'app**: “Prova subito” mostra tutte le funzioni senza login. Le foto degli invitati si provano con un telefono sulla stessa rete della TV, senza account. Per Google Foto fornisci un account Google di test e descrivi la procedura dei due QR. La schermata di consenso OAuth deve essere **In produzione**: in modalità test l'account andrebbe aggiunto agli utenti di test e i suoi token scadrebbero dopo 7 giorni.
 - **Annunci**: l'app non contiene annunci.
 - **ID pubblicità**: l'app non usa l'ID pubblicità. Rispondi **No** nella dichiarazione. Il manifest rimuove esplicitamente il permesso `com.google.android.gms.permission.AD_ID`, anche se una libreria lo aggiungesse.
-- **Classificazione dei contenuti**: categoria Utilità/Produttività/Altro. Alla domanda sui contenuti generati dagli utenti: le foto degli invitati restano sulla TV di chi organizza la festa, non vengono pubblicate né condivise con altri utenti dell'app, e l'organizzatore può attivare l'approvazione prima che compaiano e cancellarle in ogni momento. Nessuna interazione tra utenti attraverso l'app.
+- **Classificazione dei contenuti**: categoria Utilità/Produttività/Altro. Alla domanda sui contenuti generati dagli utenti: le foto e le dediche degli invitati restano sulla TV di chi organizza la festa, non vengono pubblicate né condivise con altri utenti dell'app, e l'organizzatore può attivare l'approvazione prima che compaiano e cancellarle in ogni momento. Nessuna interazione tra utenti attraverso l'app.
 - **Pubblico di destinazione**: 13+ o 18+. L'app non è progettata per bambini, e con fasce sotto i 13 anni si applicano i requisiti Families.
 - **Android TV**: attiva la distribuzione su Android TV in *Impostazioni avanzate › Form factor* e carica banner TV e screenshot TV.
 
