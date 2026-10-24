@@ -259,8 +259,6 @@ public final class PartyHub: @unchecked Sendable {
         lock.withLock { directorLocked() }
     }
 
-    func director() -> Director? { currentDirector() }
-
     /// Annuncio e regista di turno per la pagina del telefono `player`, in JSON.
     public func partyJSON(player: String?) -> String {
         let current = currentAnnouncement()

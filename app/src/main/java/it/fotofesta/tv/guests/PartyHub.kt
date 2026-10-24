@@ -1,5 +1,7 @@
 package it.fotofesta.tv.guests
 
+import org.json.JSONArray
+import org.json.JSONObject
 import java.util.UUID
 
 /**
@@ -36,7 +38,16 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
     /** Invitato che dirige lo slideshow dal suo telefono fino a [untilMillis]. */
     data class Director(val player: String, val name: String, val untilMillis: Long)
 
-    enum class Result { OK, PENDING, RATE_LIMITED, DISABLED, INVALID, FULL }
+    enum class Result { OK, PENDING, RATE_LIMITED, DISABLED, INVALID, FULL, QUIET }
+
+    /**
+     * Regole per le foto degli invitati: al massimo [perGuest] foto a testa (0 = nessun limite) e,
+     * con [disposable], il rullino usa e getta: le foto si vedono solo dopo lo sviluppo.
+     */
+    data class PhotoRules(val perGuest: Int = 0, val disposable: Boolean = false)
+
+    /** Esito di [takePhoto]: si può mandare la foto, il rullino è finito, o è il momento senza telefoni. */
+    enum class PhotoTake { ALLOWED, LIMIT, QUIET, NO_PLAYER }
 
     private var features = Features()
     private var showing: String? = null
@@ -50,6 +61,10 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
     private var announcement: Announcement? = null
     private var announcementSerial = 0L
     private var director: Director? = null
+    private var rules = PhotoRules()
+    private val photosByPlayer = HashMap<String, Int>()
+    private var developed = false
+    private var quietUntil = 0L
 
     /** Comandi del regista di turno (avanti, indietro, pausa), da qualunque thread. */
     @Volatile var onDirectorCommand: ((PartyCommand) -> Unit)? = null
@@ -184,11 +199,127 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
     @Synchronized
     fun director(): Director? = director?.takeIf { nowMillis() < it.untilMillis }
 
+    fun setPhotoRules(value: PhotoRules) {
+        synchronized(this) { rules = value }
+        onChange?.invoke()
+    }
+
+    @Synchronized
+    fun photoRules(): PhotoRules = rules
+
+    /**
+     * Il telefono [player] vuole mandare una foto: con un limite a testa la si conta subito (se poi
+     * la TV la rifiuta si restituisce con [returnPhoto]).
+     */
+    @Synchronized
+    fun takePhoto(player: String?): PhotoTake {
+        if (nowMillis() < quietUntil) return PhotoTake.QUIET
+        if (rules.perGuest <= 0) return PhotoTake.ALLOWED
+        if (player == null || !PhoneGame.validPlayer(player)) return PhotoTake.NO_PLAYER
+        val taken = photosByPlayer[player] ?: 0
+        if (taken >= rules.perGuest) return PhotoTake.LIMIT
+        if (photosByPlayer.size < MAX_TRACKED_PLAYERS || player in photosByPlayer) photosByPlayer[player] = taken + 1
+        return PhotoTake.ALLOWED
+    }
+
+    /** Foto contata da [takePhoto] ma non salvata (memoria piena, formato sbagliato): lo scatto torna. */
+    @Synchronized
+    fun returnPhoto(player: String?) {
+        if (player == null) return
+        val taken = photosByPlayer[player] ?: return
+        if (taken <= 1) photosByPlayer.remove(player) else photosByPlayer[player] = taken - 1
+    }
+
+    /** Scatti rimasti al telefono [player]; null se non c'è un limite. */
+    @Synchronized
+    fun photosLeft(player: String?): Int? {
+        if (rules.perGuest <= 0) return null
+        return (rules.perGuest - (player?.let { photosByPlayer[it] } ?: 0)).coerceAtLeast(0)
+    }
+
+    /** Scatti usati in tutto con il rullino. */
+    @Synchronized
+    fun photosTaken(): Int = photosByPlayer.values.sum()
+
+    /** Sviluppo del rullino usa e getta: da qui in poi le foto si vedono. */
+    fun develop() {
+        synchronized(this) { developed = true }
+        onChange?.invoke()
+    }
+
+    /** Le foto del rullino si possono mostrare (o il rullino non c'è). */
+    @Synchronized
+    fun isDeveloped(): Boolean = !rules.disposable || developed
+
+    /** Tre minuti senza telefoni: foto, reazioni e dediche aspettano fino alla fine. */
+    fun startQuiet(durationMillis: Long = QUIET_MS) {
+        synchronized(this) { quietUntil = nowMillis() + durationMillis }
+        onChange?.invoke()
+    }
+
+    fun stopQuiet() {
+        synchronized(this) { quietUntil = 0 }
+        onChange?.invoke()
+    }
+
+    /** Millisecondi che restano del momento senza telefoni (0 se non è in corso). */
+    @Synchronized
+    fun quietLeftMillis(): Long = (quietUntil - nowMillis()).coerceAtLeast(0)
+
+    /**
+     * Stato da salvare per riprendere la festa dopo un'interruzione: dediche, nomi, reazioni per
+     * foto, scatti usati e sviluppo del rullino. Annunci, regista e momento senza telefoni no: dopo
+     * un riavvio non avrebbero più senso.
+     */
+    @Synchronized
+    fun snapshot(): String {
+        val json = JSONObject()
+        json.put("messages", JSONArray().apply {
+            messages.forEach { message ->
+                put(JSONObject().put("id", message.id).put("text", message.text).put("name", message.name ?: JSONObject.NULL)
+                    .put("at", message.atMillis).put("approved", message.approved))
+            }
+        })
+        json.put("names", JSONObject().apply { names.forEach { (player, name) -> put(player, name) } })
+        json.put("reactions", JSONObject().apply { reactionCounts.forEach { (photo, count) -> put(photo, count) } })
+        json.put("photos", JSONObject().apply { photosByPlayer.forEach { (player, count) -> put(player, count) } })
+        json.put("developed", developed)
+        return json.toString()
+    }
+
+    /** Riprende lo stato salvato con [snapshot]; un testo non valido viene ignorato. */
+    fun restore(snapshot: String) {
+        val restored = runCatching {
+            val json = JSONObject(snapshot)
+            synchronized(this) {
+                messages.clear()
+                val list = json.optJSONArray("messages") ?: JSONArray()
+                for (index in 0 until minOf(list.length(), MAX_MESSAGES)) {
+                    val item = list.getJSONObject(index)
+                    val text = GuestSender.clean(item.optString("text"), MAX_MESSAGE_LENGTH) ?: continue
+                    val name = if (item.isNull("name")) null else GuestSender.clean(item.optString("name"))
+                    messages += Message(item.optString("id").ifEmpty { UUID.randomUUID().toString() }, text, name, item.optLong("at"), item.optBoolean("approved"))
+                }
+                names.clear()
+                json.optJSONObject("names")?.let { all -> all.keys().forEach { key -> GuestSender.clean(all.optString(key))?.let { names[key] = it } } }
+                reactionCounts.clear()
+                json.optJSONObject("reactions")?.let { all -> all.keys().forEach { key -> reactionCounts[key] = all.optInt(key).coerceAtLeast(0) } }
+                photosByPlayer.clear()
+                json.optJSONObject("photos")?.let { all -> all.keys().forEach { key -> photosByPlayer[key] = all.optInt(key).coerceAtLeast(0) } }
+                developed = json.optBoolean("developed")
+            }
+        }.isSuccess
+        if (restored) onChange?.invoke()
+    }
+
     /** Fine della festa: si cancella tutto. */
     fun clear() {
         synchronized(this) {
             announcement = null
             director = null
+            photosByPlayer.clear()
+            developed = false
+            quietUntil = 0
             showing = null
             reactionCounts.clear()
             recentReactions.clear()
@@ -214,6 +345,13 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
             if (current == null) append("null") else {
                 append("""{"id":""").append(current.serial).append(""","text":""").append(GuestUploadServer.jsonString(current.text)).append('}')
             }
+            append(""","quiet":""").append(quietLeftMillis() / 1000)
+            append(""","shots":""")
+            val left = photosLeft(player)
+            if (left == null) append("null") else {
+                append("""{"left":""").append(left).append(""","limit":""").append(photoRules().perGuest)
+                append(""","disposable":""").append(photoRules().disposable).append(""","developed":""").append(isDeveloped()).append('}')
+            }
             append(""","director":""")
             if (director == null) append("null") else {
                 append("""{"name":""").append(GuestUploadServer.jsonString(director.name))
@@ -228,7 +366,10 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
     fun handle(form: Map<String, String>): Pair<Int, String> {
         val player = form["player"].orEmpty()
         val name = GuestSender.clean(form["name"])
-        val result = when (form["type"]) {
+        val result = when {
+            quietLeftMillis() > 0 && form["type"] != "director" -> Result.QUIET
+            else -> null
+        } ?: when (form["type"]) {
             "react" -> react(player, form["reaction"]?.toIntOrNull() ?: -1, name)
             "message" -> message(player, form["text"], name)
             "director" -> direct(player, form["command"])
@@ -241,6 +382,7 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
             Result.DISABLED -> 403 to """{"error":"disabled"}"""
             Result.FULL -> 507 to """{"error":"full"}"""
             Result.INVALID -> 400 to """{"error":"invalid"}"""
+            Result.QUIET -> 423 to """{"error":"quiet"}"""
         }
     }
 
@@ -292,6 +434,10 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
         /** L'annuncio resta sui telefoni per un minuto (sullo schermo lo decide la TV). */
         const val ANNOUNCEMENT_PHONE_MS = 60_000L
         const val DIRECTOR_MS = 120_000L
+        /** Tre minuti senza telefoni. */
+        const val QUIET_MS = 3 * 60_000L
+        /** Scatti del rullino usa e getta, come le macchine di una volta. */
+        const val DISPOSABLE_SHOTS = 27
         const val MAX_MESSAGES = 500
         const val MAX_RECENT_REACTIONS = 64
         /** Cinque reazioni ogni tre secondi: abbastanza per divertirsi, troppo poche per intasare lo schermo. */

@@ -35,14 +35,15 @@ import java.util.concurrent.atomic.AtomicInteger
 class GuestUploadServer(
     private val key: String,
     private val page: () -> String,
-    private val onPhoto: (bytes: ByteArray, sender: String?) -> UploadResult,
+    /** [player] è l'identificativo casuale del telefono, per il limite di foto a testa. */
+    private val onPhoto: (bytes: ByteArray, sender: String?, player: String?) -> UploadResult,
     private val onFailure: () -> Unit = {},
     /** Gioco con i telefoni: domanda in corso (GET /game) e risposte (POST /game/answer). */
     private val game: PhoneGame? = null,
     /** Reazioni e dediche (GET /party con lo stato per la pagina, POST /party/action). */
     private val hub: PartyHub? = null,
     /** Regia dal telefono con il PIN (/party/host...). */
-    private val host: HostRemote? = null,
+    private val hostRemote: HostRemote? = null,
     /** Foto in attesa di approvazione, per le miniature della pagina di regia. */
     private val hostPhoto: (String) -> ByteArray? = { null },
     private val maxUploadBytes: Int = MAX_UPLOAD_BYTES,
@@ -52,7 +53,7 @@ class GuestUploadServer(
     private val maxUploadsPerMinute: Int = MAX_UPLOADS_PER_MINUTE,
     private val nowMillis: () -> Long = { System.nanoTime() / 1_000_000 },
 ) {
-    enum class UploadResult { SHOWN, PENDING, FULL, TOO_MANY_PENDING, UNSUPPORTED }
+    enum class UploadResult { SHOWN, PENDING, FULL, TOO_MANY_PENDING, UNSUPPORTED, LIMIT, QUIET }
 
     private var serverSocket: ServerSocket? = null
     private var executor: ThreadPoolExecutor? = null
@@ -240,7 +241,7 @@ class GuestUploadServer(
                 val features = hub?.featuresJson() ?: """{"reactions":false,"messages":false,"moderated":false}"""
                 val player = request.query["player"]
                 val party = hub?.partyJson(player) ?: """{"announcement":null,"director":null}"""
-                val hostOn = host?.pin() != null
+                val hostOn = hostRemote?.pin() != null
                 Response.json(200, """{"features":$features,"game":${gameJson(game?.current(), player)},"party":$party,"host":$hostOn}""")
             }
             "/party/action" -> {
@@ -250,9 +251,9 @@ class GuestUploadServer(
             "/party/host/login" -> {
                 if (request.method != "POST") throw HttpError(405, "method")
                 if (!keyMatches(request.headers["x-fotofesta-key"])) throw HttpError(401, "key")
-                val host = host ?: throw HttpError(404, "not_found")
+                val remote = hostRemote ?: throw HttpError(404, "not_found")
                 val form = readSmallForm(request, body, startedAt, MAX_ANSWER_BYTES)
-                when (val result = host.login(form["pin"], clientAddress.hostAddress.orEmpty())) {
+                when (val result = remote.login(form["pin"], clientAddress.hostAddress.orEmpty())) {
                     is HostRemote.Login.Accepted -> Response.json(200, """{"token":"${result.token}"}""")
                     HostRemote.Login.Wrong -> throw HttpError(403, "pin")
                     HostRemote.Login.RateLimited -> throw HttpError(429, "rate", listOf("Retry-After" to "60"))
@@ -262,16 +263,16 @@ class GuestUploadServer(
             }
             "/party/host" -> {
                 if (!keyMatches(request.headers["x-fotofesta-key"])) throw HttpError(401, "key")
-                val host = host ?: throw HttpError(404, "not_found")
+                val remote = hostRemote ?: throw HttpError(404, "not_found")
                 val token = request.headers["x-fotofesta-host"]
                 when (request.method) {
                     "GET" -> {
-                        if (!host.isHost(token)) throw HttpError(401, "host")
-                        Response.json(200, host.statusJson(hub ?: PartyHub()))
+                        if (!remote.isHost(token)) throw HttpError(401, "host")
+                        Response.json(200, remote.statusJson(hub ?: PartyHub()))
                     }
                     "POST" -> {
                         val form = readSmallForm(request, body, startedAt, MAX_ACTION_BYTES)
-                        val (status, json) = host.handle(token, form)
+                        val (status, json) = remote.handle(token, form)
                         Response.json(status, json)
                     }
                     else -> throw HttpError(405, "method")
@@ -280,10 +281,10 @@ class GuestUploadServer(
             "/party/host/photo" -> {
                 if (request.method != "GET") throw HttpError(405, "method")
                 if (!keyMatches(request.headers["x-fotofesta-key"])) throw HttpError(401, "key")
-                val host = host ?: throw HttpError(404, "not_found")
-                if (!host.isHost(request.headers["x-fotofesta-host"])) throw HttpError(401, "host")
+                val remote = hostRemote ?: throw HttpError(404, "not_found")
+                if (!remote.isHost(request.headers["x-fotofesta-host"])) throw HttpError(401, "host")
                 val id = request.query["id"].orEmpty()
-                val bytes = id.takeIf(host::canShow)?.let(hostPhoto) ?: throw HttpError(404, "not_found")
+                val bytes = id.takeIf(remote::canShow)?.let(hostPhoto) ?: throw HttpError(404, "not_found")
                 val type = when (ImageFormat.sniff(bytes)) {
                     ImageFormat.PNG -> "image/png"
                     ImageFormat.WEBP -> "image/webp"
@@ -312,12 +313,15 @@ class GuestUploadServer(
             val bytes = readBody(body, size, deadline = startedAt + bodyDeadlineMillis, now = nowMillis)
             if (ImageFormat.sniff(bytes) == null) throw HttpError(415, "unsupported")
             val sender = request.headers["x-fotofesta-sender"]?.let(::decodeSender)
-            when (onPhoto(bytes, sender)) {
+            val player = request.headers["x-fotofesta-player"]?.takeIf(PhoneGame::validPlayer)
+            when (onPhoto(bytes, sender, player)) {
                 UploadResult.SHOWN -> Response.json(200, """{"status":"shown"}""")
                 UploadResult.PENDING -> Response.json(200, """{"status":"pending"}""")
                 UploadResult.FULL -> throw HttpError(507, "full")
                 UploadResult.TOO_MANY_PENDING -> throw HttpError(507, "pending_full")
                 UploadResult.UNSUPPORTED -> throw HttpError(415, "unsupported")
+                UploadResult.LIMIT -> throw HttpError(403, "limit")
+                UploadResult.QUIET -> throw HttpError(423, "quiet")
             }
         } finally {
             inFlight.release(size)

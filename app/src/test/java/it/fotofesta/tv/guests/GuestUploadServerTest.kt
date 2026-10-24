@@ -45,14 +45,14 @@ class GuestUploadServerTest {
         server = GuestUploadServer(
             key = KEY,
             page = { "<html>pagina</html>" },
-            onPhoto = { bytes, sender ->
+            onPhoto = { bytes, sender, _ ->
                 received += bytes to sender
                 result
             },
             onFailure = { failures++ },
             game = game,
             hub = hub,
-            host = host,
+            hostRemote = host,
             hostPhoto = { id -> if (id == "attesa-1") pendingBytes else null },
             maxUploadBytes = 1_000,
             readTimeoutMillis = 2_000,

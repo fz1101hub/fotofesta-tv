@@ -185,7 +185,7 @@ public final class HostRemote: @unchecked Sendable {
             photos: current.photos,
             pendingPhotos: current.pendingPhotos.prefix(Self.maxListed).map { HostState.Photo(id: $0.id, sender: $0.sender) },
             pendingMessages: hub.pendingMessages().prefix(Self.maxListed).map { HostState.Message(id: $0.id, text: $0.text, name: $0.name) },
-            director: hub.director()?.name
+            director: hub.currentDirector()?.name
         )
         guard let data = try? JSONEncoder().encode(state) else { return "{}" }
         return String(decoding: data, as: UTF8.self)

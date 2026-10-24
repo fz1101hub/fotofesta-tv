@@ -56,6 +56,12 @@ class GuestPhotoStore(
     private var diskUsed = 0L
     private val random = SecureRandom()
 
+    /**
+     * Ogni foto va subito anche su disco, così un arresto improvviso dell'app non la perde e la
+     * festa riprende al riavvio ("Riprendi la festa").
+     */
+    @Volatile var durable = false
+
     private val _photos = MutableStateFlow<List<Photo>>(emptyList())
 
     /** Tutte le foto, approvate e da approvare, dalla più vecchia alla più recente. */
@@ -72,6 +78,8 @@ class GuestPhotoStore(
         while (entries.size > maxPhotos) drop(victim(entries.values))
         // Una foto in attesa non può far cancellare foto già approvate: piuttosto viene rifiutata.
         fitInMemory(allowApprovedEviction = approved)
+        // Se la scrittura non riesce la foto resta in RAM: si mostra lo stesso.
+        if (durable && entries[photo.id] === entry) spill(entry, evictOthers = true, allowApprovedEviction = approved)
         publish()
         return if (entries[photo.id] === entry) AddResult.Added(photo) else AddResult.Full
     }

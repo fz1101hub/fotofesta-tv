@@ -85,6 +85,11 @@ class GuestParty(
     /** Cresce a ogni registrazione: le notifiche di una registrazione precedente vengono ignorate. */
     private var networkGeneration = 0
     private var retry: ScheduledFuture<*>? = null
+    /** Ogni foto salvata, dai thread del server: serve alla copia di sicurezza nella galleria. */
+    @Volatile var onPhotoSaved: ((bytes: ByteArray, sender: String?) -> Unit)? = null
+    private var hubSave: ScheduledFuture<*>? = null
+    private val hubFile get() = java.io.File(context.noBackupFilesDir, HUB_FILE)
+
     private val template by lazy {
         context.assets.open("guest/index.html").use { it.readBytes().toString(Charsets.UTF_8) }
     }
@@ -99,7 +104,12 @@ class GuestParty(
             store.restore(IDLE_LIMIT_MS)
             val newest = store.photos.value.maxOfOrNull { it.receivedAtMillis } ?: 0L
             val lastActivity = max(prefs.getLong(KEY_STARTED_AT, 0L), newest)
-            if (System.currentTimeMillis() - lastActivity > IDLE_LIMIT_MS) endParty()
+            if (System.currentTimeMillis() - lastActivity > IDLE_LIMIT_MS) {
+                endParty()
+            } else {
+                // Dediche, nomi, reazioni e scatti del rullino della festa interrotta.
+                runCatching { hubFile.readText() }.getOrNull()?.let { hub?.restore(it) }
+            }
         }
         _ready.value = true
     }
@@ -145,6 +155,15 @@ class GuestParty(
         _state.update { it.copy(wifi = network) }
     }
 
+    /** Salva tra poco lo stato delle attività (più cambi ravvicinati, una sola scrittura). */
+    fun saveHubSoon() = worker.execute {
+        val party = hub ?: return@execute
+        if (!_state.value.active || hubSave?.isDone == false) return@execute
+        hubSave = worker.schedule(Runnable {
+            if (_state.value.active) runCatching { hubFile.writeText(party.snapshot()) }
+        }, HUB_SAVE_DELAY_SECONDS, TimeUnit.SECONDS)
+    }
+
     fun approve(id: String) = worker.execute { store.approve(id) }
 
     fun approveAll() = worker.execute { store.photos.value.filterNot { it.approved }.forEach { store.approve(it.id) } }
@@ -172,6 +191,9 @@ class GuestParty(
         store.clear()
         hub?.clear()
         host?.reset()
+        hubSave?.cancel(false)
+        hubSave = null
+        hubFile.delete()
         prefs.edit().putBoolean(KEY_ACTIVE, false).remove(KEY_SECRET).remove(KEY_STARTED_AT).apply()
         _state.update { it.copy(active = false, url = null, problem = null) }
     }
@@ -200,7 +222,7 @@ class GuestParty(
             onFailure = { scheduleRetry(FAILURE_RETRY_SECONDS) },
             game = phoneGame,
             hub = hub,
-            host = host,
+            hostRemote = host,
             hostPhoto = store::read,
         )
         try {
@@ -296,14 +318,23 @@ class GuestParty(
             .firstOrNull { !it.isLoopbackAddress && !it.isLinkLocalAddress && !it.isAnyLocalAddress }
 
     /** Chiamato dai thread del server per ogni foto ricevuta. */
-    private fun receive(bytes: ByteArray, sender: String?): GuestUploadServer.UploadResult {
+    private fun receive(bytes: ByteArray, sender: String?, player: String?): GuestUploadServer.UploadResult {
         if (!isDisplayable(bytes)) return GuestUploadServer.UploadResult.UNSUPPORTED
-        return when (val result = store.add(bytes, sender, approved = !_state.value.approval)) {
+        // Limite di foto a testa (una a testa, rullino) e tre minuti senza telefoni.
+        when (hub?.takePhoto(player)) {
+            PartyHub.PhotoTake.QUIET -> return GuestUploadServer.UploadResult.QUIET
+            PartyHub.PhotoTake.LIMIT, PartyHub.PhotoTake.NO_PLAYER -> return GuestUploadServer.UploadResult.LIMIT
+            else -> Unit
+        }
+        val result = when (val added = store.add(bytes, sender, approved = !_state.value.approval)) {
             is GuestPhotoStore.AddResult.Added ->
-                if (result.photo.approved) GuestUploadServer.UploadResult.SHOWN else GuestUploadServer.UploadResult.PENDING
+                if (added.photo.approved) GuestUploadServer.UploadResult.SHOWN else GuestUploadServer.UploadResult.PENDING
             GuestPhotoStore.AddResult.Full -> GuestUploadServer.UploadResult.FULL
             GuestPhotoStore.AddResult.TooManyPending -> GuestUploadServer.UploadResult.TOO_MANY_PENDING
         }
+        if (result == GuestUploadServer.UploadResult.FULL || result == GuestUploadServer.UploadResult.TOO_MANY_PENDING) hub?.returnPhoto(player)
+        else onPhotoSaved?.invoke(bytes, sender)
+        return result
     }
 
     /** Legge solo le dimensioni: un file danneggiato o enorme non arriva mai allo slideshow. */
@@ -362,5 +393,7 @@ class GuestParty(
         const val KEY_QR_IN_SLIDESHOW = "qr_in_slideshow"
         const val KEY_WIFI_SSID = "wifi_ssid"
         const val KEY_WIFI_PASSWORD = "wifi_password"
+        const val HUB_FILE = "party_activities.json"
+        const val HUB_SAVE_DELAY_SECONDS = 2L
     }
 }
