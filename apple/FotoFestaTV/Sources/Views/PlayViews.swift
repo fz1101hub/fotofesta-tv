@@ -300,6 +300,10 @@ private struct PlayContent: View {
 private struct BigText: View {
     let text: String
 
+    init(_ text: String) {
+        self.text = text
+    }
+
     var body: some View {
         Text(text).font(.system(size: 52, weight: .bold)).foregroundStyle(Theme.highlight).lineLimit(3).minimumScaleFactor(0.6)
     }
