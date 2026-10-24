@@ -554,4 +554,39 @@
     <string name="director_now">Ora dirige %1$s · %2$s</string>
     <string name="message_director_none">Nessun invitato ha ancora scritto il proprio nome: può dirigere chi manda foto, gioca o reagisce con il nome.</string>
     <string name="message_director_started">%1$s dirige lo slideshow dal telefono per due minuti!</string>
+
+    <!-- Regole della festa, ripresa, copia e prova generale -->
+    <string name="photo_limit_none">Senza limite</string>
+    <string name="photo_limit_one">Una a testa</string>
+    <string name="photo_limit_disposable">Rullino usa e getta (27)</string>
+    <string name="settings_photo_limit">Foto per invitato</string>
+    <string name="settings_photo_limit_body">Con il rullino usa e getta nessuno vede le foto finché non sviluppi il rullino.</string>
+    <string name="settings_aging">Foto che invecchiano</string>
+    <string name="settings_aging_body">A ogni passaggio la foto ingiallisce un po’; le reazioni dei telefoni la ringiovaniscono.</string>
+    <string name="settings_no_traces">Festa senza tracce</string>
+    <string name="settings_no_traces_body">Ogni foto degli invitati si mostra una volta sola e poi si cancella per sempre.</string>
+    <string name="settings_resume">Riprendi la festa dopo un’interruzione</string>
+    <string name="settings_resume_body">Ogni foto viene salvata subito anche su disco: se l’app si chiude, al riavvio tornano foto, dediche e punteggi.</string>
+    <string name="settings_backup">Copia nella galleria</string>
+    <string name="settings_backup_body">Ogni foto degli invitati viene copiata anche in Immagini/FotoFesta su questa TV e resta lì dopo la festa.</string>
+    <string name="message_developed">Rullino sviluppato: ecco le foto!</string>
+    <string name="games_quiet_title">Tre minuti senza telefoni</string>
+    <string name="games_quiet_body">Tutti posano il telefono: sullo schermo una sola foto e un po’ di calma.</string>
+    <string name="guests_rehearsal">Prova generale</string>
+    <string name="message_rehearsal_party">La prova generale si fa prima della festa: termina la festa per provarla.</string>
+    <string name="message_rehearsal_started">Prova generale: per due minuti otto telefoni finti mandano foto, reazioni e dediche.</string>
+    <string name="message_rehearsal_done">Prova generale finita: è stato cancellato tutto.</string>
+    <string name="rehearsal_message_1">Che bella festa!</string>
+    <string name="rehearsal_message_2">Tanti auguri da tutti noi!</string>
+    <string name="rehearsal_message_3">Tutti a ballare!</string>
+    <plurals name="disposable_shots">
+        <item quantity="one">Rullino in sviluppo · %d scatto</item>
+        <item quantity="many">Rullino in sviluppo · %d scatti</item>
+        <item quantity="other">Rullino in sviluppo · %d scatti</item>
+    </plurals>
+    <plurals name="guests_develop">
+        <item quantity="one">Sviluppa il rullino (%d scatto)</item>
+        <item quantity="many">Sviluppa il rullino (%d scatti)</item>
+        <item quantity="other">Sviluppa il rullino (%d scatti)</item>
+    </plurals>
 </resources>

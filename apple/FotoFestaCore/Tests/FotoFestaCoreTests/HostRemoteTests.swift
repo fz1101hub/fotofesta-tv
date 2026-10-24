@@ -134,7 +134,7 @@ final class HostRemoteTests: XCTestCase {
         let received = Commands()
         host.setOnCommand { received.add($0) }
         let photo = Data([0xFF, 0xD8, 0xFF, 0xE0, 9, 9])
-        let server = GuestUploadServer(key: "test-key", page: { "<html></html>" }, onPhoto: { _, _ in .shown },
+        let server = GuestUploadServer(key: "test-key", page: { "<html></html>" }, onPhoto: { _, _, _ in .shown },
                                        game: PhoneGame(), hub: PartyHub(), host: host,
                                        hostPhoto: { $0 == "attesa-1" ? photo : nil })
         let port = try await server.start(host: "127.0.0.1", preferredPort: 0)

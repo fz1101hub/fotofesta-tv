@@ -16,6 +16,8 @@ sealed interface PartyCommand {
     data object ApproveAll : PartyCommand
     data class Announce(val text: String) : PartyCommand
     data object StartDirector : PartyCommand
+    data object StartQuiet : PartyCommand
+    data object Develop : PartyCommand
 }
 
 /**
@@ -132,6 +134,8 @@ class HostRemote(
             "approve_all" -> PartyCommand.ApproveAll
             "announce" -> GuestSender.clean(form["text"], PartyHub.MAX_ANNOUNCEMENT_LENGTH)?.let(PartyCommand::Announce)
             "director" -> PartyCommand.StartDirector
+            "quiet" -> PartyCommand.StartQuiet
+            "develop" -> PartyCommand.Develop
             else -> null
         } ?: return 400 to """{"error":"invalid"}"""
         onCommand?.invoke(command)

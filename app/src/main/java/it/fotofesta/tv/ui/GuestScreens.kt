@@ -21,6 +21,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Campaign
+import androidx.compose.material.icons.rounded.PhotoCamera
+import androidx.compose.material.icons.rounded.Science
 import androidx.compose.material.icons.rounded.EmojiEvents
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Check
@@ -81,11 +83,15 @@ fun GuestsScreen(
     /** PIN della regia dal telefono, se attiva. */
     hostPin: String? = null,
     onAnnounce: () -> Unit = {},
+    /** Rullino usa e getta da sviluppare, con gli scatti usati finora. */
+    undevelopedShots: Int? = null,
+    onDevelop: () -> Unit = {},
+    onRehearsal: () -> Unit = {},
 ) {
     if (guests.active) {
-        PartyInProgress(guests, recent, onEnd, onPlay, onReview, onAwards, messageCount, pendingMessageCount, onGuestbook, hostPin, onAnnounce)
+        PartyInProgress(guests, recent, onEnd, onPlay, onReview, onAwards, messageCount, pendingMessageCount, onGuestbook, hostPin, onAnnounce, undevelopedShots, onDevelop)
     } else {
-        PartyIntro(guests, onStart, onApproval, onWifi)
+        PartyIntro(guests, onStart, onApproval, onWifi, onRehearsal)
     }
 }
 
@@ -95,6 +101,7 @@ private fun PartyIntro(
     onStart: () -> Unit,
     onApproval: (Boolean) -> Unit,
     onWifi: () -> Unit,
+    onRehearsal: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize().background(Background).padding(horizontal = 48.dp, vertical = 27.dp)) {
         BrandMark()
@@ -106,13 +113,15 @@ private fun PartyIntro(
                     Step(2, stringResource(R.string.guests_step_2))
                     Step(3, stringResource(R.string.guests_step_3))
                 }
-                Row {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     TvButton(
                         stringResource(R.string.home_start_party),
                         onStart,
                         modifier = Modifier.initialFocus(),
                         icon = Icons.Rounded.Groups,
                     )
+                    // Telefoni finti per due minuti, per provare schermo e audio prima che arrivino gli ospiti.
+                    TvButton(stringResource(R.string.guests_rehearsal), onRehearsal, icon = Icons.Rounded.Science)
                 }
                 Text(stringResource(R.string.guests_same_network), style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
             }
@@ -165,6 +174,8 @@ private fun PartyInProgress(
     onGuestbook: () -> Unit,
     hostPin: String?,
     onAnnounce: () -> Unit,
+    undevelopedShots: Int?,
+    onDevelop: () -> Unit,
 ) {
     Row(Modifier.fillMaxSize().background(Background)) {
         Column(
@@ -222,6 +233,9 @@ private fun PartyInProgress(
                         )
                     }
                     TvButton(stringResource(R.string.guests_announce), onAnnounce, icon = Icons.Rounded.Campaign)
+                    if (undevelopedShots != null) {
+                        TvButton(quantityStringResource(R.plurals.guests_develop, undevelopedShots), onDevelop, icon = Icons.Rounded.PhotoCamera)
+                    }
                 }
                 if (hostPin != null) {
                     // Il PIN si legge a gruppi di tre, come un codice di verifica.

@@ -33,6 +33,7 @@ import androidx.compose.material.icons.rounded.Casino
 import androidx.compose.material.icons.rounded.Celebration
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.PhotoCamera
 import androidx.compose.material.icons.rounded.Poll
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Videocam
@@ -56,6 +57,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -569,5 +571,66 @@ fun AnnounceScreen(onAnnounce: (String) -> Unit, onBack: () -> Unit) {
             )
             TvButton(stringResource(R.string.announce_send), { onAnnounce(text) }, icon = Icons.Rounded.Campaign, enabled = text.isNotBlank())
         }
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Regole della festa: tre minuti senza telefoni, rullino da sviluppare, foto che invecchiano
+// ---------------------------------------------------------------------------------------------
+
+/** Tre minuti senza telefoni: la foto resta sullo schermo, abbassata, con il tempo che manca. */
+@Composable
+fun BoxScope.QuietOverlay(untilMillis: Long) {
+    if (untilMillis <= 0) return
+    val left by produceState(((untilMillis - System.currentTimeMillis()) / 1000).coerceAtLeast(0), untilMillis) {
+        while (value > 0) {
+            delay(500)
+            value = ((untilMillis - System.currentTimeMillis()) / 1000).coerceAtLeast(0)
+        }
+    }
+    if (left <= 0) return
+    Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black.copy(alpha = .45f)))
+    Column(
+        Modifier.align(Alignment.Center)
+            .background(SurfaceRaised.copy(alpha = .94f), RoundedCornerShape(28.dp))
+            .padding(horizontal = 48.dp, vertical = 30.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text("📵", fontSize = 64.sp)
+        Text(stringResource(R.string.games_quiet_title), style = MaterialTheme.typography.headlineMedium, color = TextPrimary, textAlign = TextAlign.Center)
+        Text("%d:%02d".format(left / 60, left % 60), style = MaterialTheme.typography.displaySmall, color = Accent)
+    }
+}
+
+/** Rullino usa e getta non ancora sviluppato: quanti scatti sono già "in macchina". */
+@Composable
+fun BoxScope.DisposableBadge(shots: Int) {
+    Row(
+        Modifier.align(Alignment.BottomEnd)
+            .padding(end = 48.dp, bottom = 120.dp)
+            .background(SurfaceRaised.copy(alpha = .94f), RoundedCornerShape(50))
+            .padding(horizontal = 22.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(Icons.Rounded.PhotoCamera, contentDescription = null, tint = Accent, modifier = Modifier.size(22.dp))
+        Text(quantityStringResource(R.plurals.disposable_shots, shots), style = MaterialTheme.typography.titleSmall, color = TextPrimary)
+    }
+}
+
+/** Foto che invecchiano: tinta seppia e un po' di trasparenza crescenti con [age] (0–1). */
+fun Modifier.aging(age: Float): Modifier {
+    if (age <= 0f) return this
+    val sepia = androidx.compose.ui.graphics.Color(0xFF8A6A3A)
+    // La fusione "Color" (Android 10+) tinge senza coprire; prima si usa una velatura leggera.
+    val advanced = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q
+    return graphicsLayer { alpha = 1f - age * .2f }.drawWithContent {
+        drawContent()
+        drawRect(
+            sepia,
+            alpha = if (advanced) age * .55f else age * .25f,
+            blendMode = if (advanced) androidx.compose.ui.graphics.BlendMode.Color else androidx.compose.ui.graphics.BlendMode.SrcOver,
+        )
     }
 }

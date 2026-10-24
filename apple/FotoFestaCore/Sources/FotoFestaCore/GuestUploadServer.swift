@@ -35,6 +35,10 @@ public struct GuestHTTPError: Error, Equatable, Sendable {
 public final class GuestUploadServer: @unchecked Sendable {
     public enum UploadResult: Sendable {
         case shown, pending, full, tooManyPending, unsupported
+        /// Il telefono ha finito i suoi scatti (una foto a testa, rullino usa e getta).
+        case limit
+        /// Tre minuti senza telefoni: la foto aspetta.
+        case quiet
     }
 
     public static let maxUploadBytes = 12 * 1024 * 1024
@@ -49,7 +53,8 @@ public final class GuestUploadServer: @unchecked Sendable {
     private let bodyDeadline: TimeInterval
     private let maxUploadsPerMinute: Int
     private let page: @Sendable () -> String
-    private let onPhoto: @Sendable (Data, String?) -> UploadResult
+    /// Foto ricevuta, con il nome di chi la manda e l'identificativo del suo telefono.
+    private let onPhoto: @Sendable (Data, String?, String?) -> UploadResult
     /// Chiamato sulla coda del server: non deve chiamare `start()` o `stop()` direttamente.
     private let onFailure: @Sendable () -> Void
     /// Gioco con i telefoni: domanda in corso (GET /game) e risposte (POST /game/answer).
@@ -87,7 +92,7 @@ public final class GuestUploadServer: @unchecked Sendable {
         bodyDeadline: TimeInterval = 120,
         maxUploadsPerMinute: Int = 60,
         page: @escaping @Sendable () -> String,
-        onPhoto: @escaping @Sendable (Data, String?) -> UploadResult,
+        onPhoto: @escaping @Sendable (Data, String?, String?) -> UploadResult,
         onFailure: @escaping @Sendable () -> Void = {},
         game: PhoneGame? = nil,
         hub: PartyHub? = nil,
@@ -421,12 +426,15 @@ public final class GuestUploadServer: @unchecked Sendable {
     private func receivePhoto(_ request: GuestHTTPRequest, body: Data) throws -> GuestHTTPResponse {
         guard GuestImageFormat.sniff(body) != nil else { throw GuestHTTPError(status: 415, code: "unsupported") }
         let sender = request.headers["x-fotofesta-sender"].flatMap { $0.removingPercentEncoding }.flatMap(GuestSender.clean)
-        switch onPhoto(body, sender) {
+        let player = request.headers["x-fotofesta-player"].flatMap { PhoneGame.isValidPlayer($0) ? $0 : nil }
+        switch onPhoto(body, sender, player) {
         case .shown: return .json(200, #"{"status":"shown"}"#)
         case .pending: return .json(200, #"{"status":"pending"}"#)
         case .full: throw GuestHTTPError(status: 507, code: "full")
         case .tooManyPending: throw GuestHTTPError(status: 507, code: "pending_full")
         case .unsupported: throw GuestHTTPError(status: 415, code: "unsupported")
+        case .limit: throw GuestHTTPError(status: 403, code: "limit")
+        case .quiet: throw GuestHTTPError(status: 423, code: "quiet")
         }
     }
 

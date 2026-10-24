@@ -223,6 +223,7 @@ class MainActivity : ComponentActivity() {
                                 onSettings = { viewModel.pause(); viewModel.navigate(Destination.SETTINGS) },
                                 onVideoAudible = viewModel::setVideoAudible,
                                 reactions = viewModel.reactions,
+                                photoAge = viewModel::photoAge,
                             )
                             Destination.GAMES -> GamesScreen(
                                 // I giochi usano solo le foto: i video si guardano nello slideshow.
@@ -237,6 +238,7 @@ class MainActivity : ComponentActivity() {
                                 onPoll = { viewModel.navigate(Destination.POLL) },
                                 onLottery = { viewModel.navigate(Destination.LOTTERY) },
                                 onDirector = viewModel::startDirector,
+                                onQuiet = viewModel::startQuiet,
                             )
                             Destination.POLL -> PollScreen(phonePlay(state), viewModel::lotteryCandidates) { viewModel.navigate(Destination.GAMES) }
                             Destination.LOTTERY -> LotteryScreen(viewModel::lotteryCandidates) { viewModel.navigate(Destination.GAMES) }
@@ -282,6 +284,9 @@ class MainActivity : ComponentActivity() {
                                 onGuestbook = { viewModel.navigate(Destination.GUESTBOOK) },
                                 hostPin = state.party.hostPin,
                                 onAnnounce = { viewModel.navigate(Destination.ANNOUNCE) },
+                                undevelopedShots = state.party.shotsTaken.takeIf { state.party.undeveloped },
+                                onDevelop = viewModel::develop,
+                                onRehearsal = viewModel::startRehearsal,
                             )
                             Destination.AWARDS -> AwardsScreen(
                                 awards = remember(state.photos) { PartyAwards.from(state.photos, viewModel.reactionCounts()) },

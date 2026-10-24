@@ -44,6 +44,7 @@ import it.fotofesta.tv.model.GoogleConnectState
 import it.fotofesta.tv.model.GuestsUiState
 import it.fotofesta.tv.model.PhotoItem
 import it.fotofesta.tv.model.PartyUiState
+import it.fotofesta.tv.model.PhotoLimit
 import it.fotofesta.tv.model.PlaybackOrder
 import it.fotofesta.tv.model.PrizeDraw
 import it.fotofesta.tv.model.SettingsCategory
@@ -124,6 +125,11 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private var pairingServer: LinkPairingServer? = null
     /** Gioco con i telefoni, per "Foto misteriosa" e "Chi l'ha scattata?" durante la festa. */
     val phoneGame = services.phoneGame
+    /** Passaggi di ogni foto sullo schermo, per "Foto che invecchiano". */
+    private val showCounts = java.util.concurrent.ConcurrentHashMap<String, Int>()
+    private var lastShownPhoto: PhotoItem? = null
+    private var quietJob: Job? = null
+    private var rehearsalJob: Job? = null
     /** Reazioni e dediche dei telefoni durante la festa. */
     private val partyHub = services.partyHub
     /** Regia dal telefono: i comandi arrivano dai thread del server e si eseguono qui. */
@@ -229,11 +235,15 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                 .collect { (party, photos, ready) -> onGuestsChanged(party, photos, ready) }
         }
         partyHub.onChange = ::refreshParty
-        partyHub.onReaction = { _reactions.tryEmit(it) }
+        partyHub.onReaction = {
+            _reactions.tryEmit(it)
+            guests.saveHubSoon()
+        }
         val runOnMain: (PartyCommand) -> Unit = { command -> viewModelScope.launch { execute(command) } }
         hostRemote.onCommand = runOnMain
         partyHub.onDirectorCommand = runOnMain
         hostRemote.setEnabled(_state.value.settings.phoneHost)
+        syncPartyRules()
         syncPartyFeatures()
         refreshParty()
         // La pagina di regia mostra cosa c'è sullo schermo e cosa aspetta l'approvazione.
@@ -250,24 +260,149 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                 .distinctUntilChanged()
                 .collect { hostRemote.updateStatus(it) }
         }
-        // Le reazioni dei telefoni contano per la foto sullo schermo.
+        // Le reazioni dei telefoni contano per la foto sullo schermo; con "Festa senza tracce" la foto
+        // degli invitati appena lasciata si cancella, con "Foto che invecchiano" si contano i passaggi.
         viewModelScope.launch {
-            _state.map { state -> state.photos.getOrNull(state.currentIndex)?.id.takeIf { state.destination == Destination.SLIDESHOW } }
-                .distinctUntilChanged()
-                .collect { partyHub.showing(it) }
+            _state.map { state -> state.photos.getOrNull(state.currentIndex).takeIf { state.destination == Destination.SLIDESHOW } }
+                .distinctUntilChanged { old, new -> old?.id == new?.id }
+                .collect { photo ->
+                    partyHub.showing(photo?.id)
+                    val previous = lastShownPhoto
+                    lastShownPhoto = photo
+                    if (photo != null) showCounts[photo.id] = (showCounts[photo.id] ?: 0) + 1
+                    if (_state.value.settings.noTraces && previous != null && previous.id != photo?.id) {
+                        previous.guestPhotoId?.let(guests::reject)
+                    }
+                }
         }
     }
 
     /** Chiamato anche dai thread del server della festa: lo stato si aggiorna in modo atomico. */
     private fun refreshParty() {
+        val quietLeft = partyHub.quietLeftMillis()
+        val developed = partyHub.isDeveloped()
         val party = PartyUiState(
             messages = partyHub.messages(),
             pendingMessages = partyHub.pendingMessages(),
             announcement = partyHub.announcement(),
             director = partyHub.director(),
             hostPin = hostRemote.pin(),
+            quietUntilMillis = if (quietLeft > 0) System.currentTimeMillis() + quietLeft else 0,
+            undeveloped = !developed,
+            shotsTaken = partyHub.photosTaken(),
+            rehearsal = rehearsalJob?.isActive == true,
         )
+        val wasUndeveloped = _state.value.party.undeveloped
         _state.update { it.copy(party = party) }
+        guests.saveHubSoon()
+        // Il rullino appena sviluppato (o la regola cambiata) cambia le foto in mostra.
+        if (wasUndeveloped != !developed) viewModelScope.launch { applyCollection(restart = false) }
+    }
+
+    /** Regole delle foto degli invitati, ripresa della festa e copia nella galleria. */
+    private fun syncPartyRules() {
+        val settings = _state.value.settings
+        partyHub.setPhotoRules(PartyHub.PhotoRules(settings.photoLimit.perGuest, settings.photoLimit == PhotoLimit.DISPOSABLE))
+        guests.store.durable = settings.resumeParty && !settings.noTraces
+        guests.onPhotoSaved = if (settings.backupCopy && !settings.noTraces && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            { bytes, sender -> viewModelScope.launch(Dispatchers.IO) { backupPhoto(bytes, sender) } }
+        } else {
+            null
+        }
+    }
+
+    /** Copia di una foto degli invitati in Immagini/FotoFesta/<data>, nella galleria della TV. */
+    @androidx.annotation.RequiresApi(Build.VERSION_CODES.Q)
+    private fun backupPhoto(bytes: ByteArray, sender: String?) {
+        val now = System.currentTimeMillis()
+        val day = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ROOT).format(java.util.Date(now))
+        val name = buildString {
+            append("festa_").append(now)
+            sender?.let { append('_').append(it.filter { char -> char.isLetterOrDigit() }.take(20)) }
+            append(".jpg")
+        }
+        val values = android.content.ContentValues().apply {
+            put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, name)
+            put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+            put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "Pictures/FotoFesta/$day")
+        }
+        runCatching {
+            val resolver = context.contentResolver
+            val uri = resolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: return
+            resolver.openOutputStream(uri)?.use { it.write(bytes) }
+        }.onFailure { Log.w(TAG, "Copia di sicurezza non riuscita", it) }
+    }
+
+    /** Quante volte la foto è passata sullo schermo e quanto è "invecchiata" (0 nuova, 1 molto). */
+    fun photoAge(photo: PhotoItem): Float {
+        if (!_state.value.settings.agingPhotos) return 0f
+        val shows = (showCounts[photo.id] ?: 1) - 1
+        val reactions = partyHub.reactionCount(photo.id)
+        return ((shows - 2 * reactions).coerceIn(0, AGING_STEPS)).toFloat() / AGING_STEPS
+    }
+
+    /** Sviluppo del rullino usa e getta: le foto scattate finora compaiono. */
+    fun develop() {
+        partyHub.develop()
+        showMessage(context.getString(R.string.message_developed))
+    }
+
+    /** Tre minuti senza telefoni: lo slideshow si ferma su una foto e i telefoni aspettano. */
+    fun startQuiet() {
+        if (!_state.value.guests.active) return
+        partyHub.startQuiet()
+        quietJob?.cancel()
+        playCurrent()
+        pause()
+        quietJob = viewModelScope.launch {
+            delay(PartyHub.QUIET_MS)
+            partyHub.stopQuiet()
+            if (_state.value.destination == Destination.SLIDESHOW && !_state.value.isPlaying) togglePlayback()
+        }
+    }
+
+    /**
+     * Prova generale: per due minuti otto telefoni finti mandano foto demo, reazioni, dediche e
+     * risposte, così si provano schermo e audio prima della festa. Alla fine si cancella tutto.
+     */
+    fun startRehearsal() {
+        if (_state.value.guests.active) {
+            showMessage(context.getString(R.string.message_rehearsal_party))
+            return
+        }
+        guests.start()
+        rehearsalJob?.cancel()
+        rehearsalJob = viewModelScope.launch {
+            refreshParty()
+            // La festa parte sul thread della festa: si aspetta che sia attiva.
+            withTimeoutOrNull(5_000) { while (!_state.value.guests.active) delay(100) }
+            playCurrent()
+            showMessage(context.getString(R.string.message_rehearsal_started))
+            val names = listOf("Giulia", "Marco", "Sara", "Luca", "Anna", "Paolo", "Elena", "Davide")
+            val players = names.map { "prova-${it.lowercase()}-telefono" }
+            val texts = listOf(R.string.rehearsal_message_1, R.string.rehearsal_message_2, R.string.rehearsal_message_3).map { context.getString(it) }
+            val pictures = listOf(R.drawable.demo_coast, R.drawable.demo_picnic, R.drawable.demo_mountains, R.drawable.demo_birthday)
+            val end = System.currentTimeMillis() + REHEARSAL_MS
+            var step = 0
+            while (System.currentTimeMillis() < end && _state.value.guests.active) {
+                val guest = step % names.size
+                when (step % 4) {
+                    0 -> withContext(Dispatchers.IO) {
+                        runCatching { context.resources.openRawResource(pictures[(step / 4) % pictures.size]).use { it.readBytes() } }.getOrNull()
+                    }?.let { guests.addRehearsalPhoto(it, names[guest]) }
+                    1 -> repeat(3) { partyHub.react(players[(guest + it) % names.size], kotlin.random.Random.nextInt(PartyHub.Reaction.entries.size), names[(guest + it) % names.size]) }
+                    2 -> partyHub.message(players[guest], texts[step % texts.size], names[guest])
+                    else -> phoneGame.current()?.takeIf { it.open && it.choices.isNotEmpty() }?.let { question ->
+                        phoneGame.answer(question.round, kotlin.random.Random.nextInt(question.choices.size), players[guest], names[guest])
+                    }
+                }
+                step++
+                delay(kotlin.random.Random.nextLong(2_000, 4_500))
+            }
+            if (_state.value.guests.active) endGuestParty()
+            showMessage(context.getString(R.string.message_rehearsal_done))
+        }
+        rehearsalJob?.invokeOnCompletion { viewModelScope.launch { refreshParty() } }
     }
 
     /** Comando della regia dal telefono o del regista di turno. */
@@ -288,6 +423,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             }
             is PartyCommand.Announce -> partyHub.announce(command.text)
             PartyCommand.StartDirector -> startDirector()
+            PartyCommand.StartQuiet -> startQuiet()
+            PartyCommand.Develop -> develop()
         }
     }
 
@@ -428,6 +565,12 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         if (previous.sleepTimerMinutes != value.sleepTimerMinutes) syncSleepTimer()
         if (previous.videos != value.videos) applyCollection(restart = false)
         if (previous.phoneReactions != value.phoneReactions || previous.phoneMessages != value.phoneMessages) syncPartyFeatures()
+        if (previous.photoLimit != value.photoLimit || previous.resumeParty != value.resumeParty ||
+            previous.noTraces != value.noTraces || previous.backupCopy != value.backupCopy
+        ) {
+            syncPartyRules()
+            refreshParty()
+        }
         if (previous.phoneHost != value.phoneHost) {
             hostRemote.setEnabled(value.phoneHost)
             refreshParty()
@@ -1384,6 +1527,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     fun startGuestParty() = guests.start()
 
     fun endGuestParty() {
+        quietJob?.cancel()
+        showCounts.clear()
         guests.end()
         freshPhotos.clear()
         knownGuestIds = null
@@ -1541,7 +1686,9 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private fun applyCollection(restart: Boolean) {
         val current = _state.value
         val base = if (current.settings.videos) basePhotos else basePhotos.filterNot { it.video }
-        val photos = combineWithGuests(base, baseIsDemo, guestPhotos, guestPartyActive)
+        // Il rullino usa e getta non ancora sviluppato tiene nascoste le foto degli invitati.
+        val visibleGuests = if (partyHub.isDeveloped()) guestPhotos else emptyList()
+        val photos = combineWithGuests(base, baseIsDemo, visibleGuests, guestPartyActive)
         val shuffle = current.settings.shuffle
         if (restart) {
             val index = if (shuffle && photos.isNotEmpty()) photos.indices.random() else 0
@@ -1662,5 +1809,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         const val TAG = "FotoFestaViewModel"
         const val INDEX_TIMEOUT_MS = 90_000L
         const val ICLOUD_REFRESH_MS = 5 * 60_000L
+        /** Passaggi (meno due per ogni reazione) perché una foto sia del tutto ingiallita. */
+        const val AGING_STEPS = 8
+        const val REHEARSAL_MS = 120_000L
     }
 }

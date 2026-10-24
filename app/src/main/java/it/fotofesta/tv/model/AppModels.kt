@@ -29,6 +29,13 @@ enum class SlideshowLayout(@StringRes val labelRes: Int, @StringRes val descript
     MOSAIC(R.string.layout_mosaic, R.string.layout_mosaic_body),
 }
 
+/** Quante foto può mandare ogni invitato: senza limite, una sola, o il rullino usa e getta. */
+enum class PhotoLimit(@StringRes val labelRes: Int, val perGuest: Int) {
+    NONE(R.string.photo_limit_none, 0),
+    ONE(R.string.photo_limit_one, 1),
+    DISPOSABLE(R.string.photo_limit_disposable, PartyHub.DISPOSABLE_SHOTS),
+}
+
 /** Sezioni della schermata Impostazioni. */
 enum class SettingsCategory { SLIDESHOW, MUSIC, PARTY, SCREENSAVER, PRIVACY }
 
@@ -108,6 +115,16 @@ data class SlideshowSettings(
     val phoneMessages: Boolean = true,
     /** Chi organizza comanda la festa dal telefono, con il PIN mostrato sulla TV. */
     val phoneHost: Boolean = true,
+    /** Limite di foto per invitato; con il rullino le foto si vedono dopo lo sviluppo. */
+    val photoLimit: PhotoLimit = PhotoLimit.NONE,
+    /** Le foto ingialliscono a ogni passaggio; le reazioni le ringiovaniscono. */
+    val agingPhotos: Boolean = false,
+    /** Ogni foto degli invitati si mostra una volta sola e poi si cancella. */
+    val noTraces: Boolean = false,
+    /** Ogni foto va subito anche su disco: se l'app si chiude, la festa riprende. */
+    val resumeParty: Boolean = true,
+    /** Copia delle foto degli invitati in Immagini/FotoFesta (Android 10 e successivi). */
+    val backupCopy: Boolean = false,
 )
 
 sealed interface GoogleConnectState {
@@ -158,6 +175,13 @@ data class PartyUiState(
     val director: PartyHub.Director? = null,
     /** PIN della regia dal telefono; null se la regia è spenta. */
     val hostPin: String? = null,
+    /** Fine dei tre minuti senza telefoni (epoch ms); 0 se non sono in corso. */
+    val quietUntilMillis: Long = 0,
+    /** Rullino usa e getta non ancora sviluppato, con gli scatti usati finora. */
+    val undeveloped: Boolean = false,
+    val shotsTaken: Int = 0,
+    /** Prova generale in corso, con telefoni simulati. */
+    val rehearsal: Boolean = false,
 )
 
 /** Cosa si sta scegliendo nel browser di cartelle: una cartella di foto o un brano. */

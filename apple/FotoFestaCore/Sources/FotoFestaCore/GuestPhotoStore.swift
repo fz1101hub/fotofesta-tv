@@ -72,6 +72,7 @@ public final class GuestPhotoStore: @unchecked Sendable {
     private var memoryUsed = 0
     private var diskUsed = 0
     private var onChange: (@Sendable ([GuestPhoto]) -> Void)?
+    private var durable = false
 
     public init(
         directory: URL,
@@ -98,6 +99,12 @@ public final class GuestPhotoStore: @unchecked Sendable {
         lock.lock()
         onChange = handler
         lock.unlock()
+    }
+
+    /// Ogni foto va subito anche su disco, così un arresto improvviso dell'app non la perde e la
+    /// festa riprende al riavvio ("Riprendi la festa").
+    public func setDurable(_ value: Bool) {
+        lock.withLock { durable = value }
     }
 
     /// Tutte le foto, approvate e da approvare, dalla più vecchia alla più recente.
@@ -137,6 +144,8 @@ public final class GuestPhotoStore: @unchecked Sendable {
             while entries.count > maxPhotos { drop(victim(entries)) }
             // Una foto in attesa non può far cancellare foto già approvate: piuttosto viene rifiutata.
             fitInMemory(allowApprovedEviction: approved)
+            // Se la scrittura non riesce la foto resta in RAM: si mostra lo stesso.
+            if durable, entries.contains(where: { $0 === entry }) { _ = spill(entry, evictOthers: true, allowApprovedEviction: approved) }
             return entries.contains { $0 === entry } ? .added(photo) : .full
         }
     }

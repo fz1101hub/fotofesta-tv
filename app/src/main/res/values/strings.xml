@@ -523,4 +523,37 @@
     <string name="director_now">%1$s is directing · %2$s</string>
     <string name="message_director_none">No guest has written their name yet: whoever sends a photo, plays or reacts with their name can direct.</string>
     <string name="message_director_started">%1$s directs the slideshow from their phone for two minutes!</string>
+
+    <!-- Regole della festa, ripresa, copia e prova generale -->
+    <string name="photo_limit_none">No limit</string>
+    <string name="photo_limit_one">One each</string>
+    <string name="photo_limit_disposable">Disposable camera (27)</string>
+    <string name="settings_photo_limit">Photos per guest</string>
+    <string name="settings_photo_limit_body">With the disposable camera nobody sees the photos until you develop the film.</string>
+    <string name="settings_aging">Photos that age</string>
+    <string name="settings_aging_body">Every time a photo comes back it yellows a little; reactions from phones make it young again.</string>
+    <string name="settings_no_traces">Party without traces</string>
+    <string name="settings_no_traces_body">Each guest photo is shown once and then deleted for good.</string>
+    <string name="settings_resume">Resume the party after an interruption</string>
+    <string name="settings_resume_body">Every photo is also saved straight away: if the app closes, photos, messages and scores are back when it restarts.</string>
+    <string name="settings_backup">Copy to the gallery</string>
+    <string name="settings_backup_body">Each guest photo is also copied to Pictures/FotoFesta on this TV, and stays there after the party.</string>
+    <string name="message_developed">Film developed: here are the photos!</string>
+    <string name="games_quiet_title">Three minutes without phones</string>
+    <string name="games_quiet_body">Everyone puts their phone down: one photo on the screen and a little calm.</string>
+    <string name="guests_rehearsal">Dress rehearsal</string>
+    <string name="message_rehearsal_party">The dress rehearsal happens before the party: end the party to try it.</string>
+    <string name="message_rehearsal_started">Dress rehearsal: for two minutes eight pretend phones send photos, reactions and messages.</string>
+    <string name="message_rehearsal_done">Dress rehearsal over: everything was deleted.</string>
+    <string name="rehearsal_message_1">What a party!</string>
+    <string name="rehearsal_message_2">Best wishes from all of us!</string>
+    <string name="rehearsal_message_3">Let’s dance!</string>
+    <plurals name="disposable_shots">
+        <item quantity="one">Film developing · %d shot</item>
+        <item quantity="other">Film developing · %d shots</item>
+    </plurals>
+    <plurals name="guests_develop">
+        <item quantity="one">Develop the film (%d shot)</item>
+        <item quantity="other">Develop the film (%d shots)</item>
+    </plurals>
 </resources>

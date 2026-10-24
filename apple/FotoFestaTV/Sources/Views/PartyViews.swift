@@ -489,6 +489,62 @@ struct DirectorBadge: View {
     }
 }
 
+/// Tre minuti senza telefoni: la foto resta sullo schermo, abbassata, con il tempo che manca.
+struct QuietOverlay: View {
+    let until: Date
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let remaining = max(Int(until.timeIntervalSince(context.date).rounded(.up)), 0)
+            if remaining > 0 {
+                ZStack {
+                    Color.black.opacity(0.45)
+                    VStack(spacing: 12) {
+                        Text("📵").font(.system(size: 96))
+                        Text(L("games.quiet_title"))
+                            .font(.title2.bold())
+                            .multilineTextAlignment(.center)
+                        Text(String(format: "%d:%02d", remaining / 60, remaining % 60))
+                            .font(.system(size: 72, weight: .bold).monospacedDigit())
+                            .foregroundStyle(Theme.highlight)
+                    }
+                    .padding(.horizontal, 64)
+                    .padding(.vertical, 40)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 36, style: .continuous))
+                }
+            }
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+    }
+}
+
+/// Rullino usa e getta non ancora sviluppato: quanti scatti sono già "in macchina".
+struct DisposableBadge: View {
+    let shots: Int
+
+    var body: some View {
+        Label(LP("disposable_shots", shots), systemImage: "camera.fill")
+            .font(.headline)
+            .padding(.horizontal, 28)
+            .padding(.vertical, 12)
+            .background(.regularMaterial, in: Capsule())
+    }
+}
+
+extension View {
+    /// Foto che invecchiano: tinta seppia e un po' di trasparenza crescenti con `age` (0–1).
+    @ViewBuilder
+    func aging(_ age: Double) -> some View {
+        if age > 0 {
+            overlay(Color(red: 0.54, green: 0.42, blue: 0.23).opacity(age * 0.55).blendMode(.color))
+                .opacity(1 - age * 0.2)
+        } else {
+            self
+        }
+    }
+}
+
 /// Annuncio dalla TV: frasi pronte da scegliere con il telecomando, oppure un testo libero.
 struct AnnounceView: View {
     @Environment(AppModel.self) private var model

@@ -63,6 +63,10 @@ struct GuestsView: View {
                     NavigationLink(value: Route.settings) {
                         Label(L("action.settings"), systemImage: "gearshape")
                     }
+                    // Due minuti con telefoni finti, per provare schermo e audio prima della festa.
+                    Button { model.startRehearsal() } label: {
+                        Label(L("guests.rehearsal"), systemImage: "theatermasks.fill")
+                    }
                 }
                 Text(L("guests.intro")).font(.callout).foregroundStyle(Theme.secondaryText)
                 // AirPlay lo gestisce tvOS sopra l'app: le foto trasmesse non entrano nella festa.
@@ -119,6 +123,11 @@ struct GuestsView: View {
                 HStack(spacing: 32) {
                     NavigationLink(value: Route.announce) {
                         Label(L("guests.announce"), systemImage: "megaphone.fill")
+                    }
+                    if !guests.developed {
+                        Button { model.develop() } label: {
+                            Label(LP("guests.develop", guests.shotsTaken), systemImage: "camera.aperture")
+                        }
                     }
                     if !model.guests.messages.isEmpty || !model.guests.pendingMessages.isEmpty {
                         NavigationLink(value: Route.guestbook) {

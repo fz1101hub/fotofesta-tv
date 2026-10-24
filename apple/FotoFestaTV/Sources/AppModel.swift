@@ -110,6 +110,7 @@ final class AppModel {
     }()
     @ObservationIgnored private var guestPhotos: [Photo] = []
     @ObservationIgnored private var guestPartyActive = false
+    @ObservationIgnored private var guestsDeveloped = true
     @ObservationIgnored private let freshPhotos = FreshPhotos()
     /// Foto approvate già viste; nil finché le foto di una festa interrotta non sono state riprese.
     @ObservationIgnored private var knownGuestIDs: Set<String>?
@@ -120,6 +121,16 @@ final class AppModel {
     @ObservationIgnored private var sleepTask: Task<Void, Never>?
     @ObservationIgnored private var sleepTaskMinutes = 0
     @ObservationIgnored private var messageTask: Task<Void, Never>?
+    /// Passaggi di ogni foto sullo schermo, per "Foto che invecchiano".
+    @ObservationIgnored private var showCounts: [String: Int] = [:]
+    @ObservationIgnored private var lastShownPhoto: Photo?
+    @ObservationIgnored private var quietTask: Task<Void, Never>?
+    @ObservationIgnored private var rehearsalTask: Task<Void, Never>?
+    /// Prova generale in corso, con telefoni simulati.
+    private(set) var rehearsal = false
+    /// Passaggi (meno due per ogni reazione) perché una foto sia del tutto ingiallita.
+    static let agingSteps = 8
+    static let rehearsalTime: TimeInterval = 120
 
     private static let settingsKey = slideshowSettingsKey
     private static let sourceKey = "lastSource"
@@ -786,6 +797,100 @@ final class AppModel {
             guests.partyHub.approveAllMessages()
         case let .announce(text): guests.announce(text)
         case .startDirector: startDirector()
+        case .startQuiet: startQuiet()
+        case .develop: develop()
+        }
+    }
+
+    /// Foto sullo schermo: le reazioni dei telefoni contano per lei, con "Foto che invecchiano" si
+    /// contano i passaggi e con "Festa senza tracce" la foto degli invitati appena lasciata si cancella.
+    func photoShown(_ photo: Photo?) {
+        guests.partyHub.showing(photo?.id)
+        let previous = lastShownPhoto
+        lastShownPhoto = photo
+        if let photo { showCounts[photo.id, default: 0] += 1 }
+        if guests.noTraces, let previous, previous.id != photo?.id, case let .guest(id) = previous.source {
+            guests.reject(id)
+        }
+    }
+
+    /// Quanto è "invecchiata" la foto: 0 nuova, 1 del tutto ingiallita.
+    func photoAge(_ photo: Photo) -> Double {
+        guard guests.agingPhotos else { return 0 }
+        let shows = (showCounts[photo.id] ?? 1) - 1
+        let reactions = guests.partyHub.reactionCount(photo.id)
+        return Double(min(max(shows - 2 * reactions, 0), Self.agingSteps)) / Double(Self.agingSteps)
+    }
+
+    /// Sviluppo del rullino usa e getta: le foto scattate finora compaiono.
+    func develop() {
+        guests.develop()
+        showMessage(L("message.developed"))
+    }
+
+    /// Tre minuti senza telefoni: lo slideshow si ferma su una foto e i telefoni aspettano.
+    func startQuiet() {
+        guard guests.active else { return }
+        guests.startQuiet()
+        quietTask?.cancel()
+        play()
+        pause()
+        quietTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(PartyHub.quietTime))
+            guard let self, !Task.isCancelled else { return }
+            self.guests.stopQuiet()
+            if self.path.last == .slideshow, !self.isPlaying { self.play() }
+        }
+    }
+
+    /// Prova generale: per due minuti otto telefoni finti mandano foto demo, reazioni, dediche e
+    /// risposte, così si provano schermo e audio prima della festa. Alla fine si cancella tutto.
+    func startRehearsal() {
+        guard !guests.active else {
+            showMessage(L("message.rehearsal_party"))
+            return
+        }
+        guests.start()
+        rehearsalTask?.cancel()
+        rehearsal = true
+        play()
+        showMessage(L("message.rehearsal_started"))
+        rehearsalTask = Task { [weak self] in
+            let names = ["Giulia", "Marco", "Sara", "Luca", "Anna", "Paolo", "Elena", "Davide"]
+            let players = names.map { "prova-\($0.lowercased())-telefono" }
+            let texts = [L("rehearsal.message_1"), L("rehearsal.message_2"), L("rehearsal.message_3")]
+            let pictures = ["demo_coast", "demo_picnic", "demo_mountains", "demo_birthday"]
+            let end = Date().addingTimeInterval(Self.rehearsalTime)
+            var step = 0
+            while Date() < end, !Task.isCancelled {
+                guard let self, self.guests.active else { break }
+                let guest = step % names.count
+                let hub = self.guests.partyHub
+                switch step % 4 {
+                case 0:
+                    if let url = Bundle.main.url(forResource: pictures[(step / 4) % pictures.count], withExtension: "jpg"),
+                       let data = try? Data(contentsOf: url) {
+                        self.guests.addRehearsalPhoto(data, sender: names[guest])
+                    }
+                case 1:
+                    for offset in 0..<3 {
+                        let index = (guest + offset) % names.count
+                        _ = hub.react(player: players[index], index: Int.random(in: 0..<PartyHub.Reaction.allCases.count), name: names[index])
+                    }
+                case 2:
+                    _ = hub.message(player: players[guest], text: texts[step % texts.count], name: names[guest])
+                default:
+                    if let question = self.guests.phoneGame.current(), question.open, !question.choices.isEmpty {
+                        _ = self.guests.phoneGame.answer(round: question.round, choice: Int.random(in: 0..<question.choices.count), player: players[guest], name: names[guest])
+                    }
+                }
+                step += 1
+                try? await Task.sleep(for: .milliseconds(Int.random(in: 2_000...4_500)))
+            }
+            guard let self, !Task.isCancelled else { return }
+            if self.guests.active { self.endGuestParty() }
+            self.rehearsal = false
+            self.showMessage(L("message.rehearsal_done"))
         }
     }
 
@@ -809,6 +914,8 @@ final class AppModel {
     }
 
     func endGuestParty() {
+        quietTask?.cancel()
+        showCounts = [:]
         guests.end()
         freshPhotos.clear()
         knownGuestIDs = nil
@@ -850,8 +957,9 @@ final class AppModel {
         }
         knownGuestIDs = guests.ready ? Set(approved.map(\.id)) : nil
         let items = approved.map(Self.photo(for:))
-        if items != guestPhotos || guests.active != guestPartyActive {
+        if items != guestPhotos || guests.active != guestPartyActive || guests.developed != guestsDeveloped {
             guestPhotos = items
+            guestsDeveloped = guests.developed
             guestPartyActive = guests.active
             applyCollection(restart: false)
         }
@@ -890,7 +998,9 @@ final class AppModel {
     /// corrente (arrivano o spariscono foto degli invitati mentre lo slideshow va avanti).
     private func applyCollection(restart: Bool) {
         let base = settings.videos ? basePhotos : basePhotos.filter { !$0.isVideo }
-        let newPhotos = combineWithGuests(base: base, baseIsDemo: baseIsDemo, guests: guestPhotos, partyActive: guestPartyActive)
+        // Il rullino usa e getta non ancora sviluppato tiene nascoste le foto degli invitati.
+        let visibleGuests = guests.developed ? guestPhotos : []
+        let newPhotos = combineWithGuests(base: base, baseIsDemo: baseIsDemo, guests: visibleGuests, partyActive: guestPartyActive)
         let oldPhotos = photos
         let currentID = currentPhoto?.id
         let index: Int

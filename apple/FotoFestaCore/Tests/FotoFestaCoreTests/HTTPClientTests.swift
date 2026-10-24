@@ -4,7 +4,7 @@ import XCTest
 /// Il client di rete contro il server degli invitati, l'unico server HTTP vero di questi test.
 final class HTTPClientTests: XCTestCase {
     func testResponsesBeyondTheLimitAreRefused() async throws {
-        let server = GuestUploadServer(key: "test-key", page: { "<html>pagina di prova</html>" }, onPhoto: { _, _ in .shown })
+        let server = GuestUploadServer(key: "test-key", page: { "<html>pagina di prova</html>" }, onPhoto: { _, _, _ in .shown })
         let port = try await server.start(host: "127.0.0.1", preferredPort: 0)
         defer { server.stop() }
         let request = URLRequest(url: URL(string: "http://127.0.0.1:\(port)/?k=test-key")!)
@@ -27,7 +27,7 @@ final class HTTPClientTests: XCTestCase {
         // Un reindirizzamento verso un indirizzo non ammesso non viene seguito: il 3xx arriva com'è.
         // Il server degli invitati non reindirizza mai, quindi qui si verifica l'altra regola nuova:
         // senza l'intestazione Host la richiesta è rifiutata (421).
-        let server = GuestUploadServer(key: "test-key", page: { "<html>pagina</html>" }, onPhoto: { _, _ in .shown })
+        let server = GuestUploadServer(key: "test-key", page: { "<html>pagina</html>" }, onPhoto: { _, _, _ in .shown })
         let port = try await server.start(host: "127.0.0.1", preferredPort: 0)
         defer { server.stop() }
         let status = try await RawHTTP.status(host: "127.0.0.1", port: port, request: "GET /?k=test-key HTTP/1.1\r\nConnection: close\r\n\r\n")

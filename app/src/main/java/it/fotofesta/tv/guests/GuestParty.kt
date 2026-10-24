@@ -164,6 +164,11 @@ class GuestParty(
         }, HUB_SAVE_DELAY_SECONDS, TimeUnit.SECONDS)
     }
 
+    /** Foto di un telefono simulato durante la prova generale. */
+    fun addRehearsalPhoto(bytes: ByteArray, sender: String) = worker.execute {
+        if (_state.value.active) store.add(bytes, sender, approved = !_state.value.approval)
+    }
+
     fun approve(id: String) = worker.execute { store.approve(id) }
 
     fun approveAll() = worker.execute { store.photos.value.filterNot { it.approved }.forEach { store.approve(it.id) } }

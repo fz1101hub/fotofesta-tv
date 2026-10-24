@@ -554,4 +554,39 @@
     <string name="director_now">Ahora dirige %1$s · %2$s</string>
     <string name="message_director_none">Ningún invitado ha escrito aún su nombre: puede dirigir quien envía fotos, juega o reacciona con su nombre.</string>
     <string name="message_director_started">¡%1$s dirige la presentación desde su móvil durante dos minutos!</string>
+
+    <!-- Regole della festa, ripresa, copia e prova generale -->
+    <string name="photo_limit_none">Sin límite</string>
+    <string name="photo_limit_one">Una por persona</string>
+    <string name="photo_limit_disposable">Cámara desechable (27)</string>
+    <string name="settings_photo_limit">Fotos por invitado</string>
+    <string name="settings_photo_limit_body">Con la cámara desechable nadie ve las fotos hasta que reveles el carrete.</string>
+    <string name="settings_aging">Fotos que envejecen</string>
+    <string name="settings_aging_body">Cada vez que vuelve, la foto amarillea un poco; las reacciones de los móviles la rejuvenecen.</string>
+    <string name="settings_no_traces">Fiesta sin huellas</string>
+    <string name="settings_no_traces_body">Cada foto de los invitados se muestra una sola vez y luego se borra para siempre.</string>
+    <string name="settings_resume">Reanudar la fiesta tras una interrupción</string>
+    <string name="settings_resume_body">Cada foto se guarda también al momento: si la app se cierra, al reiniciar vuelven las fotos, las dedicatorias y las puntuaciones.</string>
+    <string name="settings_backup">Copia en la galería</string>
+    <string name="settings_backup_body">Cada foto de los invitados se copia también en Imágenes/FotoFesta de esta TV y se queda allí después de la fiesta.</string>
+    <string name="message_developed">Carrete revelado: ¡aquí están las fotos!</string>
+    <string name="games_quiet_title">Tres minutos sin móviles</string>
+    <string name="games_quiet_body">Todos dejan el móvil: una sola foto en la pantalla y un poco de calma.</string>
+    <string name="guests_rehearsal">Ensayo general</string>
+    <string name="message_rehearsal_party">El ensayo general se hace antes de la fiesta: termina la fiesta para probarlo.</string>
+    <string name="message_rehearsal_started">Ensayo general: durante dos minutos, ocho móviles de prueba envían fotos, reacciones y dedicatorias.</string>
+    <string name="message_rehearsal_done">Ensayo terminado: se ha borrado todo.</string>
+    <string name="rehearsal_message_1">¡Qué fiesta!</string>
+    <string name="rehearsal_message_2">¡Felicidades de parte de todos!</string>
+    <string name="rehearsal_message_3">¡A bailar!</string>
+    <plurals name="disposable_shots">
+        <item quantity="one">Carrete por revelar · %d foto</item>
+        <item quantity="many">Carrete por revelar · %d fotos</item>
+        <item quantity="other">Carrete por revelar · %d fotos</item>
+    </plurals>
+    <plurals name="guests_develop">
+        <item quantity="one">Revelar el carrete (%d foto)</item>
+        <item quantity="many">Revelar el carrete (%d fotos)</item>
+        <item quantity="other">Revelar el carrete (%d fotos)</item>
+    </plurals>
 </resources>

@@ -129,6 +129,8 @@ fun SlideshowScreen(
     onVideoAudible: (String, Boolean) -> Unit,
     /** Reazioni appena arrivate dai telefoni, da animare durante la festa. */
     reactions: Flow<PartyHub.ReactionEvent> = emptyFlow(),
+    /** "Foto che invecchiano": quanto è ingiallita ogni foto (0–1). */
+    photoAge: (PhotoItem) -> Float = { 0f },
 ) {
     val photo = state.photos.getOrNull(state.currentIndex)
     val screenFocus = remember { FocusRequester() }
@@ -259,7 +261,7 @@ fun SlideshowScreen(
                         playing = state.isPlaying,
                         // Copre anche la transizione verso la foto successiva, così il movimento non si ferma.
                         durationMillis = state.settings.intervalSeconds * 1_000 + 800,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize().aging(photoAge(item)),
                     )
                 }
             }
@@ -304,6 +306,8 @@ fun SlideshowScreen(
             if (state.settings.phoneMessages) MessageBanner(state.party.messages)
             if (state.settings.phoneReactions) ReactionsOverlay(reactions)
             DirectorBadge(state.party.director)
+            if (state.party.undeveloped) DisposableBadge(state.party.shotsTaken)
+            QuietOverlay(state.party.quietUntilMillis)
             AnnouncementOverlay(state.party.announcement)
         }
 

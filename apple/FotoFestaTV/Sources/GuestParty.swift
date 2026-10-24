@@ -14,6 +14,27 @@ enum GuestProblem: Equatable {
     case noNetwork, serverFailed
 }
 
+/// Quante foto può mandare ogni invitato: senza limite, una sola, o il rullino usa e getta.
+enum PhotoLimit: String, CaseIterable {
+    case unlimited, one, disposable
+
+    var perGuest: Int {
+        switch self {
+        case .unlimited: 0
+        case .one: 1
+        case .disposable: PartyHub.disposableShots
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .unlimited: L("photo_limit.none")
+        case .one: L("photo_limit.one")
+        case .disposable: L("photo_limit.disposable")
+        }
+    }
+}
+
 /// Archivio delle foto della festa, condiviso da modello e caricamento delle immagini.
 enum GuestStorage {
     static let store: GuestPhotoStore = {
@@ -57,6 +78,22 @@ final class GuestParty {
     private(set) var hostEnabled: Bool
     /// PIN della regia dal telefono; nil se la regia è spenta.
     private(set) var hostPIN: String?
+    /// Limite di foto per invitato; con il rullino le foto si vedono dopo lo sviluppo.
+    private(set) var photoLimit: PhotoLimit
+    /// Le foto ingialliscono a ogni passaggio; le reazioni le ringiovaniscono.
+    private(set) var agingPhotos: Bool
+    /// Ogni foto degli invitati si mostra una volta sola e poi si cancella.
+    private(set) var noTraces: Bool
+    /// Ogni foto va subito anche su disco: se l'app si chiude, la festa riprende.
+    private(set) var resumeParty: Bool
+    /// Copia delle foto degli invitati nella cartella Immagini (solo Mac).
+    private(set) var backupCopy: Bool
+    /// Fine dei tre minuti senza telefoni; nil se non sono in corso.
+    private(set) var quietUntil: Date?
+    /// Rullino usa e getta già sviluppato (o nessun rullino).
+    private(set) var developed = true
+    /// Scatti usati con il limite a testa o il rullino.
+    private(set) var shotsTaken = 0
     /// Stato dello schermo per la pagina di regia: lo fornisce il modello dell'app.
     @ObservationIgnored var hostStatus: (() -> HostRemote.Status)?
 
@@ -91,7 +128,16 @@ final class GuestParty {
         static let reactions = "guests.reactions"
         static let messages = "guests.messages"
         static let host = "guests.host"
+        static let photoLimit = "guests.photoLimit"
+        static let agingPhotos = "guests.agingPhotos"
+        static let noTraces = "guests.noTraces"
+        static let resumeParty = "guests.resumeParty"
+        static let backupCopy = "guests.backupCopy"
     }
+
+    /// Dediche, nomi, reazioni e scatti, per riprendere la festa dopo un'interruzione.
+    private nonisolated static let hubFile = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        .appendingPathComponent("party_activities.json")
 
     /// Gioco con i telefoni, servito dalla stessa pagina della festa.
     let phoneGame = PhoneGame()
@@ -101,6 +147,8 @@ final class GuestParty {
     let hostRemote = HostRemote()
     @ObservationIgnored private var messageRevision = -1
     @ObservationIgnored private var messagePolling: Task<Void, Never>?
+    @ObservationIgnored private var savedState: (revision: Int, reactions: Int)?
+    @ObservationIgnored private let backupFlag = LockedFlag()
 
     init() {
         let defaults = UserDefaults.standard
@@ -110,6 +158,11 @@ final class GuestParty {
         reactionsEnabled = defaults.object(forKey: Keys.reactions) as? Bool ?? true
         messagesEnabled = defaults.object(forKey: Keys.messages) as? Bool ?? true
         hostEnabled = defaults.object(forKey: Keys.host) as? Bool ?? true
+        photoLimit = defaults.string(forKey: Keys.photoLimit).flatMap(PhotoLimit.init(rawValue:)) ?? .unlimited
+        agingPhotos = defaults.bool(forKey: Keys.agingPhotos)
+        noTraces = defaults.bool(forKey: Keys.noTraces)
+        resumeParty = defaults.object(forKey: Keys.resumeParty) as? Bool ?? true
+        backupCopy = defaults.bool(forKey: Keys.backupCopy)
         template = Bundle.main.url(forResource: "index", withExtension: "html")
             .flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? ""
         approvalFlag.value = defaults.bool(forKey: Keys.approval)
@@ -126,6 +179,7 @@ final class GuestParty {
             _ = WifiPasswordKeychain.write(nil)
         }
         syncPartyFeatures()
+        syncPartyRules()
         hostRemote.setEnabled(hostEnabled)
         hostPIN = hostRemote.currentPIN()
         // Dediche, annunci e regista arrivano dalla coda del server: si controlla una volta al secondo
@@ -134,6 +188,7 @@ final class GuestParty {
             while !Task.isCancelled {
                 guard let self else { return }
                 self.refreshMessages()
+                self.saveHubIfChanged()
                 if let status = self.hostStatus?() { self.hostRemote.updateStatus(status) }
                 try? await Task.sleep(for: .seconds(1))
             }
@@ -146,12 +201,16 @@ final class GuestParty {
         let wasActive = defaults.bool(forKey: Keys.active)
         let startedAt = defaults.double(forKey: Keys.startedAt)
         let idleLimit = Self.idleLimit
+        let hub = partyHub
         Task.detached(priority: .utility) { [weak self] in
             if wasActive {
                 store.restore(maxAge: idleLimit)
                 let newest = store.photos.map(\.receivedAt.timeIntervalSince1970).max() ?? 0
                 if Date().timeIntervalSince1970 - max(startedAt, newest) > idleLimit {
                     await self?.end()
+                } else if let saved = try? Data(contentsOf: Self.hubFile) {
+                    // Dediche, nomi, reazioni e scatti del rullino della festa interrotta.
+                    hub.restore(saved)
                 }
             } else {
                 store.clear()
@@ -188,6 +247,8 @@ final class GuestParty {
         // Subito, senza aspettare la notifica dell'archivio: la raccolta non deve usare foto cancellate.
         photos = []
         partyHub.clear()
+        try? FileManager.default.removeItem(at: Self.hubFile)
+        savedState = nil
         hostRemote.reset()
         hostPIN = hostRemote.currentPIN()
         refreshMessages()
@@ -232,6 +293,61 @@ final class GuestParty {
         return chosen
     }
 
+    func setPhotoLimit(_ value: PhotoLimit) {
+        defaults.set(value.rawValue, forKey: Keys.photoLimit)
+        photoLimit = value
+        syncPartyRules()
+        refreshMessages()
+    }
+
+    func setAgingPhotos(_ enabled: Bool) {
+        defaults.set(enabled, forKey: Keys.agingPhotos)
+        agingPhotos = enabled
+    }
+
+    func setNoTraces(_ enabled: Bool) {
+        defaults.set(enabled, forKey: Keys.noTraces)
+        noTraces = enabled
+        syncPartyRules()
+    }
+
+    func setResumeParty(_ enabled: Bool) {
+        defaults.set(enabled, forKey: Keys.resumeParty)
+        resumeParty = enabled
+        syncPartyRules()
+    }
+
+    func setBackupCopy(_ enabled: Bool) {
+        defaults.set(enabled, forKey: Keys.backupCopy)
+        backupCopy = enabled
+        syncPartyRules()
+    }
+
+    /// Sviluppo del rullino usa e getta: le foto scattate finora compaiono.
+    func develop() {
+        partyHub.develop()
+        refreshMessages()
+    }
+
+    /// Tre minuti senza telefoni (o la loro fine, in anticipo).
+    func startQuiet() {
+        partyHub.startQuiet()
+        refreshMessages()
+    }
+
+    func stopQuiet() {
+        partyHub.stopQuiet()
+        refreshMessages()
+    }
+
+    /// Foto di un telefono simulato durante la prova generale.
+    func addRehearsalPhoto(_ data: Data, sender: String) {
+        guard active else { return }
+        let store = self.store
+        let approved = !approval
+        Task.detached(priority: .utility) { _ = store.add(data, sender: sender, approved: approved) }
+    }
+
     func setMessagesEnabled(_ enabled: Bool) {
         defaults.set(enabled, forKey: Keys.messages)
         messagesEnabled = enabled
@@ -258,6 +374,15 @@ final class GuestParty {
         partyHub.setFeatures(PartyHub.Features(reactions: reactionsEnabled, messages: messagesEnabled, moderateMessages: approval))
     }
 
+    /// Regole delle foto degli invitati, ripresa della festa e copia nella cartella Immagini.
+    private func syncPartyRules() {
+        partyHub.setPhotoRules(PartyHub.PhotoRules(perGuest: photoLimit.perGuest, disposable: photoLimit == .disposable))
+        store.setDurable(resumeParty && !noTraces)
+        #if os(macOS)
+        backupFlag.value = backupCopy && !noTraces
+        #endif
+    }
+
     private func refreshMessages() {
         let revision = partyHub.currentRevision()
         guard revision != messageRevision else { return }
@@ -266,6 +391,25 @@ final class GuestParty {
         pendingMessages = partyHub.pendingMessages()
         announcement = partyHub.currentAnnouncement()
         director = partyHub.currentDirector()
+        let quietLeft = partyHub.quietTimeLeft()
+        quietUntil = quietLeft > 0 ? Date().addingTimeInterval(quietLeft) : nil
+        shotsTaken = partyHub.photosTaken()
+        let wasDeveloped = developed
+        developed = partyHub.isDeveloped()
+        // Il rullino appena sviluppato (o la regola cambiata) cambia le foto in mostra.
+        if wasDeveloped != developed { onChange?() }
+    }
+
+    /// Salva lo stato delle attività quando è cambiato, al massimo una volta al secondo.
+    private func saveHubIfChanged() {
+        guard active else { return }
+        let current = (revision: partyHub.currentRevision(), reactions: partyHub.lastReactionSerial())
+        if let savedState, savedState == current { return }
+        savedState = current
+        let hub = partyHub
+        Task.detached(priority: .utility) {
+            try? hub.snapshot().write(to: Self.hubFile, options: .atomic)
+        }
     }
 
     func setQRInSlideshow(_ enabled: Bool) {
@@ -461,16 +605,56 @@ final class GuestParty {
     }
 
     /// Chiamato dalla coda del server per ogni foto ricevuta.
-    private func makePhotoHandler() -> @Sendable (Data, String?) -> GuestUploadServer.UploadResult {
+    private func makePhotoHandler() -> @Sendable (Data, String?, String?) -> GuestUploadServer.UploadResult {
         let store = self.store
         let flag = approvalFlag
-        return { data, sender in
+        let hub = partyHub
+        let backup = backupFlag
+        return { data, sender, player in
             guard GuestImageFormat.isDisplayable(data) else { return .unsupported }
-            switch store.add(data, sender: sender, approved: !flag.value) {
-            case let .added(photo): return photo.approved ? .shown : .pending
-            case .full: return .full
-            case .tooManyPending: return .tooManyPending
+            // Limite di foto a testa (una a testa, rullino) e tre minuti senza telefoni.
+            switch hub.takePhoto(player: player) {
+            case .quiet: return .quiet
+            case .limit, .noPlayer: return .limit
+            case .allowed: break
             }
+            switch store.add(data, sender: sender, approved: !flag.value) {
+            case let .added(photo):
+                if backup.value { Self.backup(data, sender: sender) }
+                return photo.approved ? .shown : .pending
+            case .full:
+                hub.returnPhoto(player: player)
+                return .full
+            case .tooManyPending:
+                hub.returnPhoto(player: player)
+                return .tooManyPending
+            }
+        }
+    }
+
+    /// Copia di una foto degli invitati in Immagini/FotoFesta/<data>, sul Mac.
+    private nonisolated static func backup(_ data: Data, sender: String?) {
+        let manager = FileManager.default
+        guard let pictures = manager.urls(for: .picturesDirectory, in: .userDomainMask).first else { return }
+        let now = Date()
+        let day = now.formatted(.iso8601.year().month().day())
+        let folder = pictures.appendingPathComponent("FotoFesta", isDirectory: true).appendingPathComponent(day, isDirectory: true)
+        let suffix: String
+        switch GuestImageFormat.sniff(data) {
+        case .png: suffix = "png"
+        case .webp: suffix = "webp"
+        default: suffix = "jpg"
+        }
+        var name = "festa_\(Int(now.timeIntervalSince1970 * 1000))"
+        if let sender {
+            let clean = String(sender.filter { $0.isLetter || $0.isNumber }.prefix(20))
+            if !clean.isEmpty { name += "_" + clean }
+        }
+        do {
+            try manager.createDirectory(at: folder, withIntermediateDirectories: true)
+            try data.write(to: folder.appendingPathComponent(name + "." + suffix), options: .atomic)
+        } catch {
+            // La copia è solo una sicurezza in più: la festa va avanti lo stesso.
         }
     }
 

@@ -5,6 +5,7 @@ import android.content.Context
 import it.fotofesta.tv.model.Countdown
 import it.fotofesta.tv.model.CountdownEvent
 import it.fotofesta.tv.model.FitMode
+import it.fotofesta.tv.model.PhotoLimit
 import it.fotofesta.tv.model.SlideshowLayout
 import it.fotofesta.tv.model.SlideshowSettings
 import it.fotofesta.tv.model.TransitionType
@@ -51,6 +52,11 @@ class SettingsRepository(context: Context) {
         phoneReactions = prefs.getBoolean("phone_reactions", true),
         phoneMessages = prefs.getBoolean("phone_messages", true),
         phoneHost = prefs.getBoolean("phone_host", true),
+        photoLimit = enumValueOrDefault(prefs.getString("photo_limit", null), PhotoLimit.NONE),
+        agingPhotos = prefs.getBoolean("aging_photos", false),
+        noTraces = prefs.getBoolean("no_traces", false),
+        resumeParty = prefs.getBoolean("resume_party", true),
+        backupCopy = prefs.getBoolean("backup_copy", false),
     )
 
     fun save(value: SlideshowSettings) {
@@ -73,6 +79,11 @@ class SettingsRepository(context: Context) {
             .putBoolean("phone_reactions", value.phoneReactions)
             .putBoolean("phone_messages", value.phoneMessages)
             .putBoolean("phone_host", value.phoneHost)
+            .putString("photo_limit", value.photoLimit.name)
+            .putBoolean("aging_photos", value.agingPhotos)
+            .putBoolean("no_traces", value.noTraces)
+            .putBoolean("resume_party", value.resumeParty)
+            .putBoolean("backup_copy", value.backupCopy)
             .apply()
     }
 

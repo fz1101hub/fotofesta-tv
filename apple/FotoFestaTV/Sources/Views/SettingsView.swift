@@ -136,6 +136,42 @@ struct SettingsView: View {
                         Text(L("settings.phone_messages_body")).font(.caption).foregroundStyle(.secondary)
                     }
                 }
+                Picker(selection: Binding(get: { guests.photoLimit }, set: { guests.setPhotoLimit($0) })) {
+                    ForEach(PhotoLimit.allCases, id: \.self) { limit in
+                        Text(limit.label).tag(limit)
+                    }
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L("settings.photo_limit"))
+                        Text(L("settings.photo_limit_body")).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                Toggle(isOn: Binding(get: { guests.agingPhotos }, set: { guests.setAgingPhotos($0) })) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L("settings.aging"))
+                        Text(L("settings.aging_body")).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                Toggle(isOn: Binding(get: { guests.noTraces }, set: { guests.setNoTraces($0) })) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L("settings.no_traces"))
+                        Text(L("settings.no_traces_body")).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                Toggle(isOn: Binding(get: { guests.resumeParty }, set: { guests.setResumeParty($0) })) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L("settings.resume"))
+                        Text(L("settings.resume_body")).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                #if os(macOS)
+                Toggle(isOn: Binding(get: { guests.backupCopy }, set: { guests.setBackupCopy($0) })) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L("settings.backup"))
+                        Text(L("settings.backup_body")).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                #endif
                 NavigationLink(value: Route.guestWifi) {
                     LabeledContent(L("guests.wifi"), value: guests.wifi?.ssid ?? L("settings.wifi_none"))
                 }

@@ -122,7 +122,7 @@ final class PartyHubTests: XCTestCase {
     func testServerServesThePartyStateAndTakesActions() async throws {
         let game = PhoneGame()
         let hub = PartyHub()
-        let server = GuestUploadServer(key: "test-key", page: { "<html></html>" }, onPhoto: { _, _ in .shown }, game: game, hub: hub)
+        let server = GuestUploadServer(key: "test-key", page: { "<html></html>" }, onPhoto: { _, _, _ in .shown }, game: game, hub: hub)
         let port = try await server.start(host: "127.0.0.1", preferredPort: 0)
         defer { server.stop() }
         let base = "http://127.0.0.1:\(port)"

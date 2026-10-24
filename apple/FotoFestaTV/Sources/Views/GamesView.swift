@@ -48,6 +48,16 @@ struct GamesView: View {
                         }
                         .cardButtonStyle()
                         .disabled(!partyOn)
+                        Button { model.startQuiet() } label: {
+                            GameCardLabel(
+                                title: L("games.quiet_title"),
+                                subtitle: partyOn ? L("games.quiet_body") : L("games.poll_unavailable"),
+                                systemImage: "iphone.slash",
+                                artwork: "demo_mountains.jpg"
+                            )
+                        }
+                        .cardButtonStyle()
+                        .disabled(!partyOn)
                         gameCard(L("games.lottery_title"), L("games.lottery_body"), "dice.fill", .lottery, enabled: true)
                     }
                     // Spazio per il sollevamento delle schede con il fuoco.

@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import it.fotofesta.tv.R
 import it.fotofesta.tv.model.AppState
 import it.fotofesta.tv.model.FitMode
+import it.fotofesta.tv.model.PhotoLimit
 import it.fotofesta.tv.model.SettingsCategory
 import it.fotofesta.tv.model.SlideshowSettings
 import it.fotofesta.tv.model.SlideshowLayout
@@ -383,6 +384,47 @@ fun SettingsScreen(
                                 subtitle = stringResource(R.string.settings_phone_host_body),
                                 checked = state.settings.phoneHost,
                             )
+                            // Un clic passa al valore successivo: senza limite, una a testa, rullino.
+                            SettingsItem(
+                                stringResource(R.string.settings_photo_limit),
+                                {
+                                    val values = PhotoLimit.entries
+                                    onChange(state.settings.copy(photoLimit = values[(state.settings.photoLimit.ordinal + 1) % values.size]))
+                                },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_photo_limit_body),
+                                value = stringResource(state.settings.photoLimit.labelRes),
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_aging),
+                                { onChange(state.settings.copy(agingPhotos = !state.settings.agingPhotos)) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_aging_body),
+                                checked = state.settings.agingPhotos,
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_no_traces),
+                                { onChange(state.settings.copy(noTraces = !state.settings.noTraces)) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_no_traces_body),
+                                checked = state.settings.noTraces,
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_resume),
+                                { onChange(state.settings.copy(resumeParty = !state.settings.resumeParty)) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_resume_body),
+                                checked = state.settings.resumeParty,
+                            )
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                                SettingsItem(
+                                    stringResource(R.string.settings_backup),
+                                    { onChange(state.settings.copy(backupCopy = !state.settings.backupCopy)) },
+                                    toCategory,
+                                    subtitle = stringResource(R.string.settings_backup_body),
+                                    checked = state.settings.backupCopy,
+                                )
+                            }
                             SettingsItem(
                                 stringResource(R.string.guests_wifi),
                                 onWifi,

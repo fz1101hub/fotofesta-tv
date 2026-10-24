@@ -280,7 +280,8 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
                     .put("at", message.atMillis).put("approved", message.approved))
             }
         })
-        json.put("names", JSONObject().apply { names.forEach { (player, name) -> put(player, name) } })
+        // In un array, non in un oggetto: l'ordine di arrivo conta (estrazione, regista) e JSONObject non lo conserva.
+        json.put("names", JSONArray().apply { names.forEach { (player, name) -> put(JSONObject().put("player", player).put("name", name)) } })
         json.put("reactions", JSONObject().apply { reactionCounts.forEach { (photo, count) -> put(photo, count) } })
         json.put("photos", JSONObject().apply { photosByPlayer.forEach { (player, count) -> put(player, count) } })
         json.put("developed", developed)
@@ -301,7 +302,13 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
                     messages += Message(item.optString("id").ifEmpty { UUID.randomUUID().toString() }, text, name, item.optLong("at"), item.optBoolean("approved"))
                 }
                 names.clear()
-                json.optJSONObject("names")?.let { all -> all.keys().forEach { key -> GuestSender.clean(all.optString(key))?.let { names[key] = it } } }
+                json.optJSONArray("names")?.let { all ->
+                    for (index in 0 until minOf(all.length(), MAX_TRACKED_PLAYERS)) {
+                        val item = all.optJSONObject(index) ?: continue
+                        val player = item.optString("player").takeIf(PhoneGame::validPlayer) ?: continue
+                        GuestSender.clean(item.optString("name"))?.let { names[player] = it }
+                    }
+                }
                 reactionCounts.clear()
                 json.optJSONObject("reactions")?.let { all -> all.keys().forEach { key -> reactionCounts[key] = all.optInt(key).coerceAtLeast(0) } }
                 photosByPlayer.clear()

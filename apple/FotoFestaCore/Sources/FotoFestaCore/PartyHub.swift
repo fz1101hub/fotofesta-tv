@@ -75,7 +75,24 @@ public final class PartyHub: @unchecked Sendable {
     }
 
     public enum Result: Equatable, Sendable {
-        case ok, pending, rateLimited, disabled, invalid, full
+        case ok, pending, rateLimited, disabled, invalid, full, quiet
+    }
+
+    /// Regole per le foto degli invitati: al massimo `perGuest` foto a testa (0 = nessun limite) e,
+    /// con `disposable`, il rullino usa e getta: le foto si vedono solo dopo lo sviluppo.
+    public struct PhotoRules: Equatable, Sendable {
+        public var perGuest: Int
+        public var disposable: Bool
+
+        public init(perGuest: Int = 0, disposable: Bool = false) {
+            self.perGuest = perGuest
+            self.disposable = disposable
+        }
+    }
+
+    /// Esito di `takePhoto`: si può mandare la foto, il rullino è finito, o è il momento senza telefoni.
+    public enum PhotoTake: Equatable, Sendable {
+        case allowed, limit, quiet, noPlayer
     }
 
     public static let maxMessageLength = 160
@@ -83,6 +100,10 @@ public final class PartyHub: @unchecked Sendable {
     /// L'annuncio resta sui telefoni per un minuto (sullo schermo lo decide la TV).
     public static let announcementPhoneTime: TimeInterval = 60
     public static let directorTime: TimeInterval = 120
+    /// Tre minuti senza telefoni.
+    public static let quietTime: TimeInterval = 3 * 60
+    /// Scatti del rullino usa e getta, come le macchine di una volta.
+    public static let disposableShots = 27
     public static let maxMessages = 500
     public static let maxRecentReactions = 64
     /// Cinque reazioni ogni tre secondi: abbastanza per divertirsi, troppo poche per intasare lo schermo.
@@ -111,6 +132,10 @@ public final class PartyHub: @unchecked Sendable {
     private var announcementSerial = 0
     private var director: Director?
     private var directorHandler: (@Sendable (PartyCommand) -> Void)?
+    private var rules = PhotoRules()
+    private var photosByPlayer: [String: Int] = [:]
+    private var developed = false
+    private var quietUntil = Date.distantPast
 
     public init(now: @escaping @Sendable () -> Date = { Date() }) {
         self.now = now
@@ -259,18 +284,162 @@ public final class PartyHub: @unchecked Sendable {
         lock.withLock { directorLocked() }
     }
 
+    public func setPhotoRules(_ value: PhotoRules) {
+        lock.withLock {
+            rules = value
+            revision += 1
+        }
+    }
+
+    public func photoRules() -> PhotoRules { lock.withLock { rules } }
+
+    /// Il telefono `player` vuole mandare una foto: con un limite a testa la si conta subito (se poi
+    /// la TV la rifiuta si restituisce con `returnPhoto`).
+    public func takePhoto(player: String?) -> PhotoTake {
+        lock.withLock {
+            if now() < quietUntil { return .quiet }
+            guard rules.perGuest > 0 else { return .allowed }
+            guard let player, PhoneGame.isValidPlayer(player) else { return .noPlayer }
+            let taken = photosByPlayer[player] ?? 0
+            guard taken < rules.perGuest else { return .limit }
+            if photosByPlayer.count < Self.maxTrackedPlayers || photosByPlayer[player] != nil { photosByPlayer[player] = taken + 1 }
+            revision += 1
+            return .allowed
+        }
+    }
+
+    /// Foto contata da `takePhoto` ma non salvata (memoria piena, formato sbagliato): lo scatto torna.
+    public func returnPhoto(player: String?) {
+        lock.withLock {
+            guard let player, let taken = photosByPlayer[player] else { return }
+            photosByPlayer[player] = taken <= 1 ? nil : taken - 1
+            revision += 1
+        }
+    }
+
+    /// Scatti rimasti al telefono `player`; nil se non c'è un limite.
+    public func photosLeft(player: String?) -> Int? {
+        lock.withLock { photosLeftLocked(player) }
+    }
+
+    /// Scatti usati in tutto con il rullino.
+    public func photosTaken() -> Int { lock.withLock { photosByPlayer.values.reduce(0, +) } }
+
+    /// Sviluppo del rullino usa e getta: da qui in poi le foto si vedono.
+    public func develop() {
+        lock.withLock {
+            developed = true
+            revision += 1
+        }
+    }
+
+    /// Le foto del rullino si possono mostrare (o il rullino non c'è).
+    public func isDeveloped() -> Bool { lock.withLock { !rules.disposable || developed } }
+
+    /// Tre minuti senza telefoni: foto, reazioni e dediche aspettano fino alla fine.
+    public func startQuiet(duration: TimeInterval = PartyHub.quietTime) {
+        lock.withLock {
+            quietUntil = now().addingTimeInterval(duration)
+            revision += 1
+        }
+    }
+
+    public func stopQuiet() {
+        lock.withLock {
+            quietUntil = .distantPast
+            revision += 1
+        }
+    }
+
+    /// Secondi che restano del momento senza telefoni (0 se non è in corso).
+    public func quietTimeLeft() -> TimeInterval { lock.withLock { quietLeftLocked() } }
+
+    /// Stato da salvare per riprendere la festa dopo un'interruzione: dediche, nomi, reazioni per
+    /// foto, scatti usati e sviluppo del rullino. Annunci, regista e momento senza telefoni no: dopo
+    /// un riavvio non avrebbero più senso.
+    public func snapshot() -> Data {
+        let state = lock.withLock {
+            Snapshot(
+                messages: messages.map { Snapshot.Message(id: $0.id, text: $0.text, name: $0.name, at: $0.date.timeIntervalSince1970, approved: $0.approved) },
+                names: nameOrder.compactMap { player in names[player].map { Snapshot.Name(player: player, name: $0) } },
+                reactions: reactionCounts,
+                photos: photosByPlayer,
+                developed: developed
+            )
+        }
+        return (try? JSONEncoder().encode(state)) ?? Data()
+    }
+
+    /// Riprende lo stato salvato con `snapshot()`; dati non validi vengono ignorati.
+    @discardableResult
+    public func restore(_ data: Data) -> Bool {
+        guard let state = try? JSONDecoder().decode(Snapshot.self, from: data) else { return false }
+        lock.withLock {
+            messages = state.messages.prefix(Self.maxMessages).compactMap { item in
+                guard let text = GuestSender.clean(item.text, maxLength: Self.maxMessageLength) else { return nil }
+                return Message(id: item.id.isEmpty ? UUID().uuidString : item.id, text: text, name: GuestSender.clean(item.name), date: Date(timeIntervalSince1970: item.at), approved: item.approved)
+            }
+            names = [:]
+            nameOrder = []
+            for item in state.names.prefix(Self.maxTrackedPlayers) where PhoneGame.isValidPlayer(item.player) && names[item.player] == nil {
+                guard let name = GuestSender.clean(item.name) else { continue }
+                names[item.player] = name
+                nameOrder.append(item.player)
+            }
+            reactionCounts = state.reactions.mapValues { max($0, 0) }
+            photosByPlayer = state.photos.filter { PhoneGame.isValidPlayer($0.key) }.mapValues { max($0, 0) }
+            developed = state.developed
+            revision += 1
+        }
+        return true
+    }
+
+    private struct Snapshot: Codable {
+        struct Message: Codable {
+            let id: String
+            let text: String
+            let name: String?
+            let at: TimeInterval
+            let approved: Bool
+        }
+
+        struct Name: Codable {
+            let player: String
+            let name: String
+        }
+
+        let messages: [Message]
+        let names: [Name]
+        let reactions: [String: Int]
+        let photos: [String: Int]
+        let developed: Bool
+    }
+
     /// Annuncio e regista di turno per la pagina del telefono `player`, in JSON.
     public func partyJSON(player: String?) -> String {
         let current = currentAnnouncement()
-        let (chosen, remaining): (Director?, Int) = lock.withLock {
+        let (chosen, remaining, quiet, left, currentRules, rollDeveloped): (Director?, Int, Int, Int?, PhotoRules, Bool) = lock.withLock {
             let chosen = directorLocked()
-            return (chosen, chosen.map { max(Int($0.until.timeIntervalSince(now())), 0) } ?? 0)
+            return (
+                chosen,
+                chosen.map { max(Int($0.until.timeIntervalSince(now())), 0) } ?? 0,
+                Int(quietLeftLocked()),
+                photosLeftLocked(player),
+                rules,
+                !rules.disposable || developed
+            )
         }
         var parts: [String] = []
         if let current {
             parts.append(#""announcement":{"id":\#(current.serial),"text":\#(Self.json(current.text))}"#)
         } else {
             parts.append(#""announcement":null"#)
+        }
+        parts.append(#""quiet":\#(quiet)"#)
+        if let left {
+            parts.append(#""shots":{"left":\#(left),"limit":\#(currentRules.perGuest),"disposable":\#(currentRules.disposable),"developed":\#(rollDeveloped)}"#)
+        } else {
+            parts.append(#""shots":null"#)
         }
         if let chosen {
             let you = player != nil && player == chosen.player
@@ -286,6 +455,9 @@ public final class PartyHub: @unchecked Sendable {
         lock.withLock {
             announcement = nil
             director = nil
+            photosByPlayer = [:]
+            developed = false
+            quietUntil = .distantPast
             showing = nil
             reactionCounts = [:]
             recentReactions = []
@@ -310,11 +482,15 @@ public final class PartyHub: @unchecked Sendable {
         let player = form["player"] ?? ""
         let name = GuestSender.clean(form["name"])
         let result: Result
-        switch form["type"] {
-        case "react": result = react(player: player, index: form["reaction"].flatMap { Int($0) } ?? -1, name: name)
-        case "message": result = message(player: player, text: form["text"], name: name)
-        case "director": result = direct(player: player, command: form["command"])
-        default: result = .invalid
+        if quietTimeLeft() > 0 && form["type"] != "director" {
+            result = .quiet
+        } else {
+            switch form["type"] {
+            case "react": result = react(player: player, index: form["reaction"].flatMap { Int($0) } ?? -1, name: name)
+            case "message": result = message(player: player, text: form["text"], name: name)
+            case "director": result = direct(player: player, command: form["command"])
+            default: result = .invalid
+            }
         }
         switch result {
         case .ok: return (200, #"{"status":"ok"}"#)
@@ -323,6 +499,7 @@ public final class PartyHub: @unchecked Sendable {
         case .disabled: return (403, #"{"error":"disabled"}"#)
         case .full: return (507, #"{"error":"full"}"#)
         case .invalid: return (400, #"{"error":"invalid"}"#)
+        case .quiet: return (423, #"{"error":"quiet"}"#)
         }
     }
 
@@ -353,6 +530,13 @@ public final class PartyHub: @unchecked Sendable {
     private func directorLocked() -> Director? {
         guard let director, now() < director.until else { return nil }
         return director
+    }
+
+    private func quietLeftLocked() -> TimeInterval { max(quietUntil.timeIntervalSince(now()), 0) }
+
+    private func photosLeftLocked(_ player: String?) -> Int? {
+        guard rules.perGuest > 0 else { return nil }
+        return max(rules.perGuest - (player.flatMap { photosByPlayer[$0] } ?? 0), 0)
     }
 
     private func approvePendingLocked() {

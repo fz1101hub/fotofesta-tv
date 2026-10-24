@@ -327,7 +327,7 @@ final class GuestUploadServerTests: XCTestCase {
             maxUploadBytes: 1_000,
             maxUploadsPerMinute: 4,
             page: { "<html>pagina</html>" },
-            onPhoto: { data, sender in
+            onPhoto: { data, sender, _ in
                 received.append(data, sender)
                 return .shown
             }

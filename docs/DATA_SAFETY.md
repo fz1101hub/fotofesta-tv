@@ -16,6 +16,8 @@ Dalla versione 1.3.0 l'app per Android TV non include più Google Cast né altri
 - **Video di Google Foto**: letti da Google come le foto, solo per mostrarli, senza copie sulla TV.
 - **Gioco con i telefoni**: durante la festa gli invitati rispondono dalla pagina servita dalla TV; risposte, nome facoltativo e punti restano in memoria sulla TV e spariscono alla fine del gioco o della festa.
 - **Reazioni, dediche e sondaggi**: le emoji, le dediche (al massimo 160 caratteri) e i voti mandati dalla pagina della festa restano in memoria sulla TV, servono solo a mostrarli sullo schermo, al libro degli ospiti, al premio "Foto della serata" e all'estrazione a premi, e vengono cancellati con "Termina la festa". Con l'approvazione attiva le dediche compaiono solo dopo il via libera dell'organizzatore.
+- **Ripresa della festa e regia**: con "Riprendi la festa dopo un'interruzione" (attiva di serie) le foto degli invitati, le dediche, i nomi, le reazioni per foto e gli scatti usati vengono scritti subito nella memoria privata dell'app, solo per riprendere la festa se l'app si chiude; si cancellano con "Termina la festa". Il telefono manda un identificativo casuale (non legato alla persona) che serve a contare voti, scatti a testa e il regista di turno. Il PIN della regia cambia a ogni festa e non lascia la TV.
+- **Copia nella galleria (facoltativa, spenta di serie)**: su Android TV 10 e successivi, e sull'app Mac, le foto degli invitati possono essere copiate in Immagini/FotoFesta sul dispositivo; quelle copie restano dopo la festa e si cancellano dalla galleria del dispositivo. Con "Festa senza tracce" la copia non si fa e ogni foto si cancella dopo essere stata mostrata una volta.
 
 | Domanda di Play Console | Risposta |
 | --- | --- |

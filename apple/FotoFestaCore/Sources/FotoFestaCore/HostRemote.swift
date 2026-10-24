@@ -8,11 +8,13 @@ public enum PartyCommand: Equatable, Sendable {
     case approveAll
     case announce(String)
     case startDirector
+    case startQuiet
+    case develop
 }
 
 /// Regia dal telefono: chi organizza apre la stessa pagina della festa, scrive il PIN mostrato sulla
 /// TV e da lì manda avanti le foto, mette in pausa, approva foto e dediche, fa annunci e passa la
-/// regia a un invitato per due minuti. Più telefoni possono entrare con lo stesso PIN. È la stessa
+/// regia a un invitato per due minuti; avvia i tre minuti senza telefoni e sviluppa il rullino. Più telefoni possono entrare con lo stesso PIN. È la stessa
 /// logica dell'app Android (`HostRemote.kt`).
 ///
 /// Il PIN cambia a ogni festa (`reset()`); i tentativi sbagliati sono limitati per indirizzo e, dopo
@@ -167,6 +169,8 @@ public final class HostRemote: @unchecked Sendable {
         case "approve_all": command = .approveAll
         case "announce": command = GuestSender.clean(form["text"], maxLength: PartyHub.maxAnnouncementLength).map(PartyCommand.announce)
         case "director": command = .startDirector
+        case "quiet": command = .startQuiet
+        case "develop": command = .develop
         default: command = nil
         }
         guard let command else { return (400, #"{"error":"invalid"}"#) }

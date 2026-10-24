@@ -85,6 +85,14 @@ struct SlideshowView: View {
                 if model.guests.messagesEnabled { MessageBanner(messages: model.guests.messages) }
                 if model.guests.reactionsEnabled { ReactionsOverlay(hub: model.guests.partyHub) }
                 AnnouncementOverlay(announcement: model.guests.announcement)
+                if let until = model.guests.quietUntil { QuietOverlay(until: until) }
+            }
+        }
+        .overlay(alignment: .bottomTrailing) {
+            if model.guests.active, !model.guests.developed {
+                DisposableBadge(shots: model.guests.shotsTaken)
+                    .padding(.trailing, 90)
+                    .padding(.bottom, 150)
             }
         }
         .overlay(alignment: .top) {
@@ -96,11 +104,12 @@ struct SlideshowView: View {
             guard let previous else { return }
             recentIDs = Array(([previous] + recentIDs.filter { $0 != previous }).prefix(6))
         }
-        // Le reazioni dei telefoni contano per la foto sullo schermo.
-        .onChange(of: model.currentPhoto?.id, initial: true) { _, id in
-            model.guests.partyHub.showing(id)
+        // Le reazioni dei telefoni contano per la foto sullo schermo (e i passaggi, per le foto che
+        // invecchiano o per la festa senza tracce).
+        .onChange(of: model.currentPhoto?.id, initial: true) { _, _ in
+            model.photoShown(model.currentPhoto)
         }
-        .onDisappear { model.guests.partyHub.showing(nil) }
+        .onDisappear { model.photoShown(nil) }
         .onMoveCommand { direction in
             switch direction {
             case .left: model.previous()
@@ -177,6 +186,7 @@ struct SlideshowView: View {
             }
         } else {
             SlideView(photo: photo, settings: settings, playing: model.isPlaying)
+                .aging(model.photoAge(photo))
         }
     }
 

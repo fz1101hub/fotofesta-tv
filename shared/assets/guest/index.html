@@ -18,6 +18,9 @@
   input[type=text] { width: 100%; font: inherit; color: var(--fg); background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
   input[type=text]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
   .pick { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; margin: 1.2rem 0 .4rem; padding: 18px; border: 0; border-radius: 16px; background: var(--accent); color: #1b1020; font-family: inherit; font-size: 1.15rem; font-weight: 700; line-height: 1.2; cursor: pointer; }
+  .pick.off { opacity: .45; pointer-events: none; }
+  .shots { margin: 1.2rem 0 0; font-weight: 700; }
+  .shots small { display: block; font-weight: 400; color: var(--muted); }
   .pick:focus-within { outline: 3px solid #fff; outline-offset: 2px; }
   .pick input { position: absolute; width: 1px; height: 1px; opacity: 0; }
   .note { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-top: 1rem; }
@@ -85,6 +88,12 @@
     <p id="announceText"></p>
   </div>
 
+  <!-- Tre minuti senza telefoni: la TV non accetta foto, reazioni e dediche. -->
+  <div id="quiet" class="announce" hidden role="status">
+    <div class="announce-kicker" id="quietKicker"></div>
+    <p id="quietText"></p>
+  </div>
+
   <!-- Regista per due minuti: compare solo sul telefono estratto. -->
   <section id="director" class="game" hidden aria-live="polite">
     <div class="game-kicker" id="directorKicker"></div>
@@ -121,7 +130,8 @@
   </section>
 
 
-  <label class="pick"><span id="pickText"></span><input type="file" id="files" accept="image/*" multiple></label>
+  <p class="shots" id="shots" hidden></p>
+  <label class="pick" id="pick"><span id="pickText"></span><input type="file" id="files" accept="image/*" multiple></label>
   <p class="muted" id="keepOpen"></p>
 
   <div id="banner" role="alert"><span id="bannerText"></span><button type="button" id="retry" hidden></button></div>
@@ -157,6 +167,8 @@
       <div class="pending" id="hostPending"></div>
       <button type="button" class="wide" id="hostApproveAll" hidden></button>
       <button type="button" class="wide" id="hostDirector"></button>
+      <button type="button" class="wide" id="hostQuiet"></button>
+      <button type="button" class="wide" id="hostDevelop" hidden></button>
       <details style="margin-top:12px">
         <summary id="hostSpeechTitle"></summary>
         <p class="muted" id="hostSpeechHint"></p>
@@ -186,6 +198,17 @@ const IT = {
   directorKicker: "Regista per due minuti",
   directorYou: "Tocca a te: dirigi lo slideshow!",
   directorLeft: "Ti restano %s",
+  quietKicker: "Tre minuti senza telefoni",
+  quietText: "Metti giù il telefono e goditi la festa: si riprende tra %s.",
+  quietRefused: "Ora no: sono i tre minuti senza telefoni.",
+  shotsDisposable: "Rullino usa e getta: le foto si vedranno sulla TV solo quando il rullino verrà sviluppato.",
+  shotsDeveloped: "Il rullino è stato sviluppato: guarda la TV!",
+  shotsNone: "Hai finito gli scatti: grazie!",
+  limitReached: "Scatti finiti per questa festa",
+  inRoll: "Nel rullino: la vedrai allo sviluppo",
+  hostQuiet: "Tre minuti senza telefoni",
+  hostDevelop: "Sviluppa il rullino",
+  shotsLeft: (n, limit) => (n === 1 ? "Ti resta 1 scatto su %l" : "Ti restano %n scatti su %l".replace("%n", n)).replace("%l", limit),
   prev: "◀ Indietro",
   next: "Avanti ▶",
   pause: "Pausa",
@@ -263,6 +286,17 @@ const EN = {
   directorKicker: "Director for two minutes",
   directorYou: "Your turn: direct the slideshow!",
   directorLeft: "%s left",
+  quietKicker: "Three minutes without phones",
+  quietText: "Put your phone down and enjoy the party: back in %s.",
+  quietRefused: "Not now: it's three minutes without phones.",
+  shotsDisposable: "Disposable camera: photos appear on the TV only when the roll is developed.",
+  shotsDeveloped: "The roll has been developed: look at the TV!",
+  shotsNone: "You've used all your shots: thank you!",
+  limitReached: "No shots left for this party",
+  inRoll: "In the roll: you'll see it when it's developed",
+  hostQuiet: "Three minutes without phones",
+  hostDevelop: "Develop the roll",
+  shotsLeft: (n, limit) => (n === 1 ? "1 shot left of %l" : "%n shots left of %l".replace("%n", n)).replace("%l", limit),
   prev: "◀ Back",
   next: "Next ▶",
   pause: "Pause",
@@ -340,6 +374,17 @@ const FR = {
   directorKicker: "Réalisateur pendant deux minutes",
   directorYou: "À vous : dirigez le diaporama !",
   directorLeft: "Il vous reste %s",
+  quietKicker: "Trois minutes sans téléphones",
+  quietText: "Posez votre téléphone et profitez de la fête : reprise dans %s.",
+  quietRefused: "Pas maintenant : ce sont les trois minutes sans téléphones.",
+  shotsDisposable: "Appareil jetable : les photos apparaîtront sur le téléviseur seulement au développement de la pellicule.",
+  shotsDeveloped: "La pellicule est développée : regardez le téléviseur !",
+  shotsNone: "Vous avez utilisé toutes vos photos : merci !",
+  limitReached: "Plus de photos pour cette fête",
+  inRoll: "Dans la pellicule : vous la verrez au développement",
+  hostQuiet: "Trois minutes sans téléphones",
+  hostDevelop: "Développer la pellicule",
+  shotsLeft: (n, limit) => (n === 1 ? "Il vous reste 1 photo sur %l" : "Il vous reste %n photos sur %l".replace("%n", n)).replace("%l", limit),
   prev: "◀ Retour",
   next: "Suivante ▶",
   pause: "Pause",
@@ -417,6 +462,17 @@ const ES = {
   directorKicker: "Director por dos minutos",
   directorYou: "Te toca: ¡dirige la presentación!",
   directorLeft: "Te quedan %s",
+  quietKicker: "Tres minutos sin móviles",
+  quietText: "Deja el móvil y disfruta de la fiesta: volvemos en %s.",
+  quietRefused: "Ahora no: son los tres minutos sin móviles.",
+  shotsDisposable: "Cámara desechable: las fotos saldrán en la TV solo cuando se revele el carrete.",
+  shotsDeveloped: "El carrete está revelado: ¡mira la TV!",
+  shotsNone: "Has usado todas tus fotos: ¡gracias!",
+  limitReached: "No te quedan fotos para esta fiesta",
+  inRoll: "En el carrete: la verás al revelarlo",
+  hostQuiet: "Tres minutos sin móviles",
+  hostDevelop: "Revelar el carrete",
+  shotsLeft: (n, limit) => (n === 1 ? "Te queda 1 foto de %l" : "Te quedan %n fotos de %l".replace("%n", n)).replace("%l", limit),
   prev: "◀ Atrás",
   next: "Siguiente ▶",
   pause: "Pausa",
@@ -494,6 +550,17 @@ const DE = {
   directorKicker: "Zwei Minuten Regie",
   directorYou: "Du bist dran: Steuere die Diashow!",
   directorLeft: "Noch %s",
+  quietKicker: "Drei Minuten ohne Handys",
+  quietText: "Leg das Handy weg und genieß die Party: weiter in %s.",
+  quietRefused: "Jetzt nicht: Es sind die drei Minuten ohne Handys.",
+  shotsDisposable: "Wegwerfkamera: Die Fotos erscheinen erst auf dem Fernseher, wenn der Film entwickelt ist.",
+  shotsDeveloped: "Der Film ist entwickelt: Schau auf den Fernseher!",
+  shotsNone: "Du hast alle Fotos verbraucht: danke!",
+  limitReached: "Keine Fotos mehr für diese Party",
+  inRoll: "Im Film: Du siehst es nach dem Entwickeln",
+  hostQuiet: "Drei Minuten ohne Handys",
+  hostDevelop: "Film entwickeln",
+  shotsLeft: (n, limit) => (n === 1 ? "Noch 1 Foto von %l" : "Noch %n Fotos von %l".replace("%n", n)).replace("%l", limit),
   prev: "◀ Zurück",
   next: "Weiter ▶",
   pause: "Pause",
@@ -594,6 +661,7 @@ for (const [id, text] of [["directorPrev", T.prev], ["directorPause", T.pause], 
   ["hostToggle", T.pause], ["hostNext", T.next], ["speechPrev", T.prev], ["speechNext", T.next], ["hostOpen", T.hostOpen],
   ["hostPinLabel", T.hostPinLabel], ["hostEnter", T.hostEnter], ["hostTitle", T.hostTitle], ["hostAnnounceSend", T.hostAnnounceSend],
   ["hostPendingTitle", T.hostPendingTitle], ["hostApproveAll", T.hostApproveAll], ["hostDirector", T.hostDirector],
+  ["hostQuiet", T.hostQuiet], ["hostDevelop", T.hostDevelop], ["quietKicker", T.quietKicker],
   ["hostSpeechTitle", T.hostSpeechTitle], ["hostSpeechHint", T.hostSpeechHint], ["hostLogout", T.hostLogout]]) {
   $(id).textContent = text;
 }
@@ -651,8 +719,53 @@ function showFeatures(features) {
   $("message").hidden = !features.messages;
 }
 
+function showQuiet() {
+  $("quiet").hidden = !quietLeft;
+  if (quietLeft) $("quietText").textContent = T.quietText.replace("%s", Math.floor(quietLeft / 60) + ":" + String(quietLeft % 60).padStart(2, "0"));
+  updatePick();
+}
+
+// Una foto a testa o rullino usa e getta: quanti scatti restano a questo telefono.
+function showShots() {
+  const box = $("shots");
+  box.hidden = !shots;
+  $("hostDevelop").hidden = !(shots && shots.disposable && !shots.developed);
+  updatePick();
+  if (!shots) return;
+  const left = Math.max(0, shots.left | 0);
+  box.textContent = left ? T.shotsLeft(left, shots.limit | 0) : T.shotsNone;
+  const note = shots.disposable ? (shots.developed ? T.shotsDeveloped : T.shotsDisposable) : "";
+  if (note) {
+    const small = document.createElement("small");
+    small.textContent = note;
+    box.appendChild(small);
+  }
+}
+
+function updatePick() {
+  const off = quietLeft > 0 || !!(shots && (shots.left | 0) <= 0);
+  $("pick").classList.toggle("off", off);
+  $("files").disabled = off;
+}
+
 // Annuncio della regia e regista di turno.
+let shots = null;
+let quietLeft = 0;
+let quietTimer = null;
+
 function showParty(party) {
+  quietLeft = Math.max(0, party.quiet | 0);
+  showQuiet();
+  if (quietLeft > 0 && !quietTimer) {
+    // Il conto alla rovescia scorre anche tra un giro e l'altro.
+    quietTimer = setInterval(() => {
+      quietLeft = Math.max(0, quietLeft - 1);
+      showQuiet();
+      if (!quietLeft) { clearInterval(quietTimer); quietTimer = null; }
+    }, 1000);
+  }
+  shots = party.shots || null;
+  showShots();
   const announcement = party.announcement;
   $("announcement").hidden = !announcement;
   if (announcement) $("announceText").textContent = announcement.text;
@@ -693,6 +806,8 @@ $("hostAnnounceSend").addEventListener("click", sendAnnouncement);
 $("hostAnnounce").addEventListener("keydown", (event) => { if (event.key === "Enter") sendAnnouncement(); });
 $("hostApproveAll").addEventListener("click", () => hostCommand({ command: "approve_all" }));
 $("hostDirector").addEventListener("click", () => hostCommand({ command: "director" }));
+$("hostQuiet").addEventListener("click", () => hostCommand({ command: "quiet" }));
+$("hostDevelop").addEventListener("click", () => hostCommand({ command: "develop" }));
 document.querySelectorAll("[data-host]").forEach((button) => {
   button.addEventListener("click", () => {
     let command = button.dataset.host;
@@ -878,6 +993,8 @@ async function sendMessage() {
       status = body && body.status === "pending" ? T.messagePending : T.messageSent;
     } else if (response.status === 429) {
       status = T.messageRate;
+    } else if (response.status === 423) {
+      status = T.quietRefused;
     }
   } catch (e) {}
   $("messageStatus").textContent = status;
@@ -1053,11 +1170,11 @@ async function run() {
         outcome = "failed";
         setState(job.item, T.failed, "err");
       }
-      if (outcome === "offline") {
+      if (outcome === "offline" || outcome === "quiet") {
         // La foto resta in testa alla coda: "Riprova" ricomincia da lei.
         paused = true;
-        setState(job.item, T.failed, "err");
-        showBanner(T.offline, true);
+        if (outcome === "offline") setState(job.item, T.failed, "err");
+        showBanner(outcome === "quiet" ? T.quietRefused : T.offline, true);
         break;
       }
       queue.shift();
@@ -1109,8 +1226,19 @@ async function processOne(job) {
   if (result.status === 200) {
     done++;
     if (result.body && result.body.status === "pending") setState(item, T.pending, "wait");
+    else if (shots && shots.disposable && !shots.developed) setState(item, T.inRoll, "ok");
     else setState(item, T.shown, "ok");
+    if (shots && shots.left > 0) { shots.left--; showShots(); }
     return "done";
+  }
+  if (result.status === 403 && error === "limit") {
+    setState(item, T.limitReached, "err");
+    if (shots) { shots.left = 0; showShots(); }
+    return "failed";
+  }
+  if (result.status === 423) {
+    setState(item, T.quietRefused, "err");
+    return "quiet";
   }
   if (result.status === 401 || result.status === 403 || result.status === 421) {
     setState(item, T.failed, "err");
@@ -1219,6 +1347,8 @@ function upload(job) {
     request.setRequestHeader("X-FotoFesta-Key", KEY);
     // Lo stesso identificativo a ogni tentativo: la TV non salva due volte la stessa foto.
     request.setRequestHeader("X-FotoFesta-Upload", job.uploadId);
+    // Per contare gli scatti a testa quando la TV ha un limite.
+    request.setRequestHeader("X-FotoFesta-Player", PLAYER);
     // Taglio per caratteri e non per unità UTF-16: un'emoji tagliata a metà non sarebbe codificabile.
     const sender = Array.from(senderInput.value.trim()).slice(0, 40).join("");
     if (sender) request.setRequestHeader("X-FotoFesta-Sender", encodeURIComponent(sender));

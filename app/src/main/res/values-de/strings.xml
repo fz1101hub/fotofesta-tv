@@ -522,4 +522,37 @@
     <string name="director_now">%1$s führt Regie · %2$s</string>
     <string name="message_director_none">Noch kein Gast hat seinen Namen angegeben: Regie führen kann, wer mit Namen Fotos sendet, spielt oder reagiert.</string>
     <string name="message_director_started">%1$s steuert die Diashow zwei Minuten lang vom Handy!</string>
+
+    <!-- Regole della festa, ripresa, copia e prova generale -->
+    <string name="photo_limit_none">Unbegrenzt</string>
+    <string name="photo_limit_one">Eins pro Gast</string>
+    <string name="photo_limit_disposable">Einwegkamera (27)</string>
+    <string name="settings_photo_limit">Fotos pro Gast</string>
+    <string name="settings_photo_limit_body">Mit der Einwegkamera sieht niemand die Fotos, bis du den Film entwickelst.</string>
+    <string name="settings_aging">Fotos, die altern</string>
+    <string name="settings_aging_body">Bei jedem Durchlauf vergilbt das Foto ein wenig; Reaktionen vom Handy machen es wieder jung.</string>
+    <string name="settings_no_traces">Party ohne Spuren</string>
+    <string name="settings_no_traces_body">Jedes Gästefoto wird nur einmal gezeigt und dann endgültig gelöscht.</string>
+    <string name="settings_resume">Party nach einer Unterbrechung fortsetzen</string>
+    <string name="settings_resume_body">Jedes Foto wird sofort auch gespeichert: Schließt sich die App, sind Fotos, Grüße und Punkte beim Neustart wieder da.</string>
+    <string name="settings_backup">Kopie in die Galerie</string>
+    <string name="settings_backup_body">Jedes Gästefoto wird zusätzlich in Bilder/FotoFesta auf diesem Fernseher kopiert und bleibt nach der Party dort.</string>
+    <string name="message_developed">Film entwickelt: Hier sind die Fotos!</string>
+    <string name="games_quiet_title">Drei Minuten ohne Handy</string>
+    <string name="games_quiet_body">Alle legen das Handy weg: ein einziges Foto auf dem Bildschirm und ein wenig Ruhe.</string>
+    <string name="guests_rehearsal">Generalprobe</string>
+    <string name="message_rehearsal_party">Die Generalprobe findet vor der Party statt: Beende die Party, um sie auszuprobieren.</string>
+    <string name="message_rehearsal_started">Generalprobe: Zwei Minuten lang senden acht Test-Handys Fotos, Reaktionen und Grüße.</string>
+    <string name="message_rehearsal_done">Generalprobe beendet: Alles wurde gelöscht.</string>
+    <string name="rehearsal_message_1">Was für eine Party!</string>
+    <string name="rehearsal_message_2">Alles Gute von uns allen!</string>
+    <string name="rehearsal_message_3">Auf zum Tanzen!</string>
+    <plurals name="disposable_shots">
+        <item quantity="one">Film in Entwicklung · %d Foto</item>
+        <item quantity="other">Film in Entwicklung · %d Fotos</item>
+    </plurals>
+    <plurals name="guests_develop">
+        <item quantity="one">Film entwickeln (%d Foto)</item>
+        <item quantity="other">Film entwickeln (%d Fotos)</item>
+    </plurals>
 </resources>

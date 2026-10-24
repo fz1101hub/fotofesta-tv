@@ -554,4 +554,39 @@
     <string name="director_now">%1$s réalise · %2$s</string>
     <string name="message_director_none">Aucun invité n’a encore écrit son nom : peut réaliser qui envoie des photos, joue ou réagit avec son nom.</string>
     <string name="message_director_started">%1$s dirige le diaporama depuis son téléphone pendant deux minutes !</string>
+
+    <!-- Regole della festa, ripresa, copia e prova generale -->
+    <string name="photo_limit_none">Sans limite</string>
+    <string name="photo_limit_one">Une chacun</string>
+    <string name="photo_limit_disposable">Appareil jetable (27)</string>
+    <string name="settings_photo_limit">Photos par invité</string>
+    <string name="settings_photo_limit_body">Avec l’appareil jetable, personne ne voit les photos avant le développement de la pellicule.</string>
+    <string name="settings_aging">Photos qui vieillissent</string>
+    <string name="settings_aging_body">À chaque passage, la photo jaunit un peu ; les réactions des téléphones la rajeunissent.</string>
+    <string name="settings_no_traces">Fête sans traces</string>
+    <string name="settings_no_traces_body">Chaque photo d’invité s’affiche une seule fois puis est supprimée définitivement.</string>
+    <string name="settings_resume">Reprendre la fête après une interruption</string>
+    <string name="settings_resume_body">Chaque photo est aussi enregistrée immédiatement : si l’app se ferme, photos, messages et scores reviennent au redémarrage.</string>
+    <string name="settings_backup">Copie dans la galerie</string>
+    <string name="settings_backup_body">Chaque photo d’invité est aussi copiée dans Images/FotoFesta sur ce téléviseur et y reste après la fête.</string>
+    <string name="message_developed">Pellicule développée : voici les photos !</string>
+    <string name="games_quiet_title">Trois minutes sans téléphone</string>
+    <string name="games_quiet_body">Tout le monde pose son téléphone : une seule photo à l’écran et un peu de calme.</string>
+    <string name="guests_rehearsal">Répétition générale</string>
+    <string name="message_rehearsal_party">La répétition générale se fait avant la fête : terminez la fête pour l’essayer.</string>
+    <string name="message_rehearsal_started">Répétition générale : pendant deux minutes, huit faux téléphones envoient photos, réactions et messages.</string>
+    <string name="message_rehearsal_done">Répétition terminée : tout a été supprimé.</string>
+    <string name="rehearsal_message_1">Quelle belle fête !</string>
+    <string name="rehearsal_message_2">Tous nos vœux !</string>
+    <string name="rehearsal_message_3">Tous sur la piste !</string>
+    <plurals name="disposable_shots">
+        <item quantity="one">Pellicule en cours · %d photo</item>
+        <item quantity="many">Pellicule en cours · %d photos</item>
+        <item quantity="other">Pellicule en cours · %d photos</item>
+    </plurals>
+    <plurals name="guests_develop">
+        <item quantity="one">Développer la pellicule (%d photo)</item>
+        <item quantity="many">Développer la pellicule (%d photos)</item>
+        <item quantity="other">Développer la pellicule (%d photos)</item>
+    </plurals>
 </resources>

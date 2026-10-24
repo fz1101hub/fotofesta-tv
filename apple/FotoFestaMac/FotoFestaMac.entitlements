@@ -14,5 +14,8 @@
 	<!-- Album della libreria Foto del Mac. -->
 	<key>com.apple.security.personal-information.photos-library</key>
 	<true/>
+	<!-- Copia di sicurezza facoltativa delle foto degli invitati in Immagini/FotoFesta. -->
+	<key>com.apple.security.assets.pictures.read-write</key>
+	<true/>
 </dict>
 </plist>

@@ -96,7 +96,7 @@ final class PhoneGameTests: XCTestCase {
 
     func testServerServesTheQuestionAndTakesAnswers() async throws {
         let game = PhoneGame()
-        let server = GuestUploadServer(key: "test-key", page: { "<html></html>" }, onPhoto: { _, _ in .shown }, game: game)
+        let server = GuestUploadServer(key: "test-key", page: { "<html></html>" }, onPhoto: { _, _, _ in .shown }, game: game)
         let port = try await server.start(host: "127.0.0.1", preferredPort: 0)
         defer { server.stop() }
         let base = "http://127.0.0.1:\(port)"
