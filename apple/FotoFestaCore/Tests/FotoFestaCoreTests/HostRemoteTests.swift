@@ -1,14 +1,6 @@
 import FotoFestaCore
 import XCTest
 
-/// Orologio finto per i limiti dei tentativi e la durata del regista.
-private final class TestClock: @unchecked Sendable {
-    private let lock = NSLock()
-    private var value = Date(timeIntervalSince1970: 5_000_000)
-    var now: Date { lock.withLock { value } }
-    func advance(_ seconds: TimeInterval) { lock.withLock { value += seconds } }
-}
-
 private final class Commands: @unchecked Sendable {
     private let lock = NSLock()
     private var items: [PartyCommand] = []
