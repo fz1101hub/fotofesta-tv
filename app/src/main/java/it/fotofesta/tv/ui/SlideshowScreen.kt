@@ -82,6 +82,9 @@ import coil.request.ImageRequest
 import coil.size.Precision
 import coil.size.Scale
 import it.fotofesta.tv.R
+import it.fotofesta.tv.guests.PartyHub
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import it.fotofesta.tv.model.AppState
 import it.fotofesta.tv.model.FitMode
 import it.fotofesta.tv.model.PhotoCaption
@@ -124,6 +127,8 @@ fun SlideshowScreen(
     onPrevious: () -> Unit,
     onSettings: () -> Unit,
     onVideoAudible: (String, Boolean) -> Unit,
+    /** Reazioni appena arrivate dai telefoni, da animare durante la festa. */
+    reactions: Flow<PartyHub.ReactionEvent> = emptyFlow(),
 ) {
     val photo = state.photos.getOrNull(state.currentIndex)
     val screenFocus = remember { FocusRequester() }
@@ -293,6 +298,11 @@ fun SlideshowScreen(
                     .background(Background.copy(alpha = .6f), RoundedCornerShape(10.dp))
                     .padding(horizontal = 14.dp, vertical = 6.dp)
             ) { ClockText() }
+        }
+
+        if (state.guests.active) {
+            if (state.settings.phoneMessages) MessageBanner(state.party.messages)
+            if (state.settings.phoneReactions) ReactionsOverlay(reactions)
         }
 
         if (state.settings.countdown) CountdownOverlay(state.settings)

@@ -48,6 +48,8 @@ class SettingsRepository(context: Context) {
         countdownEvent = enumValueOrDefault(prefs.getString("countdown_event", null), CountdownEvent.MIDNIGHT),
         videos = prefs.getBoolean("videos", true),
         videoSound = prefs.getBoolean("video_sound", true),
+        phoneReactions = prefs.getBoolean("phone_reactions", true),
+        phoneMessages = prefs.getBoolean("phone_messages", true),
     )
 
     fun save(value: SlideshowSettings) {
@@ -67,6 +69,8 @@ class SettingsRepository(context: Context) {
             .putString("countdown_event", value.countdownEvent.name)
             .putBoolean("videos", value.videos)
             .putBoolean("video_sound", value.videoSound)
+            .putBoolean("phone_reactions", value.phoneReactions)
+            .putBoolean("phone_messages", value.phoneMessages)
             .apply()
     }
 

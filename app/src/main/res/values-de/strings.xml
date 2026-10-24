@@ -437,4 +437,67 @@
     <string name="browser_smb_saved">In Verwendung · %1$s</string>
     <string name="browser_smb_add">Computer oder NAS hinzufügen</string>
     <string name="browser_smb_add_hint">Mit der Adresse, z. B. 192.168.1.20 oder \\\\NAS\\Fotos. Windows-PCs fügst du so hinzu.</string>
+
+    <!-- Attività della festa: sondaggi, estrazione, dediche e reazioni -->
+    <string name="games_poll_title">Blitzumfrage</string>
+    <string name="games_poll_body">Stell der Runde eine Frage: Die Gäste stimmen am Handy ab, der Fernseher zeigt das Ergebnis.</string>
+    <string name="games_poll_unavailable">Starte zuerst die Party: Die Gäste stimmen auf der Seite hinter dem QR‑Code ab.</string>
+    <string name="games_lottery_title">Verlosung</string>
+    <string name="games_lottery_body">Lose einen Gewinner unter den Gästen aus, die mit ihrem Namen mitgemacht haben.</string>
+    <string name="poll_kicker">Blitzumfrage</string>
+    <string name="poll_choose">Wähle eine Frage: Die Gäste stimmen am Handy ab.</string>
+    <string name="poll_need_party">Starte die Party: Die Gäste stimmen auf der Seite hinter dem QR‑Code ab.</string>
+    <string name="poll_reveal">Ergebnis zeigen</string>
+    <string name="poll_new">Neue Umfrage</string>
+    <string name="poll_q_king">Wer ist König oder Königin der Tanzfläche?</string>
+    <string name="poll_q_last_dance">Wer tanzt zum letzten Lied?</string>
+    <string name="poll_q_style">Wer hat heute Abend das beste Outfit?</string>
+    <string name="poll_q_moment">Der beste Moment des Abends?</string>
+    <string name="poll_c_moment">Die Torte|Das Tanzen|Das Buffet|Die Spiele</string>
+    <string name="poll_q_vote">Welche Note gibst du der Party?</string>
+    <string name="poll_c_vote">Eins mit Sternchen|Eins|Zwei|Morgen gleich nochmal!</string>
+    <string name="poll_q_sleep">Morgen schlafen wir bis…</string>
+    <string name="poll_c_sleep">9 Uhr|Mittag|15 Uhr|Montag</string>
+    <string name="lottery_kicker">Verlosung</string>
+    <string name="lottery_none">Noch keine Namen: Mit dabei ist, wer beim Fotosenden, Spielen oder Reagieren seinen Namen angibt.</string>
+    <string name="lottery_ready">Wer gewinnt?</string>
+    <string name="lottery_all_drawn">Alle haben schon gewonnen!</string>
+    <string name="lottery_draw">Auslosen</string>
+    <string name="lottery_again">Nochmal auslosen</string>
+    <string name="lottery_reset">Neu beginnen</string>
+    <string name="lottery_winners">Gewinner: %1$s</string>
+    <string name="guestbook_title">Gästebuch</string>
+    <string name="guestbook_kicker">Grüße</string>
+    <string name="guestbook_from">Von %1$s</string>
+    <string name="guestbook_empty">Noch keine Grüße: Die Gäste können sie auf der Seite hinter dem QR‑Code schreiben.</string>
+    <string name="guestbook_pending">zur Freigabe</string>
+    <string name="guestbook_show">Zeigen</string>
+    <string name="guestbook_discard">Verwerfen</string>
+    <string name="guestbook_approve_all">Alle zeigen</string>
+    <string name="guestbook_anonymous">Ein Gast</string>
+    <string name="settings_phone_reactions">Reaktionen vom Handy</string>
+    <string name="settings_phone_reactions_body">Gäste tippen auf ein Emoji, das über dem Foto aufsteigt. Das beliebteste Foto wird „Foto des Abends“.</string>
+    <string name="settings_phone_messages">Grüße vom Handy</string>
+    <string name="settings_phone_messages_body">Sie erscheinen in der Diashow und im Gästebuch. Wenn Fotos freigegeben werden müssen, gilt das auch für Grüße.</string>
+    <string name="awards_favorite">Foto des Abends</string>
+    <plurals name="poll_votes">
+        <item quantity="one">%d Stimme</item>
+        <item quantity="other">%d Stimmen</item>
+    </plurals>
+    <plurals name="lottery_candidates">
+        <item quantity="one">%d Gast im Lostopf</item>
+        <item quantity="other">%d Gäste im Lostopf</item>
+    </plurals>
+    <plurals name="guestbook_count">
+        <item quantity="one">%d Gruß</item>
+        <item quantity="other">%d Grüße</item>
+    </plurals>
+    <plurals name="guestbook_approve">
+        <item quantity="one">%d Gruß freigeben</item>
+        <item quantity="other">%d Grüße freigeben</item>
+    </plurals>
+    <plurals name="awards_reaction_count">
+        <item quantity="one">%d Reaktion</item>
+        <item quantity="other">%d Reaktionen</item>
+    </plurals>
 </resources>

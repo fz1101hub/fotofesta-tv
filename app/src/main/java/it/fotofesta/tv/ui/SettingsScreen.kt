@@ -363,6 +363,20 @@ fun SettingsScreen(
                                 checked = state.guests.approval,
                             )
                             SettingsItem(
+                                stringResource(R.string.settings_phone_reactions),
+                                { onChange(state.settings.copy(phoneReactions = !state.settings.phoneReactions)) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_phone_reactions_body),
+                                checked = state.settings.phoneReactions,
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_phone_messages),
+                                { onChange(state.settings.copy(phoneMessages = !state.settings.phoneMessages)) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_phone_messages_body),
+                                checked = state.settings.phoneMessages,
+                            )
+                            SettingsItem(
                                 stringResource(R.string.guests_wifi),
                                 onWifi,
                                 toCategory,

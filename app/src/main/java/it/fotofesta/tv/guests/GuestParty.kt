@@ -40,6 +40,8 @@ class GuestParty(
     val store: GuestPhotoStore,
     /** Gioco con i telefoni, servito dalla stessa pagina della festa. */
     private val phoneGame: PhoneGame? = null,
+    /** Reazioni e dediche dei telefoni: si cancellano con le foto a fine festa. */
+    private val hub: PartyHub? = null,
 ) {
     data class State(
         val active: Boolean = false,
@@ -165,6 +167,7 @@ class GuestParty(
     private fun endParty() {
         stopServing()
         store.clear()
+        hub?.clear()
         prefs.edit().putBoolean(KEY_ACTIVE, false).remove(KEY_SECRET).remove(KEY_STARTED_AT).apply()
         _state.update { it.copy(active = false, url = null, problem = null) }
     }
@@ -192,6 +195,7 @@ class GuestParty(
             // Il sistema ha chiuso il server (ad esempio togliendo l'indirizzo): si riavvia a breve.
             onFailure = { scheduleRetry(FAILURE_RETRY_SECONDS) },
             game = phoneGame,
+            hub = hub,
         )
         try {
             val port = candidate.start(address, PREFERRED_PORT)

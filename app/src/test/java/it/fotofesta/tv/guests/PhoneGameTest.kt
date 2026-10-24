@@ -89,6 +89,26 @@ class PhoneGameTest {
     }
 
     @Test
+    fun `polls show the votes at the end and give no points`() {
+        val game = PhoneGame()
+        game.askPoll("Chi piangerà per primo?", listOf("Giulia", "Marco", "Sara"))
+        val round = game.current()!!.round
+        assertTrue(game.current()!!.poll)
+        game.answer(round, 1, giulia, "Giulia")
+        game.answer(round, 1, marco, "Marco")
+        game.answer(round, 2, sara, "Sara")
+        assertEquals(listOf(0, 2, 1), game.tally())
+        // Mentre il sondaggio è aperto i telefoni non vedono i voti.
+        assertNull(game.current()!!.tally)
+        game.reveal()
+        val closed = game.current()!!
+        assertEquals(listOf(0, 2, 1), closed.tally)
+        assertNull(closed.answer)
+        assertEquals(0, game.pointsOf(marco))
+        assertEquals(listOf("Giulia", "Marco", "Sara"), game.names())
+    }
+
+    @Test
     fun `changes are reported`() {
         val game = PhoneGame()
         var changes = 0

@@ -464,4 +464,72 @@
     <string name="browser_smb_saved">Utilisé · %1$s</string>
     <string name="browser_smb_add">Ajouter un ordinateur ou un NAS</string>
     <string name="browser_smb_add_hint">Avec son adresse, par exemple 192.168.1.20 ou \\\\NAS\\Photos. Les PC Windows s’ajoutent ainsi.</string>
+
+    <!-- Attività della festa: sondaggi, estrazione, dediche e reazioni -->
+    <string name="games_poll_title">Sondage éclair</string>
+    <string name="games_poll_body">Posez une question à la salle : les invités votent depuis leur téléphone et la TV affiche les résultats.</string>
+    <string name="games_poll_unavailable">Lancez d’abord la fête : les invités votent depuis la page du code QR.</string>
+    <string name="games_lottery_title">Tirage au sort</string>
+    <string name="games_lottery_body">Tirez un gagnant parmi les invités qui ont participé avec leur nom.</string>
+    <string name="poll_kicker">Sondage éclair</string>
+    <string name="poll_choose">Choisissez une question : les invités votent depuis leur téléphone.</string>
+    <string name="poll_need_party">Lancez la fête : les invités votent depuis la page du code QR.</string>
+    <string name="poll_reveal">Afficher les résultats</string>
+    <string name="poll_new">Autre sondage</string>
+    <string name="poll_q_king">Qui est le roi ou la reine de la piste ?</string>
+    <string name="poll_q_last_dance">Qui dansera sur la dernière chanson ?</string>
+    <string name="poll_q_style">Qui a le meilleur look ce soir ?</string>
+    <string name="poll_q_moment">Le meilleur moment de la soirée ?</string>
+    <string name="poll_c_moment">Le gâteau|Les danses|Le buffet|Les jeux</string>
+    <string name="poll_q_vote">Quelle note donnez-vous à la fête ?</string>
+    <string name="poll_c_vote">20 sur 20|18|16|À refaire demain !</string>
+    <string name="poll_q_sleep">Demain, on dort jusqu’à…</string>
+    <string name="poll_c_sleep">9 h|Midi|15 h|Lundi</string>
+    <string name="lottery_kicker">Tirage au sort</string>
+    <string name="lottery_none">Pas encore de nom : participent ceux qui écrivent leur nom en envoyant des photos, en jouant ou en réagissant.</string>
+    <string name="lottery_ready">Qui va gagner ?</string>
+    <string name="lottery_all_drawn">Tout le monde a déjà gagné !</string>
+    <string name="lottery_draw">Tirer au sort</string>
+    <string name="lottery_again">Nouveau tirage</string>
+    <string name="lottery_reset">Recommencer</string>
+    <string name="lottery_winners">Gagnants : %1$s</string>
+    <string name="guestbook_title">Livre d’or</string>
+    <string name="guestbook_kicker">Messages</string>
+    <string name="guestbook_from">De %1$s</string>
+    <string name="guestbook_empty">Pas encore de message : les invités peuvent en écrire depuis la page du code QR.</string>
+    <string name="guestbook_pending">à approuver</string>
+    <string name="guestbook_show">Afficher</string>
+    <string name="guestbook_discard">Supprimer</string>
+    <string name="guestbook_approve_all">Tout afficher</string>
+    <string name="guestbook_anonymous">Un invité</string>
+    <string name="settings_phone_reactions">Réactions des téléphones</string>
+    <string name="settings_phone_reactions_body">Les invités touchent un emoji qui s’envole au-dessus de la photo à l’écran. La photo la plus aimée gagne « Photo de la soirée ».</string>
+    <string name="settings_phone_messages">Messages des téléphones</string>
+    <string name="settings_phone_messages_body">Ils apparaissent dans le diaporama et dans le livre d’or. Si les photos doivent être approuvées, les messages aussi.</string>
+    <string name="awards_favorite">Photo de la soirée</string>
+    <plurals name="poll_votes">
+        <item quantity="one">%d vote</item>
+        <item quantity="many">%d votes</item>
+        <item quantity="other">%d votes</item>
+    </plurals>
+    <plurals name="lottery_candidates">
+        <item quantity="one">%d participant au tirage</item>
+        <item quantity="many">%d participants au tirage</item>
+        <item quantity="other">%d participants au tirage</item>
+    </plurals>
+    <plurals name="guestbook_count">
+        <item quantity="one">%d message</item>
+        <item quantity="many">%d messages</item>
+        <item quantity="other">%d messages</item>
+    </plurals>
+    <plurals name="guestbook_approve">
+        <item quantity="one">Approuver %d message</item>
+        <item quantity="many">Approuver %d messages</item>
+        <item quantity="other">Approuver %d messages</item>
+    </plurals>
+    <plurals name="awards_reaction_count">
+        <item quantity="one">%d réaction</item>
+        <item quantity="many">%d réactions</item>
+        <item quantity="other">%d réactions</item>
+    </plurals>
 </resources>

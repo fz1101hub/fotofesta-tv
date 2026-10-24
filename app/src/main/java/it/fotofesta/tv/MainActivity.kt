@@ -62,6 +62,9 @@ import it.fotofesta.tv.ui.GamesScreen
 import it.fotofesta.tv.ui.GoogleConnectScreen
 import it.fotofesta.tv.ui.GuestReviewScreen
 import it.fotofesta.tv.ui.GuestWifiScreen
+import it.fotofesta.tv.ui.GuestbookScreen
+import it.fotofesta.tv.ui.LotteryScreen
+import it.fotofesta.tv.ui.PollScreen
 import it.fotofesta.tv.ui.ICloudLinkScreen
 import it.fotofesta.tv.ui.LocalReducedMotion
 import it.fotofesta.tv.ui.GuestsScreen
@@ -161,7 +164,8 @@ class MainActivity : ComponentActivity() {
                         state.google !is GoogleConnectState.Error && state.google !is GoogleConnectState.Complete
                     // Durante la festa il QR deve restare visibile mentre gli invitati lo inquadrano.
                     Destination.GUESTS -> state.guests.active
-                    Destination.GUEST_REVIEW, Destination.AWARDS -> true
+                    Destination.GUEST_REVIEW, Destination.AWARDS, Destination.GUESTBOOK -> true
+                    Destination.POLL, Destination.LOTTERY -> true
                     // Il QR per incollare il link dell'album deve restare visibile.
                     Destination.ICLOUD_LINK -> true
                     else -> false
@@ -217,6 +221,7 @@ class MainActivity : ComponentActivity() {
                                 onPrevious = viewModel::previous,
                                 onSettings = { viewModel.pause(); viewModel.navigate(Destination.SETTINGS) },
                                 onVideoAudible = viewModel::setVideoAudible,
+                                reactions = viewModel.reactions,
                             )
                             Destination.GAMES -> GamesScreen(
                                 // I giochi usano solo le foto: i video si guardano nello slideshow.
@@ -227,7 +232,12 @@ class MainActivity : ComponentActivity() {
                                 onMystery = { viewModel.navigate(Destination.MYSTERY) },
                                 onPuzzle = { viewModel.navigate(Destination.PUZZLE) },
                                 onWhoTookIt = { viewModel.navigate(Destination.WHO_TOOK_IT) },
+                                partyActive = state.guests.active && state.guests.url != null,
+                                onPoll = { viewModel.navigate(Destination.POLL) },
+                                onLottery = { viewModel.navigate(Destination.LOTTERY) },
                             )
+                            Destination.POLL -> PollScreen(phonePlay(state), viewModel::lotteryCandidates) { viewModel.navigate(Destination.GAMES) }
+                            Destination.LOTTERY -> LotteryScreen(viewModel::lotteryCandidates) { viewModel.navigate(Destination.GAMES) }
                             // Le partite usano le foto presenti all'apertura del gioco: quelle che arrivano
                             // dagli invitati durante la partita non la fanno ricominciare.
                             Destination.MEMORY -> {
@@ -265,9 +275,19 @@ class MainActivity : ComponentActivity() {
                                 onAwards = { viewModel.navigate(Destination.AWARDS) },
                                 onApproval = viewModel::setGuestApproval,
                                 onWifi = viewModel::openGuestWifi,
+                                messageCount = state.party.messages.size,
+                                pendingMessageCount = state.party.pendingMessages.size,
+                                onGuestbook = { viewModel.navigate(Destination.GUESTBOOK) },
                             )
                             Destination.AWARDS -> AwardsScreen(
-                                awards = remember(state.photos) { PartyAwards.from(state.photos) },
+                                awards = remember(state.photos) { PartyAwards.from(state.photos, viewModel.reactionCounts()) },
+                                onBack = { viewModel.navigate(Destination.GUESTS) },
+                            )
+                            Destination.GUESTBOOK -> GuestbookScreen(
+                                party = state.party,
+                                onApprove = viewModel::approveMessage,
+                                onDiscard = viewModel::discardMessage,
+                                onApproveAll = viewModel::approveAllMessages,
                                 onBack = { viewModel.navigate(Destination.GUESTS) },
                             )
                             Destination.GUEST_REVIEW -> GuestReviewScreen(

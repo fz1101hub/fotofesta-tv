@@ -39,6 +39,8 @@ class GuestUploadServer(
     private val onFailure: () -> Unit = {},
     /** Gioco con i telefoni: domanda in corso (GET /game) e risposte (POST /game/answer). */
     private val game: PhoneGame? = null,
+    /** Reazioni e dediche (GET /party con lo stato per la pagina, POST /party/action). */
+    private val hub: PartyHub? = null,
     private val maxUploadBytes: Int = MAX_UPLOAD_BYTES,
     private val readTimeoutMillis: Int = READ_TIMEOUT_MS,
     private val headerDeadlineMillis: Long = HEADER_DEADLINE_MS,
@@ -56,6 +58,7 @@ class GuestUploadServer(
     @Volatile private var expectedHost: String = ""
     private val perClient = mutableMapOf<InetAddress, Int>()
     private val recentUploads = mutableMapOf<InetAddress, ArrayDeque<Long>>()
+    private val recentActions = mutableMapOf<InetAddress, ArrayDeque<Long>>()
     private val inFlight = Semaphore(MAX_IN_FLIGHT_BYTES)
     // Invii già ricevuti, per non salvare due volte una foto se il telefono ripete l'invio.
     private val handledUploads = object : LinkedHashMap<String, Response>(64, 0.75f, true) {
@@ -227,6 +230,16 @@ class GuestUploadServer(
                 if (request.method != "POST") throw HttpError(405, "method")
                 receiveAnswer(request, body, startedAt)
             }
+            "/party" -> {
+                if (request.method != "GET") throw HttpError(405, "method")
+                if (!keyMatches(request.headers["x-fotofesta-key"])) throw HttpError(401, "key")
+                val features = hub?.featuresJson() ?: """{"reactions":false,"messages":false,"moderated":false}"""
+                Response.json(200, """{"features":$features,"game":${gameJson(game?.current(), request.query["player"])}}""")
+            }
+            "/party/action" -> {
+                if (request.method != "POST") throw HttpError(405, "method")
+                receiveAction(request, body, clientAddress, startedAt)
+            }
             else -> Response.json(404, """{"error":"not_found"}""")
         }
     }
@@ -272,6 +285,8 @@ class GuestUploadServer(
             append(""","choices":[""").append(snapshot.choices.joinToString(",") { jsonString(it) }).append(']')
             append(""","open":""").append(snapshot.open)
             append(""","answer":""").append(snapshot.answer?.toString() ?: "null")
+            append(""","poll":""").append(snapshot.poll)
+            append(""","tally":""").append(snapshot.tally?.joinToString(",", "[", "]") ?: "null")
             append(""","points":""").append(points).append('}')
         }
     }
@@ -295,6 +310,25 @@ class GuestUploadServer(
         }
     }
 
+    /** Reazione o dedica di un telefono, in un piccolo modulo con "type". */
+    private fun receiveAction(request: Request, body: InputStream, clientAddress: InetAddress, startedAt: Long): Response {
+        if (!keyMatches(request.headers["x-fotofesta-key"])) throw HttpError(401, "key")
+        val hub = hub ?: throw HttpError(404, "not_found")
+        // Il limite per telefono di PartyHub si aggira cambiando identificativo: qui conta l'indirizzo.
+        if (!allowAction(clientAddress)) throw HttpError(429, "rate", listOf("Retry-After" to "5"))
+        val form = readSmallForm(request, body, startedAt, MAX_ACTION_BYTES)
+        val (status, json) = hub.handle(form)
+        return Response.json(status, json, if (status == 429) listOf("Retry-After" to "3") else emptyList())
+    }
+
+    private fun readSmallForm(request: Request, body: InputStream, startedAt: Long, limit: Int): Map<String, String> {
+        if (request.headers.containsKey("transfer-encoding")) throw HttpError(411, "length")
+        val length = request.headers["content-length"]?.trim()?.toIntOrNull() ?: throw HttpError(411, "length")
+        if (length <= 0) throw HttpError(400, "empty")
+        if (length > limit) throw HttpError(413, "too_large")
+        return parseForm(readBody(body, length, deadline = startedAt + bodyDeadlineMillis, now = nowMillis).toString(Charsets.UTF_8))
+    }
+
     private fun acquireClient(address: InetAddress): Boolean = synchronized(perClient) {
         val count = perClient[address] ?: 0
         if (count >= MAX_CONNECTIONS_PER_CLIENT) return false
@@ -313,6 +347,16 @@ class GuestUploadServer(
         val times = recentUploads.getOrPut(address) { ArrayDeque() }
         while (times.isNotEmpty() && now - times.peekFirst()!! > 60_000) times.pollFirst()
         if (times.size >= maxUploadsPerMinute) return false
+        times.addLast(now)
+        true
+    }
+
+    /** Al massimo [MAX_ACTIONS_PER_MINUTE] reazioni e dediche al minuto dallo stesso indirizzo. */
+    private fun allowAction(address: InetAddress): Boolean = synchronized(recentActions) {
+        val now = nowMillis()
+        val times = recentActions.getOrPut(address) { ArrayDeque() }
+        while (times.isNotEmpty() && now - times.peekFirst()!! > 60_000) times.pollFirst()
+        if (times.size >= MAX_ACTIONS_PER_MINUTE) return false
         times.addLast(now)
         true
     }
@@ -496,6 +540,10 @@ class GuestUploadServer(
         /** Risposte dei telefoni: poche decine di byte, con margine per nomi lunghi. */
         private const val MAX_ANSWER_BYTES = 1_024
 
+        /** Reazioni e dediche: una dedica di 160 caratteri codificata occupa al massimo circa 1,5 kB. */
+        private const val MAX_ACTION_BYTES = 4_096
+        private const val MAX_ACTIONS_PER_MINUTE = 150
+
         /** Campi di un modulo "a=1&b=2"; i valori malformati fanno rifiutare la richiesta. */
         internal fun parseForm(body: String): Map<String, String> = try {
             body.split('&').filter { it.isNotEmpty() }.associate { pair ->
@@ -562,13 +610,14 @@ enum class ImageFormat {
 object GuestSender {
     const val MAX_LENGTH = 40
 
-    fun clean(value: String?): String? {
+    /** Testo ripulito: spazi compattati, niente caratteri invisibili, al massimo [maxLength] caratteri. */
+    fun clean(value: String?, maxLength: Int = MAX_LENGTH): String? {
         if (value == null) return null
         val result = StringBuilder()
         var count = 0
         var pendingSpace = false
         var index = 0
-        while (index < value.length && count < MAX_LENGTH) {
+        while (index < value.length && count < maxLength) {
             val codePoint = value.codePointAt(index)
             index += Character.charCount(codePoint)
             when {
@@ -579,7 +628,7 @@ object GuestSender {
                         result.append(' ')
                         count++
                         pendingSpace = false
-                        if (count >= MAX_LENGTH) break
+                        if (count >= maxLength) break
                     }
                     result.appendCodePoint(codePoint)
                     count++

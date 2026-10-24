@@ -21,6 +21,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.EmojiEvents
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.DoneAll
@@ -72,9 +73,13 @@ fun GuestsScreen(
     onAwards: () -> Unit,
     onApproval: (Boolean) -> Unit,
     onWifi: () -> Unit,
+    /** Dediche in mostra e da approvare, per il pulsante del libro degli ospiti. */
+    messageCount: Int = 0,
+    pendingMessageCount: Int = 0,
+    onGuestbook: () -> Unit = {},
 ) {
     if (guests.active) {
-        PartyInProgress(guests, recent, onEnd, onPlay, onReview, onAwards)
+        PartyInProgress(guests, recent, onEnd, onPlay, onReview, onAwards, messageCount, pendingMessageCount, onGuestbook)
     } else {
         PartyIntro(guests, onStart, onApproval, onWifi)
     }
@@ -151,6 +156,9 @@ private fun PartyInProgress(
     onPlay: () -> Unit,
     onReview: () -> Unit,
     onAwards: () -> Unit,
+    messageCount: Int,
+    pendingMessageCount: Int,
+    onGuestbook: () -> Unit,
 ) {
     Row(Modifier.fillMaxSize().background(Background)) {
         Column(
@@ -198,6 +206,14 @@ private fun PartyInProgress(
                     }
                     if (guests.shown > 0) {
                         TvButton(stringResource(R.string.guests_awards), onAwards, icon = Icons.Rounded.EmojiEvents)
+                    }
+                    if (messageCount > 0 || pendingMessageCount > 0) {
+                        TvButton(
+                            if (pendingMessageCount > 0) quantityStringResource(R.plurals.guestbook_approve, pendingMessageCount)
+                            else stringResource(R.string.guestbook_title),
+                            onGuestbook,
+                            icon = Icons.AutoMirrored.Rounded.MenuBook,
+                        )
                     }
                 }
             }

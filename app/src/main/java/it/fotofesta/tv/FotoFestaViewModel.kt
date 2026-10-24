@@ -25,6 +25,7 @@ import it.fotofesta.tv.google.GooglePhotosStream
 import it.fotofesta.tv.google.HttpStatusException
 import it.fotofesta.tv.guests.GuestParty
 import it.fotofesta.tv.guests.GuestPhotoStore
+import it.fotofesta.tv.guests.PartyHub
 import it.fotofesta.tv.guests.WifiNetwork
 import it.fotofesta.tv.guests.guestPhotoId
 import it.fotofesta.tv.guests.toPhotoItem
@@ -40,7 +41,9 @@ import it.fotofesta.tv.model.FreshPhotos
 import it.fotofesta.tv.model.GoogleConnectState
 import it.fotofesta.tv.model.GuestsUiState
 import it.fotofesta.tv.model.PhotoItem
+import it.fotofesta.tv.model.PartyUiState
 import it.fotofesta.tv.model.PlaybackOrder
+import it.fotofesta.tv.model.PrizeDraw
 import it.fotofesta.tv.model.SettingsCategory
 import it.fotofesta.tv.model.SlideshowSettings
 import it.fotofesta.tv.model.SmbLoginState
@@ -71,7 +74,12 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
@@ -114,6 +122,11 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private var pairingServer: LinkPairingServer? = null
     /** Gioco con i telefoni, per "Foto misteriosa" e "Chi l'ha scattata?" durante la festa. */
     val phoneGame = services.phoneGame
+    /** Reazioni e dediche dei telefoni durante la festa. */
+    private val partyHub = services.partyHub
+    private val _reactions = MutableSharedFlow<PartyHub.ReactionEvent>(extraBufferCapacity = 32, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    /** Reazioni appena arrivate dai telefoni, da animare sopra lo slideshow. */
+    val reactions = _reactions.asSharedFlow()
     private val playbackOrder = PlaybackOrder()
     private val freshPhotos = FreshPhotos()
     private var googleJob: Job? = null
@@ -211,7 +224,52 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             combine(guests.state, guests.store.photos, guests.ready) { party, photos, ready -> Triple(party, photos, ready) }
                 .collect { (party, photos, ready) -> onGuestsChanged(party, photos, ready) }
         }
+        partyHub.onChange = ::refreshParty
+        partyHub.onReaction = { _reactions.tryEmit(it) }
+        syncPartyFeatures()
+        refreshParty()
+        // Le reazioni dei telefoni contano per la foto sullo schermo.
+        viewModelScope.launch {
+            _state.map { state -> state.photos.getOrNull(state.currentIndex)?.id.takeIf { state.destination == Destination.SLIDESHOW } }
+                .distinctUntilChanged()
+                .collect { partyHub.showing(it) }
+        }
     }
+
+    /** Chiamato anche dai thread del server della festa: lo stato si aggiorna in modo atomico. */
+    private fun refreshParty() {
+        val messages = partyHub.messages()
+        val pending = partyHub.pendingMessages()
+        _state.update { it.copy(party = PartyUiState(messages, pending)) }
+    }
+
+    private fun syncPartyFeatures() {
+        val settings = _state.value.settings
+        partyHub.setFeatures(
+            PartyHub.Features(
+                reactions = settings.phoneReactions,
+                messages = settings.phoneMessages,
+                // Con l'approvazione delle foto anche le dediche aspettano il via libera.
+                moderateMessages = _state.value.guests.approval,
+            ),
+        )
+    }
+
+    fun approveMessage(message: PartyHub.Message) = partyHub.approveMessage(message.id)
+
+    fun discardMessage(message: PartyHub.Message) = partyHub.removeMessage(message.id)
+
+    fun approveAllMessages() = partyHub.approveAllMessages()
+
+    /** Reazioni ricevute da ogni foto, per il premio "Foto della serata". */
+    fun reactionCounts(): Map<String, Int> = partyHub.reactionCounts()
+
+    /** Chi può vincere all'estrazione: nomi scritti con foto, giochi, reazioni e dediche. */
+    fun lotteryCandidates(): List<String> = PrizeDraw.candidates(
+        partyHub.participants().map { it.name },
+        phoneGame.names(),
+        guestPhotos.sortedBy { it.receivedAtMillis ?: 0L }.map { it.sender },
+    )
 
     fun navigate(destination: Destination) {
         _state.update { it.copy(destination = destination, message = null) }
@@ -225,10 +283,11 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                 pause()
                 navigate(Destination.HOME)
             }
-            Destination.MEMORY, Destination.MYSTERY, Destination.PUZZLE, Destination.WHO_TOOK_IT -> navigate(Destination.GAMES)
+            Destination.MEMORY, Destination.MYSTERY, Destination.PUZZLE, Destination.WHO_TOOK_IT,
+            Destination.POLL, Destination.LOTTERY -> navigate(Destination.GAMES)
             Destination.GOOGLE_CONNECT -> cancelGoogleConnect()
             Destination.SETTINGS, Destination.GAMES, Destination.GUESTS -> navigate(Destination.HOME)
-            Destination.GUEST_REVIEW, Destination.AWARDS -> navigate(Destination.GUESTS)
+            Destination.GUEST_REVIEW, Destination.AWARDS, Destination.GUESTBOOK -> navigate(Destination.GUESTS)
             Destination.GUEST_WIFI -> navigate(wifiReturnTo)
             Destination.FILE_BROWSER -> if (_state.value.browser.directory != null) browserUp() else closeBrowser()
             Destination.ICLOUD_LINK -> closeICloudLink()
@@ -302,6 +361,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         musicPlayer.setVolume(value.musicVolume)
         if (previous.sleepTimerMinutes != value.sleepTimerMinutes) syncSleepTimer()
         if (previous.videos != value.videos) applyCollection(restart = false)
+        if (previous.phoneReactions != value.phoneReactions || previous.phoneMessages != value.phoneMessages) syncPartyFeatures()
     }
 
     fun loadUsb(treeUri: Uri) {
@@ -1334,6 +1394,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         knownGuestIds = if (ready) approvedIds else null
 
         val items = approved.map { it.toPhotoItem(context) }
+        val approvalChanged = _state.value.guests.approval != party.approval
         _state.update {
             it.copy(
                 guests = GuestsUiState(
@@ -1350,6 +1411,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                 ),
             )
         }
+        if (approvalChanged) syncPartyFeatures()
         if (items != guestPhotos || party.active != guestPartyActive) {
             guestPhotos = items
             guestPartyActive = party.active
@@ -1517,6 +1579,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         usbJob?.cancel()
         sleepJob?.cancel()
         musicPlayer.release()
+        partyHub.onChange = null
+        partyHub.onReaction = null
         super.onCleared()
     }
 

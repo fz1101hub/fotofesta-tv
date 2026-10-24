@@ -53,4 +53,14 @@ class PartyAwardsTest {
         assertNull(awards.lastPhoto)
         assertEquals(1, awards.topPhotographer!!.count)
     }
+
+    @Test
+    fun `photo of the night has the most reactions`() {
+        val photos = listOf(guest("a", "Giulia", 1), guest("b", "Marco", 2), guest("c", null, 3))
+        assertNull(PartyAwards.from(photos).favorite)
+        val awards = PartyAwards.from(photos, mapOf("guest:b" to 4, "guest:c" to 4, "guest:a" to 1, "altra" to 9))
+        // A parità vince quella che compare prima; le foto non più in mostra non contano.
+        assertEquals("guest:b", awards.favorite?.photo?.id)
+        assertEquals(4, awards.favorite?.reactions)
+    }
 }

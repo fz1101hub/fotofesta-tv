@@ -29,6 +29,7 @@ class GuestUploadServerTest {
 
     private var failures = 0
     private val game = PhoneGame()
+    private val hub = PartyHub()
 
     @Before
     fun setUp() = startServer()
@@ -48,6 +49,7 @@ class GuestUploadServerTest {
             },
             onFailure = { failures++ },
             game = game,
+            hub = hub,
             maxUploadBytes = 1_000,
             readTimeoutMillis = 2_000,
             headerDeadlineMillis = headerDeadlineMillis,
@@ -154,6 +156,43 @@ class GuestUploadServerTest {
         assertEquals(413, answer("round=$round&choice=0&player=telefono-1&name=" + "x".repeat(2_000)).status)
         assertEquals(405, send("GET /game/answer HTTP/1.1\r\nHost: 127.0.0.1:$port\r\n\r\n".toByteArray()).status)
         assertEquals(0, game.answerCount())
+    }
+
+    private fun action(form: String, key: String? = KEY): Reply {
+        val body = form.toByteArray()
+        val keyHeader = if (key != null) "X-FotoFesta-Key: $key\r\n" else ""
+        val head = "POST /party/action HTTP/1.1\r\nHost: 127.0.0.1:$port\r\n" +
+            "Content-Type: application/x-www-form-urlencoded\r\nContent-Length: ${body.size}\r\n$keyHeader\r\n"
+        return send(head.toByteArray() + body)
+    }
+
+    @Test
+    fun `party state has the features and the current game`() {
+        val keyHeader = "X-FotoFesta-Key: $KEY\r\n"
+        assertEquals(401, send("GET /party HTTP/1.1\r\nHost: 127.0.0.1:$port\r\n\r\n".toByteArray()).status)
+        game.askPoll("Dove andranno in viaggio?", listOf("Mare", "Montagna"))
+        val state = JSONObject(send("GET /party?player=telefono-1 HTTP/1.1\r\nHost: 127.0.0.1:$port\r\n$keyHeader\r\n".toByteArray()).body)
+        assertTrue(state.getJSONObject("features").getBoolean("reactions"))
+        val poll = state.getJSONObject("game")
+        assertTrue(poll.getBoolean("poll"))
+        assertTrue(poll.isNull("tally"))
+        game.answer(poll.getString("round"), 1, "telefono-1", null)
+        game.reveal()
+        val closed = JSONObject(send("GET /party HTTP/1.1\r\nHost: 127.0.0.1:$port\r\n$keyHeader\r\n".toByteArray()).body)
+        assertEquals(1, closed.getJSONObject("game").getJSONArray("tally").getInt(1))
+    }
+
+    @Test
+    fun `phones send reactions and messages`() {
+        hub.showing("foto-1")
+        assertEquals(200, action("type=react&player=telefono-1&reaction=0").status)
+        assertEquals(1, hub.reactionCount("foto-1"))
+        assertEquals(200, action("type=message&player=telefono-1&name=Giulia&text=Auguri%20a%20tutti").status)
+        assertEquals("Auguri a tutti", hub.messages().single().text)
+        assertEquals(401, action("type=react&player=telefono-1&reaction=0", key = "sbagliata").status)
+        assertEquals(400, action("type=react&player=telefono-1&reaction=9").status)
+        assertEquals(413, action("type=message&player=telefono-1&text=" + "x".repeat(5_000)).status)
+        assertEquals(405, get("/party/action").status)
     }
 
     @Test

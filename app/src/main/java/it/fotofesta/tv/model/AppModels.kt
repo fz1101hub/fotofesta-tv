@@ -3,8 +3,9 @@ package it.fotofesta.tv.model
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import it.fotofesta.tv.R
+import it.fotofesta.tv.guests.PartyHub
 
-enum class Destination { HOME, SETTINGS, SLIDESHOW, GAMES, MEMORY, MYSTERY, PUZZLE, WHO_TOOK_IT, GOOGLE_CONNECT, GUESTS, GUEST_REVIEW, AWARDS, GUEST_WIFI, FILE_BROWSER, ICLOUD_LINK, SMB_LOGIN }
+enum class Destination { HOME, SETTINGS, SLIDESHOW, GAMES, MEMORY, MYSTERY, PUZZLE, WHO_TOOK_IT, POLL, LOTTERY, GOOGLE_CONNECT, GUESTS, GUEST_REVIEW, AWARDS, GUESTBOOK, GUEST_WIFI, FILE_BROWSER, ICLOUD_LINK, SMB_LOGIN }
 
 enum class TransitionType(@StringRes val labelRes: Int) {
     FADE(R.string.transition_fade),
@@ -101,6 +102,10 @@ data class SlideshowSettings(
     val videos: Boolean = true,
     /** Audio dei video: mentre suona, la musica di sottofondo si ferma. */
     val videoSound: Boolean = true,
+    /** Durante la festa i telefoni mandano reazioni alla foto sullo schermo. */
+    val phoneReactions: Boolean = true,
+    /** Durante la festa i telefoni mandano dediche, mostrate nello slideshow e nel libro degli ospiti. */
+    val phoneMessages: Boolean = true,
 )
 
 sealed interface GoogleConnectState {
@@ -139,6 +144,12 @@ data class GuestsUiState(
     val shown: Int = 0,
     /** Foto in attesa di approvazione, dalla più vecchia. */
     val pending: List<PhotoItem> = emptyList(),
+)
+
+/** Dediche arrivate dai telefoni: quelle in mostra (dalla più vecchia) e quelle da approvare. */
+data class PartyUiState(
+    val messages: List<PartyHub.Message> = emptyList(),
+    val pendingMessages: List<PartyHub.Message> = emptyList(),
 )
 
 /** Cosa si sta scegliendo nel browser di cartelle: una cartella di foto o un brano. */
@@ -237,6 +248,7 @@ data class AppState(
     val busy: Boolean = false,
     val message: String? = null,
     val guests: GuestsUiState = GuestsUiState(),
+    val party: PartyUiState = PartyUiState(),
     val browser: BrowserState = BrowserState(),
     val icloud: ICloudLinkState = ICloudLinkState(),
     val smb: SmbLoginState = SmbLoginState(),

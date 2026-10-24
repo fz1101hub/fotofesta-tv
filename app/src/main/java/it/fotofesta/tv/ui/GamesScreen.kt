@@ -18,9 +18,11 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Casino
 import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.PhotoCamera
+import androidx.compose.material.icons.rounded.Poll
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -51,6 +53,10 @@ fun GamesScreen(
     onMystery: () -> Unit,
     onPuzzle: () -> Unit,
     onWhoTookIt: () -> Unit,
+    /** La festa è in corso: i sondaggi si votano dai telefoni. */
+    partyActive: Boolean = false,
+    onPoll: () -> Unit = {},
+    onLottery: () -> Unit = {},
 ) {
     val playable = photoCount >= MIN_GAME_PHOTOS
     Column(Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 40.dp), verticalArrangement = Arrangement.spacedBy(26.dp)) {
@@ -117,6 +123,25 @@ fun GamesScreen(
                     onWhoTookIt,
                     Modifier.width(GAME_TILE_WIDTH),
                     enabled = whoTookItPlayable,
+                )
+            }
+            item {
+                GameTile(
+                    stringResource(R.string.games_poll_title),
+                    stringResource(if (partyActive) R.string.games_poll_body else R.string.games_poll_unavailable),
+                    Icons.Rounded.Poll,
+                    onPoll,
+                    Modifier.width(GAME_TILE_WIDTH),
+                    enabled = partyActive,
+                )
+            }
+            item {
+                GameTile(
+                    stringResource(R.string.games_lottery_title),
+                    stringResource(R.string.games_lottery_body),
+                    Icons.Rounded.Casino,
+                    onLottery,
+                    Modifier.width(GAME_TILE_WIDTH),
                 )
             }
         }

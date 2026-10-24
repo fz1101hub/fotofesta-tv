@@ -438,4 +438,67 @@
     <string name="browser_smb_saved">In use · %1$s</string>
     <string name="browser_smb_add">Add a computer or NAS</string>
     <string name="browser_smb_add_hint">With its address, e.g. 192.168.1.20 or \\\\NAS\\Photos. Windows PCs are added this way.</string>
+
+    <!-- Attività della festa: sondaggi, estrazione, dediche e reazioni -->
+    <string name="games_poll_title">Quick poll</string>
+    <string name="games_poll_body">Ask the room a question: guests vote from their phones and the TV shows the results.</string>
+    <string name="games_poll_unavailable">Start the party first: guests vote from the page behind the QR code.</string>
+    <string name="games_lottery_title">Prize draw</string>
+    <string name="games_lottery_body">Draw a winner among the guests who took part with their name.</string>
+    <string name="poll_kicker">Quick poll</string>
+    <string name="poll_choose">Pick a question: guests vote from their phones.</string>
+    <string name="poll_need_party">Start the party: guests vote from the page behind the QR code.</string>
+    <string name="poll_reveal">Show the results</string>
+    <string name="poll_new">Another poll</string>
+    <string name="poll_q_king">Who rules the dance floor?</string>
+    <string name="poll_q_last_dance">Who will dance the last song?</string>
+    <string name="poll_q_style">Who has the best look tonight?</string>
+    <string name="poll_q_moment">Best moment of the night?</string>
+    <string name="poll_c_moment">The cake|The dancing|The buffet|The games</string>
+    <string name="poll_q_vote">How would you rate this party?</string>
+    <string name="poll_c_vote">Ten out of ten|Nine|Eight|Let’s do it again tomorrow!</string>
+    <string name="poll_q_sleep">Tomorrow we sleep until…</string>
+    <string name="poll_c_sleep">9 am|Noon|3 pm|Monday</string>
+    <string name="lottery_kicker">Prize draw</string>
+    <string name="lottery_none">No names yet: guests take part by writing their name when they send photos, play or react.</string>
+    <string name="lottery_ready">Who will win?</string>
+    <string name="lottery_all_drawn">Everyone has already won!</string>
+    <string name="lottery_draw">Draw</string>
+    <string name="lottery_again">Draw again</string>
+    <string name="lottery_reset">Start over</string>
+    <string name="lottery_winners">Winners: %1$s</string>
+    <string name="guestbook_title">Guestbook</string>
+    <string name="guestbook_kicker">Messages</string>
+    <string name="guestbook_from">From %1$s</string>
+    <string name="guestbook_empty">No messages yet: guests can write them from the page behind the QR code.</string>
+    <string name="guestbook_pending">to approve</string>
+    <string name="guestbook_show">Show</string>
+    <string name="guestbook_discard">Discard</string>
+    <string name="guestbook_approve_all">Show all</string>
+    <string name="guestbook_anonymous">A guest</string>
+    <string name="settings_phone_reactions">Reactions from phones</string>
+    <string name="settings_phone_reactions_body">Guests tap an emoji and it floats over the photo on screen. The most loved photo wins “Photo of the night”.</string>
+    <string name="settings_phone_messages">Messages from phones</string>
+    <string name="settings_phone_messages_body">They appear in the slideshow and in the guestbook. When photos need approval, messages do too.</string>
+    <string name="awards_favorite">Photo of the night</string>
+    <plurals name="poll_votes">
+        <item quantity="one">%d vote</item>
+        <item quantity="other">%d votes</item>
+    </plurals>
+    <plurals name="lottery_candidates">
+        <item quantity="one">%d guest in the draw</item>
+        <item quantity="other">%d guests in the draw</item>
+    </plurals>
+    <plurals name="guestbook_count">
+        <item quantity="one">%d message</item>
+        <item quantity="other">%d messages</item>
+    </plurals>
+    <plurals name="guestbook_approve">
+        <item quantity="one">Approve %d message</item>
+        <item quantity="other">Approve %d messages</item>
+    </plurals>
+    <plurals name="awards_reaction_count">
+        <item quantity="one">%d reaction</item>
+        <item quantity="other">%d reactions</item>
+    </plurals>
 </resources>

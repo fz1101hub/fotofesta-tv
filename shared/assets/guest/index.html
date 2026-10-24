@@ -43,6 +43,16 @@
   .choices button.right { border-color: var(--ok); background: var(--ok); color: #0b1222; }
   #gameStatus { margin-top: .7rem; font-weight: 600; }
   #banner button { display: block; margin-top: 10px; padding: 10px 18px; border: 0; border-radius: 12px; background: var(--accent); color: #1b1020; font: inherit; font-weight: 700; cursor: pointer; }
+  .box { margin: 1rem 0; padding: 14px; border-radius: 16px; background: var(--card); border: 1px solid var(--line); }
+  .box-title { font-weight: 700; margin: 0 0 .6rem; }
+  .reactions { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+  .reactions button { font-size: 1.7rem; line-height: 1; padding: 10px 0; border-radius: 12px; border: 1px solid var(--line); background: #22304f; cursor: pointer; transition: transform .15s; }
+  .reactions button.sent { transform: scale(1.18); border-color: var(--accent); }
+  textarea { width: 100%; min-height: 84px; font: inherit; color: var(--fg); background: #22304f; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; resize: vertical; }
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .send { margin-top: 8px; width: 100%; padding: 13px; border: 0; border-radius: 12px; background: var(--accent); color: #1b1020; font: inherit; font-weight: 700; cursor: pointer; }
+  .send:disabled { opacity: .55; cursor: default; }
+  #messageStatus { margin-top: .5rem; font-weight: 600; min-height: 1.4em; }
 </style>
 </head>
 <body>
@@ -62,6 +72,20 @@
   <label class="field" for="sender" id="senderLabel"></label>
   <input type="text" id="sender" maxlength="40" autocomplete="nickname" enterkeyhint="done">
 
+  <!-- Reazioni alla foto sulla TV e dediche: compaiono se la TV le ha attivate. -->
+  <section id="react" class="box" hidden>
+    <p class="box-title" id="reactTitle"></p>
+    <div class="reactions" id="reactButtons"></div>
+  </section>
+
+  <section id="message" class="box" hidden>
+    <label class="box-title" for="messageText" id="messageLabel"></label>
+    <textarea id="messageText" maxlength="160" enterkeyhint="send"></textarea>
+    <button type="button" class="send" id="messageSend"></button>
+    <p class="muted" id="messageStatus" aria-live="polite"></p>
+  </section>
+
+
   <label class="pick"><span id="pickText"></span><input type="file" id="files" accept="image/*" multiple></label>
   <p class="muted" id="keepOpen"></p>
 
@@ -80,6 +104,18 @@
 const CONFIG = __FOTOFESTA_CONFIG__;
 
 const IT = {
+  reactTitle: "Reagisci alla foto sulla TV",
+  messageLabel: "Lascia una dedica",
+  messagePlaceholder: "Un augurio, un ricordo, un saluto…",
+  messageSend: "Invia la dedica",
+  messageSent: "Dedica inviata: guarda la TV!",
+  messagePending: "Dedica inviata: comparirà dopo l'approvazione.",
+  messageRate: "Aspetta un momento prima della prossima dedica.",
+  messageFailed: "Dedica non inviata: riprova.",
+  pollKicker: "Sondaggio sulla TV",
+  pollVoted: "Voto inviato: i risultati arrivano sulla TV!",
+  pollClosed: "Votazione chiusa: ecco i risultati.",
+  votes: (n) => n + (n === 1 ? " voto" : " voti"),
   title: "Manda le tue foto sulla TV",
   intro: "Scegli le foto dal telefono: compariranno nello slideshow tra pochi secondi.",
   senderLabel: "Il tuo nome (facoltativo)",
@@ -113,6 +149,18 @@ const IT = {
   gameWrong: (points) => "Peccato! Hai " + points + (points === 1 ? " punto." : " punti."),
 };
 const EN = {
+  reactTitle: "React to the photo on the TV",
+  messageLabel: "Leave a message",
+  messagePlaceholder: "A wish, a memory, a hello…",
+  messageSend: "Send message",
+  messageSent: "Message sent: watch the TV!",
+  messagePending: "Message sent: it will appear once approved.",
+  messageRate: "Wait a moment before your next message.",
+  messageFailed: "Message not sent: try again.",
+  pollKicker: "Poll on the TV",
+  pollVoted: "Vote sent: results coming on the TV!",
+  pollClosed: "Voting closed: here are the results.",
+  votes: (n) => n + (n === 1 ? " vote" : " votes"),
   title: "Send your photos to the TV",
   intro: "Choose photos on your phone: they will appear in the slideshow within a few seconds.",
   senderLabel: "Your name (optional)",
@@ -146,6 +194,18 @@ const EN = {
   gameWrong: (points) => "Not this time! You have " + points + (points === 1 ? " point." : " points."),
 };
 const FR = {
+  reactTitle: "Réagissez à la photo sur la TV",
+  messageLabel: "Laissez un message",
+  messagePlaceholder: "Un vœu, un souvenir, un bonjour…",
+  messageSend: "Envoyer le message",
+  messageSent: "Message envoyé : regardez la TV !",
+  messagePending: "Message envoyé : il apparaîtra après approbation.",
+  messageRate: "Attendez un instant avant le prochain message.",
+  messageFailed: "Message non envoyé : réessayez.",
+  pollKicker: "Sondage sur la TV",
+  pollVoted: "Vote envoyé : les résultats arrivent sur la TV !",
+  pollClosed: "Vote terminé : voici les résultats.",
+  votes: (n) => n + (n <= 1 ? " vote" : " votes"),
   title: "Envoyez vos photos sur le téléviseur",
   intro: "Choisissez des photos sur votre téléphone : elles apparaîtront dans le diaporama en quelques secondes.",
   senderLabel: "Votre nom (facultatif)",
@@ -179,6 +239,18 @@ const FR = {
   gameWrong: (points) => "Dommage ! Vous avez " + points + (points <= 1 ? " point." : " points."),
 };
 const ES = {
+  reactTitle: "Reacciona a la foto de la TV",
+  messageLabel: "Deja una dedicatoria",
+  messagePlaceholder: "Un deseo, un recuerdo, un saludo…",
+  messageSend: "Enviar dedicatoria",
+  messageSent: "Dedicatoria enviada: ¡mira la TV!",
+  messagePending: "Dedicatoria enviada: aparecerá cuando la aprueben.",
+  messageRate: "Espera un momento antes de la siguiente dedicatoria.",
+  messageFailed: "Dedicatoria no enviada: inténtalo de nuevo.",
+  pollKicker: "Encuesta en la TV",
+  pollVoted: "Voto enviado: ¡los resultados, en la TV!",
+  pollClosed: "Votación cerrada: estos son los resultados.",
+  votes: (n) => n + (n === 1 ? " voto" : " votos"),
   title: "Envía tus fotos a la TV",
   intro: "Elige fotos en tu teléfono: aparecerán en la presentación en unos segundos.",
   senderLabel: "Tu nombre (opcional)",
@@ -212,6 +284,18 @@ const ES = {
   gameWrong: (points) => "¡Esta vez no! Tienes " + points + (points === 1 ? " punto." : " puntos."),
 };
 const DE = {
+  reactTitle: "Reagiere auf das Foto im Fernsehen",
+  messageLabel: "Hinterlass einen Gruß",
+  messagePlaceholder: "Ein Wunsch, eine Erinnerung, ein Hallo…",
+  messageSend: "Gruß senden",
+  messageSent: "Gruß gesendet: schau auf den Fernseher!",
+  messagePending: "Gruß gesendet: Er erscheint nach der Freigabe.",
+  messageRate: "Warte kurz vor dem nächsten Gruß.",
+  messageFailed: "Gruß nicht gesendet: Versuch es noch einmal.",
+  pollKicker: "Umfrage im Fernsehen",
+  pollVoted: "Stimme gesendet: Das Ergebnis kommt im Fernsehen!",
+  pollClosed: "Abstimmung beendet: Hier ist das Ergebnis.",
+  votes: (n) => n + (n === 1 ? " Stimme" : " Stimmen"),
   title: "Schick deine Fotos an den Fernseher",
   intro: "Wähle Fotos auf deinem Smartphone aus – in wenigen Sekunden erscheinen sie in der Diashow.",
   senderLabel: "Dein Name (optional)",
@@ -262,6 +346,10 @@ $("keepOpen").textContent = T.keepOpen;
 $("privacy").textContent = T.privacy;
 $("retry").textContent = T.retry;
 $("gameKicker").textContent = T.gameKicker;
+$("reactTitle").textContent = T.reactTitle;
+$("messageLabel").textContent = T.messageLabel;
+$("messageText").placeholder = T.messagePlaceholder;
+$("messageSend").textContent = T.messageSend;
 if (CONFIG.approval) {
   $("approvalNote").textContent = T.approval;
   $("approvalNote").hidden = false;
@@ -290,17 +378,83 @@ const PLAYER = (() => {
 })();
 const game = { round: null, choice: null };
 
+// Una sola richiesta per tutto: cosa la TV permette (reazioni, dediche) e il gioco in corso.
 async function pollGame() {
   if (document.hidden || expired) return;
   try {
-    const response = await fetch("/game?player=" + encodeURIComponent(PLAYER), {
+    const response = await fetch("/party?player=" + encodeURIComponent(PLAYER), {
       headers: { "X-FotoFesta-Key": KEY },
       cache: "no-store",
     });
-    if (response.ok) showGame(await response.json());
+    if (response.ok) {
+      const state = await response.json();
+      showFeatures(state.features || {});
+      showGame(state.game);
+    }
   } catch (e) {
     // La TV non risponde per un momento: si riprova al giro successivo.
   }
+}
+
+function showFeatures(features) {
+  $("react").hidden = !features.reactions;
+  $("message").hidden = !features.messages;
+}
+
+function guestName() {
+  return Array.from(senderInput.value.trim()).slice(0, 40).join("");
+}
+
+function sendAction(fields) {
+  const body = new URLSearchParams(Object.assign({ player: PLAYER, name: guestName() }, fields));
+  return fetch("/party/action", {
+    method: "POST",
+    headers: { "X-FotoFesta-Key": KEY, "Content-Type": "application/x-www-form-urlencoded" },
+    body: body.toString(),
+  });
+}
+
+// Reazioni: un tocco manda l'emoji alla TV, che la fa salire sopra la foto.
+const REACTIONS = ["\u2764\ufe0f", "\ud83d\ude02", "\ud83c\udf89", "\ud83d\ude2e", "\ud83d\udc4f", "\ud83d\udd25"];
+REACTIONS.forEach((emoji, index) => {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = emoji;
+  button.setAttribute("aria-label", emoji);
+  button.addEventListener("click", async () => {
+    button.classList.add("sent");
+    setTimeout(() => button.classList.remove("sent"), 250);
+    try { await sendAction({ type: "react", reaction: String(index) }); } catch (e) {}
+  });
+  $("reactButtons").appendChild(button);
+});
+
+// Dediche: compaiono sulla TV e restano nel libro degli ospiti.
+const messageText = $("messageText");
+const messageSend = $("messageSend");
+messageSend.addEventListener("click", sendMessage);
+messageText.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); sendMessage(); }
+});
+
+async function sendMessage() {
+  const text = messageText.value.trim();
+  if (!text || messageSend.disabled) return;
+  messageSend.disabled = true;
+  let status = T.messageFailed;
+  try {
+    const response = await sendAction({ type: "message", text: Array.from(text).slice(0, 160).join("") });
+    let body = null;
+    try { body = await response.json(); } catch (e) {}
+    if (response.ok) {
+      messageText.value = "";
+      status = body && body.status === "pending" ? T.messagePending : T.messageSent;
+    } else if (response.status === 429) {
+      status = T.messageRate;
+    }
+  } catch (e) {}
+  $("messageStatus").textContent = status;
+  messageSend.disabled = false;
 }
 
 function showGame(state) {
@@ -315,6 +469,7 @@ function showGame(state) {
     game.choice = null;
   }
   box.hidden = false;
+  $("gameKicker").textContent = state.poll ? T.pollKicker : T.gameKicker;
   $("gameQuestion").textContent = state.question;
   const choices = $("gameChoices");
   if (choices.dataset.round !== state.round) {
@@ -328,13 +483,18 @@ function showGame(state) {
       choices.appendChild(button);
     });
   }
+  const tally = Array.isArray(state.tally) ? state.tally : null;
+  const best = tally ? Math.max.apply(null, tally) : -1;
   Array.from(choices.children).forEach((button, index) => {
     button.disabled = game.choice !== null || !state.open;
     button.classList.toggle("mine", index === game.choice);
-    button.classList.toggle("right", state.answer === index);
+    button.classList.toggle("right", state.answer === index || (tally !== null && best > 0 && tally[index] === best));
+    button.textContent = state.choices[index] + (tally ? " · " + T.votes(tally[index] || 0) : "");
   });
   let status = "";
-  if (state.open) {
+  if (state.poll) {
+    status = state.open ? (game.choice !== null ? T.pollVoted : "") : T.pollClosed;
+  } else if (state.open) {
     status = game.choice !== null ? T.gameAnswered : (senderInput.value.trim() ? "" : T.gameNoName);
   } else if (typeof state.answer === "number") {
     status = game.choice === null ? T.gameClosed : (game.choice === state.answer ? T.gameRight(state.points) : T.gameWrong(state.points));

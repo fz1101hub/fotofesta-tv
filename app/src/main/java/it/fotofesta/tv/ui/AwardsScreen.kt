@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Celebration
 import androidx.compose.material.icons.rounded.EmojiEvents
+import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -37,7 +38,10 @@ import it.fotofesta.tv.model.PartyAwards
 import it.fotofesta.tv.model.PhotoItem
 import java.util.Date
 
-/** Premi di fine festa: "Obiettivo d'oro", prima foto e gran finale, con il riepilogo della festa. */
+/**
+ * Premi di fine festa: "Foto della serata" (più reazioni dai telefoni), "Obiettivo d'oro", prima
+ * foto e gran finale, con il riepilogo della festa.
+ */
 @Composable
 fun AwardsScreen(awards: PartyAwards, onBack: () -> Unit) {
     val summary = buildList {
@@ -54,6 +58,16 @@ fun AwardsScreen(awards: PartyAwards, onBack: () -> Unit) {
             TvButton(stringResource(R.string.action_back), onBack, modifier = Modifier.initialFocus(), icon = Icons.AutoMirrored.Rounded.ArrowBack)
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(22.dp)) {
+            awards.favorite?.let { favorite ->
+                AwardCard(
+                    Icons.Rounded.Favorite,
+                    stringResource(R.string.awards_favorite),
+                    favorite.photo.sender?.takeIf { it.isNotBlank() }?.trim() ?: favorite.photo.title,
+                    quantityStringResource(R.plurals.awards_reaction_count, favorite.reactions),
+                    favorite.photo,
+                    Modifier.weight(1f),
+                )
+            }
             awards.topPhotographer?.let { top ->
                 AwardCard(
                     Icons.Rounded.EmojiEvents,
