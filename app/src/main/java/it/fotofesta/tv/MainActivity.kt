@@ -66,6 +66,12 @@ import it.fotofesta.tv.ui.AnnounceScreen
 import it.fotofesta.tv.ui.GuestbookScreen
 import it.fotofesta.tv.ui.LotteryScreen
 import it.fotofesta.tv.ui.PollScreen
+import it.fotofesta.tv.ui.PartyGamesScreen
+import it.fotofesta.tv.ui.PlayScreen
+import it.fotofesta.tv.ui.TournamentScreen
+import it.fotofesta.tv.ui.BetsScreen
+import it.fotofesta.tv.ui.ToastScreen
+import it.fotofesta.tv.ui.CoinsScreen
 import it.fotofesta.tv.ui.ICloudLinkScreen
 import it.fotofesta.tv.ui.LocalReducedMotion
 import it.fotofesta.tv.ui.GuestsScreen
