@@ -75,8 +75,8 @@ fun Modifier.photoFilter(filter: PhotoFilter): Modifier {
                 if (advanced) drawRect(Color.Gray, blendMode = BlendMode.Saturation)
                 drawRect(Color(0xFF8A6A3A), alpha = if (advanced) .6f else .35f, blendMode = if (advanced) BlendMode.Color else BlendMode.SrcOver)
             }
-            PhotoFilter.WARM -> drawRect(Color(0xFFFF9A3C), alpha = .18f, blendMode = if (advanced) BlendMode.SoftLight else BlendMode.SrcOver)
-            PhotoFilter.COOL -> drawRect(Color(0xFF3C8DFF), alpha = .18f, blendMode = if (advanced) BlendMode.SoftLight else BlendMode.SrcOver)
+            PhotoFilter.WARM -> drawRect(Color(0xFFFF9A3C), alpha = .18f, blendMode = if (advanced) BlendMode.Softlight else BlendMode.SrcOver)
+            PhotoFilter.COOL -> drawRect(Color(0xFF3C8DFF), alpha = .18f, blendMode = if (advanced) BlendMode.Softlight else BlendMode.SrcOver)
             PhotoFilter.VINTAGE -> {
                 drawRect(Color(0xFFE8C98A), alpha = .22f, blendMode = if (advanced) BlendMode.Multiply else BlendMode.SrcOver)
                 // Vignettatura: bordi più scuri.
