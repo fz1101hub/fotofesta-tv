@@ -39,6 +39,12 @@ Il repository contiene anche la versione per **Apple TV** (cartella [`apple/`](a
 | Giochi | Puzzle con tre livelli (6, 12 o 24 pezzi) | Pronta |
 | Giochi | Chi l’ha scattata?: indovina quale invitato ha mandato la foto | Pronta |
 | Giochi | Telefoni come pulsanti: in “Foto misteriosa” e “Chi l’ha scattata?” gli invitati rispondono dalla pagina della festa, con classifica | Pronta |
+| Android TV | Rete Wi‑Fi della TV (hotspot locale) con il QR per gli invitati, dove non c’è una rete di casa | Pronta; dipende dalla TV (molte non hanno l’hotspot) |
+| Android TV | La TV come schermo DLNA: le foto mandate con “Riproduci su” entrano nella festa | Pronta, spenta di default |
+| Android TV | Copia delle foto della festa su una chiavetta USB, in FotoFesta/<data> | Pronta |
+| Android TV | Vecchio telefono come telecamera e applausometro (app “IP Webcam”, solo rete locale), con lo scatto che entra nella festa | Pronta |
+| Android TV | Pulsanti quiz: gamepad, tastiere e telecomandi come pulsanti delle squadre | Pronta |
+| Android TV | Canale nella schermata Home, avvio con la TV, modalità leggera (accesa da sola con poca memoria), modalità proiettore, modalità gioco della TV (ALLM) durante i giochi, aggiornamenti dal Play Store solo a TV libera | Pronta |
 | Privacy | Nessuna pubblicità, analisi o SDK che inviano dati; token AES-GCM in Android Keystore ([DATA_SAFETY.md](docs/DATA_SAFETY.md)) | Pronta |
 | Lingue | Italiano, inglese, francese, spagnolo e tedesco, anche nella pagina per i telefoni degli invitati, che segue la lingua del telefono; inglese per le altre lingue | Pronta |
 | Google Play | Banner Leanback 320×180 nell’app; per la scheda icona 512×512, grafica 1024×500 e banner TV 1280×720; AAB firmato | Pronta |
@@ -119,6 +125,8 @@ Le cartelle di rete richiedono un server multimediale DLNA/UPnP acceso sulla ste
 L’album condiviso di iCloud su Android TV usa il servizio web della pagina pubblica dell’album, che Apple non documenta e potrebbe cambiare: in quel caso l’app mostra un avviso e l’album va riaperto dopo un aggiornamento. Serve “Sito web pubblico” attivo; gli album privati e la libreria Foto di iCloud non sono raggiungibili da Android.
 
 Per le foto degli invitati i telefoni devono essere collegati alla stessa rete della TV: con i dati mobili la pagina non si apre. Le reti “ospiti” di alcuni router isolano i dispositivi tra loro e bloccano l’invio; in quel caso telefoni e TV vanno collegati alla rete principale. Sui telefoni che non sanno aprire le foto HEIC nel browser (alcuni Android) quelle foto vengono segnalate come non supportate.
+
+La rete della TV usa l’hotspot locale di Android (8+): molte TV non lo hanno o spengono intanto la Wi‑Fi di casa; i telefoni restano senza internet finché sono collegati. L’avvio con la TV funziona solo sulle TV che lasciano aprire app all’accensione (spesso fino ad Android 9). La modalità proiettore rinforza i colori da Android 12. Lo schermo DLNA accetta solo foto, scaricate da indirizzi della rete locale.
 
 Il salvaschermo di sistema mostra le foto dell’ultima raccolta scelta nell’app (Google Foto, cartella USB, di rete o condivisa, album iCloud, foto demo, con le foto approvate degli invitati se la festa è in corso; i video no) usando durata, adattamento, movimento lento e orologio delle impostazioni. Alcuni produttori, tra cui le Google TV recenti, nascondono la scelta dei salvaschermi di terze parti; in quel caso si può attivare via `adb`:
 

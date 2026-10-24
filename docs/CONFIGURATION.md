@@ -97,6 +97,21 @@ La password resta sulla TV, cifrata con AES-GCM e una chiave non esportabile del
 
 **Gioco con i telefoni.** Durante la festa, in “Foto misteriosa” e “Chi l’ha scattata?”, “Con i telefoni” pubblica la domanda sulla pagina della festa: la pagina interroga `GET /game` ogni 1,5 secondi e risponde con `POST /game/answer` (modulo `round`, `choice`, `player`, `name`, al massimo 1 KB), con la stessa chiave del QR. Il server risponde 409 se la domanda è chiusa e 400 se la risposta non è valida. Ogni telefono ha un identificativo casuale salvato nel browser; vale la sua prima risposta. Risposte, nomi e punti restano in memoria e si azzerano con una nuova partita.
 
+**Funzioni della TV Android.** Nelle impostazioni, sezione “TV”:
+
+- *Modalità leggera*: niente sfondo sfocato, zoom lenti, mosaico, pila, zapping e coriandoli. Si accende da sola sulle TV con `isLowRamDevice` o con al massimo 128 MB di memoria per app.
+- *Proiettore*: contrasto ×1,18 e saturazione ×1,2 (da Android 12, con `RenderEffect`) e bande nere al posto dello sfondo sfocato.
+- *Avvio con la TV*: `BootReceiver` apre l’app con `EXTRA_AUTO_START` e parte lo slideshow; Android 10+ blocca l’apertura sulle TV che non la consentono.
+- *Canale nella schermata Home*: canale `PreviewChannel` con quattro scorciatoie (`fotofesta://open/slideshow`, `party`, `games`, `shows`) e le immagini demo.
+- *TV come schermo DLNA*: durante la festa un MediaRenderer UPnP (SSDP su 239.255.255.250:1900, AVTransport) annuncia la TV; `SetAVTransportURI` scarica l’immagine (max 20 MB, solo indirizzi privati) e la aggiunge alla festa. Video e musica vengono rifiutati.
+- *Copia sulla chiavetta*: cartella scelta con il selettore di documenti; ogni foto della festa va in `FotoFesta/<aaaa-mm-gg>/`. Non con “Festa senza tracce”.
+
+Nella schermata della festa “Rete Wi‑Fi della TV” crea un hotspot locale (`startLocalOnlyHotspot`, chiede `NEARBY_WIFI_DEVICES` o la posizione fino ad Android 12): il server della festa passa sul suo indirizzo e il QR della Wi‑Fi mostra la rete della TV. Si spegne a fine festa.
+
+Nei giochi, “Pulsanti quiz” fa di ogni gamepad o tastiera una squadra (fino a 4, per `deviceId`): chi preme per primo dopo “Via!” risponde. “Telecamera e applausometro” legge `http://<telefono>:8080/video` (MJPEG) e `/audio.wav` (PCM 16 bit) di un’app “IP Webcam”; “Scatta” manda il fotogramma alla festa. Durante i giochi l’app chiede la modalità gioco della TV (`setPreferMinimalPostProcessing`, Android 11+).
+
+Gli aggiornamenti dal Play Store (Play In-App Updates, flessibili) si scaricano in background e si installano solo con la home aperta e la festa non in corso.
+
 ## 5. Installare su Google TV
 
 Per una prova locale:

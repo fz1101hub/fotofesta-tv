@@ -45,6 +45,15 @@ L'app dichiara `READ_MEDIA_IMAGES` e `READ_MEDIA_VIDEO` (Android 13 e successivi
 
 Il permesso si chiede solo all'apertura del browser delle cartelle; se viene negato, il browser mostra comunque i server della rete di casa e, quando la TV lo ha, resta il selettore di sistema. Senza il permesso dei video (concesso a parte su alcune versioni di Android) le cartelle USB mostrano solo le foto.
 
+### Autorizzazioni per la rete della TV, DLNA e avvio automatico
+
+- `NEARBY_WIFI_DEVICES` (Android 13+, con `neverForLocation`) e `ACCESS_FINE_LOCATION`/`ACCESS_COARSE_LOCATION` solo fino ad Android 12 (`maxSdkVersion="32"`): servono soltanto a `startLocalOnlyHotspot`, la rete Wi‑Fi creata dalla TV per le feste senza rete di casa. L'app non legge la posizione: nella sezione *Sicurezza dei dati* la posizione resta **non raccolta**. Si chiedono solo quando si preme “Crea la rete della TV”. I `uses-feature` di Wi‑Fi e posizione sono `required="false"`, così le TV solo via cavo o senza GPS restano compatibili.
+- `ACCESS_WIFI_STATE`, `CHANGE_WIFI_STATE`, `CHANGE_WIFI_MULTICAST_STATE`: hotspot locale e annunci SSDP dello schermo DLNA (spento di default). Le foto ricevute via DLNA si scaricano solo da indirizzi privati della rete locale.
+- `RECEIVE_BOOT_COMPLETED`: “Avvio con la TV”, spento di default; il ricevitore non fa nulla se l'impostazione è spenta.
+- Telecamera e applausometro con un vecchio telefono: l'app legge in HTTP il flusso MJPEG e l'audio WAV dell'app “IP Webcam” solo su indirizzi della rete locale; non registra l'audio e nessun dato esce dalla rete di casa. Non servono permessi.
+- Copia sulla chiavetta: cartella scelta dall'utente con il selettore di documenti (permesso persistente sull'URI), nessun permesso aggiuntivo.
+- Aggiornamenti dal Play Store: libreria Play In-App Updates, nessun dato raccolto dall'app.
+
 ## App Store – Privacy dell'app (etichetta nutrizionale)
 
 | Domanda di App Store Connect | Risposta |
