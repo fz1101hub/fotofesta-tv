@@ -60,11 +60,29 @@ public final class PartyHub: @unchecked Sendable {
         }
     }
 
+    /// Annuncio sullo schermo e sui telefoni; `serial` distingue due annunci uguali.
+    public struct Announcement: Equatable, Sendable {
+        public let serial: Int
+        public let text: String
+        public let date: Date
+    }
+
+    /// Invitato che dirige lo slideshow dal suo telefono fino a `until`.
+    public struct Director: Equatable, Sendable {
+        public let player: String
+        public let name: String
+        public let until: Date
+    }
+
     public enum Result: Equatable, Sendable {
         case ok, pending, rateLimited, disabled, invalid, full
     }
 
     public static let maxMessageLength = 160
+    public static let maxAnnouncementLength = 120
+    /// L'annuncio resta sui telefoni per un minuto (sullo schermo lo decide la TV).
+    public static let announcementPhoneTime: TimeInterval = 60
+    public static let directorTime: TimeInterval = 120
     public static let maxMessages = 500
     public static let maxRecentReactions = 64
     /// Cinque reazioni ogni tre secondi: abbastanza per divertirsi, troppo poche per intasare lo schermo.
@@ -89,6 +107,10 @@ public final class PartyHub: @unchecked Sendable {
     private var nameOrder: [String] = []
     /// Cresce a ogni cambio delle dediche o delle impostazioni: l'interfaccia lo confronta per aggiornarsi.
     private var revision = 0
+    private var announcement: Announcement?
+    private var announcementSerial = 0
+    private var director: Director?
+    private var directorHandler: (@Sendable (PartyCommand) -> Void)?
 
     public init(now: @escaping @Sendable () -> Date = { Date() }) {
         self.now = now
@@ -187,9 +209,85 @@ public final class PartyHub: @unchecked Sendable {
         lock.withLock { nameOrder.compactMap { player in names[player].map { Participant(player: player, name: $0) } } }
     }
 
+    /// Comandi del regista di turno (avanti, indietro, pausa), dalla coda del server.
+    public func setOnDirectorCommand(_ handler: (@Sendable (PartyCommand) -> Void)?) {
+        lock.withLock { directorHandler = handler }
+    }
+
+    /// Annuncio della regia ("Il buffet è aperto!"): compare sullo schermo e sui telefoni.
+    @discardableResult
+    public func announce(_ text: String?) -> Bool {
+        guard let cleaned = GuestSender.clean(text, maxLength: Self.maxAnnouncementLength) else { return false }
+        lock.withLock {
+            announcementSerial += 1
+            announcement = Announcement(serial: announcementSerial, text: cleaned, date: now())
+            revision += 1
+        }
+        return true
+    }
+
+    /// Ultimo annuncio, se è di meno di `announcementPhoneTime` secondi fa.
+    public func currentAnnouncement() -> Announcement? {
+        lock.withLock {
+            guard let announcement, now().timeIntervalSince(announcement.date) < Self.announcementPhoneTime else { return nil }
+            return announcement
+        }
+    }
+
+    /// Regista per due minuti: un invitato estratto tra chi ha partecipato con un nome dirige lo
+    /// slideshow dal suo telefono. Nil se nessuno ha ancora scritto il proprio nome.
+    @discardableResult
+    public func startDirector(duration: TimeInterval = PartyHub.directorTime) -> Director? {
+        lock.withLock {
+            guard let player = nameOrder.filter({ names[$0] != nil }).randomElement(), let name = names[player] else { return nil }
+            let chosen = Director(player: player, name: name, until: now().addingTimeInterval(duration))
+            director = chosen
+            revision += 1
+            return chosen
+        }
+    }
+
+    public func stopDirector() {
+        lock.withLock {
+            director = nil
+            revision += 1
+        }
+    }
+
+    /// Regista di turno, se il suo tempo non è finito.
+    public func currentDirector() -> Director? {
+        lock.withLock { directorLocked() }
+    }
+
+    func director() -> Director? { currentDirector() }
+
+    /// Annuncio e regista di turno per la pagina del telefono `player`, in JSON.
+    public func partyJSON(player: String?) -> String {
+        let current = currentAnnouncement()
+        let (chosen, remaining): (Director?, Int) = lock.withLock {
+            let chosen = directorLocked()
+            return (chosen, chosen.map { max(Int($0.until.timeIntervalSince(now())), 0) } ?? 0)
+        }
+        var parts: [String] = []
+        if let current {
+            parts.append(#""announcement":{"id":\#(current.serial),"text":\#(Self.json(current.text))}"#)
+        } else {
+            parts.append(#""announcement":null"#)
+        }
+        if let chosen {
+            let you = player != nil && player == chosen.player
+            parts.append(#""director":{"name":\#(Self.json(chosen.name)),"you":\#(you),"seconds":\#(remaining)}"#)
+        } else {
+            parts.append(#""director":null"#)
+        }
+        return "{" + parts.joined(separator: ",") + "}"
+    }
+
     /// Fine della festa: si cancella tutto.
     public func clear() {
         lock.withLock {
+            announcement = nil
+            director = nil
             showing = nil
             reactionCounts = [:]
             recentReactions = []
@@ -217,6 +315,7 @@ public final class PartyHub: @unchecked Sendable {
         switch form["type"] {
         case "react": result = react(player: player, index: form["reaction"].flatMap { Int($0) } ?? -1, name: name)
         case "message": result = message(player: player, text: form["text"], name: name)
+        case "director": result = direct(player: player, command: form["command"])
         default: result = .invalid
         }
         switch result {
@@ -229,7 +328,34 @@ public final class PartyHub: @unchecked Sendable {
         }
     }
 
+    /// Comando del regista di turno: solo dal suo telefono e solo finché dura il suo turno.
+    private func direct(player: String, command: String?) -> Result {
+        let (allowed, handler) = lock.withLock { (directorLocked()?.player == player, directorHandler) }
+        guard allowed else { return .disabled }
+        let action: PartyCommand
+        switch command {
+        case "next": action = .next
+        case "previous": action = .previous
+        case "play": action = .play
+        case "pause": action = .pause
+        default: return .invalid
+        }
+        handler?(action)
+        return .ok
+    }
+
+    /// Stringa JSON tra virgolette, con i caratteri speciali protetti.
+    static func json(_ text: String) -> String {
+        guard let data = try? JSONEncoder().encode(text) else { return "\"\"" }
+        return String(decoding: data, as: UTF8.self)
+    }
+
     // MARK: - Da chiamare con il lock preso
+
+    private func directorLocked() -> Director? {
+        guard let director, now() < director.until else { return nil }
+        return director
+    }
 
     private func approvePendingLocked() {
         for index in messages.indices where !messages[index].approved { messages[index].approved = true }

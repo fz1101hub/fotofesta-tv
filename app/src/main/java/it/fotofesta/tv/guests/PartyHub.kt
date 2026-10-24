@@ -30,6 +30,12 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
 
     data class Participant(val player: String, val name: String)
 
+    /** Annuncio sullo schermo e sui telefoni; [serial] distingue due annunci uguali. */
+    data class Announcement(val serial: Long, val text: String, val atMillis: Long)
+
+    /** Invitato che dirige lo slideshow dal suo telefono fino a [untilMillis]. */
+    data class Director(val player: String, val name: String, val untilMillis: Long)
+
     enum class Result { OK, PENDING, RATE_LIMITED, DISABLED, INVALID, FULL }
 
     private var features = Features()
@@ -41,6 +47,12 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
     private val messageTimes = HashMap<String, ArrayDeque<Long>>()
     private val messages = ArrayList<Message>()
     private val names = LinkedHashMap<String, String>()
+    private var announcement: Announcement? = null
+    private var announcementSerial = 0L
+    private var director: Director? = null
+
+    /** Comandi del regista di turno (avanti, indietro, pausa), da qualunque thread. */
+    @Volatile var onDirectorCommand: ((PartyCommand) -> Unit)? = null
 
     /** Dediche cambiate (arrivata, approvata, tolta) o impostazioni cambiate, da qualunque thread. */
     @Volatile var onChange: (() -> Unit)? = null
@@ -136,9 +148,47 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
     @Synchronized
     fun participants(): List<Participant> = names.map { (player, name) -> Participant(player, name) }
 
+    /** Annuncio della regia ("Il buffet è aperto!"): compare sullo schermo e sui telefoni. */
+    fun announce(text: String?): Boolean {
+        val cleaned = GuestSender.clean(text, MAX_ANNOUNCEMENT_LENGTH) ?: return false
+        synchronized(this) { announcement = Announcement(++announcementSerial, cleaned, nowMillis()) }
+        onChange?.invoke()
+        return true
+    }
+
+    /** Ultimo annuncio, se è di meno di [ANNOUNCEMENT_PHONE_MS] fa. */
+    @Synchronized
+    fun announcement(): Announcement? = announcement?.takeIf { nowMillis() - it.atMillis < ANNOUNCEMENT_PHONE_MS }
+
+    /**
+     * Regista per due minuti: un invitato estratto tra chi ha partecipato con un nome dirige lo
+     * slideshow dal suo telefono. Null se nessuno ha ancora scritto il proprio nome.
+     */
+    fun startDirector(random: kotlin.random.Random = kotlin.random.Random.Default, durationMillis: Long = DIRECTOR_MS): Director? {
+        val chosen = synchronized(this) {
+            val candidates = names.entries.toList()
+            if (candidates.isEmpty()) return null
+            val (player, name) = candidates[random.nextInt(candidates.size)]
+            Director(player, name, nowMillis() + durationMillis).also { director = it }
+        }
+        onChange?.invoke()
+        return chosen
+    }
+
+    fun stopDirector() {
+        synchronized(this) { director = null }
+        onChange?.invoke()
+    }
+
+    /** Regista di turno, se il suo tempo non è finito. */
+    @Synchronized
+    fun director(): Director? = director?.takeIf { nowMillis() < it.untilMillis }
+
     /** Fine della festa: si cancella tutto. */
     fun clear() {
         synchronized(this) {
+            announcement = null
+            director = null
             showing = null
             reactionCounts.clear()
             recentReactions.clear()
@@ -155,6 +205,25 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
     fun featuresJson(): String =
         """{"reactions":${features.reactions},"messages":${features.messages},"moderated":${features.moderateMessages}}"""
 
+    /** Annuncio e regista di turno per la pagina del telefono [player], in JSON. */
+    fun partyJson(player: String?): String {
+        val current = announcement()
+        val director = director()
+        return buildString {
+            append("""{"announcement":""")
+            if (current == null) append("null") else {
+                append("""{"id":""").append(current.serial).append(""","text":""").append(GuestUploadServer.jsonString(current.text)).append('}')
+            }
+            append(""","director":""")
+            if (director == null) append("null") else {
+                append("""{"name":""").append(GuestUploadServer.jsonString(director.name))
+                append(""","you":""").append(player != null && player == director.player)
+                append(""","seconds":""").append(((director.untilMillis - nowMillis()) / 1000).coerceAtLeast(0)).append('}')
+            }
+            append('}')
+        }
+    }
+
     /** Richiesta di un telefono (modulo "type=...&player=..."): stato HTTP e risposta JSON. */
     fun handle(form: Map<String, String>): Pair<Int, String> {
         val player = form["player"].orEmpty()
@@ -162,6 +231,7 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
         val result = when (form["type"]) {
             "react" -> react(player, form["reaction"]?.toIntOrNull() ?: -1, name)
             "message" -> message(player, form["text"], name)
+            "director" -> direct(player, form["command"])
             else -> Result.INVALID
         }
         return when (result) {
@@ -172,6 +242,21 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
             Result.FULL -> 507 to """{"error":"full"}"""
             Result.INVALID -> 400 to """{"error":"invalid"}"""
         }
+    }
+
+    /** Comando del regista di turno: solo dal suo telefono e solo finché dura il suo turno. */
+    private fun direct(player: String, command: String?): Result {
+        val current = director() ?: return Result.DISABLED
+        if (current.player != player) return Result.DISABLED
+        val action = when (command) {
+            "next" -> PartyCommand.Next
+            "previous" -> PartyCommand.Previous
+            "play" -> PartyCommand.Play
+            "pause" -> PartyCommand.Pause
+            else -> return Result.INVALID
+        }
+        onDirectorCommand?.invoke(action)
+        return Result.OK
     }
 
     private inline fun changeMessages(block: () -> Unit) {
@@ -203,6 +288,10 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
 
     companion object {
         const val MAX_MESSAGE_LENGTH = 160
+        const val MAX_ANNOUNCEMENT_LENGTH = 120
+        /** L'annuncio resta sui telefoni per un minuto (sullo schermo lo decide la TV). */
+        const val ANNOUNCEMENT_PHONE_MS = 60_000L
+        const val DIRECTOR_MS = 120_000L
         const val MAX_MESSAGES = 500
         const val MAX_RECENT_REACTIONS = 64
         /** Cinque reazioni ogni tre secondi: abbastanza per divertirsi, troppo poche per intasare lo schermo. */

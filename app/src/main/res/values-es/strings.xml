@@ -532,4 +532,26 @@
         <item quantity="many">%d reacciones</item>
         <item quantity="other">%d reacciones</item>
     </plurals>
+
+    <!-- Regia dal telefono, annunci e regista di turno -->
+    <string name="host_pin">Control desde el móvil · PIN %1$s</string>
+    <string name="host_pin_hint">Abre la página del código QR, toca «Soy el anfitrión» y escribe el PIN: podrás cambiar de foto, aprobarlas y hacer anuncios mientras recorres la sala.</string>
+    <string name="settings_phone_host">Control desde el móvil</string>
+    <string name="settings_phone_host_body">Con el PIN que se muestra durante la fiesta, el anfitrión controla la presentación, las aprobaciones y los anuncios desde la página de los invitados.</string>
+    <string name="announce_kicker">Anuncio</string>
+    <string name="announce_body">Aparece en grande en la pantalla y en los móviles de los invitados.</string>
+    <string name="announce_send">Mostrar el anuncio</string>
+    <string name="announce_custom">Escribe un anuncio</string>
+    <string name="announce_empty">Escribe un anuncio antes de mostrarlo.</string>
+    <string name="announce_p_buffet">¡El bufé está abierto!</string>
+    <string name="announce_p_cake">¡Se corta la tarta!</string>
+    <string name="announce_p_group">¡Foto de grupo en 5 minutos!</string>
+    <string name="announce_p_dance">¡Todos a la pista!</string>
+    <string name="announce_p_last">¡Último baile!</string>
+    <string name="guests_announce">Hacer un anuncio</string>
+    <string name="games_director_title">Director por dos minutos</string>
+    <string name="games_director_body">Un invitado elegido al azar dirige la presentación desde su móvil.</string>
+    <string name="director_now">Ahora dirige %1$s · %2$s</string>
+    <string name="message_director_none">Ningún invitado ha escrito aún su nombre: puede dirigir quien envía fotos, juega o reacciona con su nombre.</string>
+    <string name="message_director_started">¡%1$s dirige la presentación desde su móvil durante dos minutos!</string>
 </resources>

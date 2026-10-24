@@ -124,6 +124,12 @@ struct SettingsView: View {
                         Text(L("settings.phone_reactions_body")).font(.caption).foregroundStyle(.secondary)
                     }
                 }
+                Toggle(isOn: Binding(get: { guests.hostEnabled }, set: { guests.setHostEnabled($0) })) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L("settings.phone_host"))
+                        Text(L("settings.phone_host_body")).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
                 Toggle(isOn: Binding(get: { guests.messagesEnabled }, set: { guests.setMessagesEnabled($0) })) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(L("settings.phone_messages"))

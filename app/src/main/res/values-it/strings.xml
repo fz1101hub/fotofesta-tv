@@ -532,4 +532,26 @@
         <item quantity="many">%d reazioni</item>
         <item quantity="other">%d reazioni</item>
     </plurals>
+
+    <!-- Regia dal telefono, annunci e regista di turno -->
+    <string name="host_pin">Regia dal telefono · PIN %1$s</string>
+    <string name="host_pin_hint">Apri la pagina del QR, tocca “Sono l’organizzatore” e scrivi il PIN: potrai cambiare foto, approvarle e fare annunci girando per la sala.</string>
+    <string name="settings_phone_host">Regia dal telefono</string>
+    <string name="settings_phone_host_body">Con il PIN mostrato durante la festa, chi organizza comanda slideshow, approvazioni e annunci dalla pagina degli invitati.</string>
+    <string name="announce_kicker">Annuncio</string>
+    <string name="announce_body">Compare in grande sullo schermo e sui telefoni degli invitati.</string>
+    <string name="announce_send">Mostra l’annuncio</string>
+    <string name="announce_custom">Scrivi un annuncio</string>
+    <string name="announce_empty">Scrivi un annuncio prima di mostrarlo.</string>
+    <string name="announce_p_buffet">Il buffet è aperto!</string>
+    <string name="announce_p_cake">Si taglia la torta!</string>
+    <string name="announce_p_group">Foto di gruppo tra 5 minuti!</string>
+    <string name="announce_p_dance">Tutti in pista!</string>
+    <string name="announce_p_last">Ultimo ballo!</string>
+    <string name="guests_announce">Fai un annuncio</string>
+    <string name="games_director_title">Regista per due minuti</string>
+    <string name="games_director_body">Un invitato estratto a caso dirige lo slideshow dal suo telefono.</string>
+    <string name="director_now">Ora dirige %1$s · %2$s</string>
+    <string name="message_director_none">Nessun invitato ha ancora scritto il proprio nome: può dirigere chi manda foto, gioca o reagisce con il nome.</string>
+    <string name="message_director_started">%1$s dirige lo slideshow dal telefono per due minuti!</string>
 </resources>

@@ -41,6 +41,10 @@ class GuestUploadServer(
     private val game: PhoneGame? = null,
     /** Reazioni e dediche (GET /party con lo stato per la pagina, POST /party/action). */
     private val hub: PartyHub? = null,
+    /** Regia dal telefono con il PIN (/party/host...). */
+    private val host: HostRemote? = null,
+    /** Foto in attesa di approvazione, per le miniature della pagina di regia. */
+    private val hostPhoto: (String) -> ByteArray? = { null },
     private val maxUploadBytes: Int = MAX_UPLOAD_BYTES,
     private val readTimeoutMillis: Int = READ_TIMEOUT_MS,
     private val headerDeadlineMillis: Long = HEADER_DEADLINE_MS,
@@ -234,11 +238,58 @@ class GuestUploadServer(
                 if (request.method != "GET") throw HttpError(405, "method")
                 if (!keyMatches(request.headers["x-fotofesta-key"])) throw HttpError(401, "key")
                 val features = hub?.featuresJson() ?: """{"reactions":false,"messages":false,"moderated":false}"""
-                Response.json(200, """{"features":$features,"game":${gameJson(game?.current(), request.query["player"])}}""")
+                val player = request.query["player"]
+                val party = hub?.partyJson(player) ?: """{"announcement":null,"director":null}"""
+                val hostOn = host?.pin() != null
+                Response.json(200, """{"features":$features,"game":${gameJson(game?.current(), player)},"party":$party,"host":$hostOn}""")
             }
             "/party/action" -> {
                 if (request.method != "POST") throw HttpError(405, "method")
                 receiveAction(request, body, clientAddress, startedAt)
+            }
+            "/party/host/login" -> {
+                if (request.method != "POST") throw HttpError(405, "method")
+                if (!keyMatches(request.headers["x-fotofesta-key"])) throw HttpError(401, "key")
+                val host = host ?: throw HttpError(404, "not_found")
+                val form = readSmallForm(request, body, startedAt, MAX_ANSWER_BYTES)
+                when (val result = host.login(form["pin"], clientAddress.hostAddress.orEmpty())) {
+                    is HostRemote.Login.Accepted -> Response.json(200, """{"token":"${result.token}"}""")
+                    HostRemote.Login.Wrong -> throw HttpError(403, "pin")
+                    HostRemote.Login.RateLimited -> throw HttpError(429, "rate", listOf("Retry-After" to "60"))
+                    HostRemote.Login.Locked -> throw HttpError(423, "locked", listOf("Retry-After" to "300"))
+                    HostRemote.Login.Disabled -> throw HttpError(404, "not_found")
+                }
+            }
+            "/party/host" -> {
+                if (!keyMatches(request.headers["x-fotofesta-key"])) throw HttpError(401, "key")
+                val host = host ?: throw HttpError(404, "not_found")
+                val token = request.headers["x-fotofesta-host"]
+                when (request.method) {
+                    "GET" -> {
+                        if (!host.isHost(token)) throw HttpError(401, "host")
+                        Response.json(200, host.statusJson(hub ?: PartyHub()))
+                    }
+                    "POST" -> {
+                        val form = readSmallForm(request, body, startedAt, MAX_ACTION_BYTES)
+                        val (status, json) = host.handle(token, form)
+                        Response.json(status, json)
+                    }
+                    else -> throw HttpError(405, "method")
+                }
+            }
+            "/party/host/photo" -> {
+                if (request.method != "GET") throw HttpError(405, "method")
+                if (!keyMatches(request.headers["x-fotofesta-key"])) throw HttpError(401, "key")
+                val host = host ?: throw HttpError(404, "not_found")
+                if (!host.isHost(request.headers["x-fotofesta-host"])) throw HttpError(401, "host")
+                val id = request.query["id"].orEmpty()
+                val bytes = id.takeIf(host::canShow)?.let(hostPhoto) ?: throw HttpError(404, "not_found")
+                val type = when (ImageFormat.sniff(bytes)) {
+                    ImageFormat.PNG -> "image/png"
+                    ImageFormat.WEBP -> "image/webp"
+                    else -> "image/jpeg"
+                }
+                Response(200, type, bytes)
             }
             else -> Response.json(404, """{"error":"not_found"}""")
         }
@@ -580,6 +631,7 @@ class GuestUploadServer(
             413 -> "Payload Too Large"
             415 -> "Unsupported Media Type"
             421 -> "Misdirected Request"
+            423 -> "Locked"
             429 -> "Too Many Requests"
             431 -> "Request Header Fields Too Large"
             503 -> "Service Unavailable"

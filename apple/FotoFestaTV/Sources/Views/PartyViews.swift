@@ -427,3 +427,107 @@ private struct MessageRow<Actions: View>: View {
         .background(Color(white: 0.1), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 }
+
+// MARK: - Regia: annunci e regista di turno
+
+/// Annuncio della regia, in grande al centro per quindici secondi dopo l'arrivo.
+struct AnnouncementOverlay: View {
+    let announcement: PartyHub.Announcement?
+    @State private var visible: PartyHub.Announcement?
+
+    private static let screenTime: TimeInterval = 15
+
+    var body: some View {
+        ZStack {
+            if let visible {
+                VStack(spacing: 14) {
+                    Text(L("announce.kicker").uppercased())
+                        .font(.headline)
+                    Text(visible.text)
+                        .font(.system(size: 64, weight: .bold))
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .foregroundStyle(Color.black)
+                .padding(.horizontal, 64)
+                .padding(.vertical, 44)
+                .frame(maxWidth: 1400)
+                .background(Theme.highlight, in: RoundedRectangle(cornerRadius: 36, style: .continuous))
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .allowsHitTesting(false)
+        .animation(.easeInOut(duration: 0.4), value: visible?.serial)
+        .task(id: announcement?.serial) {
+            guard let current = announcement else { return }
+            // Un annuncio già vecchio (ad esempio aprendo lo slideshow dopo) non ricompare.
+            let left = Self.screenTime - Date().timeIntervalSince(current.date)
+            guard left > 0 else { return }
+            visible = current
+            try? await Task.sleep(for: .seconds(left))
+            if visible?.serial == current.serial { visible = nil }
+        }
+    }
+}
+
+/// Chi dirige lo slideshow dal telefono, con il tempo che resta.
+struct DirectorBadge: View {
+    let director: PartyHub.Director
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let remaining = max(Int(director.until.timeIntervalSince(context.date)), 0)
+            if remaining > 0 {
+                Label(L("director.now", director.name, String(format: "%d:%02d", remaining / 60, remaining % 60)), systemImage: "video.fill")
+                    .font(.headline)
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 12)
+                    .background(.regularMaterial, in: Capsule())
+            }
+        }
+    }
+}
+
+/// Annuncio dalla TV: frasi pronte da scegliere con il telecomando, oppure un testo libero.
+struct AnnounceView: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    @State private var text = ""
+
+    private var presets: [String] {
+        [L("announce.p_buffet"), L("announce.p_cake"), L("announce.p_group"), L("announce.p_dance"), L("announce.p_last")]
+    }
+
+    var body: some View {
+        ZStack {
+            Theme.background.ignoresSafeArea()
+            VStack(alignment: .leading, spacing: 40) {
+                ScreenTitle(title: L("guests.announce"), subtitle: L("announce.body"))
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 460), spacing: 32)], alignment: .leading, spacing: 32) {
+                    ForEach(presets, id: \.self) { preset in
+                        Button { send(preset) } label: {
+                            Label(preset, systemImage: "megaphone.fill").frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                }
+                HStack(spacing: 32) {
+                    TextField(L("announce.custom"), text: $text)
+                        .onSubmit { send(text) }
+                    Button(L("announce.send")) { send(text) }
+                        .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func send(_ value: String) {
+        guard model.guests.announce(value) else {
+            model.showMessage(L("announce.empty"))
+            return
+        }
+        dismiss()
+    }
+}

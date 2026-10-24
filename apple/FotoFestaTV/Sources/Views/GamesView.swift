@@ -38,6 +38,16 @@ struct GamesView: View {
                             .poll,
                             enabled: partyOn
                         )
+                        Button { model.startDirector() } label: {
+                            GameCardLabel(
+                                title: L("games.director_title"),
+                                subtitle: partyOn ? L("games.director_body") : L("games.poll_unavailable"),
+                                systemImage: "video.fill",
+                                artwork: "demo_birthday.jpg"
+                            )
+                        }
+                        .cardButtonStyle()
+                        .disabled(!partyOn)
                         gameCard(L("games.lottery_title"), L("games.lottery_body"), "dice.fill", .lottery, enabled: true)
                     }
                     // Spazio per il sollevamento delle schede con il fuoco.

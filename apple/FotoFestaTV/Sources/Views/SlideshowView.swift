@@ -84,6 +84,12 @@ struct SlideshowView: View {
             if model.guests.active {
                 if model.guests.messagesEnabled { MessageBanner(messages: model.guests.messages) }
                 if model.guests.reactionsEnabled { ReactionsOverlay(hub: model.guests.partyHub) }
+                AnnouncementOverlay(announcement: model.guests.announcement)
+            }
+        }
+        .overlay(alignment: .top) {
+            if model.guests.active, let director = model.guests.director {
+                DirectorBadge(director: director).padding(.top, 60)
             }
         }
         .onChange(of: model.currentPhoto?.id) { previous, _ in

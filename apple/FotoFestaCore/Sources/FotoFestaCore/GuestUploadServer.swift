@@ -56,6 +56,10 @@ public final class GuestUploadServer: @unchecked Sendable {
     private let game: PhoneGame?
     /// Reazioni e dediche (GET /party con lo stato per la pagina, POST /party/action).
     private let hub: PartyHub?
+    /// Regia dal telefono con il PIN (/party/host...).
+    private let host: HostRemote?
+    /// Foto in attesa di approvazione, per le miniature della pagina di regia.
+    private let hostPhoto: @Sendable (String) -> Data?
     /// Risposte dei telefoni: poche decine di byte, con margine per nomi lunghi.
     static let maxAnswerBytes = 1_024
     /// Reazioni e dediche: una dedica di 160 caratteri codificata occupa al massimo circa 1,5 kB.
@@ -86,7 +90,9 @@ public final class GuestUploadServer: @unchecked Sendable {
         onPhoto: @escaping @Sendable (Data, String?) -> UploadResult,
         onFailure: @escaping @Sendable () -> Void = {},
         game: PhoneGame? = nil,
-        hub: PartyHub? = nil
+        hub: PartyHub? = nil,
+        host: HostRemote? = nil,
+        hostPhoto: @escaping @Sendable (String) -> Data? = { _ in nil }
     ) {
         self.key = key
         self.maxUploadBytes = maxUploadBytes
@@ -98,6 +104,8 @@ public final class GuestUploadServer: @unchecked Sendable {
         self.onFailure = onFailure
         self.game = game
         self.hub = hub
+        self.host = host
+        self.hostPhoto = hostPhoto
     }
 
     /// Avvia il server, preferibilmente sulla porta `preferredPort` (così il QR resta uguale tra un
@@ -213,6 +221,9 @@ public final class GuestUploadServer: @unchecked Sendable {
     func prepare(_ request: GuestHTTPRequest, client: String) throws -> (bodyLength: Int, cached: GuestHTTPResponse?) {
         try checkHost(request)
         if request.path == "/game/answer" { return (try answerLength(request), nil) }
+        if request.path == "/party/host/login" || (request.path == "/party/host" && request.method == "POST") {
+            return (try answerLength(request, limit: Self.maxActionBytes), nil)
+        }
         if request.path == "/party/action" {
             let length = try answerLength(request, limit: Self.maxActionBytes)
             // Il limite per telefono di PartyHub si aggira cambiando identificativo: qui conta l'indirizzo.
@@ -244,7 +255,7 @@ public final class GuestUploadServer: @unchecked Sendable {
 
     /// Risposta a una richiesta completa. `body` contiene il corpo già letto per intero; i byte
     /// riservati da `prepare` vengono liberati. Chiamato sulla coda del server.
-    func respond(to request: GuestHTTPRequest, body: Data) -> GuestHTTPResponse {
+    func respond(to request: GuestHTTPRequest, body: Data, client: String = "") -> GuestHTTPResponse {
         if request.path == "/photos" { releaseReserved(body.count) }
         do {
             try checkHost(request)
@@ -263,7 +274,49 @@ public final class GuestUploadServer: @unchecked Sendable {
                 guard request.method == "GET" else { throw GuestHTTPError(status: 405, code: "method") }
                 guard keyMatches(request.headers["x-fotofesta-key"]) else { throw GuestHTTPError(status: 401, code: "key") }
                 let features = hub?.featuresJSON() ?? #"{"reactions":false,"messages":false,"moderated":false}"#
-                return .json(200, #"{"features":\#(features),"game":\#(gameJSON(game?.current(), player: request.query["player"]))}"#)
+                let player = request.query["player"]
+                let party = hub?.partyJSON(player: player) ?? #"{"announcement":null,"director":null}"#
+                let hostOn = host?.currentPIN() != nil
+                return .json(200, #"{"features":\#(features),"game":\#(gameJSON(game?.current(), player: player)),"party":\#(party),"host":\#(hostOn)}"#)
+            case "/party/host/login":
+                guard keyMatches(request.headers["x-fotofesta-key"]) else { throw GuestHTTPError(status: 401, code: "key") }
+                guard let host else { throw GuestHTTPError(status: 404, code: "not_found") }
+                let form = try Self.parseForm(String(decoding: body, as: UTF8.self))
+                switch host.login(form["pin"], client: client) {
+                case let .accepted(token): return .json(200, #"{"token":"\#(token)"}"#)
+                case .wrong: throw GuestHTTPError(status: 403, code: "pin")
+                case .rateLimited: throw GuestHTTPError(status: 429, code: "rate", retryAfter: 60)
+                case .locked: throw GuestHTTPError(status: 423, code: "locked", retryAfter: 300)
+                case .disabled: throw GuestHTTPError(status: 404, code: "not_found")
+                }
+            case "/party/host":
+                guard keyMatches(request.headers["x-fotofesta-key"]) else { throw GuestHTTPError(status: 401, code: "key") }
+                guard let host else { throw GuestHTTPError(status: 404, code: "not_found") }
+                let token = request.headers["x-fotofesta-host"]
+                switch request.method {
+                case "GET":
+                    guard host.isHost(token) else { throw GuestHTTPError(status: 401, code: "host") }
+                    return .json(200, host.statusJSON(hub: hub ?? PartyHub()))
+                case "POST":
+                    let result = host.handle(token: token, form: try Self.parseForm(String(decoding: body, as: UTF8.self)))
+                    return .json(result.status, result.json)
+                default:
+                    throw GuestHTTPError(status: 405, code: "method")
+                }
+            case "/party/host/photo":
+                guard request.method == "GET" else { throw GuestHTTPError(status: 405, code: "method") }
+                guard keyMatches(request.headers["x-fotofesta-key"]) else { throw GuestHTTPError(status: 401, code: "key") }
+                guard let host else { throw GuestHTTPError(status: 404, code: "not_found") }
+                guard host.isHost(request.headers["x-fotofesta-host"]) else { throw GuestHTTPError(status: 401, code: "host") }
+                let id = request.query["id"] ?? ""
+                guard host.canShow(id), let data = hostPhoto(id) else { throw GuestHTTPError(status: 404, code: "not_found") }
+                let type: String
+                switch GuestImageFormat.sniff(data) {
+                case .png: type = "image/png"
+                case .webp: type = "image/webp"
+                default: type = "image/jpeg"
+                }
+                return GuestHTTPResponse(status: 200, contentType: type, body: data)
             case "/party/action":
                 guard let hub else { throw GuestHTTPError(status: 404, code: "not_found") }
                 let result = hub.handle(try Self.parseForm(String(decoding: body, as: UTF8.self)))
@@ -581,6 +634,7 @@ struct GuestHTTPResponse {
         case 413: return "Payload Too Large"
         case 415: return "Unsupported Media Type"
         case 421: return "Misdirected Request"
+        case 423: return "Locked"
         case 429: return "Too Many Requests"
         case 431: return "Request Header Fields Too Large"
         case 503: return "Service Unavailable"
@@ -711,7 +765,7 @@ final class GuestConnection {
             let body = expectedBody > 0 ? buffer.subdata(in: bodyStart..<(bodyStart + expectedBody)) : Data()
             buffer = Data()
             reserved = 0
-            send(server.respond(to: request, body: body), early: false)
+            send(server.respond(to: request, body: body, client: client), early: false)
         } else if peerClosed {
             finish()
         } else {

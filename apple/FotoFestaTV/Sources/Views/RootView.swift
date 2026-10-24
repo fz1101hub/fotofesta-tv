@@ -30,6 +30,7 @@ struct RootView: View {
                     case .guestWifi: GuestWifiView()
                     case .awards: AwardsView()
                     case .guestbook: GuestbookView()
+                    case .announce: AnnounceView()
                     case .library: LibraryView()
                     case .network: NetworkView()
                     }
@@ -76,7 +77,7 @@ struct RootView: View {
         switch model.path.last {
         case .slideshow: return model.isPlaying
         case .guests: return model.guests.active
-        case .guestReview, .memory, .mystery, .puzzle, .whoTookIt, .awards, .poll, .lottery, .guestbook: return true
+        case .guestReview, .memory, .mystery, .puzzle, .whoTookIt, .awards, .poll, .lottery, .guestbook, .announce: return true
         case .googleConnect:
             if case .working = model.googleState { return true }
             return false

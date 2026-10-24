@@ -377,6 +377,13 @@ fun SettingsScreen(
                                 checked = state.settings.phoneMessages,
                             )
                             SettingsItem(
+                                stringResource(R.string.settings_phone_host),
+                                { onChange(state.settings.copy(phoneHost = !state.settings.phoneHost)) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_phone_host_body),
+                                checked = state.settings.phoneHost,
+                            )
+                            SettingsItem(
                                 stringResource(R.string.guests_wifi),
                                 onWifi,
                                 toCategory,

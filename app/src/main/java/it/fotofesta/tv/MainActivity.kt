@@ -62,6 +62,7 @@ import it.fotofesta.tv.ui.GamesScreen
 import it.fotofesta.tv.ui.GoogleConnectScreen
 import it.fotofesta.tv.ui.GuestReviewScreen
 import it.fotofesta.tv.ui.GuestWifiScreen
+import it.fotofesta.tv.ui.AnnounceScreen
 import it.fotofesta.tv.ui.GuestbookScreen
 import it.fotofesta.tv.ui.LotteryScreen
 import it.fotofesta.tv.ui.PollScreen
@@ -164,7 +165,7 @@ class MainActivity : ComponentActivity() {
                         state.google !is GoogleConnectState.Error && state.google !is GoogleConnectState.Complete
                     // Durante la festa il QR deve restare visibile mentre gli invitati lo inquadrano.
                     Destination.GUESTS -> state.guests.active
-                    Destination.GUEST_REVIEW, Destination.AWARDS, Destination.GUESTBOOK -> true
+                    Destination.GUEST_REVIEW, Destination.AWARDS, Destination.GUESTBOOK, Destination.ANNOUNCE -> true
                     Destination.POLL, Destination.LOTTERY -> true
                     // Il QR per incollare il link dell'album deve restare visibile.
                     Destination.ICLOUD_LINK -> true
@@ -235,6 +236,7 @@ class MainActivity : ComponentActivity() {
                                 partyActive = state.guests.active && state.guests.url != null,
                                 onPoll = { viewModel.navigate(Destination.POLL) },
                                 onLottery = { viewModel.navigate(Destination.LOTTERY) },
+                                onDirector = viewModel::startDirector,
                             )
                             Destination.POLL -> PollScreen(phonePlay(state), viewModel::lotteryCandidates) { viewModel.navigate(Destination.GAMES) }
                             Destination.LOTTERY -> LotteryScreen(viewModel::lotteryCandidates) { viewModel.navigate(Destination.GAMES) }
@@ -278,9 +280,15 @@ class MainActivity : ComponentActivity() {
                                 messageCount = state.party.messages.size,
                                 pendingMessageCount = state.party.pendingMessages.size,
                                 onGuestbook = { viewModel.navigate(Destination.GUESTBOOK) },
+                                hostPin = state.party.hostPin,
+                                onAnnounce = { viewModel.navigate(Destination.ANNOUNCE) },
                             )
                             Destination.AWARDS -> AwardsScreen(
                                 awards = remember(state.photos) { PartyAwards.from(state.photos, viewModel.reactionCounts()) },
+                                onBack = { viewModel.navigate(Destination.GUESTS) },
+                            )
+                            Destination.ANNOUNCE -> AnnounceScreen(
+                                onAnnounce = { viewModel.announce(it) },
                                 onBack = { viewModel.navigate(Destination.GUESTS) },
                             )
                             Destination.GUESTBOOK -> GuestbookScreen(

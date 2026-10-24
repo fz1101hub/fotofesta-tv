@@ -500,4 +500,26 @@
         <item quantity="one">%d Reaktion</item>
         <item quantity="other">%d Reaktionen</item>
     </plurals>
+
+    <!-- Regia dal telefono, annunci e regista di turno -->
+    <string name="host_pin">Steuerung vom Handy · PIN %1$s</string>
+    <string name="host_pin_hint">Öffne die Seite hinter dem QR‑Code, tippe auf „Ich bin Gastgeber“ und gib die PIN ein: So wechselst du Fotos, gibst sie frei und machst Durchsagen, während du herumgehst.</string>
+    <string name="settings_phone_host">Steuerung vom Handy</string>
+    <string name="settings_phone_host_body">Mit der während der Party angezeigten PIN steuert der Gastgeber Diashow, Freigaben und Durchsagen über die Gästeseite.</string>
+    <string name="announce_kicker">Durchsage</string>
+    <string name="announce_body">Sie erscheint groß auf dem Bildschirm und auf den Handys der Gäste.</string>
+    <string name="announce_send">Durchsage zeigen</string>
+    <string name="announce_custom">Durchsage schreiben</string>
+    <string name="announce_empty">Schreib zuerst eine Durchsage.</string>
+    <string name="announce_p_buffet">Das Buffet ist eröffnet!</string>
+    <string name="announce_p_cake">Die Torte wird angeschnitten!</string>
+    <string name="announce_p_group">Gruppenfoto in 5 Minuten!</string>
+    <string name="announce_p_dance">Alle auf die Tanzfläche!</string>
+    <string name="announce_p_last">Letzter Tanz!</string>
+    <string name="guests_announce">Durchsage machen</string>
+    <string name="games_director_title">Zwei Minuten Regie</string>
+    <string name="games_director_body">Ein ausgeloster Gast steuert die Diashow von seinem Handy.</string>
+    <string name="director_now">%1$s führt Regie · %2$s</string>
+    <string name="message_director_none">Noch kein Gast hat seinen Namen angegeben: Regie führen kann, wer mit Namen Fotos sendet, spielt oder reagiert.</string>
+    <string name="message_director_started">%1$s steuert die Diashow zwei Minuten lang vom Handy!</string>
 </resources>

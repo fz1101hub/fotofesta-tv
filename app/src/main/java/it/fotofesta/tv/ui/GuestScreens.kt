@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Campaign
 import androidx.compose.material.icons.rounded.EmojiEvents
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Check
@@ -77,9 +78,12 @@ fun GuestsScreen(
     messageCount: Int = 0,
     pendingMessageCount: Int = 0,
     onGuestbook: () -> Unit = {},
+    /** PIN della regia dal telefono, se attiva. */
+    hostPin: String? = null,
+    onAnnounce: () -> Unit = {},
 ) {
     if (guests.active) {
-        PartyInProgress(guests, recent, onEnd, onPlay, onReview, onAwards, messageCount, pendingMessageCount, onGuestbook)
+        PartyInProgress(guests, recent, onEnd, onPlay, onReview, onAwards, messageCount, pendingMessageCount, onGuestbook, hostPin, onAnnounce)
     } else {
         PartyIntro(guests, onStart, onApproval, onWifi)
     }
@@ -159,6 +163,8 @@ private fun PartyInProgress(
     messageCount: Int,
     pendingMessageCount: Int,
     onGuestbook: () -> Unit,
+    hostPin: String?,
+    onAnnounce: () -> Unit,
 ) {
     Row(Modifier.fillMaxSize().background(Background)) {
         Column(
@@ -215,6 +221,16 @@ private fun PartyInProgress(
                             icon = Icons.AutoMirrored.Rounded.MenuBook,
                         )
                     }
+                    TvButton(stringResource(R.string.guests_announce), onAnnounce, icon = Icons.Rounded.Campaign)
+                }
+                if (hostPin != null) {
+                    // Il PIN si legge a gruppi di tre, come un codice di verifica.
+                    Text(
+                        stringResource(R.string.host_pin, hostPin.chunked(3).joinToString(" ")),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = TextPrimary,
+                    )
+                    HintText(stringResource(R.string.host_pin_hint))
                 }
             }
             EndPartyButton(onEnd, Modifier.align(Alignment.TopEnd).padding(horizontal = 48.dp, vertical = 27.dp))

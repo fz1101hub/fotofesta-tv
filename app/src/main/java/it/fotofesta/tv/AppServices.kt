@@ -10,6 +10,7 @@ import it.fotofesta.tv.google.GooglePhotosStream
 import it.fotofesta.tv.google.GoogleSelectionStore
 import it.fotofesta.tv.google.SecureTokenStore
 import it.fotofesta.tv.guests.GuestParty
+import it.fotofesta.tv.guests.HostRemote
 import it.fotofesta.tv.guests.PartyHub
 import it.fotofesta.tv.guests.PhoneGame
 import it.fotofesta.tv.icloud.ICloudAlbumClient
@@ -83,8 +84,11 @@ class AppServices(context: Context) {
     /** Reazioni e dediche dei telefoni, servite dalla stessa pagina della festa. */
     val partyHub = PartyHub()
 
+    /** Regia dal telefono con il PIN mostrato sulla TV. */
+    val hostRemote = HostRemote()
+
     /** Foto degli invitati: in RAM finché c'è posto, poi in una cartella temporanea con un limite. */
-    val guests = GuestParty(context, guestStore(context), phoneGame, partyHub)
+    val guests = GuestParty(context, guestStore(context), phoneGame, partyHub, hostRemote)
 
     private companion object {
         const val MB = 1024L * 1024

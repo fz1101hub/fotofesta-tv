@@ -25,6 +25,8 @@ import it.fotofesta.tv.google.GooglePhotosStream
 import it.fotofesta.tv.google.HttpStatusException
 import it.fotofesta.tv.guests.GuestParty
 import it.fotofesta.tv.guests.GuestPhotoStore
+import it.fotofesta.tv.guests.HostRemote
+import it.fotofesta.tv.guests.PartyCommand
 import it.fotofesta.tv.guests.PartyHub
 import it.fotofesta.tv.guests.WifiNetwork
 import it.fotofesta.tv.guests.guestPhotoId
@@ -124,6 +126,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     val phoneGame = services.phoneGame
     /** Reazioni e dediche dei telefoni durante la festa. */
     private val partyHub = services.partyHub
+    /** Regia dal telefono: i comandi arrivano dai thread del server e si eseguono qui. */
+    private val hostRemote = services.hostRemote
     private val _reactions = MutableSharedFlow<PartyHub.ReactionEvent>(extraBufferCapacity = 32, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     /** Reazioni appena arrivate dai telefoni, da animare sopra lo slideshow. */
     val reactions = _reactions.asSharedFlow()
@@ -226,8 +230,26 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         }
         partyHub.onChange = ::refreshParty
         partyHub.onReaction = { _reactions.tryEmit(it) }
+        val runOnMain: (PartyCommand) -> Unit = { command -> viewModelScope.launch { execute(command) } }
+        hostRemote.onCommand = runOnMain
+        partyHub.onDirectorCommand = runOnMain
+        hostRemote.setEnabled(_state.value.settings.phoneHost)
         syncPartyFeatures()
         refreshParty()
+        // La pagina di regia mostra cosa c'è sullo schermo e cosa aspetta l'approvazione.
+        viewModelScope.launch {
+            _state.map { state ->
+                HostRemote.Status(
+                    slideshow = state.destination == Destination.SLIDESHOW,
+                    playing = state.isPlaying,
+                    title = state.photos.getOrNull(state.currentIndex)?.title,
+                    photos = state.photos.size,
+                    pendingPhotos = state.guests.pending.mapNotNull { photo -> photo.guestPhotoId?.let { HostRemote.PendingPhoto(it, photo.sender) } },
+                )
+            }
+                .distinctUntilChanged()
+                .collect { hostRemote.updateStatus(it) }
+        }
         // Le reazioni dei telefoni contano per la foto sullo schermo.
         viewModelScope.launch {
             _state.map { state -> state.photos.getOrNull(state.currentIndex)?.id.takeIf { state.destination == Destination.SLIDESHOW } }
@@ -238,9 +260,53 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
 
     /** Chiamato anche dai thread del server della festa: lo stato si aggiorna in modo atomico. */
     private fun refreshParty() {
-        val messages = partyHub.messages()
-        val pending = partyHub.pendingMessages()
-        _state.update { it.copy(party = PartyUiState(messages, pending)) }
+        val party = PartyUiState(
+            messages = partyHub.messages(),
+            pendingMessages = partyHub.pendingMessages(),
+            announcement = partyHub.announcement(),
+            director = partyHub.director(),
+            hostPin = hostRemote.pin(),
+        )
+        _state.update { it.copy(party = party) }
+    }
+
+    /** Comando della regia dal telefono o del regista di turno. */
+    private fun execute(command: PartyCommand) {
+        val inSlideshow = _state.value.destination == Destination.SLIDESHOW
+        when (command) {
+            PartyCommand.Next -> if (inSlideshow) next() else playCurrent()
+            PartyCommand.Previous -> if (inSlideshow) previous()
+            PartyCommand.Play -> if (!inSlideshow) playCurrent() else if (!_state.value.isPlaying) togglePlayback()
+            PartyCommand.Pause -> if (inSlideshow) pause()
+            is PartyCommand.ApprovePhoto -> guests.approve(command.id)
+            is PartyCommand.RejectPhoto -> guests.reject(command.id)
+            is PartyCommand.ApproveMessage -> partyHub.approveMessage(command.id)
+            is PartyCommand.RejectMessage -> partyHub.removeMessage(command.id)
+            PartyCommand.ApproveAll -> {
+                guests.approveAll()
+                partyHub.approveAllMessages()
+            }
+            is PartyCommand.Announce -> partyHub.announce(command.text)
+            PartyCommand.StartDirector -> startDirector()
+        }
+    }
+
+    /** Annuncio dalla TV (schermata "Fai un annuncio"). */
+    fun announce(text: String): Boolean {
+        val shown = partyHub.announce(text)
+        if (shown) navigate(Destination.GUESTS) else showMessage(context.getString(R.string.announce_empty))
+        return shown
+    }
+
+    /** Regista per due minuti: un invitato con il nome dirige lo slideshow dal suo telefono. */
+    fun startDirector() {
+        val director = partyHub.startDirector()
+        if (director == null) {
+            showMessage(context.getString(R.string.message_director_none))
+            return
+        }
+        playCurrent()
+        showMessage(context.getString(R.string.message_director_started, director.name))
     }
 
     private fun syncPartyFeatures() {
@@ -287,7 +353,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             Destination.POLL, Destination.LOTTERY -> navigate(Destination.GAMES)
             Destination.GOOGLE_CONNECT -> cancelGoogleConnect()
             Destination.SETTINGS, Destination.GAMES, Destination.GUESTS -> navigate(Destination.HOME)
-            Destination.GUEST_REVIEW, Destination.AWARDS, Destination.GUESTBOOK -> navigate(Destination.GUESTS)
+            Destination.GUEST_REVIEW, Destination.AWARDS, Destination.GUESTBOOK, Destination.ANNOUNCE -> navigate(Destination.GUESTS)
             Destination.GUEST_WIFI -> navigate(wifiReturnTo)
             Destination.FILE_BROWSER -> if (_state.value.browser.directory != null) browserUp() else closeBrowser()
             Destination.ICLOUD_LINK -> closeICloudLink()
@@ -362,6 +428,10 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         if (previous.sleepTimerMinutes != value.sleepTimerMinutes) syncSleepTimer()
         if (previous.videos != value.videos) applyCollection(restart = false)
         if (previous.phoneReactions != value.phoneReactions || previous.phoneMessages != value.phoneMessages) syncPartyFeatures()
+        if (previous.phoneHost != value.phoneHost) {
+            hostRemote.setEnabled(value.phoneHost)
+            refreshParty()
+        }
     }
 
     fun loadUsb(treeUri: Uri) {
@@ -1412,6 +1482,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             )
         }
         if (approvalChanged) syncPartyFeatures()
+        // Il PIN della regia cambia a ogni festa.
+        if (_state.value.party.hostPin != hostRemote.pin()) refreshParty()
         if (items != guestPhotos || party.active != guestPartyActive) {
             guestPhotos = items
             guestPartyActive = party.active
@@ -1581,6 +1653,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         musicPlayer.release()
         partyHub.onChange = null
         partyHub.onReaction = null
+        partyHub.onDirectorCommand = null
+        hostRemote.onCommand = null
         super.onCleared()
     }
 

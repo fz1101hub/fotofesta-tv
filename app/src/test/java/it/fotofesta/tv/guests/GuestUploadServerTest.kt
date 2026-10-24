@@ -30,6 +30,8 @@ class GuestUploadServerTest {
     private var failures = 0
     private val game = PhoneGame()
     private val hub = PartyHub()
+    private val host = HostRemote()
+    private val pendingBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte(), 9, 9)
 
     @Before
     fun setUp() = startServer()
@@ -50,6 +52,8 @@ class GuestUploadServerTest {
             onFailure = { failures++ },
             game = game,
             hub = hub,
+            host = host,
+            hostPhoto = { id -> if (id == "attesa-1") pendingBytes else null },
             maxUploadBytes = 1_000,
             readTimeoutMillis = 2_000,
             headerDeadlineMillis = headerDeadlineMillis,
@@ -193,6 +197,41 @@ class GuestUploadServerTest {
         assertEquals(400, action("type=react&player=telefono-1&reaction=9").status)
         assertEquals(413, action("type=message&player=telefono-1&text=" + "x".repeat(5_000)).status)
         assertEquals(405, get("/party/action").status)
+    }
+
+    private fun hostRequest(method: String, target: String, form: String? = null, token: String? = null): Reply {
+        val body = form?.toByteArray() ?: ByteArray(0)
+        val head = buildString {
+            append("$method $target HTTP/1.1\r\nHost: 127.0.0.1:$port\r\nX-FotoFesta-Key: $KEY\r\n")
+            if (token != null) append("X-FotoFesta-Host: $token\r\n")
+            if (form != null) append("Content-Type: application/x-www-form-urlencoded\r\nContent-Length: ${body.size}\r\n")
+            append("\r\n")
+        }
+        return send(head.toByteArray() + body)
+    }
+
+    @Test
+    fun `the host logs in with the pin and controls the party`() {
+        val commands = CopyOnWriteArrayList<PartyCommand>()
+        host.onCommand = { commands += it }
+        val wrong = if (host.pin() == "000000") "111111" else "000000"
+        assertEquals(403, hostRequest("POST", "/party/host/login", "pin=$wrong").status)
+        val login = hostRequest("POST", "/party/host/login", "pin=${host.pin()}")
+        assertEquals(200, login.status)
+        val token = JSONObject(login.body).getString("token")
+        assertEquals(401, hostRequest("GET", "/party/host").status)
+        host.updateStatus(HostRemote.Status(slideshow = true, playing = true, pendingPhotos = listOf(HostRemote.PendingPhoto("attesa-1", null))))
+        val status = JSONObject(hostRequest("GET", "/party/host", token = token).body)
+        assertTrue(status.getBoolean("playing"))
+        assertEquals(200, hostRequest("POST", "/party/host", "command=pause", token).status)
+        assertEquals(401, hostRequest("POST", "/party/host", "command=pause", "falso").status)
+        assertEquals(listOf<PartyCommand>(PartyCommand.Pause), commands.toList())
+        val photo = hostRequest("GET", "/party/host/photo?id=attesa-1", token = token)
+        assertEquals(200, photo.status)
+        assertEquals("image/jpeg", photo.headers["content-type"])
+        assertEquals(404, hostRequest("GET", "/party/host/photo?id=altra", token = token).status)
+        assertEquals(401, hostRequest("GET", "/party/host/photo?id=attesa-1").status)
+        assertTrue(JSONObject(hostRequest("GET", "/party").body).getBoolean("host"))
     }
 
     @Test

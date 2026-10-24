@@ -501,4 +501,26 @@
         <item quantity="one">%d reaction</item>
         <item quantity="other">%d reactions</item>
     </plurals>
+
+    <!-- Regia dal telefono, annunci e regista di turno -->
+    <string name="host_pin">Control from your phone · PIN %1$s</string>
+    <string name="host_pin_hint">Open the page behind the QR code, tap “I’m the host” and type the PIN: you can move photos on, approve them and make announcements while walking around.</string>
+    <string name="settings_phone_host">Control from your phone</string>
+    <string name="settings_phone_host_body">With the PIN shown during the party, the host controls the slideshow, approvals and announcements from the guests’ page.</string>
+    <string name="announce_kicker">Announcement</string>
+    <string name="announce_body">It appears big on the screen and on the guests’ phones.</string>
+    <string name="announce_send">Show the announcement</string>
+    <string name="announce_custom">Write an announcement</string>
+    <string name="announce_empty">Write an announcement before showing it.</string>
+    <string name="announce_p_buffet">The buffet is open!</string>
+    <string name="announce_p_cake">Time to cut the cake!</string>
+    <string name="announce_p_group">Group photo in 5 minutes!</string>
+    <string name="announce_p_dance">Everybody on the dance floor!</string>
+    <string name="announce_p_last">Last dance!</string>
+    <string name="guests_announce">Make an announcement</string>
+    <string name="games_director_title">Director for two minutes</string>
+    <string name="games_director_body">A guest drawn at random runs the slideshow from their phone.</string>
+    <string name="director_now">%1$s is directing · %2$s</string>
+    <string name="message_director_none">No guest has written their name yet: whoever sends a photo, plays or reacts with their name can direct.</string>
+    <string name="message_director_started">%1$s directs the slideshow from their phone for two minutes!</string>
 </resources>

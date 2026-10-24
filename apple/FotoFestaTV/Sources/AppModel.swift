@@ -7,7 +7,7 @@ import Observation
 private let slideshowSettingsKey = "slideshowSettings"
 
 enum Route: Hashable {
-    case slideshow, settings, games, memory, mystery, puzzle, whoTookIt, poll, lottery, googleConnect, guests, guestReview, guestWifi, awards, guestbook, library, network
+    case slideshow, settings, games, memory, mystery, puzzle, whoTookIt, poll, lottery, googleConnect, guests, guestReview, guestWifi, awards, guestbook, announce, library, network
 }
 
 /// Da dove vengono le foto della raccolta mostrata nella home.
@@ -171,6 +171,13 @@ final class AppModel {
         }
         guests.onChange = { [weak self] in self?.guestsChanged() }
         guestsChanged()
+        // Regia dal telefono e regista di turno: i comandi arrivano dalla coda del server.
+        let run: @Sendable (PartyCommand) -> Void = { [weak self] command in
+            Task { @MainActor [weak self] in self?.execute(command) }
+        }
+        guests.hostRemote.setOnCommand(run)
+        guests.partyHub.setOnDirectorCommand(run)
+        guests.hostStatus = { [weak self] in self?.hostStatus() ?? HostRemote.Status() }
         if UserDefaults.standard.string(forKey: Self.sourceKey) == "library" { restoreLibraryAlbum() }
         networkSaved = UserDefaults.standard.data(forKey: Self.networkFolderKey).flatMap { try? JSONDecoder().decode(NetworkFolder.self, from: $0) }
         if UserDefaults.standard.string(forKey: Self.sourceKey) == "network", let folder = networkSaved { restoreNetworkFolder(folder) }
@@ -748,6 +755,48 @@ final class AppModel {
         guests.start()
         if !guests.qrInSlideshow { guests.setQRInSlideshow(true) }
         play()
+    }
+
+    /// Stato dello schermo per la pagina di regia sul telefono.
+    private func hostStatus() -> HostRemote.Status {
+        HostRemote.Status(
+            slideshow: path.last == .slideshow,
+            playing: isPlaying,
+            title: currentPhoto?.title,
+            photos: photos.count,
+            pendingPhotos: guests.photos.filter { !$0.approved }.map { HostRemote.PendingPhoto(id: $0.id, sender: $0.sender) }
+        )
+    }
+
+    /// Comando della regia dal telefono o del regista di turno.
+    private func execute(_ command: PartyCommand) {
+        let inSlideshow = path.last == .slideshow
+        switch command {
+        case .next:
+            if inSlideshow { next() } else { play() }
+        case .previous: if inSlideshow { previous() }
+        case .play: if !inSlideshow || !isPlaying { play() }
+        case .pause: if inSlideshow { pause() }
+        case let .approvePhoto(id): guests.approve(id)
+        case let .rejectPhoto(id): guests.reject(id)
+        case let .approveMessage(id): guests.partyHub.approveMessage(id)
+        case let .rejectMessage(id): guests.partyHub.removeMessage(id)
+        case .approveAll:
+            guests.approveAll()
+            guests.partyHub.approveAllMessages()
+        case let .announce(text): guests.announce(text)
+        case .startDirector: startDirector()
+        }
+    }
+
+    /// Regista per due minuti: un invitato con il nome dirige lo slideshow dal suo telefono.
+    func startDirector() {
+        guard let director = guests.startDirector() else {
+            showMessage(L("message.director_none"))
+            return
+        }
+        play()
+        showMessage(L("message.director_started", director.name))
     }
 
     /// Chi può vincere all'estrazione: nomi scritti con foto, giochi, reazioni e dediche.

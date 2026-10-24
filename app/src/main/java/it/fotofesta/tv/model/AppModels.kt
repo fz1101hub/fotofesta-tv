@@ -5,7 +5,7 @@ import androidx.annotation.StringRes
 import it.fotofesta.tv.R
 import it.fotofesta.tv.guests.PartyHub
 
-enum class Destination { HOME, SETTINGS, SLIDESHOW, GAMES, MEMORY, MYSTERY, PUZZLE, WHO_TOOK_IT, POLL, LOTTERY, GOOGLE_CONNECT, GUESTS, GUEST_REVIEW, AWARDS, GUESTBOOK, GUEST_WIFI, FILE_BROWSER, ICLOUD_LINK, SMB_LOGIN }
+enum class Destination { HOME, SETTINGS, SLIDESHOW, GAMES, MEMORY, MYSTERY, PUZZLE, WHO_TOOK_IT, POLL, LOTTERY, GOOGLE_CONNECT, GUESTS, GUEST_REVIEW, AWARDS, GUESTBOOK, ANNOUNCE, GUEST_WIFI, FILE_BROWSER, ICLOUD_LINK, SMB_LOGIN }
 
 enum class TransitionType(@StringRes val labelRes: Int) {
     FADE(R.string.transition_fade),
@@ -106,6 +106,8 @@ data class SlideshowSettings(
     val phoneReactions: Boolean = true,
     /** Durante la festa i telefoni mandano dediche, mostrate nello slideshow e nel libro degli ospiti. */
     val phoneMessages: Boolean = true,
+    /** Chi organizza comanda la festa dal telefono, con il PIN mostrato sulla TV. */
+    val phoneHost: Boolean = true,
 )
 
 sealed interface GoogleConnectState {
@@ -150,6 +152,12 @@ data class GuestsUiState(
 data class PartyUiState(
     val messages: List<PartyHub.Message> = emptyList(),
     val pendingMessages: List<PartyHub.Message> = emptyList(),
+    /** Ultimo annuncio della regia: la TV lo mostra per qualche secondo dopo l'arrivo. */
+    val announcement: PartyHub.Announcement? = null,
+    /** Invitato che dirige lo slideshow dal telefono, finché dura il suo turno. */
+    val director: PartyHub.Director? = null,
+    /** PIN della regia dal telefono; null se la regia è spenta. */
+    val hostPin: String? = null,
 )
 
 /** Cosa si sta scegliendo nel browser di cartelle: una cartella di foto o un brano. */

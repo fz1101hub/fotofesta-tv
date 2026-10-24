@@ -50,6 +50,15 @@ final class GuestParty {
     /// Dediche in mostra (dalla più vecchia) e da approvare.
     private(set) var messages: [PartyHub.Message] = []
     private(set) var pendingMessages: [PartyHub.Message] = []
+    /// Ultimo annuncio della regia e invitato che dirige lo slideshow, per lo schermo.
+    private(set) var announcement: PartyHub.Announcement?
+    private(set) var director: PartyHub.Director?
+    /// Chi organizza comanda la festa dal telefono con il PIN mostrato sulla TV.
+    private(set) var hostEnabled: Bool
+    /// PIN della regia dal telefono; nil se la regia è spenta.
+    private(set) var hostPIN: String?
+    /// Stato dello schermo per la pagina di regia: lo fornisce il modello dell'app.
+    @ObservationIgnored var hostStatus: (() -> HostRemote.Status)?
 
     /// Chiamato dopo ogni cambio di foto o dello stato della festa.
     @ObservationIgnored var onChange: (() -> Void)?
@@ -81,12 +90,15 @@ final class GuestParty {
         static let wifiHasPassword = "guests.wifiHasPassword"
         static let reactions = "guests.reactions"
         static let messages = "guests.messages"
+        static let host = "guests.host"
     }
 
     /// Gioco con i telefoni, servito dalla stessa pagina della festa.
     let phoneGame = PhoneGame()
     /// Reazioni e dediche dei telefoni: si cancellano con le foto a fine festa.
     let partyHub = PartyHub()
+    /// Regia dal telefono: PIN nuovo a ogni festa.
+    let hostRemote = HostRemote()
     @ObservationIgnored private var messageRevision = -1
     @ObservationIgnored private var messagePolling: Task<Void, Never>?
 
@@ -97,6 +109,7 @@ final class GuestParty {
         qrInSlideshow = defaults.object(forKey: Keys.qrInSlideshow) as? Bool ?? true
         reactionsEnabled = defaults.object(forKey: Keys.reactions) as? Bool ?? true
         messagesEnabled = defaults.object(forKey: Keys.messages) as? Bool ?? true
+        hostEnabled = defaults.object(forKey: Keys.host) as? Bool ?? true
         template = Bundle.main.url(forResource: "index", withExtension: "html")
             .flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? ""
         approvalFlag.value = defaults.bool(forKey: Keys.approval)
@@ -113,10 +126,15 @@ final class GuestParty {
             _ = WifiPasswordKeychain.write(nil)
         }
         syncPartyFeatures()
-        // Le dediche arrivano dalla coda del server: si controlla una volta al secondo se sono cambiate.
+        hostRemote.setEnabled(hostEnabled)
+        hostPIN = hostRemote.currentPIN()
+        // Dediche, annunci e regista arrivano dalla coda del server: si controlla una volta al secondo
+        // se sono cambiati, e intanto si aggiorna lo stato per la pagina di regia.
         messagePolling = Task { @MainActor [weak self] in
             while !Task.isCancelled {
-                self?.refreshMessages()
+                guard let self else { return }
+                self.refreshMessages()
+                if let status = self.hostStatus?() { self.hostRemote.updateStatus(status) }
                 try? await Task.sleep(for: .seconds(1))
             }
         }
@@ -147,6 +165,8 @@ final class GuestParty {
     /// Inizia a ricevere foto: il QR resta lo stesso finché la festa non finisce.
     func start() {
         guard !active else { return }
+        hostRemote.reset()
+        hostPIN = hostRemote.currentPIN()
         defaults.set(true, forKey: Keys.active)
         defaults.set(Self.newSecret(), forKey: Keys.secret)
         defaults.set(Date().timeIntervalSince1970, forKey: Keys.startedAt)
@@ -168,6 +188,8 @@ final class GuestParty {
         // Subito, senza aspettare la notifica dell'archivio: la raccolta non deve usare foto cancellate.
         photos = []
         partyHub.clear()
+        hostRemote.reset()
+        hostPIN = hostRemote.currentPIN()
         refreshMessages()
         onChange?()
     }
@@ -186,6 +208,28 @@ final class GuestParty {
         defaults.set(enabled, forKey: Keys.reactions)
         reactionsEnabled = enabled
         syncPartyFeatures()
+    }
+
+    func setHostEnabled(_ enabled: Bool) {
+        defaults.set(enabled, forKey: Keys.host)
+        hostEnabled = enabled
+        hostRemote.setEnabled(enabled)
+        hostPIN = hostRemote.currentPIN()
+    }
+
+    /// Annuncio dalla TV.
+    @discardableResult
+    func announce(_ text: String) -> Bool {
+        let shown = partyHub.announce(text)
+        refreshMessages()
+        return shown
+    }
+
+    /// Regista per due minuti; nil se nessun invitato ha ancora scritto il proprio nome.
+    func startDirector() -> PartyHub.Director? {
+        let chosen = partyHub.startDirector()
+        refreshMessages()
+        return chosen
     }
 
     func setMessagesEnabled(_ enabled: Bool) {
@@ -220,6 +264,8 @@ final class GuestParty {
         messageRevision = revision
         messages = partyHub.approvedMessages()
         pendingMessages = partyHub.pendingMessages()
+        announcement = partyHub.currentAnnouncement()
+        director = partyHub.currentDirector()
     }
 
     func setQRInSlideshow(_ enabled: Bool) {
@@ -342,7 +388,9 @@ final class GuestParty {
                 }
             },
             game: phoneGame,
-            hub: partyHub
+            hub: partyHub,
+            host: hostRemote,
+            hostPhoto: { [store] id in store.read(id) }
         )
         failure.server = candidate
         do {

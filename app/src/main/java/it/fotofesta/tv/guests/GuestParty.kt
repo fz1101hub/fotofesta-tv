@@ -42,6 +42,8 @@ class GuestParty(
     private val phoneGame: PhoneGame? = null,
     /** Reazioni e dediche dei telefoni: si cancellano con le foto a fine festa. */
     private val hub: PartyHub? = null,
+    /** Regia dal telefono: PIN nuovo a ogni festa. */
+    private val host: HostRemote? = null,
 ) {
     data class State(
         val active: Boolean = false,
@@ -110,6 +112,7 @@ class GuestParty(
             .putString(KEY_SECRET, newSecret())
             .putLong(KEY_STARTED_AT, System.currentTimeMillis())
             .apply()
+        host?.reset()
         _state.update { it.copy(active = true) }
         if (foreground) serve()
     }
@@ -168,6 +171,7 @@ class GuestParty(
         stopServing()
         store.clear()
         hub?.clear()
+        host?.reset()
         prefs.edit().putBoolean(KEY_ACTIVE, false).remove(KEY_SECRET).remove(KEY_STARTED_AT).apply()
         _state.update { it.copy(active = false, url = null, problem = null) }
     }
@@ -196,6 +200,8 @@ class GuestParty(
             onFailure = { scheduleRetry(FAILURE_RETRY_SECONDS) },
             game = phoneGame,
             hub = hub,
+            host = host,
+            hostPhoto = store::read,
         )
         try {
             val port = candidate.start(address, PREFERRED_PORT)

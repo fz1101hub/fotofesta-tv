@@ -303,6 +303,8 @@ fun SlideshowScreen(
         if (state.guests.active) {
             if (state.settings.phoneMessages) MessageBanner(state.party.messages)
             if (state.settings.phoneReactions) ReactionsOverlay(reactions)
+            DirectorBadge(state.party.director)
+            AnnouncementOverlay(state.party.announcement)
         }
 
         if (state.settings.countdown) CountdownOverlay(state.settings)

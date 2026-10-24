@@ -23,6 +23,7 @@ import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.PhotoCamera
 import androidx.compose.material.icons.rounded.Poll
+import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -57,6 +58,7 @@ fun GamesScreen(
     partyActive: Boolean = false,
     onPoll: () -> Unit = {},
     onLottery: () -> Unit = {},
+    onDirector: () -> Unit = {},
 ) {
     val playable = photoCount >= MIN_GAME_PHOTOS
     Column(Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 40.dp), verticalArrangement = Arrangement.spacedBy(26.dp)) {
@@ -131,6 +133,16 @@ fun GamesScreen(
                     stringResource(if (partyActive) R.string.games_poll_body else R.string.games_poll_unavailable),
                     Icons.Rounded.Poll,
                     onPoll,
+                    Modifier.width(GAME_TILE_WIDTH),
+                    enabled = partyActive,
+                )
+            }
+            item {
+                GameTile(
+                    stringResource(R.string.games_director_title),
+                    stringResource(if (partyActive) R.string.games_director_body else R.string.games_poll_unavailable),
+                    Icons.Rounded.Videocam,
+                    onDirector,
                     Modifier.width(GAME_TILE_WIDTH),
                     enabled = partyActive,
                 )

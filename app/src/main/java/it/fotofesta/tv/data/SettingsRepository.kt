@@ -50,6 +50,7 @@ class SettingsRepository(context: Context) {
         videoSound = prefs.getBoolean("video_sound", true),
         phoneReactions = prefs.getBoolean("phone_reactions", true),
         phoneMessages = prefs.getBoolean("phone_messages", true),
+        phoneHost = prefs.getBoolean("phone_host", true),
     )
 
     fun save(value: SlideshowSettings) {
@@ -71,6 +72,7 @@ class SettingsRepository(context: Context) {
             .putBoolean("video_sound", value.videoSound)
             .putBoolean("phone_reactions", value.phoneReactions)
             .putBoolean("phone_messages", value.phoneMessages)
+            .putBoolean("phone_host", value.phoneHost)
             .apply()
     }
 

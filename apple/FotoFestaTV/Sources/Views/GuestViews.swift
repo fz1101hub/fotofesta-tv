@@ -108,6 +108,18 @@ struct GuestsView: View {
                             Label(L("guests.awards"), systemImage: "trophy.fill")
                         }
                     }
+                    // Senza ruolo "distruttivo": su tvOS 26 il pulsante rosso senza fuoco nasconde il
+                    // testo. La conferma, nel dialogo di sistema, resta rossa.
+                    Button {
+                        confirmingEnd = true
+                    } label: {
+                        Label(L("guests.end_short"), systemImage: "xmark.circle")
+                    }
+                }
+                HStack(spacing: 32) {
+                    NavigationLink(value: Route.announce) {
+                        Label(L("guests.announce"), systemImage: "megaphone.fill")
+                    }
                     if !model.guests.messages.isEmpty || !model.guests.pendingMessages.isEmpty {
                         NavigationLink(value: Route.guestbook) {
                             if model.guests.pendingMessages.isEmpty {
@@ -117,12 +129,15 @@ struct GuestsView: View {
                             }
                         }
                     }
-                    // Senza ruolo "distruttivo": su tvOS 26 il pulsante rosso senza fuoco nasconde il
-                    // testo. La conferma, nel dialogo di sistema, resta rossa.
-                    Button {
-                        confirmingEnd = true
-                    } label: {
-                        Label(L("guests.end_short"), systemImage: "xmark.circle")
+                }
+                if let pin = guests.hostPIN {
+                    VStack(alignment: .leading, spacing: 8) {
+                        // Il PIN si legge a gruppi di tre, come un codice di verifica.
+                        Text(L("host.pin", "\(pin.prefix(3)) \(pin.suffix(3))")).font(.headline)
+                        Text(L("host.pin_hint"))
+                            .font(.callout)
+                            .foregroundStyle(Theme.secondaryText)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
             }

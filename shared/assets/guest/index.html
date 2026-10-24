@@ -53,6 +53,24 @@
   .send { margin-top: 8px; width: 100%; padding: 13px; border: 0; border-radius: 12px; background: var(--accent); color: #1b1020; font: inherit; font-weight: 700; cursor: pointer; }
   .send:disabled { opacity: .55; cursor: default; }
   #messageStatus { margin-top: .5rem; font-weight: 600; min-height: 1.4em; }
+  .announce { margin: 1rem 0; padding: 16px; border-radius: 16px; background: var(--accent); color: #1b1020; }
+  .announce-kicker { font-weight: 700; font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; }
+  .announce p { font-size: 1.3rem; font-weight: 700; margin: .2rem 0 0; }
+  .remote { display: grid; grid-template-columns: 1fr 1.3fr 1fr; gap: 8px; margin-top: .6rem; }
+  .remote button, .wide { font: inherit; font-weight: 700; padding: 16px 8px; border-radius: 12px; border: 1px solid var(--line); background: #22304f; color: var(--fg); cursor: pointer; }
+  .wide { width: 100%; margin-top: 8px; }
+  .row { display: flex; gap: 8px; margin-top: 8px; }
+  .row input { flex: 1; min-width: 0; }
+  .row button { flex: none; padding: 0 16px; border: 0; border-radius: 12px; background: var(--accent); color: #1b1020; font: inherit; font-weight: 700; cursor: pointer; }
+  .pending { display: grid; gap: 8px; margin-top: .6rem; }
+  .pending .item { display: flex; align-items: center; gap: 10px; background: #22304f; border-radius: 12px; padding: 8px; }
+  .pending img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; background: #26314d; flex: none; }
+  .pending .text { flex: 1; min-width: 0; font-size: .92rem; overflow-wrap: anywhere; }
+  .pending button { flex: none; font: inherit; font-weight: 700; padding: 10px 12px; border-radius: 10px; border: 0; cursor: pointer; }
+  .pending .yes { background: var(--ok); color: #0b1222; }
+  .pending .no { background: #3b1d24; color: var(--err); }
+  #speechText { min-height: 160px; font-size: 1.15rem; line-height: 1.5; }
+  .linkish { background: none; border: 0; color: var(--muted); text-decoration: underline; font: inherit; padding: 6px 0; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -60,6 +78,23 @@
   <div class="brand">FotoFesta</div>
   <h1 id="title"></h1>
   <p class="muted" id="intro"></p>
+
+  <!-- Annuncio della regia: resta in cima per un minuto. -->
+  <div id="announcement" class="announce" hidden role="status">
+    <div class="announce-kicker" id="announceKicker"></div>
+    <p id="announceText"></p>
+  </div>
+
+  <!-- Regista per due minuti: compare solo sul telefono estratto. -->
+  <section id="director" class="game" hidden aria-live="polite">
+    <div class="game-kicker" id="directorKicker"></div>
+    <p class="game-question" id="directorText"></p>
+    <div class="remote">
+      <button type="button" data-director="previous" id="directorPrev"></button>
+      <button type="button" data-director="pause" id="directorPause"></button>
+      <button type="button" data-director="next" id="directorNext"></button>
+    </div>
+  </section>
 
   <!-- Gioco con i telefoni: compare quando sulla TV c'è una domanda per gli invitati. -->
   <section id="game" class="game" hidden aria-live="polite">
@@ -93,6 +128,49 @@
   <div id="summary" aria-live="polite"></div>
   <ul id="list"></ul>
 
+  <!-- Regia dal telefono per chi organizza, con il PIN mostrato sulla TV. -->
+  <section id="host" class="box" hidden>
+    <div id="hostLogin">
+      <button type="button" class="linkish" id="hostOpen"></button>
+      <div id="hostForm" hidden>
+        <p class="box-title" id="hostPinLabel"></p>
+        <div class="row">
+          <input type="text" id="hostPin" inputmode="numeric" autocomplete="one-time-code" maxlength="9" enterkeyhint="go">
+          <button type="button" id="hostEnter"></button>
+        </div>
+        <p class="muted" id="hostLoginStatus" aria-live="polite"></p>
+      </div>
+    </div>
+    <div id="hostPanel" hidden>
+      <p class="box-title" id="hostTitle"></p>
+      <p class="muted" id="hostNow"></p>
+      <div class="remote">
+        <button type="button" data-host="previous" id="hostPrev"></button>
+        <button type="button" data-host="toggle" id="hostToggle"></button>
+        <button type="button" data-host="next" id="hostNext"></button>
+      </div>
+      <div class="row">
+        <input type="text" id="hostAnnounce" maxlength="120" enterkeyhint="send">
+        <button type="button" id="hostAnnounceSend"></button>
+      </div>
+      <p class="box-title" id="hostPendingTitle" style="margin-top:1rem"></p>
+      <div class="pending" id="hostPending"></div>
+      <button type="button" class="wide" id="hostApproveAll" hidden></button>
+      <button type="button" class="wide" id="hostDirector"></button>
+      <details style="margin-top:12px">
+        <summary id="hostSpeechTitle"></summary>
+        <p class="muted" id="hostSpeechHint"></p>
+        <textarea id="speechText"></textarea>
+        <div class="remote">
+          <button type="button" data-host="previous" id="speechPrev"></button>
+          <span></span>
+          <button type="button" data-host="next" id="speechNext"></button>
+        </div>
+      </details>
+      <button type="button" class="linkish" id="hostLogout"></button>
+    </div>
+  </section>
+
   <div class="note">
     <p class="muted" id="approvalNote" hidden></p>
     <p class="muted" id="privacy"></p>
@@ -104,6 +182,38 @@
 const CONFIG = __FOTOFESTA_CONFIG__;
 
 const IT = {
+  announceKicker: "Annuncio",
+  directorKicker: "Regista per due minuti",
+  directorYou: "Tocca a te: dirigi lo slideshow!",
+  directorLeft: "Ti restano %s",
+  prev: "◀ Indietro",
+  next: "Avanti ▶",
+  pause: "Pausa",
+  play: "Riprendi",
+  hostOpen: "Sono l'organizzatore",
+  hostPinLabel: "PIN mostrato sulla TV",
+  hostEnter: "Entra",
+  hostWrong: "PIN sbagliato.",
+  hostRate: "Troppi tentativi: aspetta un minuto.",
+  hostLocked: "Troppi tentativi: riprova tra qualche minuto.",
+  hostTitle: "Regia",
+  hostNowPlaying: "Sullo schermo: %s",
+  hostNowPaused: "In pausa: %s",
+  hostNotSlideshow: "Lo slideshow non è aperto: Avanti lo fa partire.",
+  hostAnnounce: "Scrivi un annuncio",
+  hostAnnounceSend: "Mostra",
+  hostPendingTitle: "Da approvare",
+  hostNothing: "Niente da approvare.",
+  hostApprove: "Mostra",
+  hostReject: "Scarta",
+  hostApproveAll: "Approva tutto",
+  hostDirector: "Regista per due minuti",
+  hostDirectorNow: "Ora dirige %s",
+  hostSpeechTitle: "Modalità discorso",
+  hostSpeechHint: "Scrivi qui il discorso: resta solo su questo telefono. Con le frecce cambi le foto mentre parli.",
+  hostLogout: "Esci dalla regia",
+  hostFromGuest: "Foto di %s",
+  hostAnonymous: "Foto di un invitato",
   reactTitle: "Reagisci alla foto sulla TV",
   messageLabel: "Lascia una dedica",
   messagePlaceholder: "Un augurio, un ricordo, un saluto…",
@@ -149,6 +259,38 @@ const IT = {
   gameWrong: (points) => "Peccato! Hai " + points + (points === 1 ? " punto." : " punti."),
 };
 const EN = {
+  announceKicker: "Announcement",
+  directorKicker: "Director for two minutes",
+  directorYou: "Your turn: direct the slideshow!",
+  directorLeft: "%s left",
+  prev: "◀ Back",
+  next: "Next ▶",
+  pause: "Pause",
+  play: "Resume",
+  hostOpen: "I'm the host",
+  hostPinLabel: "PIN shown on the TV",
+  hostEnter: "Enter",
+  hostWrong: "Wrong PIN.",
+  hostRate: "Too many attempts: wait a minute.",
+  hostLocked: "Too many attempts: try again in a few minutes.",
+  hostTitle: "Control",
+  hostNowPlaying: "On screen: %s",
+  hostNowPaused: "Paused: %s",
+  hostNotSlideshow: "The slideshow isn't open: Next starts it.",
+  hostAnnounce: "Write an announcement",
+  hostAnnounceSend: "Show",
+  hostPendingTitle: "To approve",
+  hostNothing: "Nothing to approve.",
+  hostApprove: "Show",
+  hostReject: "Discard",
+  hostApproveAll: "Approve all",
+  hostDirector: "Director for two minutes",
+  hostDirectorNow: "%s is directing",
+  hostSpeechTitle: "Speech mode",
+  hostSpeechHint: "Write your speech here: it stays on this phone only. Use the arrows to change photos while you talk.",
+  hostLogout: "Leave control",
+  hostFromGuest: "Photo from %s",
+  hostAnonymous: "Photo from a guest",
   reactTitle: "React to the photo on the TV",
   messageLabel: "Leave a message",
   messagePlaceholder: "A wish, a memory, a hello…",
@@ -194,6 +336,38 @@ const EN = {
   gameWrong: (points) => "Not this time! You have " + points + (points === 1 ? " point." : " points."),
 };
 const FR = {
+  announceKicker: "Annonce",
+  directorKicker: "Réalisateur pendant deux minutes",
+  directorYou: "À vous : dirigez le diaporama !",
+  directorLeft: "Il vous reste %s",
+  prev: "◀ Retour",
+  next: "Suivante ▶",
+  pause: "Pause",
+  play: "Reprendre",
+  hostOpen: "Je suis l’organisateur",
+  hostPinLabel: "PIN affiché sur la TV",
+  hostEnter: "Entrer",
+  hostWrong: "PIN incorrect.",
+  hostRate: "Trop de tentatives : attendez une minute.",
+  hostLocked: "Trop de tentatives : réessayez dans quelques minutes.",
+  hostTitle: "Régie",
+  hostNowPlaying: "À l’écran : %s",
+  hostNowPaused: "En pause : %s",
+  hostNotSlideshow: "Le diaporama n’est pas ouvert : Suivante le lance.",
+  hostAnnounce: "Écrivez une annonce",
+  hostAnnounceSend: "Afficher",
+  hostPendingTitle: "À approuver",
+  hostNothing: "Rien à approuver.",
+  hostApprove: "Afficher",
+  hostReject: "Supprimer",
+  hostApproveAll: "Tout approuver",
+  hostDirector: "Réalisateur pendant deux minutes",
+  hostDirectorNow: "%s réalise",
+  hostSpeechTitle: "Mode discours",
+  hostSpeechHint: "Écrivez votre discours ici : il reste uniquement sur ce téléphone. Les flèches changent les photos pendant que vous parlez.",
+  hostLogout: "Quitter la régie",
+  hostFromGuest: "Photo de %s",
+  hostAnonymous: "Photo d’un invité",
   reactTitle: "Réagissez à la photo sur la TV",
   messageLabel: "Laissez un message",
   messagePlaceholder: "Un vœu, un souvenir, un bonjour…",
@@ -239,6 +413,38 @@ const FR = {
   gameWrong: (points) => "Dommage ! Vous avez " + points + (points <= 1 ? " point." : " points."),
 };
 const ES = {
+  announceKicker: "Anuncio",
+  directorKicker: "Director por dos minutos",
+  directorYou: "Te toca: ¡dirige la presentación!",
+  directorLeft: "Te quedan %s",
+  prev: "◀ Atrás",
+  next: "Siguiente ▶",
+  pause: "Pausa",
+  play: "Reanudar",
+  hostOpen: "Soy el anfitrión",
+  hostPinLabel: "PIN que aparece en la TV",
+  hostEnter: "Entrar",
+  hostWrong: "PIN incorrecto.",
+  hostRate: "Demasiados intentos: espera un minuto.",
+  hostLocked: "Demasiados intentos: vuelve a probar en unos minutos.",
+  hostTitle: "Control",
+  hostNowPlaying: "En pantalla: %s",
+  hostNowPaused: "En pausa: %s",
+  hostNotSlideshow: "La presentación no está abierta: Siguiente la inicia.",
+  hostAnnounce: "Escribe un anuncio",
+  hostAnnounceSend: "Mostrar",
+  hostPendingTitle: "Por aprobar",
+  hostNothing: "Nada por aprobar.",
+  hostApprove: "Mostrar",
+  hostReject: "Descartar",
+  hostApproveAll: "Aprobar todo",
+  hostDirector: "Director por dos minutos",
+  hostDirectorNow: "Ahora dirige %s",
+  hostSpeechTitle: "Modo discurso",
+  hostSpeechHint: "Escribe aquí tu discurso: se queda solo en este móvil. Con las flechas cambias las fotos mientras hablas.",
+  hostLogout: "Salir del control",
+  hostFromGuest: "Foto de %s",
+  hostAnonymous: "Foto de un invitado",
   reactTitle: "Reacciona a la foto de la TV",
   messageLabel: "Deja una dedicatoria",
   messagePlaceholder: "Un deseo, un recuerdo, un saludo…",
@@ -284,6 +490,38 @@ const ES = {
   gameWrong: (points) => "¡Esta vez no! Tienes " + points + (points === 1 ? " punto." : " puntos."),
 };
 const DE = {
+  announceKicker: "Durchsage",
+  directorKicker: "Zwei Minuten Regie",
+  directorYou: "Du bist dran: Steuere die Diashow!",
+  directorLeft: "Noch %s",
+  prev: "◀ Zurück",
+  next: "Weiter ▶",
+  pause: "Pause",
+  play: "Fortsetzen",
+  hostOpen: "Ich bin Gastgeber",
+  hostPinLabel: "PIN auf dem Fernseher",
+  hostEnter: "Anmelden",
+  hostWrong: "Falsche PIN.",
+  hostRate: "Zu viele Versuche: Warte eine Minute.",
+  hostLocked: "Zu viele Versuche: Versuch es in ein paar Minuten noch einmal.",
+  hostTitle: "Steuerung",
+  hostNowPlaying: "Auf dem Bildschirm: %s",
+  hostNowPaused: "Pausiert: %s",
+  hostNotSlideshow: "Die Diashow ist nicht geöffnet: Weiter startet sie.",
+  hostAnnounce: "Durchsage schreiben",
+  hostAnnounceSend: "Zeigen",
+  hostPendingTitle: "Zur Freigabe",
+  hostNothing: "Nichts freizugeben.",
+  hostApprove: "Zeigen",
+  hostReject: "Verwerfen",
+  hostApproveAll: "Alle freigeben",
+  hostDirector: "Zwei Minuten Regie",
+  hostDirectorNow: "%s führt Regie",
+  hostSpeechTitle: "Redemodus",
+  hostSpeechHint: "Schreib deine Rede hier: Sie bleibt nur auf diesem Handy. Mit den Pfeilen wechselst du die Fotos, während du sprichst.",
+  hostLogout: "Steuerung verlassen",
+  hostFromGuest: "Foto von %s",
+  hostAnonymous: "Foto eines Gasts",
   reactTitle: "Reagiere auf das Foto im Fernsehen",
   messageLabel: "Hinterlass einen Gruß",
   messagePlaceholder: "Ein Wunsch, eine Erinnerung, ein Hallo…",
@@ -350,6 +588,16 @@ $("reactTitle").textContent = T.reactTitle;
 $("messageLabel").textContent = T.messageLabel;
 $("messageText").placeholder = T.messagePlaceholder;
 $("messageSend").textContent = T.messageSend;
+$("announceKicker").textContent = T.announceKicker;
+$("directorKicker").textContent = T.directorKicker;
+for (const [id, text] of [["directorPrev", T.prev], ["directorPause", T.pause], ["directorNext", T.next], ["hostPrev", T.prev],
+  ["hostToggle", T.pause], ["hostNext", T.next], ["speechPrev", T.prev], ["speechNext", T.next], ["hostOpen", T.hostOpen],
+  ["hostPinLabel", T.hostPinLabel], ["hostEnter", T.hostEnter], ["hostTitle", T.hostTitle], ["hostAnnounceSend", T.hostAnnounceSend],
+  ["hostPendingTitle", T.hostPendingTitle], ["hostApproveAll", T.hostApproveAll], ["hostDirector", T.hostDirector],
+  ["hostSpeechTitle", T.hostSpeechTitle], ["hostSpeechHint", T.hostSpeechHint], ["hostLogout", T.hostLogout]]) {
+  $(id).textContent = text;
+}
+$("hostAnnounce").placeholder = T.hostAnnounce;
 if (CONFIG.approval) {
   $("approvalNote").textContent = T.approval;
   $("approvalNote").hidden = false;
@@ -390,6 +638,8 @@ async function pollGame() {
       const state = await response.json();
       showFeatures(state.features || {});
       showGame(state.game);
+      showParty(state.party || {});
+      $("host").hidden = !state.host;
     }
   } catch (e) {
     // La TV non risponde per un momento: si riprova al giro successivo.
@@ -400,6 +650,183 @@ function showFeatures(features) {
   $("react").hidden = !features.reactions;
   $("message").hidden = !features.messages;
 }
+
+// Annuncio della regia e regista di turno.
+function showParty(party) {
+  const announcement = party.announcement;
+  $("announcement").hidden = !announcement;
+  if (announcement) $("announceText").textContent = announcement.text;
+  const director = party.director;
+  const mine = !!(director && director.you);
+  $("director").hidden = !mine;
+  if (mine) {
+    const seconds = Math.max(0, director.seconds | 0);
+    const left = Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2, "0");
+    $("directorText").textContent = T.directorYou + " " + T.directorLeft.replace("%s", left);
+  }
+}
+
+document.querySelectorAll("[data-director]").forEach((button) => {
+  button.addEventListener("click", () => {
+    let command = button.dataset.director;
+    if (command === "pause") {
+      command = button.dataset.paused === "1" ? "play" : "pause";
+      button.dataset.paused = command === "pause" ? "1" : "0";
+      button.textContent = command === "pause" ? T.play : T.pause;
+    }
+    sendAction({ type: "director", command }).catch(() => {});
+  });
+});
+
+// Regia dal telefono: con il PIN della TV si ottiene un gettone, valido per questa festa.
+const HOST_KEY = "fotofesta.host." + KEY.slice(0, 12);
+let hostToken = null;
+try { hostToken = localStorage.getItem(HOST_KEY); } catch (e) {}
+let hostState = null;
+const thumbs = new Map();
+
+$("hostOpen").addEventListener("click", () => { $("hostForm").hidden = !$("hostForm").hidden; });
+$("hostEnter").addEventListener("click", hostLogin);
+$("hostPin").addEventListener("keydown", (event) => { if (event.key === "Enter") hostLogin(); });
+$("hostLogout").addEventListener("click", () => setHostToken(null));
+$("hostAnnounceSend").addEventListener("click", sendAnnouncement);
+$("hostAnnounce").addEventListener("keydown", (event) => { if (event.key === "Enter") sendAnnouncement(); });
+$("hostApproveAll").addEventListener("click", () => hostCommand({ command: "approve_all" }));
+$("hostDirector").addEventListener("click", () => hostCommand({ command: "director" }));
+document.querySelectorAll("[data-host]").forEach((button) => {
+  button.addEventListener("click", () => {
+    let command = button.dataset.host;
+    if (command === "toggle") command = hostState && hostState.playing && hostState.slideshow ? "pause" : "play";
+    hostCommand({ command });
+  });
+});
+const speech = $("speechText");
+try { speech.value = localStorage.getItem("fotofesta.speech") || ""; } catch (e) {}
+speech.addEventListener("input", () => { try { localStorage.setItem("fotofesta.speech", speech.value); } catch (e) {} });
+
+async function hostLogin() {
+  const pin = $("hostPin").value.replace(/\D/g, "");
+  if (!pin) return;
+  let status = T.hostWrong;
+  try {
+    const response = await fetch("/party/host/login", {
+      method: "POST",
+      headers: { "X-FotoFesta-Key": KEY, "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ pin }).toString(),
+    });
+    if (response.ok) {
+      const body = await response.json();
+      $("hostPin").value = "";
+      setHostToken(body.token);
+      status = "";
+    } else if (response.status === 429) {
+      status = T.hostRate;
+    } else if (response.status === 423) {
+      status = T.hostLocked;
+    }
+  } catch (e) {
+    status = T.offline;
+  }
+  $("hostLoginStatus").textContent = status;
+}
+
+function setHostToken(token) {
+  hostToken = token;
+  try { if (token) localStorage.setItem(HOST_KEY, token); else localStorage.removeItem(HOST_KEY); } catch (e) {}
+  $("hostLogin").hidden = !!token;
+  $("hostPanel").hidden = !token;
+  if (token) pollHost();
+}
+
+async function hostCommand(fields) {
+  if (!hostToken) return;
+  try {
+    const response = await fetch("/party/host", {
+      method: "POST",
+      headers: { "X-FotoFesta-Key": KEY, "X-FotoFesta-Host": hostToken, "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams(fields).toString(),
+    });
+    if (response.status === 401) setHostToken(null);
+  } catch (e) {}
+  setTimeout(pollHost, 400);
+}
+
+function sendAnnouncement() {
+  const text = $("hostAnnounce").value.trim();
+  if (!text) return;
+  $("hostAnnounce").value = "";
+  hostCommand({ command: "announce", text: Array.from(text).slice(0, 120).join("") });
+}
+
+async function pollHost() {
+  if (!hostToken || document.hidden || expired) return;
+  try {
+    const response = await fetch("/party/host", { headers: { "X-FotoFesta-Key": KEY, "X-FotoFesta-Host": hostToken }, cache: "no-store" });
+    if (response.status === 401) { setHostToken(null); return; }
+    if (response.ok) showHost(await response.json());
+  } catch (e) {}
+}
+
+function showHost(state) {
+  hostState = state;
+  const title = state.title || "";
+  $("hostNow").textContent = !state.slideshow ? T.hostNotSlideshow : (state.playing ? T.hostNowPlaying : T.hostNowPaused).replace("%s", title);
+  $("hostToggle").textContent = state.slideshow && state.playing ? T.pause : T.play;
+  $("hostDirector").textContent = state.director ? T.hostDirectorNow.replace("%s", state.director) : T.hostDirector;
+  const list = $("hostPending");
+  list.textContent = "";
+  const photos = Array.isArray(state.pendingPhotos) ? state.pendingPhotos : [];
+  const messages = Array.isArray(state.pendingMessages) ? state.pendingMessages : [];
+  photos.forEach((photo) => {
+    const img = document.createElement("img");
+    img.alt = "";
+    loadThumb(photo.id, img);
+    list.appendChild(pendingItem(img, photo.sender ? T.hostFromGuest.replace("%s", photo.sender) : T.hostAnonymous, "photo", photo.id));
+  });
+  messages.forEach((message) => {
+    list.appendChild(pendingItem(null, (message.name ? message.name + ": " : "") + message.text, "message", message.id));
+  });
+  if (!photos.length && !messages.length) {
+    const empty = document.createElement("p");
+    empty.className = "muted";
+    empty.textContent = T.hostNothing;
+    list.appendChild(empty);
+  }
+  $("hostApproveAll").hidden = photos.length + messages.length < 2;
+  // Le miniature delle foto già decise si liberano.
+  const ids = new Set(photos.map((photo) => photo.id));
+  for (const [id, url] of thumbs) if (!ids.has(id)) { URL.revokeObjectURL(url); thumbs.delete(id); }
+}
+
+function pendingItem(img, text, kind, id) {
+  const item = document.createElement("div");
+  item.className = "item";
+  if (img) item.appendChild(img);
+  const label = document.createElement("div");
+  label.className = "text";
+  label.textContent = text;
+  const yes = document.createElement("button");
+  yes.type = "button"; yes.className = "yes"; yes.textContent = T.hostApprove;
+  yes.addEventListener("click", () => hostCommand({ command: "approve_" + kind, id }));
+  const no = document.createElement("button");
+  no.type = "button"; no.className = "no"; no.textContent = T.hostReject;
+  no.addEventListener("click", () => hostCommand({ command: "reject_" + kind, id }));
+  item.append(label, yes, no);
+  return item;
+}
+
+async function loadThumb(id, img) {
+  if (thumbs.has(id)) { img.src = thumbs.get(id); return; }
+  try {
+    const response = await fetch("/party/host/photo?id=" + encodeURIComponent(id), { headers: { "X-FotoFesta-Key": KEY, "X-FotoFesta-Host": hostToken } });
+    if (!response.ok) return;
+    const url = URL.createObjectURL(await response.blob());
+    thumbs.set(id, url);
+    img.src = url;
+  } catch (e) {}
+}
+
+setInterval(pollHost, 2000);
 
 function guestName() {
   return Array.from(senderInput.value.trim()).slice(0, 40).join("");
@@ -812,6 +1239,7 @@ function upload(job) {
 
 // Domanda già in corso sulla TV: si mostra subito, senza aspettare il primo giro.
 pollGame();
+if (hostToken) setHostToken(hostToken);
 </script>
 </body>
 </html>

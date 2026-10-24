@@ -381,6 +381,27 @@ STRINGS = {
     "guestbook.approve.other": ("Approve %ld messages", "Approva %ld dediche"),
     "awards.reaction_count.one": ("%ld reaction", "%ld reazione"),
     "awards.reaction_count.other": ("%ld reactions", "%ld reazioni"),
+    # Regia dal telefono, annunci e regista di turno
+    "host.pin": ("Control from your phone · PIN %@", "Regia dal telefono · PIN %@"),
+    "host.pin_hint": ("Open the page behind the QR code, tap “I’m the host” and type the PIN: you can move photos on, approve them and make announcements while walking around.", "Apri la pagina del QR, tocca “Sono l’organizzatore” e scrivi il PIN: potrai cambiare foto, approvarle e fare annunci girando per la sala."),
+    "settings.phone_host": ("Control from your phone", "Regia dal telefono"),
+    "settings.phone_host_body": ("With the PIN shown during the party, the host controls the slideshow, approvals and announcements from the guests’ page.", "Con il PIN mostrato durante la festa, chi organizza comanda slideshow, approvazioni e annunci dalla pagina degli invitati."),
+    "announce.kicker": ("Announcement", "Annuncio"),
+    "announce.body": ("It appears big on the screen and on the guests’ phones.", "Compare in grande sullo schermo e sui telefoni degli invitati."),
+    "announce.send": ("Show the announcement", "Mostra l’annuncio"),
+    "announce.custom": ("Write an announcement", "Scrivi un annuncio"),
+    "announce.empty": ("Write an announcement before showing it.", "Scrivi un annuncio prima di mostrarlo."),
+    "announce.p_buffet": ("The buffet is open!", "Il buffet è aperto!"),
+    "announce.p_cake": ("Time to cut the cake!", "Si taglia la torta!"),
+    "announce.p_group": ("Group photo in 5 minutes!", "Foto di gruppo tra 5 minuti!"),
+    "announce.p_dance": ("Everybody on the dance floor!", "Tutti in pista!"),
+    "announce.p_last": ("Last dance!", "Ultimo ballo!"),
+    "guests.announce": ("Make an announcement", "Fai un annuncio"),
+    "games.director_title": ("Director for two minutes", "Regista per due minuti"),
+    "games.director_body": ("A guest drawn at random runs the slideshow from their phone.", "Un invitato estratto a caso dirige lo slideshow dal suo telefono."),
+    "director.now": ("%@ is directing · %@", "Ora dirige %@ · %@"),
+    "message.director_none": ("No guest has written their name yet: whoever sends a photo, plays or reacts with their name can direct.", "Nessun invitato ha ancora scritto il proprio nome: può dirigere chi manda foto, gioca o reagisce con il nome."),
+    "message.director_started": ("%@ directs the slideshow from their phone for two minutes!", "%@ dirige lo slideshow dal telefono per due minuti!"),
 }
 
 PLACEHOLDER = re.compile(r"%(?:ld|@|d|lld)")

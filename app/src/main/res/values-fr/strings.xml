@@ -532,4 +532,26 @@
         <item quantity="many">%d réactions</item>
         <item quantity="other">%d réactions</item>
     </plurals>
+
+    <!-- Regia dal telefono, annunci e regista di turno -->
+    <string name="host_pin">Régie depuis le téléphone · PIN %1$s</string>
+    <string name="host_pin_hint">Ouvrez la page du code QR, touchez « Je suis l’organisateur » et saisissez le PIN : vous pourrez changer de photo, les approuver et faire des annonces en circulant dans la salle.</string>
+    <string name="settings_phone_host">Régie depuis le téléphone</string>
+    <string name="settings_phone_host_body">Avec le PIN affiché pendant la fête, l’organisateur pilote le diaporama, les approbations et les annonces depuis la page des invités.</string>
+    <string name="announce_kicker">Annonce</string>
+    <string name="announce_body">Elle s’affiche en grand à l’écran et sur les téléphones des invités.</string>
+    <string name="announce_send">Afficher l’annonce</string>
+    <string name="announce_custom">Écrivez une annonce</string>
+    <string name="announce_empty">Écrivez une annonce avant de l’afficher.</string>
+    <string name="announce_p_buffet">Le buffet est ouvert !</string>
+    <string name="announce_p_cake">On coupe le gâteau !</string>
+    <string name="announce_p_group">Photo de groupe dans 5 minutes !</string>
+    <string name="announce_p_dance">Tout le monde sur la piste !</string>
+    <string name="announce_p_last">Dernière danse !</string>
+    <string name="guests_announce">Faire une annonce</string>
+    <string name="games_director_title">Réalisateur pendant deux minutes</string>
+    <string name="games_director_body">Un invité tiré au sort dirige le diaporama depuis son téléphone.</string>
+    <string name="director_now">%1$s réalise · %2$s</string>
+    <string name="message_director_none">Aucun invité n’a encore écrit son nom : peut réaliser qui envoie des photos, joue ou réagit avec son nom.</string>
+    <string name="message_director_started">%1$s dirige le diaporama depuis son téléphone pendant deux minutes !</string>
 </resources>

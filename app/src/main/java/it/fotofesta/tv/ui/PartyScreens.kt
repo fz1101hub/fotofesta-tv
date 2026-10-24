@@ -28,12 +28,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Campaign
 import androidx.compose.material.icons.rounded.Casino
 import androidx.compose.material.icons.rounded.Celebration
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Poll
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -462,5 +464,110 @@ private fun MessageCard(message: PartyHub.Message, pending: Boolean, actions: @C
             Text(message.text, style = MaterialTheme.typography.titleMedium, color = TextPrimary)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { actions() }
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Regia: annunci e regista di turno
+// ---------------------------------------------------------------------------------------------
+
+/** Annuncio della regia, in grande al centro per quindici secondi dopo l'arrivo. */
+@Composable
+fun BoxScope.AnnouncementOverlay(announcement: PartyHub.Announcement?) {
+    var visible by remember { mutableStateOf<PartyHub.Announcement?>(null) }
+    LaunchedEffect(announcement?.serial) {
+        val current = announcement ?: return@LaunchedEffect
+        // Un annuncio già vecchio (ad esempio aprendo lo slideshow dopo) non ricompare.
+        val left = ANNOUNCEMENT_SCREEN_MS - (System.currentTimeMillis() - current.atMillis)
+        if (left <= 0) return@LaunchedEffect
+        visible = current
+        delay(left)
+        if (visible?.serial == current.serial) visible = null
+    }
+    AnimatedVisibility(
+        visible = visible != null,
+        modifier = Modifier.align(Alignment.Center),
+        enter = fadeIn(tween(300)),
+        exit = fadeOut(tween(500)),
+    ) {
+        val shown = visible ?: return@AnimatedVisibility
+        Column(
+            Modifier.widthIn(max = 1100.dp)
+                .background(Accent, RoundedCornerShape(28.dp))
+                .padding(horizontal = 48.dp, vertical = 34.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(stringResource(R.string.announce_kicker).uppercase(), style = MaterialTheme.typography.labelLarge, color = OnAccent)
+            Text(shown.text, style = MaterialTheme.typography.displaySmall, color = OnAccent, textAlign = TextAlign.Center)
+        }
+    }
+}
+
+/** Chi dirige lo slideshow dal telefono, con il tempo che resta. */
+@Composable
+fun BoxScope.DirectorBadge(director: PartyHub.Director?) {
+    val current = director ?: return
+    val remaining by produceState(((current.untilMillis - System.currentTimeMillis()) / 1000).coerceAtLeast(0), current) {
+        while (true) {
+            value = ((current.untilMillis - System.currentTimeMillis()) / 1000).coerceAtLeast(0)
+            if (value == 0L) break
+            delay(500)
+        }
+    }
+    if (remaining <= 0) return
+    Row(
+        Modifier.align(Alignment.TopCenter)
+            .padding(top = 27.dp)
+            .background(SurfaceRaised.copy(alpha = .94f), RoundedCornerShape(50))
+            .padding(horizontal = 22.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(Icons.Rounded.Videocam, contentDescription = null, tint = Accent, modifier = Modifier.size(22.dp))
+        Text(
+            stringResource(R.string.director_now, current.name, "%d:%02d".format(remaining / 60, remaining % 60)),
+            style = MaterialTheme.typography.titleSmall,
+            color = TextPrimary,
+        )
+    }
+}
+
+private const val ANNOUNCEMENT_SCREEN_MS = 15_000L
+
+/** Annuncio dalla TV: frasi pronte da scegliere con il telecomando, oppure un testo libero. */
+@Composable
+fun AnnounceScreen(onAnnounce: (String) -> Unit, onBack: () -> Unit) {
+    var text by rememberSaveable { mutableStateOf("") }
+    val presets = listOf(
+        stringResource(R.string.announce_p_buffet),
+        stringResource(R.string.announce_p_cake),
+        stringResource(R.string.announce_p_group),
+        stringResource(R.string.announce_p_dance),
+        stringResource(R.string.announce_p_last),
+    )
+    Column(Modifier.fillMaxSize().background(Background).padding(horizontal = 48.dp, vertical = 40.dp), verticalArrangement = Arrangement.spacedBy(22.dp)) {
+        Row(Modifier.fillMaxWidth()) {
+            SectionTitle(stringResource(R.string.announce_kicker), stringResource(R.string.guests_announce), stringResource(R.string.announce_body), modifier = Modifier.weight(1f))
+            Spacer(Modifier.width(16.dp))
+            TvButton(stringResource(R.string.action_back), onBack, icon = Icons.AutoMirrored.Rounded.ArrowBack)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            presets.take(3).forEachIndexed { index, preset ->
+                TvButton(preset, { onAnnounce(preset) }, modifier = if (index == 0) Modifier.initialFocus() else Modifier, icon = Icons.Rounded.Campaign)
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            presets.drop(3).forEach { preset -> TvButton(preset, { onAnnounce(preset) }, icon = Icons.Rounded.Campaign) }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            TvTextField(
+                text,
+                { text = it.take(PartyHub.MAX_ANNOUNCEMENT_LENGTH) },
+                stringResource(R.string.announce_custom),
+                modifier = Modifier.weight(1f),
+            )
+            TvButton(stringResource(R.string.announce_send), { onAnnounce(text) }, icon = Icons.Rounded.Campaign, enabled = text.isNotBlank())
+        }
     }
 }
