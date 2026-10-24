@@ -58,6 +58,8 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
     private val messageTimes = HashMap<String, ArrayDeque<Long>>()
     private val messages = ArrayList<Message>()
     private val names = LinkedHashMap<String, String>()
+    /** Reazioni per tipo (cuore, risata...), per "La festa in numeri". */
+    private val reactionKinds = IntArray(Reaction.entries.size)
     private var announcement: Announcement? = null
     private var announcementSerial = 0L
     private var director: Director? = null
@@ -104,6 +106,7 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
             }
             remember(player, name)
             showing?.let { reactionCounts[it] = (reactionCounts[it] ?: 0) + 1 }
+            reactionKinds[reaction!!.ordinal]++
             val event = ReactionEvent(++serial, reaction!!)
             recentReactions.addLast(event)
             while (recentReactions.size > MAX_RECENT_REACTIONS) recentReactions.removeFirst()
@@ -163,6 +166,10 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
     /** Chi ha partecipato con un nome (reazioni o dediche), nell'ordine in cui è arrivato. */
     @Synchronized
     fun participants(): List<Participant> = names.map { (player, name) -> Participant(player, name) }
+
+    /** Quante reazioni di ogni tipo, nell'ordine di [Reaction]. */
+    @Synchronized
+    fun reactionTotals(): List<Int> = reactionKinds.toList()
 
     /** Il telefono [player] partecipa a un gioco con [name]: il nome resta per estrazione e regista. */
     fun join(player: String, name: String?): String? {
@@ -339,6 +346,7 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
             quietUntil = 0
             showing = null
             reactionCounts.clear()
+            reactionKinds.fill(0)
             recentReactions.clear()
             reactionTimes.clear()
             messageTimes.clear()

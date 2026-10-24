@@ -47,6 +47,7 @@ struct SettingsView: View {
                     Text(L("transition.fade")).tag(TransitionStyle.fade)
                     Text(L("transition.slide")).tag(TransitionStyle.slide)
                     Text(L("transition.zoom")).tag(TransitionStyle.zoom)
+                    Text(L("transition.zapping")).tag(TransitionStyle.zapping)
                 }
                 Picker(selection: binding(\.fitMode)) {
                     Text(L("fit.blur")).tag(FitMode.blur)
@@ -61,10 +62,11 @@ struct SettingsView: View {
                 Picker(selection: binding(\.layout)) {
                     Text(L("layout.single")).tag(SlideshowLayout.single)
                     Text(L("layout.mosaic")).tag(SlideshowLayout.mosaic)
+                    Text(L("layout.stack")).tag(SlideshowLayout.stack)
                 } label: {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(L("settings.layout"))
-                        Text(settings.layout == .mosaic ? L("layout.mosaic_body") : L("layout.single_body"))
+                        Text(settings.layout == .mosaic ? L("layout.mosaic_body") : settings.layout == .stack ? L("layout.stack_body") : L("layout.single_body"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -89,6 +91,35 @@ struct SettingsView: View {
                     .disabled(settings.reducedMotion || systemReduceMotion)
                 Toggle(L("settings.reduced_motion"), isOn: binding(\.reducedMotion))
                 Toggle(L("settings.clock"), isOn: binding(\.showClock))
+                Picker(L("settings.filter"), selection: binding(\.filter)) {
+                    ForEach(PhotoFilter.allCases, id: \.self) { filter in
+                        Text(filterName(filter)).tag(filter)
+                    }
+                }
+                Toggle(isOn: binding(\.confetti)) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L("settings.confetti"))
+                        Text(L("settings.confetti_body")).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                Toggle(isOn: binding(\.newsMode)) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L("settings.news"))
+                        Text(L("settings.news_body")).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                Toggle(isOn: binding(\.openingTitles)) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L("settings.opening"))
+                        Text(L("settings.opening_body")).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                Toggle(isOn: binding(\.portrait)) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L("settings.portrait"))
+                        Text(L("settings.portrait_body")).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
                 Picker(L("settings.sleep_timer"), selection: binding(\.sleepTimerMinutes)) {
                     Text(L("settings.off")).tag(0)
                     ForEach(sleepOptions(including: settings.sleepTimerMinutes), id: \.self) { minutes in
@@ -116,6 +147,16 @@ struct SettingsView: View {
             }
 
             Section {
+                Picker(selection: Binding(get: { settings.template }, set: { template in model.applyTemplate(template) })) {
+                    ForEach(PartyTemplate.allCases, id: \.self) { template in
+                        Text(templateName(template)).tag(template)
+                    }
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L("settings.template"))
+                        Text(L("settings.template_body")).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
                 Toggle(L("guests.qr_in_slideshow"), isOn: Binding(get: { guests.qrInSlideshow }, set: { guests.setQRInSlideshow($0) }))
                 Toggle(L("guests.approval"), isOn: Binding(get: { guests.approval }, set: { guests.setApproval($0) }))
                 Toggle(isOn: Binding(get: { guests.reactionsEnabled }, set: { guests.setReactionsEnabled($0) })) {
@@ -220,6 +261,29 @@ struct SettingsView: View {
             get: { model.settings[keyPath: keyPath] },
             set: { newValue in model.updateSettings { $0[keyPath: keyPath] = newValue } }
         )
+    }
+
+    private func filterName(_ filter: PhotoFilter) -> String {
+        switch filter {
+        case .none: L("filter.none")
+        case .blackWhite: L("filter.bw")
+        case .sepia: L("filter.sepia")
+        case .warm: L("filter.warm")
+        case .cool: L("filter.cool")
+        case .vintage: L("filter.vintage")
+        }
+    }
+
+    private func templateName(_ template: PartyTemplate) -> String {
+        switch template {
+        case .none: L("template.none")
+        case .birthday: L("template.birthday")
+        case .wedding: L("template.wedding")
+        case .newYear: L("template.new_year")
+        case .graduation: L("template.graduation")
+        case .kids: L("template.kids")
+        case .reunion: L("template.reunion")
+        }
     }
 
     private func fitDescription(_ mode: FitMode) -> String {

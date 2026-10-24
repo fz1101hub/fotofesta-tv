@@ -20,6 +20,10 @@ struct SlideshowView: View {
     @State private var shownPhotoID: String?
     /// Mosaico: le foto mostrate di recente, dalla più recente, per le caselle accanto a quella grande.
     @State private var recentIDs: [String] = []
+    /// Coriandoli: cresce a ogni foto nuova degli invitati e a ogni reazione 🎉.
+    @State private var confetti = 0
+    @State private var celebrated: Set<String> = []
+    @State private var openedAt = Date()
 
     var body: some View {
         // "Riduci movimento" vale sia dalle impostazioni dell'app sia da quelle di sistema.
@@ -37,6 +41,12 @@ struct SlideshowView: View {
                         side: Mosaic.side(of: model.photos, currentIndex: model.currentIndex, recentIDs: recentIDs),
                         settings: settings,
                         playing: model.isPlaying
+                    )
+                } else if let photo = model.currentPhoto, settings.layout == .stack, !photo.isVideo {
+                    StackSlideView(
+                        photo: photo,
+                        previous: recentIDs.compactMap { id in model.photos.first { $0.id == id && !$0.isVideo } },
+                        filter: settings.filter
                     )
                 } else if let photo = model.currentPhoto {
                     slide(photo, settings: settings)
@@ -112,6 +122,36 @@ struct SlideshowView: View {
                 DirectorBadge(director: director).padding(.top, 60)
             }
         }
+        .overlay {
+            if settings.transition == .zapping, !settings.reducedMotion, model.currentPhoto != nil {
+                ZappingOverlay(key: model.currentPhoto?.id, channel: model.currentIndex + 1)
+            }
+            if settings.confetti { ConfettiOverlay(trigger: confetti) }
+            if settings.newsMode, let photo = model.currentPhoto {
+                NewsOverlay(title: model.partyTitle, headline: model.photoTag(photo) ?? photo.sender.map { L("guest.photo_from", $0) }, ticker: newsTicker)
+            }
+            if settings.openingTitles {
+                OpeningTitles(title: model.partyTitle, subtitle: openedAt.formatted(date: .complete, time: .omitted))
+            }
+        }
+        // Coriandoli: una foto degli invitati appena arrivata.
+        .onChange(of: model.currentPhoto?.id) { _, _ in
+            guard model.settings.confetti, let photo = model.currentPhoto, case .guest = photo.source,
+                  (photo.receivedAt ?? .distantPast) > openedAt.addingTimeInterval(-60), !celebrated.contains(photo.id) else { return }
+            celebrated.insert(photo.id)
+            confetti += 1
+        }
+        // E una reazione 🎉 dai telefoni.
+        .task(id: model.settings.confetti) {
+            guard model.settings.confetti else { return }
+            var serial = model.guests.partyHub.lastReactionSerial()
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(400))
+                let events = model.guests.partyHub.reactions(after: serial)
+                if let last = events.last { serial = last.serial }
+                if events.contains(where: { $0.reaction == .party }) { confetti += 1 }
+            }
+        }
         .onChange(of: model.currentPhoto?.id) { previous, _ in
             guard let previous else { return }
             recentIDs = Array(([previous] + recentIDs.filter { $0 != previous }).prefix(6))
@@ -178,6 +218,14 @@ struct SlideshowView: View {
         }
     }
 
+    /// Notizie che scorrono nel TG della festa: le ultime dediche e qualche numero.
+    private var newsTicker: [String] {
+        var items = model.guests.messages.suffix(5).reversed().map { message in message.name.map { "\($0): \(message.text)" } ?? message.text }
+        if model.approvedGuestCount > 0 { items.append(LP("news.photos", model.approvedGuestCount)) }
+        if let richest = model.guests.coins.first { items.append(L("news.richest", richest.name)) }
+        return items
+    }
+
     private var effectiveSettings: SlideshowSettings {
         var settings = model.settings
         if systemReduceMotion { settings.reducedMotion = true }
@@ -198,6 +246,7 @@ struct SlideshowView: View {
             }
         } else {
             SlideView(photo: photo, settings: settings, playing: model.isPlaying)
+                .photoFilter(settings.filter)
                 .aging(model.photoAge(photo))
         }
     }
@@ -213,6 +262,8 @@ struct SlideshowView: View {
         case .fade: return .opacity
         case .slide: return .asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading))
         case .zoom: return .asymmetric(insertion: .opacity.combined(with: .scale(scale: 0.94)), removal: .opacity.combined(with: .scale(scale: 1.04)))
+        // Il cambio è netto: la "neve" di ZappingOverlay copre il passaggio.
+        case .zapping: return .identity
         }
     }
 

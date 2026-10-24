@@ -5,7 +5,9 @@ import android.content.Context
 import it.fotofesta.tv.model.Countdown
 import it.fotofesta.tv.model.CountdownEvent
 import it.fotofesta.tv.model.FitMode
+import it.fotofesta.tv.model.PhotoFilter
 import it.fotofesta.tv.model.PhotoLimit
+import it.fotofesta.tv.model.PartyTemplate
 import it.fotofesta.tv.model.SlideshowLayout
 import it.fotofesta.tv.model.SlideshowSettings
 import it.fotofesta.tv.model.TransitionType
@@ -57,6 +59,12 @@ class SettingsRepository(context: Context) {
         noTraces = prefs.getBoolean("no_traces", false),
         resumeParty = prefs.getBoolean("resume_party", true),
         backupCopy = prefs.getBoolean("backup_copy", false),
+        filter = enumValueOrDefault(prefs.getString("filter", null), PhotoFilter.NONE),
+        confetti = prefs.getBoolean("confetti", false),
+        newsMode = prefs.getBoolean("news_mode", false),
+        openingTitles = prefs.getBoolean("opening_titles", false),
+        portrait = prefs.getBoolean("portrait", false),
+        template = enumValueOrDefault(prefs.getString("template", null), PartyTemplate.NONE),
     )
 
     fun save(value: SlideshowSettings) {
@@ -84,6 +92,12 @@ class SettingsRepository(context: Context) {
             .putBoolean("no_traces", value.noTraces)
             .putBoolean("resume_party", value.resumeParty)
             .putBoolean("backup_copy", value.backupCopy)
+            .putString("filter", value.filter.name)
+            .putBoolean("confetti", value.confetti)
+            .putBoolean("news_mode", value.newsMode)
+            .putBoolean("opening_titles", value.openingTitles)
+            .putBoolean("portrait", value.portrait)
+            .putString("template", value.template.name)
             .apply()
     }
 

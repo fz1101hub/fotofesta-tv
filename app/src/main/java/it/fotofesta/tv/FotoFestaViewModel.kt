@@ -44,6 +44,7 @@ import it.fotofesta.tv.model.FreshPhotos
 import it.fotofesta.tv.model.GoogleConnectState
 import it.fotofesta.tv.model.GuestsUiState
 import it.fotofesta.tv.model.PhotoItem
+import it.fotofesta.tv.model.PartyShows
 import it.fotofesta.tv.model.PartyUiState
 import it.fotofesta.tv.model.PlayUiState
 import it.fotofesta.tv.model.PhotoLimit
@@ -543,6 +544,33 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         partyHub.announce(context.getString(R.string.toast_winner, name))
     }
 
+    // -----------------------------------------------------------------------------------------
+    // Spettacoli sullo schermo
+    // -----------------------------------------------------------------------------------------
+
+    /** La festa in numeri. */
+    fun partyStats(): PartyShows.Stats = PartyShows.stats(
+        photos = _state.value.photos,
+        messages = partyHub.messages().size,
+        reactionsByPhoto = partyHub.reactionCounts(),
+        reactionsByKind = partyHub.reactionTotals(),
+        coins = partyPlay.leaderboard(Int.MAX_VALUE).sumOf { it.coins },
+    )
+
+    /** Titoli di coda: fotografi, dediche, campioni dei giochi e gli altri invitati. */
+    fun credits(): List<PartyShows.CreditSection> = PartyShows.credits(
+        photoSenders = guestPhotos.map { it.sender },
+        messageNames = partyHub.messages().map { it.name },
+        champions = (phoneGame.leaderboard(3).map { it.name } + partyPlay.leaderboard(3).map { it.name }),
+        participants = lotteryCandidates(),
+    )
+
+    /** Modello di festa: applica titolo, transizione, disposizione, filtro ed effetti. */
+    fun applyTemplate(template: it.fotofesta.tv.model.PartyTemplate) {
+        updateSettings(template.apply(_state.value.settings))
+        showMessage(context.getString(R.string.template_applied, context.getString(template.labelRes)))
+    }
+
     /** Annuncio dalla TV (schermata "Fai un annuncio"). */
     fun announce(text: String): Boolean {
         val shown = partyHub.announce(text)
@@ -612,6 +640,9 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                 navigate(Destination.PARTY_GAMES)
             }
             Destination.TOAST, Destination.COINS -> navigate(Destination.PARTY_GAMES)
+            Destination.SHOWS -> navigate(Destination.GAMES)
+            Destination.REWIND, Destination.BARCODE, Destination.PHOTO_MOSAIC, Destination.CREDITS,
+            Destination.TELETEXT, Destination.SKY, Destination.STATS -> navigate(Destination.SHOWS)
             Destination.GOOGLE_CONNECT -> cancelGoogleConnect()
             Destination.SETTINGS, Destination.GAMES, Destination.GUESTS -> navigate(Destination.HOME)
             Destination.GUEST_REVIEW, Destination.AWARDS, Destination.GUESTBOOK, Destination.ANNOUNCE -> navigate(Destination.GUESTS)

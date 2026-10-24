@@ -35,6 +35,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.res.stringResource
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
@@ -66,6 +67,15 @@ import it.fotofesta.tv.ui.AnnounceScreen
 import it.fotofesta.tv.ui.GuestbookScreen
 import it.fotofesta.tv.ui.LotteryScreen
 import it.fotofesta.tv.ui.PollScreen
+import it.fotofesta.tv.ui.PortraitFrame
+import it.fotofesta.tv.ui.ShowsScreen
+import it.fotofesta.tv.ui.RewindScreen
+import it.fotofesta.tv.ui.BarcodeScreen
+import it.fotofesta.tv.ui.PhotoMosaicScreen
+import it.fotofesta.tv.ui.CreditsScreen
+import it.fotofesta.tv.ui.TeletextScreen
+import it.fotofesta.tv.ui.SkyScreen
+import it.fotofesta.tv.ui.StatsScreen
 import it.fotofesta.tv.ui.PartyGamesScreen
 import it.fotofesta.tv.ui.PlayScreen
 import it.fotofesta.tv.ui.TournamentScreen
@@ -175,6 +185,8 @@ class MainActivity : ComponentActivity() {
                     Destination.POLL, Destination.LOTTERY -> true
                     Destination.PARTY_GAMES, Destination.PLAY, Destination.TOURNAMENT, Destination.BETS,
                     Destination.TOAST, Destination.COINS -> true
+                    Destination.SHOWS, Destination.REWIND, Destination.BARCODE, Destination.PHOTO_MOSAIC, Destination.CREDITS,
+                    Destination.TELETEXT, Destination.SKY, Destination.STATS -> true
                     // Il QR per incollare il link dell'album deve restare visibile.
                     Destination.ICLOUD_LINK -> true
                     else -> false
@@ -221,7 +233,7 @@ class MainActivity : ComponentActivity() {
                                 onWifi = viewModel::openGuestWifi,
                                 onRemoveWifi = viewModel::removeGuestWifi,
                             )
-                            Destination.SLIDESHOW -> SlideshowScreen(
+                            Destination.SLIDESHOW -> PortraitFrame(state.settings.portrait) { SlideshowScreen(
                                 state = state,
                                 upcoming = viewModel.upcomingPhoto(),
                                 onBack = viewModel::back,
@@ -233,7 +245,7 @@ class MainActivity : ComponentActivity() {
                                 reactions = viewModel.reactions,
                                 photoAge = viewModel::photoAge,
                                 photoTag = viewModel::photoTag,
-                            )
+                            ) }
                             Destination.GAMES -> GamesScreen(
                                 // I giochi usano solo le foto: i video si guardano nello slideshow.
                                 photoCount = state.photos.count { !it.video },
@@ -249,7 +261,40 @@ class MainActivity : ComponentActivity() {
                                 onDirector = viewModel::startDirector,
                                 onQuiet = viewModel::startQuiet,
                                 onPartyGames = { viewModel.navigate(Destination.PARTY_GAMES) },
+                                onShows = { viewModel.navigate(Destination.SHOWS) },
                             )
+                            Destination.SHOWS -> ShowsScreen(
+                                onRewind = { viewModel.navigate(Destination.REWIND) },
+                                onBarcode = { viewModel.navigate(Destination.BARCODE) },
+                                onMosaic = { viewModel.navigate(Destination.PHOTO_MOSAIC) },
+                                onCredits = { viewModel.navigate(Destination.CREDITS) },
+                                onTeletext = { viewModel.navigate(Destination.TELETEXT) },
+                                onSky = { viewModel.navigate(Destination.SKY) },
+                                onStats = { viewModel.navigate(Destination.STATS) },
+                                enoughPhotos = state.photos.count { !it.video } >= 2,
+                                onBack = { viewModel.navigate(Destination.GAMES) },
+                            )
+                            Destination.REWIND -> RewindScreen(remember { state.photos }, onBack = viewModel::back)
+                            Destination.BARCODE -> BarcodeScreen(remember { state.photos }, onBack = viewModel::back)
+                            Destination.PHOTO_MOSAIC -> PhotoMosaicScreen(remember { state.photos }, onBack = viewModel::back)
+                            Destination.CREDITS -> CreditsScreen(
+                                title = stringResource(state.settings.template.titleRes),
+                                sections = remember { viewModel.credits() },
+                                music = state.musicName,
+                                onBack = viewModel::back,
+                            )
+                            Destination.TELETEXT -> TeletextScreen(
+                                title = stringResource(state.settings.template.titleRes),
+                                messages = state.party.messages,
+                                coins = state.play.coins,
+                                stats = remember(state.photos, state.party.messages) { viewModel.partyStats() },
+                                onBack = viewModel::back,
+                            )
+                            Destination.SKY -> SkyScreen(viewModel.lotteryCandidates(), state.guests.shown, onBack = viewModel::back)
+                            Destination.STATS -> {
+                                val stats = remember(state.photos, state.party.messages) { viewModel.partyStats() }
+                                StatsScreen(stats, state.photos.firstOrNull { it.id == stats.favorite }, onBack = viewModel::back)
+                            }
                             Destination.PARTY_GAMES -> PartyGamesScreen(
                                 partyActive = state.guests.active && state.guests.url != null,
                                 play = state.play,

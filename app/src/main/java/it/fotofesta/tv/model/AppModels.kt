@@ -6,12 +6,15 @@ import it.fotofesta.tv.R
 import it.fotofesta.tv.guests.PartyHub
 
 enum class Destination { HOME, SETTINGS, SLIDESHOW, GAMES, MEMORY, MYSTERY, PUZZLE, WHO_TOOK_IT, POLL, LOTTERY, GOOGLE_CONNECT, GUESTS, GUEST_REVIEW, AWARDS, GUESTBOOK, ANNOUNCE, GUEST_WIFI, FILE_BROWSER, ICLOUD_LINK, SMB_LOGIN,
-    PARTY_GAMES, PLAY, TOURNAMENT, BETS, TOAST, COINS }
+    PARTY_GAMES, PLAY, TOURNAMENT, BETS, TOAST, COINS,
+    SHOWS, REWIND, BARCODE, PHOTO_MOSAIC, CREDITS, TELETEXT, SKY, STATS }
 
 enum class TransitionType(@StringRes val labelRes: Int) {
     FADE(R.string.transition_fade),
     SLIDE(R.string.transition_slide),
     ZOOM(R.string.transition_zoom),
+    /** Un attimo di "neve" della TV e il numero del canale, come cambiando canale. */
+    ZAPPING(R.string.transition_zapping),
 }
 
 /**
@@ -28,6 +31,8 @@ enum class FitMode(@StringRes val labelRes: Int, @StringRes val descriptionRes: 
 enum class SlideshowLayout(@StringRes val labelRes: Int, @StringRes val descriptionRes: Int) {
     SINGLE(R.string.layout_single, R.string.layout_single_body),
     MOSAIC(R.string.layout_mosaic, R.string.layout_mosaic_body),
+    /** Le foto cadono come polaroid su una pila, una sopra l'altra. */
+    STACK(R.string.layout_stack, R.string.layout_stack_body),
 }
 
 /** Quante foto può mandare ogni invitato: senza limite, una sola, o il rullino usa e getta. */
@@ -126,6 +131,18 @@ data class SlideshowSettings(
     val resumeParty: Boolean = true,
     /** Copia delle foto degli invitati in Immagini/FotoFesta (Android 10 e successivi). */
     val backupCopy: Boolean = false,
+    /** Filtro sulle foto dello slideshow. */
+    val filter: PhotoFilter = PhotoFilter.NONE,
+    /** Coriandoli quando arriva una foto nuova degli invitati o una reazione 🎉. */
+    val confetti: Boolean = false,
+    /** "TG della festa": titolo in sovrimpressione e notizie che scorrono (dediche, numeri). */
+    val newsMode: Boolean = false,
+    /** Sigla d'apertura all'avvio dello slideshow. */
+    val openingTitles: Boolean = false,
+    /** TV montata in verticale (totem): lo slideshow ruota di 90°. */
+    val portrait: Boolean = false,
+    /** Modello di festa scelto: dà il titolo a sigla, TG, titoli di coda e Televideo. */
+    val template: PartyTemplate = PartyTemplate.NONE,
 )
 
 sealed interface GoogleConnectState {

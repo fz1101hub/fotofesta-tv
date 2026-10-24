@@ -119,6 +119,8 @@ public final class PartyHub: @unchecked Sendable {
     private var features = Features()
     private var showing: String?
     private var reactionCounts: [String: Int] = [:]
+    /// Reazioni per tipo (cuore, risata...), per "La festa in numeri".
+    private var reactionKinds = [Int](repeating: 0, count: Reaction.allCases.count)
     private var recentReactions: [ReactionEvent] = []
     private var serial = 0
     private var reactionTimes: [String: [Date]] = [:]
@@ -165,6 +167,7 @@ public final class PartyHub: @unchecked Sendable {
             guard allow(&reactionTimes, player: player, burst: Self.reactionBurst, window: Self.reactionWindow) else { return .rateLimited }
             _ = remember(player: player, name: name)
             if let showing { reactionCounts[showing, default: 0] += 1 }
+            reactionKinds[reaction.rawValue] += 1
             serial += 1
             recentReactions.append(ReactionEvent(serial: serial, reaction: reaction))
             if recentReactions.count > Self.maxRecentReactions { recentReactions.removeFirst(recentReactions.count - Self.maxRecentReactions) }
@@ -181,6 +184,9 @@ public final class PartyHub: @unchecked Sendable {
     public func lastReactionSerial() -> Int { lock.withLock { serial } }
 
     public func reactionCount(_ photoID: String) -> Int { lock.withLock { reactionCounts[photoID] ?? 0 } }
+
+    /// Quante reazioni di ogni tipo, nell'ordine di `Reaction`.
+    public func reactionTotals() -> [Int] { lock.withLock { reactionKinds } }
 
     /// Reazioni ricevute da ogni foto, per il premio "Foto della serata".
     public func allReactionCounts() -> [String: Int] { lock.withLock { reactionCounts } }
@@ -471,6 +477,7 @@ public final class PartyHub: @unchecked Sendable {
             quietUntil = .distantPast
             showing = nil
             reactionCounts = [:]
+            reactionKinds = [Int](repeating: 0, count: Reaction.allCases.count)
             recentReactions = []
             reactionTimes = [:]
             messageTimes = [:]

@@ -9,6 +9,7 @@ private let slideshowSettingsKey = "slideshowSettings"
 enum Route: Hashable {
     case slideshow, settings, games, memory, mystery, puzzle, whoTookIt, poll, lottery, googleConnect, guests, guestReview, guestWifi, awards, guestbook, announce, library, network
     case partyGames, play, tournament, bets, toast, coins
+    case shows, rewind, barcode, photoMosaic, credits, teletext, sky, stats
 }
 
 /// Da dove vengono le foto della raccolta mostrata nella home.
@@ -893,6 +894,47 @@ final class AppModel {
             self.rehearsal = false
             self.showMessage(L("message.rehearsal_done"))
         }
+    }
+
+    // MARK: - Spettacoli sullo schermo
+
+    /// Titolo della festa (dal modello scelto) per sigla, TG, titoli di coda e Televideo.
+    var partyTitle: String {
+        switch settings.template {
+        case .none: L("template.title_none")
+        case .birthday: L("template.title_birthday")
+        case .wedding: L("template.title_wedding")
+        case .newYear: L("template.title_new_year")
+        case .graduation: L("template.title_graduation")
+        case .kids: L("template.title_kids")
+        case .reunion: L("template.title_reunion")
+        }
+    }
+
+    /// Modello di festa: applica titolo, transizione, disposizione, filtro ed effetti.
+    func applyTemplate(_ template: PartyTemplate) {
+        updateSettings { $0 = template.apply(to: $0) }
+    }
+
+    /// La festa in numeri.
+    func partyStats() -> PartyShows.Stats {
+        PartyShows.stats(
+            photos: photos,
+            messages: guests.messages.count,
+            reactionsByPhoto: guests.partyHub.allReactionCounts(),
+            reactionsByKind: guests.partyHub.reactionTotals(),
+            coins: guests.partyPlay.leaderboard(limit: Int.max).reduce(0) { $0 + $1.coins }
+        )
+    }
+
+    /// Titoli di coda: fotografi, dediche, campioni dei giochi e gli altri invitati.
+    func credits() -> [PartyShows.CreditSection] {
+        PartyShows.credits(
+            photoSenders: guestPhotos.map(\.sender),
+            messageNames: guests.messages.map(\.name),
+            champions: guests.phoneGame.leaderboard(limit: 3).map(\.name) + guests.partyPlay.leaderboard(limit: 3).map(\.name),
+            participants: lotteryCandidates()
+        )
     }
 
     // MARK: - Giochi con i telefoni

@@ -109,6 +109,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.graphics.vector.ImageVector
 
+/** Una foto degli invitati arrivata da poco (o durante lo slideshow) merita i coriandoli. */
+private const val FRESH_PHOTO_MS = 60_000L
+private const val NEWS_MESSAGES = 5
 private const val CONTROLS_TIMEOUT_MS = 5_000L
 
 /**
@@ -152,6 +155,18 @@ fun SlideshowScreen(
     }
     // I video si guardano a schermo intero anche con il mosaico.
     val mosaic = state.settings.layout == SlideshowLayout.MOSAIC && state.photos.size > 1 && photo?.video != true
+    val stack = state.settings.layout == SlideshowLayout.STACK && photo?.video != true
+    // Coriandoli: una foto degli invitati appena arrivata o una reazione 🎉.
+    var confetti by remember { mutableIntStateOf(0) }
+    val openedAt = remember { System.currentTimeMillis() }
+    val celebrated = remember { HashSet<String>() }
+    LaunchedEffect(photo?.id) {
+        val fresh = photo != null && photo.source == SourceType.GUESTS && (photo.receivedAtMillis ?: 0L) > openedAt - FRESH_PHOTO_MS
+        if (state.settings.confetti && fresh && celebrated.add(photo!!.id)) confetti++
+    }
+    LaunchedEffect(reactions, state.settings.confetti) {
+        if (state.settings.confetti) reactions.collect { if (it.reaction == PartyHub.Reaction.PARTY) confetti++ }
+    }
 
     fun showControls(focusBar: Boolean) {
         controlsVisible = true
@@ -221,6 +236,9 @@ fun SlideshowScreen(
     ) {
         if (photo != null && mosaic) {
             MosaicSlide(photo, mosaicSidePhotos(state.photos, state.currentIndex, recentIds), state, Modifier.fillMaxSize())
+        } else if (photo != null && stack) {
+            val previous = recentIds.mapNotNull { id -> state.photos.firstOrNull { it.id == id && !it.video } }
+            StackSlide(photo, previous, state.settings.filter, Modifier.fillMaxSize())
         } else if (photo != null) {
             AnimatedContent(
                 targetState = photo,
@@ -238,6 +256,8 @@ fun SlideshowScreen(
                         )
                         TransitionType.ZOOM -> (fadeIn(tween(700)) + scaleIn(tween(700), initialScale = .94f)) togetherWith
                             (fadeOut(tween(700)) + scaleOut(tween(700), targetScale = 1.04f))
+                        // Il cambio è netto: la "neve" di ZappingOverlay copre il passaggio.
+                        TransitionType.ZAPPING -> EnterTransition.None togetherWith ExitTransition.None
                     }
                 },
                 label = "slideTransition",
@@ -263,7 +283,7 @@ fun SlideshowScreen(
                         playing = state.isPlaying,
                         // Copre anche la transizione verso la foto successiva, così il movimento non si ferma.
                         durationMillis = state.settings.intervalSeconds * 1_000 + 800,
-                        modifier = Modifier.fillMaxSize().aging(photoAge(item)),
+                        modifier = Modifier.fillMaxSize().aging(photoAge(item)).photoFilter(state.settings.filter),
                     )
                 }
             }
@@ -316,6 +336,22 @@ fun SlideshowScreen(
         }
 
         if (state.settings.countdown) CountdownOverlay(state.settings)
+
+        if (photo != null && state.settings.transition == TransitionType.ZAPPING && !state.settings.reducedMotion) {
+            ZappingOverlay(photo.id, state.currentIndex + 1)
+        }
+        if (state.settings.confetti) ConfettiOverlay(confetti)
+        val partyTitle = stringResource(state.settings.template.titleRes)
+        if (state.settings.newsMode && photo != null) {
+            val ticker = state.party.messages.takeLast(NEWS_MESSAGES).asReversed().map { message ->
+                message.name?.let { "$it: ${message.text}" } ?: message.text
+            } + listOfNotNull(
+                state.guests.shown.takeIf { it > 0 }?.let { quantityStringResource(R.plurals.news_photos, it) },
+                state.play.coins.firstOrNull()?.let { stringResource(R.string.news_richest, it.name) },
+            )
+            NewsOverlay(partyTitle, photoTag(photo) ?: photo.sender?.let { stringResource(R.string.guest_photo_from, it) }, ticker)
+        }
+        if (state.settings.openingTitles) OpeningTitles(partyTitle, rememberTodayText())
 
         Column(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(start = 48.dp, end = 48.dp, bottom = 32.dp),

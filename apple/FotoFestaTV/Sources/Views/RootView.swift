@@ -15,7 +15,7 @@ struct RootView: View {
             HomeView()
                 .navigationDestination(for: Route.self) { route in
                     switch route {
-                    case .slideshow: SlideshowView()
+                    case .slideshow: SlideshowView().portrait(model.settings.portrait)
                     case .settings: SettingsView()
                     case .games: GamesView()
                     case .memory: MemoryGameView()
@@ -39,6 +39,14 @@ struct RootView: View {
                     case .bets: BetsView()
                     case .toast: ToastView()
                     case .coins: CoinsView()
+                    case .shows: ShowsView()
+                    case .rewind: RewindView()
+                    case .barcode: BarcodeView()
+                    case .photoMosaic: PhotoMosaicView()
+                    case .credits: CreditsView()
+                    case .teletext: TeletextView()
+                    case .sky: SkyView()
+                    case .stats: StatsView()
                     }
                 }
         }
@@ -85,6 +93,7 @@ struct RootView: View {
         case .guests: return model.guests.active
         case .guestReview, .memory, .mystery, .puzzle, .whoTookIt, .awards, .poll, .lottery, .guestbook, .announce: return true
         case .partyGames, .play, .tournament, .bets, .toast, .coins: return true
+        case .shows, .rewind, .barcode, .photoMosaic, .credits, .teletext, .sky, .stats: return true
         case .googleConnect:
             if case .working = model.googleState { return true }
             return false

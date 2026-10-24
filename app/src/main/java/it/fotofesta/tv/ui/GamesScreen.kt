@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Casino
 import androidx.compose.material.icons.rounded.Celebration
+import androidx.compose.material.icons.rounded.Theaters
 import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.PhoneDisabled
@@ -61,6 +62,7 @@ fun GamesScreen(
     onPoll: () -> Unit = {},
     onLottery: () -> Unit = {},
     onPartyGames: () -> Unit = {},
+    onShows: () -> Unit = {},
     onDirector: () -> Unit = {},
     onQuiet: () -> Unit = {},
 ) {
@@ -139,6 +141,15 @@ fun GamesScreen(
                     onPartyGames,
                     Modifier.width(GAME_TILE_WIDTH),
                     enabled = partyActive,
+                )
+            }
+            item {
+                GameTile(
+                    stringResource(R.string.games_shows_title),
+                    stringResource(R.string.games_shows_body),
+                    Icons.Rounded.Theaters,
+                    onShows,
+                    Modifier.width(GAME_TILE_WIDTH),
                 )
             }
             item {

@@ -37,7 +37,8 @@ public struct Photo: Identifiable, Hashable, Codable, Sendable {
 }
 
 public enum TransitionStyle: String, Codable, CaseIterable, Sendable {
-    case fade, slide, zoom
+    /// `zapping`: un attimo di "neve" della TV e il numero del canale, come cambiando canale.
+    case fade, slide, zoom, zapping
 }
 
 /// Come una foto riempie lo schermo. Con `blur` la foto è intera e le bande ai lati (foto verticali o
@@ -48,7 +49,65 @@ public enum FitMode: String, Codable, CaseIterable, Sendable {
 
 /// Disposizione dello slideshow: una foto alla volta, o la foto nuova in grande con accanto le precedenti.
 public enum SlideshowLayout: String, Codable, CaseIterable, Sendable {
-    case single, mosaic
+    /// `stack`: le foto cadono come polaroid su una pila, una sopra l'altra.
+    case single, mosaic, stack
+}
+
+/// Filtro sulle foto dello slideshow.
+public enum PhotoFilter: String, Codable, CaseIterable, Sendable {
+    case none, blackWhite, sepia, warm, cool, vintage
+}
+
+/// Modelli di festa: un clic sceglie titolo, transizione, disposizione, filtro ed effetti adatti
+/// all'occasione. Le altre impostazioni restano come sono.
+public enum PartyTemplate: String, Codable, CaseIterable, Sendable {
+    case none, birthday, wedding, newYear, graduation, kids, reunion
+
+    public func apply(to settings: SlideshowSettings) -> SlideshowSettings {
+        var result = settings
+        result.template = self
+        switch self {
+        case .none:
+            break
+        case .birthday:
+            result.transition = .zoom
+            result.layout = .stack
+            result.filter = .none
+            result.confetti = true
+            result.openingTitles = true
+        case .wedding:
+            result.transition = .fade
+            result.layout = .single
+            result.filter = .warm
+            result.confetti = false
+            result.openingTitles = true
+            result.kenBurns = true
+        case .newYear:
+            result.transition = .zapping
+            result.layout = .mosaic
+            result.confetti = true
+            result.countdown = true
+            result.countdownMinutes = 0
+            result.countdownEvent = .midnight
+        case .graduation:
+            result.transition = .slide
+            result.layout = .single
+            result.newsMode = true
+            result.confetti = true
+        case .kids:
+            result.transition = .zoom
+            result.layout = .stack
+            result.filter = .none
+            result.confetti = true
+            result.newsMode = false
+        case .reunion:
+            result.transition = .fade
+            result.layout = .stack
+            result.filter = .vintage
+            result.newsMode = true
+        }
+        return result
+    }
 }
 
 /// Impostazioni dello slideshow, salvate in UserDefaults come JSON.
@@ -75,12 +134,25 @@ public struct SlideshowSettings: Codable, Equatable, Sendable {
     public var videos = true
     /// Audio dei video.
     public var videoSound = true
+    /// Filtro sulle foto dello slideshow.
+    public var filter: PhotoFilter = .none
+    /// Coriandoli quando arriva una foto nuova degli invitati o una reazione 🎉.
+    public var confetti = false
+    /// "TG della festa": titolo in sovrimpressione e notizie che scorrono.
+    public var newsMode = false
+    /// Sigla d'apertura all'avvio dello slideshow.
+    public var openingTitles = false
+    /// TV montata in verticale (totem): lo slideshow ruota di 90°.
+    public var portrait = false
+    /// Modello di festa scelto: dà il titolo a sigla, TG, titoli di coda e Televideo.
+    public var template: PartyTemplate = .none
 
     public init() {}
 
     private enum CodingKeys: String, CodingKey {
         case intervalSeconds, transition, fitMode, layout, shuffle, reducedMotion, showClock, kenBurns, sleepTimerMinutes
         case countdown, countdownMinutes, countdownEvent, videos, videoSound
+        case filter, confetti, newsMode, openingTitles, portrait, template
     }
 
     public init(from decoder: Decoder) throws {
@@ -103,6 +175,12 @@ public struct SlideshowSettings: Codable, Equatable, Sendable {
         if let event = value(CountdownEvent.self, .countdownEvent) { countdownEvent = event }
         if let videos = value(Bool.self, .videos) { self.videos = videos }
         if let videoSound = value(Bool.self, .videoSound) { self.videoSound = videoSound }
+        if let filter = value(PhotoFilter.self, .filter) { self.filter = filter }
+        if let confetti = value(Bool.self, .confetti) { self.confetti = confetti }
+        if let newsMode = value(Bool.self, .newsMode) { self.newsMode = newsMode }
+        if let openingTitles = value(Bool.self, .openingTitles) { self.openingTitles = openingTitles }
+        if let portrait = value(Bool.self, .portrait) { self.portrait = portrait }
+        if let template = value(PartyTemplate.self, .template) { self.template = template }
     }
 
     /// Il movimento lento è attivo solo se non è stata chiesta la riduzione del movimento.

@@ -31,6 +31,7 @@ struct GamesView: View {
                             .whoTookIt,
                             enabled: whoTookItPlayable
                         )
+                        gameCard(L("games.shows_title"), L("games.shows_body"), "theatermasks.fill", .shows, enabled: true)
                         gameCard(
                             L("games.party_title"),
                             partyOn ? L("games.party_body") : L("games.poll_unavailable"),

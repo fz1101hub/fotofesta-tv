@@ -45,6 +45,8 @@ import androidx.compose.ui.unit.dp
 import it.fotofesta.tv.R
 import it.fotofesta.tv.model.AppState
 import it.fotofesta.tv.model.FitMode
+import it.fotofesta.tv.model.PartyTemplate
+import it.fotofesta.tv.model.PhotoFilter
 import it.fotofesta.tv.model.PhotoLimit
 import it.fotofesta.tv.model.SettingsCategory
 import it.fotofesta.tv.model.SlideshowSettings
@@ -58,7 +60,7 @@ import java.util.Calendar
 import androidx.compose.ui.platform.LocalContext
 
 /** Impostazioni che si scelgono da un elenco di valori, aperto al posto delle voci. */
-private enum class Picker { INTERVAL, TRANSITION, FIT, LAYOUT, SLEEP, COUNTDOWN_TIME, COUNTDOWN_EVENT, VOLUME }
+private enum class Picker { INTERVAL, TRANSITION, FIT, LAYOUT, SLEEP, COUNTDOWN_TIME, COUNTDOWN_EVENT, VOLUME, FILTER, TEMPLATE }
 
 private val INTERVAL_OPTIONS = listOf(3, 5, 8, 12, 20)
 private val SLEEP_TIMER_OPTIONS = listOf(0, 30, 60, 120)
@@ -196,6 +198,18 @@ fun SettingsScreen(
                         toCategory,
                         descriptions = SlideshowLayout.entries.map { stringResource(it.descriptionRes) },
                     ) { index -> choose { onChange(settings.copy(layout = SlideshowLayout.entries[index])) } }
+                    Picker.FILTER -> OptionsPanel(
+                        stringResource(R.string.settings_filter),
+                        PhotoFilter.entries.map { stringResource(it.labelRes) },
+                        settings.filter.ordinal,
+                        toCategory,
+                    ) { index -> choose { onChange(settings.copy(filter = PhotoFilter.entries[index])) } }
+                    Picker.TEMPLATE -> OptionsPanel(
+                        stringResource(R.string.settings_template),
+                        PartyTemplate.entries.map { stringResource(it.labelRes) },
+                        settings.template.ordinal,
+                        toCategory,
+                    ) { index -> choose { onChange(PartyTemplate.entries[index].apply(settings)) } }
                     Picker.SLEEP -> OptionsPanel(
                         stringResource(R.string.settings_sleep_timer),
                         SLEEP_TIMER_OPTIONS.map { sleepLabel(it) },
@@ -293,6 +307,40 @@ fun SettingsScreen(
                                 checked = settings.showClock,
                             )
                             SettingsItem(
+                                stringResource(R.string.settings_filter),
+                                { open(Picker.FILTER) },
+                                Modifier.focusRequester(pickerFocus.getValue(Picker.FILTER)).then(toCategory),
+                                value = stringResource(settings.filter.labelRes),
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_confetti),
+                                { onChange(settings.copy(confetti = !settings.confetti)) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_confetti_body),
+                                checked = settings.confetti,
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_news),
+                                { onChange(settings.copy(newsMode = !settings.newsMode)) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_news_body),
+                                checked = settings.newsMode,
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_opening),
+                                { onChange(settings.copy(openingTitles = !settings.openingTitles)) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_opening_body),
+                                checked = settings.openingTitles,
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_portrait),
+                                { onChange(settings.copy(portrait = !settings.portrait)) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_portrait_body),
+                                checked = settings.portrait,
+                            )
+                            SettingsItem(
                                 stringResource(R.string.settings_sleep_timer),
                                 { open(Picker.SLEEP) },
                                 Modifier.focusRequester(pickerFocus.getValue(Picker.SLEEP)).then(toCategory),
@@ -350,9 +398,16 @@ fun SettingsScreen(
                         }
                         SettingsCategory.PARTY -> {
                             SettingsItem(
+                                stringResource(R.string.settings_template),
+                                { open(Picker.TEMPLATE) },
+                                Modifier.focusRequester(firstItem).focusRequester(pickerFocus.getValue(Picker.TEMPLATE)).then(toCategory),
+                                subtitle = stringResource(R.string.settings_template_body),
+                                value = stringResource(settings.template.labelRes),
+                            )
+                            SettingsItem(
                                 stringResource(R.string.guests_qr_in_slideshow),
                                 { onQrInSlideshow(!state.guests.qrInSlideshow) },
-                                Modifier.focusRequester(firstItem).then(toCategory),
+                                toCategory,
                                 subtitle = stringResource(R.string.guests_qr_in_slideshow_body),
                                 checked = state.guests.qrInSlideshow,
                             )
