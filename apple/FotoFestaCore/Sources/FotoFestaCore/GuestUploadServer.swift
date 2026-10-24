@@ -54,8 +54,13 @@ public final class GuestUploadServer: @unchecked Sendable {
     private let onFailure: @Sendable () -> Void
     /// Gioco con i telefoni: domanda in corso (GET /game) e risposte (POST /game/answer).
     private let game: PhoneGame?
+    /// Reazioni e dediche (GET /party con lo stato per la pagina, POST /party/action).
+    private let hub: PartyHub?
     /// Risposte dei telefoni: poche decine di byte, con margine per nomi lunghi.
     static let maxAnswerBytes = 1_024
+    /// Reazioni e dediche: una dedica di 160 caratteri codificata occupa al massimo circa 1,5 kB.
+    static let maxActionBytes = 4_096
+    static let maxActionsPerMinute = 150
     private let queue = DispatchQueue(label: "it.fotofesta.guest-upload")
 
     // Usati solo sulla coda `queue`.
@@ -65,6 +70,7 @@ public final class GuestUploadServer: @unchecked Sendable {
     private var expectedHost = ""
     private var perClient: [String: Int] = [:]
     private var recentUploads: [String: [Date]] = [:]
+    private var recentActions: [String: [Date]] = [:]
     private var inFlightBytes = 0
     /// Invii già ricevuti, per non salvare due volte una foto se il telefono ripete l'invio.
     private var handledUploads: [String: GuestHTTPResponse] = [:]
@@ -79,7 +85,8 @@ public final class GuestUploadServer: @unchecked Sendable {
         page: @escaping @Sendable () -> String,
         onPhoto: @escaping @Sendable (Data, String?) -> UploadResult,
         onFailure: @escaping @Sendable () -> Void = {},
-        game: PhoneGame? = nil
+        game: PhoneGame? = nil,
+        hub: PartyHub? = nil
     ) {
         self.key = key
         self.maxUploadBytes = maxUploadBytes
@@ -90,6 +97,7 @@ public final class GuestUploadServer: @unchecked Sendable {
         self.onPhoto = onPhoto
         self.onFailure = onFailure
         self.game = game
+        self.hub = hub
     }
 
     /// Avvia il server, preferibilmente sulla porta `preferredPort` (così il QR resta uguale tra un
@@ -205,6 +213,14 @@ public final class GuestUploadServer: @unchecked Sendable {
     func prepare(_ request: GuestHTTPRequest, client: String) throws -> (bodyLength: Int, cached: GuestHTTPResponse?) {
         try checkHost(request)
         if request.path == "/game/answer" { return (try answerLength(request), nil) }
+        if request.path == "/party/action" {
+            let length = try answerLength(request, limit: Self.maxActionBytes)
+            // Il limite per telefono di PartyHub si aggira cambiando identificativo: qui conta l'indirizzo.
+            guard allow(&recentActions, client: client, limit: Self.maxActionsPerMinute) else {
+                throw GuestHTTPError(status: 429, code: "rate", retryAfter: 5)
+            }
+            return (length, nil)
+        }
         guard request.path == "/photos" else { return (0, nil) }
         guard request.method == "POST" else { throw GuestHTTPError(status: 405, code: "method") }
         guard keyMatches(request.headers["x-fotofesta-key"]) else { throw GuestHTTPError(status: 401, code: "key") }
@@ -243,6 +259,15 @@ public final class GuestUploadServer: @unchecked Sendable {
                 return .json(200, gameJSON(game?.current(), player: request.query["player"]))
             case "/game/answer":
                 return try receiveAnswer(body)
+            case "/party":
+                guard request.method == "GET" else { throw GuestHTTPError(status: 405, code: "method") }
+                guard keyMatches(request.headers["x-fotofesta-key"]) else { throw GuestHTTPError(status: 401, code: "key") }
+                let features = hub?.featuresJSON() ?? #"{"reactions":false,"messages":false,"moderated":false}"#
+                return .json(200, #"{"features":\#(features),"game":\#(gameJSON(game?.current(), player: request.query["player"]))}"#)
+            case "/party/action":
+                guard let hub else { throw GuestHTTPError(status: 404, code: "not_found") }
+                let result = hub.handle(try Self.parseForm(String(decoding: body, as: UTF8.self)))
+                return .json(result.status, result.json, retryAfter: result.status == 429 ? 3 : nil)
             case "/photos":
                 let response = try receivePhoto(request, body: body)
                 if let id = Self.uploadID(request) { remember(id, response) }
@@ -257,8 +282,8 @@ public final class GuestUploadServer: @unchecked Sendable {
         }
     }
 
-    /// Controlli sulla risposta di un telefono prima di leggerne il corpo, piccolo.
-    private func answerLength(_ request: GuestHTTPRequest) throws -> Int {
+    /// Controlli su un piccolo modulo di un telefono (risposta, reazione, dedica) prima di leggerne il corpo.
+    private func answerLength(_ request: GuestHTTPRequest, limit: Int = GuestUploadServer.maxAnswerBytes) throws -> Int {
         guard request.method == "POST" else { throw GuestHTTPError(status: 405, code: "method") }
         guard keyMatches(request.headers["x-fotofesta-key"]) else { throw GuestHTTPError(status: 401, code: "key") }
         if request.headers["transfer-encoding"] != nil { throw GuestHTTPError(status: 411, code: "length") }
@@ -266,7 +291,7 @@ public final class GuestUploadServer: @unchecked Sendable {
             throw GuestHTTPError(status: 411, code: "length")
         }
         guard length > 0 else { throw GuestHTTPError(status: 400, code: "empty") }
-        guard length <= Self.maxAnswerBytes else { throw GuestHTTPError(status: 413, code: "too_large") }
+        guard length <= limit else { throw GuestHTTPError(status: 413, code: "too_large") }
         return length
     }
 
@@ -289,7 +314,7 @@ public final class GuestUploadServer: @unchecked Sendable {
         guard let snapshot else { return #"{"round":null}"# }
         let points = player.flatMap { PhoneGame.isValidPlayer($0) ? game?.points(of: $0) : nil } ?? 0
         let state = GameState(round: snapshot.round, question: snapshot.question, choices: snapshot.choices,
-                              open: snapshot.open, answer: snapshot.answer, points: points)
+                              open: snapshot.open, answer: snapshot.answer, poll: snapshot.poll, tally: snapshot.tally, points: points)
         guard let data = try? JSONEncoder().encode(state) else { return #"{"round":null}"# }
         return String(decoding: data, as: UTF8.self)
     }
@@ -300,7 +325,26 @@ public final class GuestUploadServer: @unchecked Sendable {
         let choices: [String]
         let open: Bool
         let answer: Int?
+        let poll: Bool
+        let tally: [Int]?
         let points: Int
+
+        // Le chiavi nil restano nel JSON come null: la pagina distingue "nessuna risposta" da un campo mancante.
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(round, forKey: .round)
+            try container.encode(question, forKey: .question)
+            try container.encode(choices, forKey: .choices)
+            try container.encode(open, forKey: .open)
+            try container.encode(answer, forKey: .answer)
+            try container.encode(poll, forKey: .poll)
+            try container.encode(tally, forKey: .tally)
+            try container.encode(points, forKey: .points)
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case round, question, choices, open, answer, poll, tally, points
+        }
     }
 
     /// Campi di un modulo "a=1&b=2"; i valori malformati fanno rifiutare la richiesta.
@@ -337,6 +381,19 @@ public final class GuestUploadServer: @unchecked Sendable {
         handledUploads[id] = response
         handledOrder.append(id)
         if handledOrder.count > 200 { handledUploads[handledOrder.removeFirst()] = nil }
+    }
+
+    /// Al massimo `limit` richieste al minuto dallo stesso indirizzo.
+    private func allow(_ recent: inout [String: [Date]], client: String, limit: Int) -> Bool {
+        let now = Date()
+        var times = (recent[client] ?? []).filter { now.timeIntervalSince($0) <= 60 }
+        guard times.count < limit else {
+            recent[client] = times
+            return false
+        }
+        times.append(now)
+        recent[client] = times
+        return true
     }
 
     /// Al massimo `maxUploadsPerMinute` invii al minuto dallo stesso telefono.

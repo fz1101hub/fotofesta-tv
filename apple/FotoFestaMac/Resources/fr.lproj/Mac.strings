@@ -29,3 +29,4 @@
 "library.denied" = "FotoFesta TV ne peut pas voir les photos de ce Mac. Autorisez l’accès dans Réglages Système › Confidentialité et sécurité › Photos, puis revenez ici.";
 "library.none" = "Aucune photo trouvée. Ouvrez l’app Photos du Mac et, si vous utilisez Photos iCloud, activez-le dans Photos › Réglages › iCloud.";
 "network.unreachable" = "Serveur injoignable : vérifiez qu’il est allumé et sur le même réseau que le Mac.";
+"games.poll_body" = "Posez une question à la salle : les invités votent depuis leur téléphone et l’écran affiche les résultats.";

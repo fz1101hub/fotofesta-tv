@@ -77,6 +77,23 @@ final class PhoneGameTests: XCTestCase {
         XCTAssertEqual(game.leaderboard(), [])
     }
 
+    func testPollsShowTheVotesAtTheEndAndGiveNoPoints() {
+        let game = PhoneGame()
+        game.askPoll(question: "Chi piangerà per primo?", choices: ["Giulia", "Marco", "Sara"])
+        let round = game.current()!.round
+        XCTAssertEqual(game.current()?.poll, true)
+        _ = game.answer(round: round, choice: 1, player: giulia, name: "Giulia")
+        _ = game.answer(round: round, choice: 1, player: marco, name: "Marco")
+        _ = game.answer(round: round, choice: 2, player: sara, name: "Sara")
+        XCTAssertEqual(game.tally(), [0, 2, 1])
+        XCTAssertNil(game.current()?.tally)
+        game.reveal()
+        XCTAssertEqual(game.current()?.tally, [0, 2, 1])
+        XCTAssertNil(game.current()?.answer)
+        XCTAssertEqual(game.points(of: marco), 0)
+        XCTAssertEqual(game.names(), ["Giulia", "Marco", "Sara"])
+    }
+
     func testServerServesTheQuestionAndTakesAnswers() async throws {
         let game = PhoneGame()
         let server = GuestUploadServer(key: "test-key", page: { "<html></html>" }, onPhoto: { _, _ in .shown }, game: game)

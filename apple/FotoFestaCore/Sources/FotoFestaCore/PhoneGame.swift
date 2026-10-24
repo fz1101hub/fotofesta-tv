@@ -2,17 +2,31 @@ import Foundation
 
 /// Gioco con i telefoni: la TV pubblica una domanda con le risposte possibili, gli invitati rispondono
 /// dalla pagina della festa e la TV, quando vuole, mostra la risposta giusta e assegna un punto a chi
-/// ha indovinato. Vale una risposta per telefono e per domanda: la prima.
+/// ha indovinato. Vale una risposta per telefono e per domanda: la prima. Un sondaggio (`askPoll`)
+/// funziona allo stesso modo ma non ha una risposta giusta: alla fine i telefoni vedono i voti.
 ///
 /// Thread-safe: il server lo usa dalla sua coda, l'interfaccia dal thread principale.
 public final class PhoneGame: @unchecked Sendable {
-    /// Domanda come la vedono i telefoni; `answer` è noto solo dopo `reveal()`.
+    /// Domanda come la vedono i telefoni; `answer` è noto solo dopo `reveal()`. Per un sondaggio
+    /// `answer` resta nil e dopo `reveal()` `tally` ha i voti di ogni risposta.
     public struct Snapshot: Equatable, Sendable {
         public let round: String
         public let question: String
         public let choices: [String]
         public let open: Bool
         public let answer: Int?
+        public let poll: Bool
+        public let tally: [Int]?
+
+        init(round: String, question: String, choices: [String], open: Bool, answer: Int?, poll: Bool = false, tally: [Int]? = nil) {
+            self.round = round
+            self.question = question
+            self.choices = choices
+            self.open = open
+            self.answer = answer
+            self.poll = poll
+            self.tally = tally
+        }
     }
 
     public struct Score: Equatable, Sendable {
@@ -57,14 +71,49 @@ public final class PhoneGame: @unchecked Sendable {
         }
     }
 
-    /// Chiude le risposte, mostra quella giusta ai telefoni e dà un punto a chi l'ha scelta.
+    /// Sondaggio: nessuna risposta giusta e nessun punto; `reveal()` mostra quanti voti ha ogni risposta.
+    public func askPoll(question: String, choices: [String]) {
+        precondition(choices.count >= 2)
+        let round = String(UUID().uuidString.prefix(12))
+        lock.withLock {
+            snapshot = Snapshot(round: round, question: question, choices: choices, open: true, answer: nil, poll: true)
+            correct = -1
+            answers = [:]
+        }
+    }
+
+    /// Chiude le risposte. In un gioco mostra quella giusta ai telefoni e dà un punto a chi l'ha
+    /// scelta; in un sondaggio mostra i voti.
     public func reveal() {
         lock.withLock {
             guard let current = snapshot, current.open else { return }
+            if current.poll {
+                snapshot = Snapshot(round: current.round, question: current.question, choices: current.choices, open: false,
+                                    answer: nil, poll: true, tally: votes(current.choices.count))
+                return
+            }
             snapshot = Snapshot(round: current.round, question: current.question, choices: current.choices, open: false, answer: correct)
             for (player, choice) in answers where choice == correct {
                 players[player]?.points += 1
             }
+        }
+    }
+
+    /// Voti di ogni risposta alla domanda in corso, anche mentre è aperta (per la TV).
+    public func tally() -> [Int] {
+        lock.withLock { votes(snapshot?.choices.count ?? 0) }
+    }
+
+    private func votes(_ count: Int) -> [Int] {
+        var result = Array(repeating: 0, count: count)
+        for choice in answers.values where result.indices.contains(choice) { result[choice] += 1 }
+        return result
+    }
+
+    /// Nomi scritti da chi ha giocato, nell'ordine in cui ha cominciato (per l'estrazione a premi).
+    public func names() -> [String] {
+        lock.withLock {
+            players.values.sorted { $0.order < $1.order }.map(\.name).filter { $0 != Self.defaultName }
         }
     }
 

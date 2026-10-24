@@ -108,6 +108,15 @@ struct GuestsView: View {
                             Label(L("guests.awards"), systemImage: "trophy.fill")
                         }
                     }
+                    if !model.guests.messages.isEmpty || !model.guests.pendingMessages.isEmpty {
+                        NavigationLink(value: Route.guestbook) {
+                            if model.guests.pendingMessages.isEmpty {
+                                Label(L("guestbook.title"), systemImage: "book.fill")
+                            } else {
+                                Label(LP("guestbook.approve", model.guests.pendingMessages.count), systemImage: "book.fill")
+                            }
+                        }
+                    }
                     // Senza ruolo "distruttivo": su tvOS 26 il pulsante rosso senza fuoco nasconde il
                     // testo. La conferma, nel dialogo di sistema, resta rossa.
                     Button {

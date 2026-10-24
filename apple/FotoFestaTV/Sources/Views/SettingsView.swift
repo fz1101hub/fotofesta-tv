@@ -118,6 +118,18 @@ struct SettingsView: View {
             Section {
                 Toggle(L("guests.qr_in_slideshow"), isOn: Binding(get: { guests.qrInSlideshow }, set: { guests.setQRInSlideshow($0) }))
                 Toggle(L("guests.approval"), isOn: Binding(get: { guests.approval }, set: { guests.setApproval($0) }))
+                Toggle(isOn: Binding(get: { guests.reactionsEnabled }, set: { guests.setReactionsEnabled($0) })) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L("settings.phone_reactions"))
+                        Text(L("settings.phone_reactions_body")).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                Toggle(isOn: Binding(get: { guests.messagesEnabled }, set: { guests.setMessagesEnabled($0) })) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L("settings.phone_messages"))
+                        Text(L("settings.phone_messages_body")).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
                 NavigationLink(value: Route.guestWifi) {
                     LabeledContent(L("guests.wifi"), value: guests.wifi?.ssid ?? L("settings.wifi_none"))
                 }

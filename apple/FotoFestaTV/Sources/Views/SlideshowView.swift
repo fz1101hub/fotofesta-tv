@@ -79,10 +79,22 @@ struct SlideshowView: View {
                     .padding(.top, 60)
             }
         }
+        // Reazioni e dediche dei telefoni durante la festa.
+        .overlay {
+            if model.guests.active {
+                if model.guests.messagesEnabled { MessageBanner(messages: model.guests.messages) }
+                if model.guests.reactionsEnabled { ReactionsOverlay(hub: model.guests.partyHub) }
+            }
+        }
         .onChange(of: model.currentPhoto?.id) { previous, _ in
             guard let previous else { return }
             recentIDs = Array(([previous] + recentIDs.filter { $0 != previous }).prefix(6))
         }
+        // Le reazioni dei telefoni contano per la foto sullo schermo.
+        .onChange(of: model.currentPhoto?.id, initial: true) { _, id in
+            model.guests.partyHub.showing(id)
+        }
+        .onDisappear { model.guests.partyHub.showing(nil) }
         .onMoveCommand { direction in
             switch direction {
             case .left: model.previous()

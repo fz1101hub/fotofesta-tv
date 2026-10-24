@@ -29,7 +29,8 @@
     "library.none": "No photos found. Open the Photos app on the Mac and, if you use iCloud Photos, turn it on in Photos › Settings › iCloud.",
     "network.unreachable": "Server not reachable: check that it’s on and on the same network as the Mac.",
     "slideshow.hint_playing": "← → change photo  ·  Space or click to pause  ·  Esc to exit",
-    "slideshow.hint_paused": "Paused  ·  Space or click to resume"
+    "slideshow.hint_paused": "Paused  ·  Space or click to resume",
+    "games.poll_body": "Ask the room a question: guests vote from their phones and the screen shows the results."
   },
   "it": {
     "message.google_removed": "Google Foto scollegato: accesso ed elenco delle foto rimossi da questo Mac.",
@@ -60,7 +61,8 @@
     "library.none": "Nessuna foto trovata. Apri l’app Foto del Mac e, se usi Foto di iCloud, attivalo in Foto › Impostazioni › iCloud.",
     "network.unreachable": "Server non raggiungibile: controlla che sia acceso e nella stessa rete del Mac.",
     "slideshow.hint_playing": "← → cambia foto  ·  Spazio o clic per la pausa  ·  Esc per uscire",
-    "slideshow.hint_paused": "In pausa  ·  Spazio o clic per riprendere"
+    "slideshow.hint_paused": "In pausa  ·  Spazio o clic per riprendere",
+    "games.poll_body": "Fai una domanda alla sala: gli invitati votano dal telefono e lo schermo mostra i risultati."
   },
   "fr": {
     "message.google_removed": "Google Photos déconnecté : l’accès et la liste des photos ont été supprimés de ce Mac.",
@@ -91,7 +93,8 @@
     "library.none": "Aucune photo trouvée. Ouvrez l’app Photos du Mac et, si vous utilisez Photos iCloud, activez-le dans Photos › Réglages › iCloud.",
     "network.unreachable": "Serveur injoignable : vérifiez qu’il est allumé et sur le même réseau que le Mac.",
     "slideshow.hint_playing": "← → changer de photo  ·  Espace ou clic pour mettre en pause  ·  Échap pour quitter",
-    "slideshow.hint_paused": "En pause  ·  Espace ou clic pour reprendre"
+    "slideshow.hint_paused": "En pause  ·  Espace ou clic pour reprendre",
+    "games.poll_body": "Posez une question à la salle : les invités votent depuis leur téléphone et l’écran affiche les résultats."
   },
   "es": {
     "message.google_removed": "Google Fotos desconectado: el acceso y la lista de fotos se han eliminado de este Mac.",
@@ -122,7 +125,8 @@
     "library.none": "No se han encontrado fotos. Abre la app Fotos del Mac y, si usas Fotos de iCloud, actívalo en Fotos › Ajustes › iCloud.",
     "network.unreachable": "Servidor no disponible: comprueba que esté encendido y en la misma red que el Mac.",
     "slideshow.hint_playing": "← → cambiar de foto  ·  Espacio o clic para pausar  ·  Esc para salir",
-    "slideshow.hint_paused": "En pausa  ·  Espacio o clic para reanudar"
+    "slideshow.hint_paused": "En pausa  ·  Espacio o clic para reanudar",
+    "games.poll_body": "Haz una pregunta a la sala: los invitados votan desde el móvil y la pantalla muestra los resultados."
   },
   "de": {
     "message.google_removed": "Google Fotos getrennt: Zugriff und Fotoliste wurden von diesem Mac entfernt.",
@@ -153,6 +157,7 @@
     "library.none": "Keine Fotos gefunden. Öffne die App Fotos auf dem Mac und aktiviere, falls du iCloud-Fotos nutzt, die Funktion unter Fotos › Einstellungen › iCloud.",
     "network.unreachable": "Server nicht erreichbar: Prüfe, ob er eingeschaltet und im selben Netzwerk wie der Mac ist.",
     "slideshow.hint_playing": "← → Foto wechseln  ·  Leertaste oder Klick zum Pausieren  ·  Esc zum Beenden",
-    "slideshow.hint_paused": "Pausiert  ·  Leertaste oder Klick zum Fortsetzen"
+    "slideshow.hint_paused": "Pausiert  ·  Leertaste oder Klick zum Fortsetzen",
+    "games.poll_body": "Stell der Runde eine Frage: Die Gäste stimmen am Handy ab, der Bildschirm zeigt das Ergebnis."
   }
 }

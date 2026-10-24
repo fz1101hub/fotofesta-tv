@@ -1,28 +1,36 @@
 import FotoFestaCore
 import SwiftUI
 
-/// Premi di fine festa: "Obiettivo d'oro", prima foto e gran finale, con il riepilogo della festa.
+/// Premi di fine festa: "Foto della serata" (più reazioni dai telefoni), "Obiettivo d'oro", prima
+/// foto e gran finale, con il riepilogo della festa.
 struct AwardsView: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        let awards = PartyAwards(model.photos)
+        let awards = PartyAwards(model.photos, reactions: model.guests.partyHub.allReactionCounts())
+        // Con quattro premi le schede si stringono per restare tutte sullo schermo.
+        let width: CGFloat = awards.favorite != nil ? 400 : 520
         ZStack {
             Theme.background.ignoresSafeArea()
             VStack(alignment: .leading, spacing: 56) {
                 ScreenTitle(title: L("awards.title"), subtitle: summary(awards))
                 HStack(alignment: .top, spacing: 44) {
+                    if let favorite = awards.favorite {
+                        AwardCard(systemImage: "heart.fill", award: L("awards.favorite"),
+                                  name: favorite.photo.sender.flatMap { $0.isEmpty ? nil : $0 } ?? favorite.photo.title,
+                                  detail: LP("awards.reaction_count", favorite.reactions), photo: favorite.photo, width: width)
+                    }
                     if let top = awards.topPhotographer {
                         AwardCard(systemImage: "trophy.fill", award: L("awards.golden_lens"), name: top.name,
-                                  detail: LP("awards.photo_count", top.count), photo: top.photo)
+                                  detail: LP("awards.photo_count", top.count), photo: top.photo, width: width)
                     }
                     if let first = awards.firstPhoto {
                         AwardCard(systemImage: "flag.fill", award: L("awards.first"), name: senderName(first),
-                                  detail: arrival(first), photo: first)
+                                  detail: arrival(first), photo: first, width: width)
                     }
                     if let last = awards.lastPhoto {
                         AwardCard(systemImage: "party.popper.fill", award: L("awards.last"), name: senderName(last),
-                                  detail: arrival(last), photo: last)
+                                  detail: arrival(last), photo: last, width: width)
                     }
                 }
                 Spacer(minLength: 0)
@@ -55,11 +63,12 @@ private struct AwardCard: View {
     let name: String
     let detail: String
     let photo: Photo
+    var width: CGFloat = 520
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             PhotoImage(photo: photo, fitMode: .crop, maxPixelSize: 1000, placeholder: false)
-                .frame(width: 520, height: 292)
+                .frame(width: width, height: width * 9 / 16)
                 .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                 .accessibilityHidden(true)
             Label(award, systemImage: systemImage)
@@ -70,7 +79,7 @@ private struct AwardCard: View {
                 Text(detail).font(.callout).foregroundStyle(Theme.secondaryText)
             }
         }
-        .frame(width: 520, alignment: .leading)
+        .frame(width: width, alignment: .leading)
         .accessibilityElement(children: .combine)
     }
 }

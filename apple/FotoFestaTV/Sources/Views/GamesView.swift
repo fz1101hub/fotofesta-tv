@@ -11,6 +11,8 @@ struct GamesView: View {
         // I giochi usano solo le foto: i video si guardano nello slideshow.
         let playable = model.stillPhotos.count >= minimumGamePhotos
         let whoTookItPlayable = WhoTookIt.canPlay(model.photos)
+        // I sondaggi si votano dai telefoni: servono la festa e la pagina raggiungibile.
+        let partyOn = model.guests.active && model.guests.url != nil
         ZStack {
             Theme.background.ignoresSafeArea()
             VStack(alignment: .leading, spacing: 48) {
@@ -29,6 +31,14 @@ struct GamesView: View {
                             .whoTookIt,
                             enabled: whoTookItPlayable
                         )
+                        gameCard(
+                            L("games.poll_title"),
+                            partyOn ? L("games.poll_body") : L("games.poll_unavailable"),
+                            "chart.bar.fill",
+                            .poll,
+                            enabled: partyOn
+                        )
+                        gameCard(L("games.lottery_title"), L("games.lottery_body"), "dice.fill", .lottery, enabled: true)
                     }
                     // Spazio per il sollevamento delle schede con il fuoco.
                     .padding(.vertical, 40)
@@ -54,6 +64,8 @@ struct GamesView: View {
         case .memory: return "demo_coast.jpg"
         case .puzzle: return "demo_picnic.jpg"
         case .whoTookIt: return "demo_birthday.jpg"
+        case .poll: return "demo_picnic.jpg"
+        case .lottery: return "demo_coast.jpg"
         default: return "demo_mountains.jpg"
         }
     }

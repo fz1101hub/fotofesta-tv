@@ -44,4 +44,13 @@ final class PartyAwardsTests: XCTestCase {
         XCTAssertNil(awards.lastPhoto)
         XCTAssertEqual(awards.topPhotographer?.count, 1)
     }
+
+    func testPhotoOfTheNightHasTheMostReactions() {
+        let photos = [guest("a", "Giulia", 1), guest("b", "Marco", 2), guest("c", nil, 3)]
+        XCTAssertNil(PartyAwards(photos).favorite)
+        let awards = PartyAwards(photos, reactions: ["guest:b": 4, "guest:c": 4, "guest:a": 1, "altra": 9])
+        // A parità vince quella che compare prima; le foto non più in mostra non contano.
+        XCTAssertEqual(awards.favorite?.photo.id, "guest:b")
+        XCTAssertEqual(awards.favorite?.reactions, 4)
+    }
 }

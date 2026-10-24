@@ -43,6 +43,13 @@ final class GuestParty {
     private(set) var photos: [GuestPhoto] = []
     /// Vero quando le foto di una festa interrotta sono state riprese (o cancellate) all'avvio.
     private(set) var ready = false
+    /// I telefoni mandano reazioni alla foto sullo schermo.
+    private(set) var reactionsEnabled: Bool
+    /// I telefoni mandano dediche, mostrate nello slideshow e nel libro degli ospiti.
+    private(set) var messagesEnabled: Bool
+    /// Dediche in mostra (dalla più vecchia) e da approvare.
+    private(set) var messages: [PartyHub.Message] = []
+    private(set) var pendingMessages: [PartyHub.Message] = []
 
     /// Chiamato dopo ogni cambio di foto o dello stato della festa.
     @ObservationIgnored var onChange: (() -> Void)?
@@ -72,16 +79,24 @@ final class GuestParty {
         static let qrInSlideshow = "guests.qrInSlideshow"
         static let wifiSSID = "guests.wifiSSID"
         static let wifiHasPassword = "guests.wifiHasPassword"
+        static let reactions = "guests.reactions"
+        static let messages = "guests.messages"
     }
 
     /// Gioco con i telefoni, servito dalla stessa pagina della festa.
     let phoneGame = PhoneGame()
+    /// Reazioni e dediche dei telefoni: si cancellano con le foto a fine festa.
+    let partyHub = PartyHub()
+    @ObservationIgnored private var messageRevision = -1
+    @ObservationIgnored private var messagePolling: Task<Void, Never>?
 
     init() {
         let defaults = UserDefaults.standard
         active = defaults.bool(forKey: Keys.active)
         approval = defaults.bool(forKey: Keys.approval)
         qrInSlideshow = defaults.object(forKey: Keys.qrInSlideshow) as? Bool ?? true
+        reactionsEnabled = defaults.object(forKey: Keys.reactions) as? Bool ?? true
+        messagesEnabled = defaults.object(forKey: Keys.messages) as? Bool ?? true
         template = Bundle.main.url(forResource: "index", withExtension: "html")
             .flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? ""
         approvalFlag.value = defaults.bool(forKey: Keys.approval)
@@ -96,6 +111,14 @@ final class GuestParty {
         } else {
             // Password rimasta da un'installazione precedente: senza nome della rete non serve.
             _ = WifiPasswordKeychain.write(nil)
+        }
+        syncPartyFeatures()
+        // Le dediche arrivano dalla coda del server: si controlla una volta al secondo se sono cambiate.
+        messagePolling = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                self?.refreshMessages()
+                try? await Task.sleep(for: .seconds(1))
+            }
         }
         let store = self.store
         store.setOnChange { [weak self] _ in
@@ -144,6 +167,8 @@ final class GuestParty {
         problem = nil
         // Subito, senza aspettare la notifica dell'archivio: la raccolta non deve usare foto cancellate.
         photos = []
+        partyHub.clear()
+        refreshMessages()
         onChange?()
     }
 
@@ -153,6 +178,48 @@ final class GuestParty {
         approvalFlag.value = enabled
         // Senza approvazione le foto in attesa non avrebbero più modo di comparire.
         if !enabled { approveAll() }
+        syncPartyFeatures()
+        refreshMessages()
+    }
+
+    func setReactionsEnabled(_ enabled: Bool) {
+        defaults.set(enabled, forKey: Keys.reactions)
+        reactionsEnabled = enabled
+        syncPartyFeatures()
+    }
+
+    func setMessagesEnabled(_ enabled: Bool) {
+        defaults.set(enabled, forKey: Keys.messages)
+        messagesEnabled = enabled
+        syncPartyFeatures()
+    }
+
+    func approveMessage(_ message: PartyHub.Message) {
+        partyHub.approveMessage(message.id)
+        refreshMessages()
+    }
+
+    func discardMessage(_ message: PartyHub.Message) {
+        partyHub.removeMessage(message.id)
+        refreshMessages()
+    }
+
+    func approveAllMessages() {
+        partyHub.approveAllMessages()
+        refreshMessages()
+    }
+
+    /// Con l'approvazione delle foto anche le dediche aspettano il via libera.
+    private func syncPartyFeatures() {
+        partyHub.setFeatures(PartyHub.Features(reactions: reactionsEnabled, messages: messagesEnabled, moderateMessages: approval))
+    }
+
+    private func refreshMessages() {
+        let revision = partyHub.currentRevision()
+        guard revision != messageRevision else { return }
+        messageRevision = revision
+        messages = partyHub.approvedMessages()
+        pendingMessages = partyHub.pendingMessages()
     }
 
     func setQRInSlideshow(_ enabled: Bool) {
@@ -274,7 +341,8 @@ final class GuestParty {
                     if let server = failure.server { self?.serverFailed(server) }
                 }
             },
-            game: phoneGame
+            game: phoneGame,
+            hub: partyHub
         )
         failure.server = candidate
         do {

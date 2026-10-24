@@ -7,7 +7,7 @@ import Observation
 private let slideshowSettingsKey = "slideshowSettings"
 
 enum Route: Hashable {
-    case slideshow, settings, games, memory, mystery, puzzle, whoTookIt, googleConnect, guests, guestReview, guestWifi, awards, library, network
+    case slideshow, settings, games, memory, mystery, puzzle, whoTookIt, poll, lottery, googleConnect, guests, guestReview, guestWifi, awards, guestbook, library, network
 }
 
 /// Da dove vengono le foto della raccolta mostrata nella home.
@@ -748,6 +748,15 @@ final class AppModel {
         guests.start()
         if !guests.qrInSlideshow { guests.setQRInSlideshow(true) }
         play()
+    }
+
+    /// Chi può vincere all'estrazione: nomi scritti con foto, giochi, reazioni e dediche.
+    func lotteryCandidates() -> [String] {
+        PrizeDraw.candidates(
+            guests.partyHub.participants().map(\.name),
+            guests.phoneGame.names(),
+            guests.photos.filter(\.approved).sorted { $0.receivedAt < $1.receivedAt }.map(\.sender)
+        )
     }
 
     func endGuestParty() {
