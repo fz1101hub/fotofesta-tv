@@ -22,6 +22,8 @@ import it.fotofesta.tv.network.LanHttp
 import it.fotofesta.tv.network.NetworkMedia
 import it.fotofesta.tv.network.ScreenSize
 import it.fotofesta.tv.smb.SmbShares
+import it.fotofesta.tv.tv.DlnaRenderer
+import it.fotofesta.tv.tv.IpCamera
 import okhttp3.OkHttpClient
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -92,7 +94,19 @@ class AppServices(context: Context) {
     val partyPlay = PartyPlay(partyHub)
 
     /** Foto degli invitati: in RAM finché c'è posto, poi in una cartella temporanea con un limite. */
-    val guests = GuestParty(context, guestStore(context), phoneGame, partyHub, hostRemote, partyPlay)
+    val guests = GuestParty(context, guestStore(context), phoneGame, partyHub, hostRemote, partyPlay).apply {
+        // Schermo DLNA: le foto mandate dai telefoni con "Riproduci su" entrano nella festa.
+        val appContext = context.applicationContext
+        dlnaFactory = {
+            // Il titolo DLNA è di solito il nome del file: come autore si scrive "Telefono (DLNA)".
+            DlnaRenderer(appContext, appContext.getString(R.string.dlna_name), lanHttp) { bytes, _ ->
+                addPhoto(bytes, appContext.getString(R.string.dlna_sender))
+            }
+        }
+    }
+
+    /** Vecchio telefono come telecamera e microfono (app "IP Webcam"), nella rete di casa. */
+    val ipCamera = IpCamera(lanHttp)
 
     private companion object {
         const val MB = 1024L * 1024

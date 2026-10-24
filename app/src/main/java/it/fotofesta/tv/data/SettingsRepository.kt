@@ -14,6 +14,8 @@ import it.fotofesta.tv.model.TransitionType
 import it.fotofesta.tv.network.NetworkFolder
 import it.fotofesta.tv.smb.SmbFolder
 import it.fotofesta.tv.smb.SmbLocation
+import it.fotofesta.tv.tv.BootReceiver
+import it.fotofesta.tv.tv.TvFeatures
 
 /**
  * Preferenze dell'app, divise in due file:
@@ -24,6 +26,7 @@ import it.fotofesta.tv.smb.SmbLocation
 class SettingsRepository(context: Context) {
     private val prefs = context.getSharedPreferences("slideshow_settings", Context.MODE_PRIVATE)
     private val sources = context.getSharedPreferences("device_sources", Context.MODE_PRIVATE)
+    private val lowRam by lazy { TvFeatures.isLowRam(context) }
 
     /** Brano o cartella di brani ([folder]) scelti per la musica di sottofondo. */
     data class SavedMusic(val uri: String, val name: String, val folder: Boolean = false)
@@ -65,6 +68,12 @@ class SettingsRepository(context: Context) {
         openingTitles = prefs.getBoolean("opening_titles", false),
         portrait = prefs.getBoolean("portrait", false),
         template = enumValueOrDefault(prefs.getString("template", null), PartyTemplate.NONE),
+        // Sulle TV con poca memoria la modalità leggera parte già accesa.
+        lightMode = prefs.getBoolean("light_mode", lowRam),
+        projectorMode = prefs.getBoolean("projector_mode", false),
+        autoStart = prefs.getBoolean(BootReceiver.KEY_AUTO_START, false),
+        dlnaReceiver = prefs.getBoolean("dlna_receiver", false),
+        homeChannel = prefs.getBoolean("home_channel", true),
     )
 
     fun save(value: SlideshowSettings) {
@@ -98,8 +107,30 @@ class SettingsRepository(context: Context) {
             .putBoolean("opening_titles", value.openingTitles)
             .putBoolean("portrait", value.portrait)
             .putString("template", value.template.name)
+            .putBoolean("light_mode", value.lightMode)
+            .putBoolean("projector_mode", value.projectorMode)
+            .putBoolean(BootReceiver.KEY_AUTO_START, value.autoStart)
+            .putBoolean("dlna_receiver", value.dlnaReceiver)
+            .putBoolean("home_channel", value.homeChannel)
             .apply()
     }
+
+    /** Cartella della chiavetta per la copia delle foto della festa (solo questa TV, fuori dal backup). */
+    fun saveUsbBackup(uri: String?, name: String?) {
+        sources.edit().putString("usb_backup_uri", uri).putString("usb_backup_name", name).apply()
+    }
+
+    fun loadUsbBackup(): Pair<String, String>? {
+        val uri = sources.getString("usb_backup_uri", null) ?: return null
+        return uri to sources.getString("usb_backup_name", null).orEmpty()
+    }
+
+    /** Indirizzo del vecchio telefono usato come telecamera. */
+    fun saveCameraAddress(address: String) {
+        sources.edit().putString("camera_address", address).apply()
+    }
+
+    fun loadCameraAddress(): String = sources.getString("camera_address", null).orEmpty()
 
     fun loadMusic(): SavedMusic? {
         val uri = sources.getString("music_uri", null) ?: return null

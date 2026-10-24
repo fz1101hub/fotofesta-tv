@@ -38,6 +38,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.res.stringResource
@@ -59,6 +60,28 @@ import kotlin.random.Random
 // ---------------------------------------------------------------------------------------------
 // Effetti dello slideshow: filtri, zapping, coriandoli, TG, sigla, pila di polaroid, totem
 // ---------------------------------------------------------------------------------------------
+
+/**
+ * Proiettore: sul muro i neri diventano grigi e i colori si sbiadiscono, quindi contrasto e
+ * saturazione salgono un po'. Serve Android 12 (effetti di disegno); prima lo schermo resta com'è.
+ */
+fun Modifier.projectorBoost(enabled: Boolean): Modifier {
+    if (!enabled || android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.S) return this
+    val effect = projectorEffect()
+    return graphicsLayer { renderEffect = effect }
+}
+
+@androidx.annotation.RequiresApi(android.os.Build.VERSION_CODES.S)
+private fun projectorEffect(): androidx.compose.ui.graphics.RenderEffect {
+    val matrix = android.graphics.ColorMatrix().apply { setSaturation(PROJECTOR_SATURATION) }
+    val c = PROJECTOR_CONTRAST
+    val t = (1 - c) * 127.5f
+    matrix.postConcat(android.graphics.ColorMatrix(floatArrayOf(c, 0f, 0f, 0f, t, 0f, c, 0f, 0f, t, 0f, 0f, c, 0f, t, 0f, 0f, 0f, 1f, 0f)))
+    return android.graphics.RenderEffect.createColorFilterEffect(android.graphics.ColorMatrixColorFilter(matrix)).asComposeRenderEffect()
+}
+
+private const val PROJECTOR_CONTRAST = 1.18f
+private const val PROJECTOR_SATURATION = 1.2f
 
 /** Filtro sulla foto: bianco e nero, seppia, caldo, freddo o anni '70. */
 fun Modifier.photoFilter(filter: PhotoFilter): Modifier {
@@ -107,7 +130,7 @@ fun BoxScope.ZappingOverlay(key: Any?, channel: Int) {
     val frame by produceState(0, key) {
         while (true) {
             delay(60)
-            value++
+            value = value + 1
         }
     }
     Canvas(Modifier.fillMaxSize()) {

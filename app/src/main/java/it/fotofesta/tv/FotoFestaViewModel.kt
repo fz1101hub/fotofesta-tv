@@ -72,6 +72,8 @@ import it.fotofesta.tv.smb.SmbException
 import it.fotofesta.tv.smb.SmbFolder
 import it.fotofesta.tv.smb.SmbLocation
 import it.fotofesta.tv.smb.SmbLogin
+import it.fotofesta.tv.tv.HomeChannel
+import it.fotofesta.tv.tv.TvHotspot
 import kotlin.coroutines.resume
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -143,6 +145,12 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     /** Reazioni appena arrivate dai telefoni, da animare sopra lo slideshow. */
     val reactions = _reactions.asSharedFlow()
     private val playbackOrder = PlaybackOrder()
+    /** Rete Wi‑Fi creata dalla TV per la festa, dove non c'è una rete di casa. */
+    private val hotspot = TvHotspot(context)
+    /** Vecchio telefono come telecamera e microfono. */
+    val ipCamera = services.ipCamera
+    /** Una copia sulla chiavetta non riuscita si segnala una volta sola per festa. */
+    @Volatile private var usbBackupWarned = false
     private val freshPhotos = FreshPhotos()
     private var googleJob: Job? = null
     private var usbJob: Job? = null
@@ -182,6 +190,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             settings = settingsRepository.load(),
             musicUri = savedMusic?.uri,
             musicName = savedMusic?.let { saved -> saved.name.ifBlank { context.getString(R.string.music_default_name) } },
+            usbBackupName = settingsRepository.loadUsbBackup()?.second,
+            cameraAddress = settingsRepository.loadCameraAddress(),
         )
     )
     val state = _state.asStateFlow()
@@ -251,6 +261,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         hostRemote.setEnabled(_state.value.settings.phoneHost)
         syncPartyRules()
         syncPartyFeatures()
+        syncTvServices()
         refreshParty()
         // La pagina di regia mostra cosa c'è sullo schermo e cosa aspetta l'approvazione.
         viewModelScope.launch {
@@ -310,10 +321,132 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         val settings = _state.value.settings
         partyHub.setPhotoRules(PartyHub.PhotoRules(settings.photoLimit.perGuest, settings.photoLimit == PhotoLimit.DISPOSABLE))
         guests.store.durable = settings.resumeParty && !settings.noTraces
-        guests.onPhotoSaved = if (settings.backupCopy && !settings.noTraces && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            { bytes, sender -> viewModelScope.launch(Dispatchers.IO) { backupPhoto(bytes, sender) } }
+        val gallery = settings.backupCopy && !settings.noTraces && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+        // "Festa senza tracce" vale anche per la chiavetta.
+        val usb = settingsRepository.loadUsbBackup()?.first?.takeIf { !settings.noTraces }?.let(Uri::parse)
+        guests.onPhotoSaved = if (gallery || usb != null) {
+            { bytes, sender ->
+                viewModelScope.launch(Dispatchers.IO) {
+                    if (gallery && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) backupPhoto(bytes, sender)
+                    if (usb != null) usbBackupPhoto(usb, bytes, sender)
+                }
+            }
         } else {
             null
+        }
+    }
+
+    /** Schermo DLNA e canale della schermata Home, come chiedono le impostazioni. */
+    private fun syncTvServices() {
+        val settings = _state.value.settings
+        guests.setDlna(settings.dlnaReceiver)
+        viewModelScope.launch(Dispatchers.IO) {
+            val channel = HomeChannel(context)
+            if (settings.homeChannel) channel.publish() else channel.remove()
+        }
+    }
+
+    /** Nome del file di una copia: data e ora, poi l'autore senza caratteri strani. */
+    private fun backupName(now: Long, sender: String?): String = buildString {
+        append("festa_").append(now)
+        sender?.let { append('_').append(it.filter { char -> char.isLetterOrDigit() }.take(20)) }
+        append(".jpg")
+    }
+
+    /** Copia sulla chiavetta USB, in FotoFesta/<data> dentro la cartella scelta. */
+    private fun usbBackupPhoto(tree: Uri, bytes: ByteArray, sender: String?) {
+        val now = System.currentTimeMillis()
+        val day = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ROOT).format(java.util.Date(now))
+        runCatching {
+            val root = DocumentFile.fromTreeUri(context, tree) ?: throw IOException("Chiavetta non trovata")
+            val app = root.findFile(USB_BACKUP_FOLDER)?.takeIf { it.isDirectory } ?: root.createDirectory(USB_BACKUP_FOLDER)
+            val folder = app?.findFile(day)?.takeIf { it.isDirectory } ?: app?.createDirectory(day)
+            val file = folder?.createFile("image/jpeg", backupName(now, sender)) ?: throw IOException("File non creato")
+            context.contentResolver.openOutputStream(file.uri)?.use { it.write(bytes) } ?: throw IOException("File non scritto")
+        }.onFailure {
+            Log.w(TAG, "Copia sulla chiavetta non riuscita", it)
+            if (!usbBackupWarned) {
+                usbBackupWarned = true
+                viewModelScope.launch { showMessage(context.getString(R.string.message_usb_backup_failed)) }
+            }
+        }
+    }
+
+    /** Cartella della chiavetta scelta per la copia delle foto della festa. */
+    fun setUsbBackup(tree: Uri) {
+        val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+        if (runCatching { context.contentResolver.takePersistableUriPermission(tree, flags) }.isFailure) {
+            showMessage(context.getString(R.string.message_usb_backup_failed))
+            return
+        }
+        val name = DocumentFile.fromTreeUri(context, tree)?.name ?: context.getString(R.string.settings_usb_backup_default)
+        settingsRepository.saveUsbBackup(tree.toString(), name)
+        usbBackupWarned = false
+        _state.update { it.copy(usbBackupName = name) }
+        syncPartyRules()
+        showMessage(context.getString(R.string.message_usb_backup_on, name))
+    }
+
+    fun removeUsbBackup() {
+        settingsRepository.loadUsbBackup()?.first?.let { uri ->
+            runCatching {
+                context.contentResolver.releasePersistableUriPermission(
+                    Uri.parse(uri),
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                )
+            }
+        }
+        settingsRepository.saveUsbBackup(null, null)
+        _state.update { it.copy(usbBackupName = null) }
+        syncPartyRules()
+    }
+
+    /**
+     * Rete della TV: la TV crea una sua Wi‑Fi (senza internet) e il QR della Wi‑Fi la mostra.
+     * Chiamato dopo che l'attività ha ottenuto il permesso di Android per i dispositivi Wi‑Fi vicini.
+     */
+    fun toggleHotspot() {
+        if (hotspot.active || _state.value.guests.hotspot) {
+            stopHotspot()
+            return
+        }
+        hotspot.start(
+            started = { network ->
+                guests.useHotspot(WifiNetwork(network.ssid, network.password), network.address)
+                showMessage(context.getString(R.string.message_hotspot_on, network.ssid))
+            },
+            failed = { showMessage(context.getString(R.string.message_hotspot_failed)) },
+        )
+    }
+
+    private fun stopHotspot() {
+        hotspot.stop()
+        guests.useHotspot(null, null)
+    }
+
+    fun showHotspotPermissionDenied() = showMessage(context.getString(R.string.message_hotspot_permission))
+
+    fun saveCameraAddress(address: String) {
+        val value = address.trim()
+        settingsRepository.saveCameraAddress(value)
+        _state.update { it.copy(cameraAddress = value) }
+    }
+
+    /** Foto scattata dalla telecamera del vecchio telefono: entra nella festa come le altre. */
+    fun addCameraPhoto(bytes: ByteArray) {
+        if (!_state.value.guests.active) return
+        guests.addPhoto(bytes, context.getString(R.string.camera_sender))
+        showMessage(context.getString(R.string.message_camera_photo))
+    }
+
+    /** Scorciatoie del canale nella Home della TV e avvio automatico all'accensione. */
+    fun openLink(route: String) {
+        when (route) {
+            "slideshow" -> playCurrent()
+            "party" -> navigate(Destination.GUESTS)
+            "games" -> navigate(Destination.GAMES)
+            "shows" -> navigate(Destination.SHOWS)
+            else -> navigate(Destination.HOME)
         }
     }
 
@@ -322,11 +455,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private fun backupPhoto(bytes: ByteArray, sender: String?) {
         val now = System.currentTimeMillis()
         val day = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ROOT).format(java.util.Date(now))
-        val name = buildString {
-            append("festa_").append(now)
-            sender?.let { append('_').append(it.filter { char -> char.isLetterOrDigit() }.take(20)) }
-            append(".jpg")
-        }
+        val name = backupName(now, sender)
         val values = android.content.ContentValues().apply {
             put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, name)
             put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
@@ -640,7 +769,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                 navigate(Destination.PARTY_GAMES)
             }
             Destination.TOAST, Destination.COINS -> navigate(Destination.PARTY_GAMES)
-            Destination.SHOWS -> navigate(Destination.GAMES)
+            Destination.SHOWS, Destination.BUZZER, Destination.CAMERA -> navigate(Destination.GAMES)
             Destination.REWIND, Destination.BARCODE, Destination.PHOTO_MOSAIC, Destination.CREDITS,
             Destination.TELETEXT, Destination.SKY, Destination.STATS -> navigate(Destination.SHOWS)
             Destination.GOOGLE_CONNECT -> cancelGoogleConnect()
@@ -730,6 +859,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             hostRemote.setEnabled(value.phoneHost)
             refreshParty()
         }
+        if (previous.dlnaReceiver != value.dlnaReceiver || previous.homeChannel != value.homeChannel) syncTvServices()
     }
 
     fun loadUsb(treeUri: Uri) {
@@ -1683,6 +1813,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun endGuestParty() {
         quietJob?.cancel()
+        stopHotspot()
+        usbBackupWarned = false
         showCounts.clear()
         guests.end()
         freshPhotos.clear()
@@ -1773,9 +1905,10 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                     problem = party.problem,
                     approval = party.approval,
                     qrInSlideshow = party.qrInSlideshow,
-                    wifiName = party.wifi?.ssid,
-                    wifiPassword = party.wifi?.password,
-                    wifiQr = party.wifi?.qrPayload(),
+                    wifiName = (party.hotspot ?: party.wifi)?.ssid,
+                    wifiPassword = (party.hotspot ?: party.wifi)?.password,
+                    wifiQr = (party.hotspot ?: party.wifi)?.qrPayload(),
+                    hotspot = party.hotspot != null,
                     shown = items.size,
                     pending = photos.filterNot { photo -> photo.approved }.map { photo -> photo.toPhotoItem(context) },
                 ),
@@ -1953,6 +2086,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         usbJob?.cancel()
         sleepJob?.cancel()
         musicPlayer.release()
+        stopHotspot()
         partyHub.onChange = null
         partyPlay.onChange = null
         partyHub.onReaction = null
@@ -1963,6 +2097,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
 
     private companion object {
         const val TAG = "FotoFestaViewModel"
+        /** Cartella creata sulla chiavetta per le copie delle foto della festa. */
+        const val USB_BACKUP_FOLDER = "FotoFesta"
         const val INDEX_TIMEOUT_MS = 90_000L
         const val ICLOUD_REFRESH_MS = 5 * 60_000L
         /** Passaggi (meno due per ogni reazione) perché una foto sia del tutto ingiallita. */

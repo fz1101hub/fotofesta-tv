@@ -7,7 +7,8 @@ import it.fotofesta.tv.guests.PartyHub
 
 enum class Destination { HOME, SETTINGS, SLIDESHOW, GAMES, MEMORY, MYSTERY, PUZZLE, WHO_TOOK_IT, POLL, LOTTERY, GOOGLE_CONNECT, GUESTS, GUEST_REVIEW, AWARDS, GUESTBOOK, ANNOUNCE, GUEST_WIFI, FILE_BROWSER, ICLOUD_LINK, SMB_LOGIN,
     PARTY_GAMES, PLAY, TOURNAMENT, BETS, TOAST, COINS,
-    SHOWS, REWIND, BARCODE, PHOTO_MOSAIC, CREDITS, TELETEXT, SKY, STATS }
+    SHOWS, REWIND, BARCODE, PHOTO_MOSAIC, CREDITS, TELETEXT, SKY, STATS,
+    BUZZER, CAMERA }
 
 enum class TransitionType(@StringRes val labelRes: Int) {
     FADE(R.string.transition_fade),
@@ -43,7 +44,7 @@ enum class PhotoLimit(@StringRes val labelRes: Int, val perGuest: Int) {
 }
 
 /** Sezioni della schermata Impostazioni. */
-enum class SettingsCategory { SLIDESHOW, MUSIC, PARTY, SCREENSAVER, PRIVACY }
+enum class SettingsCategory { SLIDESHOW, MUSIC, PARTY, TV, SCREENSAVER, PRIVACY }
 
 /**
  * Raccolta scelta, come la mostra la home: sorgente, nome (cartella, Google Foto, foto demo) e numero
@@ -143,7 +144,36 @@ data class SlideshowSettings(
     val portrait: Boolean = false,
     /** Modello di festa scelto: dà il titolo a sigla, TG, titoli di coda e Televideo. */
     val template: PartyTemplate = PartyTemplate.NONE,
-)
+    /** Modalità leggera per le TV con poca memoria: niente sfocature, zoom lenti ed effetti pesanti. */
+    val lightMode: Boolean = false,
+    /** Proiettore: colori e contrasto più forti, bande nere al posto dello sfondo sfocato. */
+    val projectorMode: Boolean = false,
+    /** All'accensione della TV l'app si apre e riparte lo slideshow (locali, vetrine). */
+    val autoStart: Boolean = false,
+    /** Durante la festa la TV compare tra gli schermi DLNA dei telefoni e ne riceve le foto. */
+    val dlnaReceiver: Boolean = false,
+    /** Scorciatoie di FotoFesta nella schermata Home della TV. */
+    val homeChannel: Boolean = true,
+) {
+    /**
+     * Impostazioni come le usa lo schermo: la modalità leggera toglie ciò che pesa sulle TV più
+     * economiche, il proiettore toglie lo sfondo sfocato, che sul muro sembra luce sporca.
+     */
+    fun forScreen(): SlideshowSettings {
+        var result = this
+        if (lightMode) {
+            result = result.copy(
+                fitMode = if (fitMode == FitMode.BLUR) FitMode.CONTAIN else fitMode,
+                kenBurns = false,
+                layout = SlideshowLayout.SINGLE,
+                transition = if (transition == TransitionType.SLIDE) transition else TransitionType.FADE,
+                confetti = false,
+            )
+        }
+        if (projectorMode && result.fitMode == FitMode.BLUR) result = result.copy(fitMode = FitMode.CONTAIN)
+        return result
+    }
+}
 
 sealed interface GoogleConnectState {
     data object Idle : GoogleConnectState
@@ -177,6 +207,8 @@ data class GuestsUiState(
     val wifiName: String? = null,
     val wifiPassword: String? = null,
     val wifiQr: String? = null,
+    /** La Wi‑Fi del QR è la rete creata dalla TV (hotspot), senza internet. */
+    val hotspot: Boolean = false,
     /** Foto approvate in mostra. */
     val shown: Int = 0,
     /** Foto in attesa di approvazione, dalla più vecchia. */
@@ -321,4 +353,8 @@ data class AppState(
     val slideTick: Int = 0,
     /** Istante (epoch ms) in cui scatterà la pausa automatica, se attiva. */
     val sleepAtMillis: Long? = null,
+    /** Cartella della chiavetta USB dove si copiano le foto della festa, se scelta. */
+    val usbBackupName: String? = null,
+    /** Indirizzo del vecchio telefono usato come telecamera ("192.168.1.20:8080"). */
+    val cameraAddress: String = "",
 )

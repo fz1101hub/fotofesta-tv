@@ -12,6 +12,7 @@ import it.fotofesta.tv.data.KeystoreStrings
 import it.fotofesta.tv.data.SettingsRepository
 import it.fotofesta.tv.model.FitMode
 import it.fotofesta.tv.model.GuestProblem
+import it.fotofesta.tv.tv.DlnaRenderer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -54,6 +55,8 @@ class GuestParty(
         val approval: Boolean = false,
         val qrInSlideshow: Boolean = true,
         val wifi: WifiNetwork? = null,
+        /** Rete creata dalla TV (hotspot): se c'è, il QR della Wi‑Fi mostra questa. */
+        val hotspot: WifiNetwork? = null,
     )
 
     // Esclusi dal backup: valgono solo per questa TV e per la festa in corso.
@@ -87,6 +90,13 @@ class GuestParty(
     /** Cresce a ogni registrazione: le notifiche di una registrazione precedente vengono ignorate. */
     private var networkGeneration = 0
     private var retry: ScheduledFuture<*>? = null
+    /** Indirizzo della TV sulla rete che ha creato lei (hotspot): ha la precedenza sulla rete di casa. */
+    private var hotspotAddress: Inet4Address? = null
+    /** Schermo DLNA per i telefoni, acceso con il server se l'impostazione lo chiede. */
+    private var dlna: DlnaRenderer? = null
+    private var dlnaEnabled = false
+    private var dlnaAddress: InetAddress? = null
+    @Volatile var dlnaFactory: (() -> DlnaRenderer)? = null
     /** Ogni foto salvata, dai thread del server: serve alla copia di sicurezza nella galleria. */
     @Volatile var onPhotoSaved: ((bytes: ByteArray, sender: String?) -> Unit)? = null
     private var hubSave: ScheduledFuture<*>? = null
@@ -171,6 +181,30 @@ class GuestParty(
         if (_state.value.active) store.add(bytes, sender, approved = !_state.value.approval)
     }
 
+    /**
+     * Foto arrivata senza la pagina della festa: dallo schermo DLNA o dalla telecamera del vecchio
+     * telefono. Vale come le altre (approvazione, copie di sicurezza) ma non conta nei limiti a testa.
+     */
+    fun addPhoto(bytes: ByteArray, sender: String?) = worker.execute {
+        if (!_state.value.active || !isDisplayable(bytes)) return@execute
+        if (store.add(bytes, sender, approved = !_state.value.approval) is GuestPhotoStore.AddResult.Added) {
+            onPhotoSaved?.invoke(bytes, sender)
+        }
+    }
+
+    /** Rete creata dalla TV: il server passa sul suo indirizzo e il QR della Wi‑Fi la mostra. */
+    fun useHotspot(network: WifiNetwork?, address: Inet4Address?) = worker.execute {
+        hotspotAddress = address.takeIf { network != null }
+        _state.update { it.copy(hotspot = network?.takeIf { address != null }) }
+        if (serving()) serve()
+    }
+
+    /** Accende o spegne lo schermo DLNA; parte davvero solo durante la festa in primo piano. */
+    fun setDlna(enabled: Boolean) = worker.execute {
+        dlnaEnabled = enabled
+        syncDlna()
+    }
+
     fun approve(id: String) = worker.execute { store.approve(id) }
 
     fun approveAll() = worker.execute { store.photos.value.filterNot { it.approved }.forEach { store.approve(it.id) } }
@@ -217,7 +251,10 @@ class GuestParty(
             _state.update { it.copy(url = null, problem = GuestProblem.NO_NETWORK) }
             return
         }
-        if (server?.isRunning == true && address == serverAddress) return
+        if (server?.isRunning == true && address == serverAddress) {
+            syncDlna()
+            return
+        }
         stopServer()
         val secret = prefs.getString(KEY_SECRET, null) ?: newSecret().also {
             prefs.edit().putString(KEY_SECRET, it).apply()
@@ -240,6 +277,7 @@ class GuestParty(
             serverAddress = address
             val url = "http://${GuestUploadServer.hostHeader(address, port)}/?k=$secret"
             _state.update { it.copy(url = url, problem = null) }
+            syncDlna()
         } catch (failure: IOException) {
             Log.w(TAG, "Server per le foto degli invitati non avviato", failure)
             _state.update { it.copy(url = null, problem = GuestProblem.SERVER_FAILED) }
@@ -274,6 +312,25 @@ class GuestParty(
         server?.stop()
         server = null
         serverAddress = null
+        syncDlna()
+    }
+
+    /** Lo schermo DLNA segue il server: stesso indirizzo, acceso solo se richiesto. */
+    private fun syncDlna() {
+        val address = serverAddress as? Inet4Address
+        val wanted = dlnaEnabled && server?.isRunning == true && address != null
+        if (!wanted || address != dlnaAddress) {
+            dlna?.stop()
+            dlna = null
+            dlnaAddress = null
+        }
+        if (wanted && dlna == null) {
+            val renderer = dlnaFactory?.invoke() ?: return
+            if (renderer.start(address!!)) {
+                dlna = renderer
+                dlnaAddress = address
+            }
+        }
     }
 
     private fun registerNetworkCallback() {
@@ -308,8 +365,9 @@ class GuestParty(
         if (runCatching { manager.registerNetworkCallback(request, callback) }.isSuccess) networkCallback = callback
     }
 
-    /** Indirizzo IPv4 della TV sulla rete di casa (Wi‑Fi o cavo). */
+    /** Indirizzo IPv4 della TV sulla rete di casa (Wi‑Fi o cavo), o su quella creata dalla TV. */
     private fun currentAddress(): Inet4Address? {
+        hotspotAddress?.let { return it }
         networks.values.firstNotNullOfOrNull { it }?.let { return it }
         // Prima delle notifiche della rete si guarda la rete attiva, se è Wi‑Fi o cavo.
         val manager = connectivity ?: return null

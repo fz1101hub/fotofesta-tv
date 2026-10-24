@@ -18,6 +18,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.CameraAlt
+import androidx.compose.material.icons.rounded.SportsEsports
 import androidx.compose.material.icons.rounded.Casino
 import androidx.compose.material.icons.rounded.Celebration
 import androidx.compose.material.icons.rounded.Theaters
@@ -65,6 +67,8 @@ fun GamesScreen(
     onShows: () -> Unit = {},
     onDirector: () -> Unit = {},
     onQuiet: () -> Unit = {},
+    onBuzzer: () -> Unit = {},
+    onCamera: () -> Unit = {},
 ) {
     val playable = photoCount >= MIN_GAME_PHOTOS
     Column(Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 40.dp), verticalArrangement = Arrangement.spacedBy(26.dp)) {
@@ -180,6 +184,24 @@ fun GamesScreen(
                     onQuiet,
                     Modifier.width(GAME_TILE_WIDTH),
                     enabled = partyActive,
+                )
+            }
+            item {
+                GameTile(
+                    stringResource(R.string.games_buzzer_title),
+                    stringResource(R.string.games_buzzer_body),
+                    Icons.Rounded.SportsEsports,
+                    onBuzzer,
+                    Modifier.width(GAME_TILE_WIDTH),
+                )
+            }
+            item {
+                GameTile(
+                    stringResource(R.string.games_camera_title),
+                    stringResource(R.string.games_camera_body),
+                    Icons.Rounded.CameraAlt,
+                    onCamera,
+                    Modifier.width(GAME_TILE_WIDTH),
                 )
             }
             item {

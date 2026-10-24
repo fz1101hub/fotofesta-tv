@@ -10,6 +10,18 @@
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <!-- Rete Wi‑Fi della TV (hotspot locale) per le feste senza rete di casa: Android chiede la
+         posizione fino ad Android 12, poi il permesso per i dispositivi Wi‑Fi vicini, che l'app non usa
+         per localizzare. Lo schermo DLNA ascolta gli annunci multicast della rete. -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" android:usesPermissionFlags="neverForLocation"
+        tools:targetApi="33" />
+    <!-- Avvio automatico all'accensione della TV, solo se attivato nelle impostazioni. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- L'app non usa l'ID pubblicità: se una libreria lo aggiungesse, la dichiarazione di Play sarebbe falsa. -->
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove" />
 
@@ -17,6 +29,9 @@
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <uses-feature android:name="android.hardware.faketouch" android:required="false" />
     <uses-feature android:name="android.hardware.gamepad" android:required="false" />
+    <uses-feature android:name="android.hardware.wifi" android:required="false" />
+    <uses-feature android:name="android.hardware.location" android:required="false" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
 
     <!-- Per sapere se la TV ha il selettore di documenti (da Android 11 serve dichiararlo). -->
     <queries>
@@ -58,7 +73,21 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
+            <!-- Scorciatoie del canale nella schermata Home: fotofesta://open/slideshow, party, games, shows. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="fotofesta" android:host="open" />
+            </intent-filter>
         </activity>
+
+        <receiver
+            android:name=".tv.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
 
         <!-- Salvaschermo di sistema con le foto dell'ultima raccolta. -->
         <service

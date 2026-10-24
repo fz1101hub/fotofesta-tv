@@ -25,6 +25,7 @@ import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.Slideshow
+import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -72,6 +73,7 @@ private val CATEGORIES = listOf(
     Category(SettingsCategory.SLIDESHOW, R.string.settings_cat_slideshow, Icons.Rounded.Slideshow),
     Category(SettingsCategory.MUSIC, R.string.settings_cat_music, Icons.Rounded.MusicNote),
     Category(SettingsCategory.PARTY, R.string.settings_cat_party, Icons.Rounded.Groups),
+    Category(SettingsCategory.TV, R.string.settings_cat_tv, Icons.Rounded.Tv),
     Category(SettingsCategory.SCREENSAVER, R.string.settings_cat_screensaver, Icons.Rounded.DarkMode),
     Category(SettingsCategory.PRIVACY, R.string.settings_cat_privacy, Icons.Rounded.Shield),
 )
@@ -94,6 +96,8 @@ fun SettingsScreen(
     onQrInSlideshow: (Boolean) -> Unit,
     onWifi: () -> Unit,
     onRemoveWifi: () -> Unit,
+    onPickUsbBackup: () -> Unit = {},
+    onRemoveUsbBackup: () -> Unit = {},
 ) {
     val selected = state.settingsCategory
     val firstItem = remember { FocusRequester() }
@@ -493,6 +497,60 @@ fun SettingsScreen(
                                     {
                                         runCatching { firstItem.requestFocus() }
                                         onRemoveWifi()
+                                    },
+                                    toCategory,
+                                )
+                            }
+                        }
+                        SettingsCategory.TV -> {
+                            SettingsItem(
+                                stringResource(R.string.settings_light_mode),
+                                { onChange(settings.copy(lightMode = !settings.lightMode)) },
+                                Modifier.focusRequester(firstItem).then(toCategory),
+                                subtitle = stringResource(R.string.settings_light_mode_body),
+                                checked = settings.lightMode,
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_projector),
+                                { onChange(settings.copy(projectorMode = !settings.projectorMode)) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_projector_body),
+                                checked = settings.projectorMode,
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_auto_start),
+                                { onChange(settings.copy(autoStart = !settings.autoStart)) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_auto_start_body),
+                                checked = settings.autoStart,
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_home_channel),
+                                { onChange(settings.copy(homeChannel = !settings.homeChannel)) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_home_channel_body),
+                                checked = settings.homeChannel,
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_dlna),
+                                { onChange(settings.copy(dlnaReceiver = !settings.dlnaReceiver)) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_dlna_body),
+                                checked = settings.dlnaReceiver,
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_usb_backup),
+                                onPickUsbBackup,
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_usb_backup_body),
+                                value = state.usbBackupName ?: stringResource(R.string.settings_wifi_none),
+                            )
+                            if (state.usbBackupName != null) {
+                                SettingsItem(
+                                    stringResource(R.string.settings_usb_backup_remove),
+                                    {
+                                        runCatching { firstItem.requestFocus() }
+                                        onRemoveUsbBackup()
                                     },
                                     toCategory,
                                 )

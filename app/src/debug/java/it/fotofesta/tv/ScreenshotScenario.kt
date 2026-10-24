@@ -187,7 +187,7 @@ object ScreenshotScenario {
                     showVideo()
                 }
                 "mosaic" -> {
-                    vm.updateSettings(vm.state.value.settings.copy(layout = SlideshowLayout.MOSAIC, intervalSeconds = 5))
+                    vm.updateSettings(vm.state.value.settings.copy(layout = SlideshowLayout.MOSAIC, intervalSeconds = 5, lightMode = false))
                     demo()
                     // Dopo due cambi di foto le caselle accanto sono piene.
                     until("mosaico", 30_000) { it.slideTick >= 3 }

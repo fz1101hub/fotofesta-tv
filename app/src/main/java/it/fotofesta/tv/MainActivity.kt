@@ -1,9 +1,12 @@
 package it.fotofesta.tv
 
+import android.Manifest
 import android.app.PendingIntent
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.OpenableColumns
 import android.provider.Settings
@@ -97,6 +100,16 @@ import it.fotofesta.tv.ui.SurfaceRaised
 import it.fotofesta.tv.ui.TextPrimary
 import it.fotofesta.tv.ui.WhoTookItScreen
 import it.fotofesta.tv.ui.PhonePlay
+import it.fotofesta.tv.ui.BuzzerScreen
+import it.fotofesta.tv.ui.CameraScreen
+import it.fotofesta.tv.ui.projectorBoost
+import it.fotofesta.tv.tv.TvFeatures
+import com.google.android.play.core.appupdate.AppUpdateManagerFactory
+import com.google.android.play.core.appupdate.AppUpdateOptions
+import com.google.android.play.core.install.InstallStateUpdatedListener
+import com.google.android.play.core.install.model.AppUpdateType
+import com.google.android.play.core.install.model.InstallStatus
+import com.google.android.play.core.install.model.UpdateAvailability
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -105,6 +118,20 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     private val viewModel: FotoFestaViewModel by viewModels()
     private lateinit var mediaSession: MediaSessionCompat
+
+    // Aggiornamenti dal Play Store: si scaricano in background e si installano solo a TV libera
+    // (home, festa non in corso), mai durante uno slideshow o un gioco.
+    private val updates by lazy { AppUpdateManagerFactory.create(this) }
+    private val updateFlow = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { }
+    private var updateChecked = false
+    private var updateDownloaded = false
+    private var idle = false
+    private val installListener = InstallStateUpdatedListener { install ->
+        if (install.installStatus() == InstallStatus.DOWNLOADED) {
+            updateDownloaded = true
+            installUpdateIfIdle()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -117,6 +144,19 @@ class MainActivity : ComponentActivity() {
                 .distinctUntilChanged()
                 .collect { (playing, title) -> updateMediaSession(playing, title) }
         }
+        lifecycleScope.launch {
+            viewModel.state
+                .map { it.destination == Destination.HOME && !it.guests.active }
+                .distinctUntilChanged()
+                .collect { free ->
+                    idle = free
+                    if (free) {
+                        checkForUpdate()
+                        installUpdateIfIdle()
+                    }
+                }
+        }
+        runCatching { updates.registerListener(installListener) }
 
         setContent {
             FotoFestaTheme {
@@ -159,6 +199,19 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
+                val usbBackupPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+                    uri?.let(viewModel::setUsbBackup)
+                }
+                // Rete della TV: Android chiede il permesso per i dispositivi Wi‑Fi vicini (13+) o la posizione.
+                val hotspotPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+                    if (result.isEmpty()) return@rememberLauncherForActivityResult
+                    if (result.values.all { it }) viewModel.toggleHotspot() else viewModel.showHotspotPermissionDenied()
+                }
+                fun toggleHotspot() {
+                    val missing = hotspotPermissions().filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
+                    if (viewModel.state.value.guests.hotspot || missing.isEmpty()) viewModel.toggleHotspot()
+                    else hotspotPermission.launch(missing.toTypedArray())
+                }
                 fun openBrowser(kind: BrowserKind) {
                     val missing = StoragePermissions.missing(this, kind)
                     if (missing.isEmpty()) {
@@ -187,6 +240,7 @@ class MainActivity : ComponentActivity() {
                     Destination.TOAST, Destination.COINS -> true
                     Destination.SHOWS, Destination.REWIND, Destination.BARCODE, Destination.PHOTO_MOSAIC, Destination.CREDITS,
                     Destination.TELETEXT, Destination.SKY, Destination.STATS -> true
+                    Destination.BUZZER, Destination.CAMERA -> true
                     // Il QR per incollare il link dell'album deve restare visibile.
                     Destination.ICLOUD_LINK -> true
                     else -> false
@@ -196,6 +250,13 @@ class MainActivity : ComponentActivity() {
                     onDispose {
                         if (keepScreenOn) window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                     }
+                }
+
+                // Modalità gioco della TV durante i giochi: risposte e disegni arrivano senza ritardo.
+                val lowLatency = state.destination in LOW_LATENCY_DESTINATIONS
+                DisposableEffect(lowLatency) {
+                    TvFeatures.setLowLatency(window, lowLatency)
+                    onDispose { if (lowLatency) TvFeatures.setLowLatency(window, false) }
                 }
 
                 LaunchedEffect(state.message) {
@@ -232,9 +293,11 @@ class MainActivity : ComponentActivity() {
                                 onQrInSlideshow = viewModel::setGuestQrInSlideshow,
                                 onWifi = viewModel::openGuestWifi,
                                 onRemoveWifi = viewModel::removeGuestWifi,
+                                onPickUsbBackup = { launchPicker { usbBackupPicker.launch(null) } },
+                                onRemoveUsbBackup = viewModel::removeUsbBackup,
                             )
-                            Destination.SLIDESHOW -> PortraitFrame(state.settings.portrait) { SlideshowScreen(
-                                state = state,
+                            Destination.SLIDESHOW -> Box(Modifier.fillMaxSize().projectorBoost(state.settings.projectorMode)) { PortraitFrame(state.settings.portrait) { SlideshowScreen(
+                                state = state.copy(settings = state.settings.forScreen()),
                                 upcoming = viewModel.upcomingPhoto(),
                                 onBack = viewModel::back,
                                 onToggle = viewModel::togglePlayback,
@@ -245,7 +308,7 @@ class MainActivity : ComponentActivity() {
                                 reactions = viewModel.reactions,
                                 photoAge = viewModel::photoAge,
                                 photoTag = viewModel::photoTag,
-                            ) }
+                            ) } }
                             Destination.GAMES -> GamesScreen(
                                 // I giochi usano solo le foto: i video si guardano nello slideshow.
                                 photoCount = state.photos.count { !it.video },
@@ -262,6 +325,17 @@ class MainActivity : ComponentActivity() {
                                 onQuiet = viewModel::startQuiet,
                                 onPartyGames = { viewModel.navigate(Destination.PARTY_GAMES) },
                                 onShows = { viewModel.navigate(Destination.SHOWS) },
+                                onBuzzer = { viewModel.navigate(Destination.BUZZER) },
+                                onCamera = { viewModel.navigate(Destination.CAMERA) },
+                            )
+                            Destination.BUZZER -> BuzzerScreen(onBack = viewModel::back)
+                            Destination.CAMERA -> CameraScreen(
+                                camera = viewModel.ipCamera,
+                                savedAddress = state.cameraAddress,
+                                partyActive = state.guests.active,
+                                onSaveAddress = viewModel::saveCameraAddress,
+                                onSnapshot = viewModel::addCameraPhoto,
+                                onBack = viewModel::back,
                             )
                             Destination.SHOWS -> ShowsScreen(
                                 onRewind = { viewModel.navigate(Destination.REWIND) },
@@ -371,6 +445,7 @@ class MainActivity : ComponentActivity() {
                                 undevelopedShots = state.party.shotsTaken.takeIf { state.party.undeveloped },
                                 onDevelop = viewModel::develop,
                                 onRehearsal = viewModel::startRehearsal,
+                                onHotspot = ::toggleHotspot,
                             )
                             Destination.AWARDS -> AwardsScreen(
                                 awards = remember(state.photos) { PartyAwards.from(state.photos, viewModel.reactionCounts()) },
@@ -459,7 +534,50 @@ class MainActivity : ComponentActivity() {
             }
         }
         // Solo nelle build di debug: schermate automatiche nell'emulatore della CI (src/debug).
-        if (savedInstanceState == null) ScreenshotScenario.start(this, viewModel, intent)
+        if (savedInstanceState == null) {
+            ScreenshotScenario.start(this, viewModel, intent)
+            handleIntent(intent)
+        }
+    }
+
+    /** Avvio automatico all'accensione e scorciatoie del canale nella schermata Home. */
+    private fun handleIntent(intent: Intent?) {
+        if (intent == null) return
+        if (intent.getBooleanExtra(EXTRA_AUTO_START, false)) {
+            viewModel.playCurrent()
+            return
+        }
+        val link = intent.data
+        if (intent.action == Intent.ACTION_VIEW && link?.scheme == "fotofesta" && link.host == "open") {
+            viewModel.openLink(link.lastPathSegment.orEmpty())
+        }
+    }
+
+    private fun hotspotPermissions(): List<String> =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) listOf(Manifest.permission.NEARBY_WIFI_DEVICES)
+        // Android 12 chiede le due insieme; l'hotspot vuole la posizione precisa.
+        else listOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+
+    /** Una volta per avvio, e solo nelle versioni installate dal Play Store. */
+    private fun checkForUpdate() {
+        if (updateChecked || BuildConfig.DEBUG) return
+        updateChecked = true
+        runCatching {
+            updates.appUpdateInfo.addOnSuccessListener { info ->
+                when {
+                    info.installStatus() == InstallStatus.DOWNLOADED -> {
+                        updateDownloaded = true
+                        installUpdateIfIdle()
+                    }
+                    info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE && info.isUpdateTypeAllowed(AppUpdateType.FLEXIBLE) ->
+                        runCatching { updates.startUpdateFlowForResult(info, updateFlow, AppUpdateOptions.newBuilder(AppUpdateType.FLEXIBLE).build()) }
+                }
+            }
+        }
+    }
+
+    private fun installUpdateIfIdle() {
+        if (updateDownloaded && idle) runCatching { updates.completeUpdate() }
     }
 
     /** Gioco con i telefoni: solo durante la festa, quando la pagina degli invitati è raggiungibile. */
@@ -511,6 +629,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        handleIntent(intent)
     }
 
     override fun onStart() {
@@ -567,6 +686,16 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    companion object {
+        /** Intent dell'avvio automatico all'accensione della TV (BootReceiver). */
+        const val EXTRA_AUTO_START = "it.fotofesta.tv.AUTO_START"
+
+        private val LOW_LATENCY_DESTINATIONS = setOf(
+            Destination.MEMORY, Destination.MYSTERY, Destination.PUZZLE, Destination.WHO_TOOK_IT, Destination.POLL,
+            Destination.PLAY, Destination.TOURNAMENT, Destination.BETS, Destination.BUZZER, Destination.CAMERA,
+        )
+    }
+
     private fun displayName(uri: Uri): String? = runCatching {
         contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
             if (cursor.moveToFirst()) cursor.getString(0) else null
@@ -574,6 +703,7 @@ class MainActivity : ComponentActivity() {
     }.getOrNull()
 
     override fun onDestroy() {
+        runCatching { updates.unregisterListener(installListener) }
         mediaSession.release()
         super.onDestroy()
     }

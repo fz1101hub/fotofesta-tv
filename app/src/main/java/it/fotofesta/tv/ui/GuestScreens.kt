@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.WifiTethering
 import androidx.compose.material.icons.rounded.Campaign
 import androidx.compose.material.icons.rounded.PhotoCamera
 import androidx.compose.material.icons.rounded.Science
@@ -87,11 +88,13 @@ fun GuestsScreen(
     undevelopedShots: Int? = null,
     onDevelop: () -> Unit = {},
     onRehearsal: () -> Unit = {},
+    /** Rete Wi‑Fi creata dalla TV, dove non c'è una rete di casa. */
+    onHotspot: () -> Unit = {},
 ) {
     if (guests.active) {
-        PartyInProgress(guests, recent, onEnd, onPlay, onReview, onAwards, messageCount, pendingMessageCount, onGuestbook, hostPin, onAnnounce, undevelopedShots, onDevelop)
+        PartyInProgress(guests, recent, onEnd, onPlay, onReview, onAwards, messageCount, pendingMessageCount, onGuestbook, hostPin, onAnnounce, undevelopedShots, onDevelop, onHotspot)
     } else {
-        PartyIntro(guests, onStart, onApproval, onWifi, onRehearsal)
+        PartyIntro(guests, onStart, onApproval, onWifi, onRehearsal, onHotspot)
     }
 }
 
@@ -102,6 +105,7 @@ private fun PartyIntro(
     onApproval: (Boolean) -> Unit,
     onWifi: () -> Unit,
     onRehearsal: () -> Unit,
+    onHotspot: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize().background(Background).padding(horizontal = 48.dp, vertical = 27.dp)) {
         BrandMark()
@@ -137,6 +141,12 @@ private fun PartyIntro(
                     onWifi,
                     subtitle = stringResource(R.string.guests_wifi_body),
                     value = guests.wifiName ?: stringResource(R.string.settings_wifi_none),
+                )
+                SettingsItem(
+                    stringResource(R.string.guests_hotspot),
+                    onHotspot,
+                    subtitle = stringResource(R.string.guests_hotspot_body),
+                    checked = guests.hotspot,
                 )
                 Text(
                     stringResource(R.string.guests_intro),
@@ -176,6 +186,7 @@ private fun PartyInProgress(
     onAnnounce: () -> Unit,
     undevelopedShots: Int?,
     onDevelop: () -> Unit,
+    onHotspot: () -> Unit,
 ) {
     Row(Modifier.fillMaxSize().background(Background)) {
         Column(
@@ -235,6 +246,14 @@ private fun PartyInProgress(
                     TvButton(stringResource(R.string.guests_announce), onAnnounce, icon = Icons.Rounded.Campaign)
                     if (undevelopedShots != null) {
                         TvButton(quantityStringResource(R.plurals.guests_develop, undevelopedShots), onDevelop, icon = Icons.Rounded.PhotoCamera)
+                    }
+                    // Senza rete di casa la TV può crearne una sua.
+                    if (guests.hotspot || guests.problem == GuestProblem.NO_NETWORK) {
+                        TvButton(
+                            stringResource(if (guests.hotspot) R.string.guests_hotspot_stop else R.string.guests_hotspot_start),
+                            onHotspot,
+                            icon = Icons.Rounded.WifiTethering,
+                        )
                     }
                 }
                 if (hostPin != null) {
