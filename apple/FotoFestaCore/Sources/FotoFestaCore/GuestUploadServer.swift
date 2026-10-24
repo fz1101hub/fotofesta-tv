@@ -65,10 +65,12 @@ public final class GuestUploadServer: @unchecked Sendable {
     private let host: HostRemote?
     /// Foto in attesa di approvazione, per le miniature della pagina di regia.
     private let hostPhoto: @Sendable (String) -> Data?
+    /// Giochi con i telefoni oltre ai quiz: disegni, frasi, missioni, caccia al QR, luci.
+    private let play: PartyPlay?
     /// Risposte dei telefoni: poche decine di byte, con margine per nomi lunghi.
     static let maxAnswerBytes = 1_024
-    /// Reazioni e dediche: una dedica di 160 caratteri codificata occupa al massimo circa 1,5 kB.
-    static let maxActionBytes = 4_096
+    /// Reazioni, dediche e disegni dei giochi (al massimo `PartyPlay.maxDrawingLength` caratteri).
+    static let maxActionBytes = 24_576
     static let maxActionsPerMinute = 150
     private let queue = DispatchQueue(label: "it.fotofesta.guest-upload")
 
@@ -97,7 +99,8 @@ public final class GuestUploadServer: @unchecked Sendable {
         game: PhoneGame? = nil,
         hub: PartyHub? = nil,
         host: HostRemote? = nil,
-        hostPhoto: @escaping @Sendable (String) -> Data? = { _ in nil }
+        hostPhoto: @escaping @Sendable (String) -> Data? = { _ in nil },
+        play: PartyPlay? = nil
     ) {
         self.key = key
         self.maxUploadBytes = maxUploadBytes
@@ -111,6 +114,7 @@ public final class GuestUploadServer: @unchecked Sendable {
         self.hub = hub
         self.host = host
         self.hostPhoto = hostPhoto
+        self.play = play
     }
 
     /// Avvia il server, preferibilmente sulla porta `preferredPort` (così il QR resta uguale tra un
@@ -282,7 +286,8 @@ public final class GuestUploadServer: @unchecked Sendable {
                 let player = request.query["player"]
                 let party = hub?.partyJSON(player: player) ?? #"{"announcement":null,"director":null}"#
                 let hostOn = host?.currentPIN() != nil
-                return .json(200, #"{"features":\#(features),"game":\#(gameJSON(game?.current(), player: player)),"party":\#(party),"host":\#(hostOn)}"#)
+                let playJSON = play?.phoneJSON(player: player) ?? "null"
+                return .json(200, #"{"features":\#(features),"game":\#(gameJSON(game?.current(), player: player)),"party":\#(party),"host":\#(hostOn),"play":\#(playJSON)}"#)
             case "/party/host/login":
                 guard keyMatches(request.headers["x-fotofesta-key"]) else { throw GuestHTTPError(status: 401, code: "key") }
                 guard let host else { throw GuestHTTPError(status: 404, code: "not_found") }
@@ -324,7 +329,16 @@ public final class GuestUploadServer: @unchecked Sendable {
                 return GuestHTTPResponse(status: 200, contentType: type, body: data)
             case "/party/action":
                 guard let hub else { throw GuestHTTPError(status: 404, code: "not_found") }
-                let result = hub.handle(try Self.parseForm(String(decoding: body, as: UTF8.self)))
+                let form = try Self.parseForm(String(decoding: body, as: UTF8.self))
+                let result: (status: Int, json: String)
+                if form["type"] != "play" {
+                    result = hub.handle(form)
+                } else if let play {
+                    // Nei tre minuti senza telefoni aspettano anche i giochi.
+                    result = hub.quietTimeLeft() > 0 ? (423, #"{"error":"quiet"}"#) : play.handle(form)
+                } else {
+                    result = (404, #"{"error":"not_found"}"#)
+                }
                 return .json(result.status, result.json, retryAfter: result.status == 429 ? 3 : nil)
             case "/photos":
                 let response = try receivePhoto(request, body: body)

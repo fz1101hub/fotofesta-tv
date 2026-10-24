@@ -33,6 +33,12 @@ struct RootView: View {
                     case .announce: AnnounceView()
                     case .library: LibraryView()
                     case .network: NetworkView()
+                    case .partyGames: PartyGamesView()
+                    case .play: PlayView()
+                    case .tournament: TournamentView()
+                    case .bets: BetsView()
+                    case .toast: ToastView()
+                    case .coins: CoinsView()
                     }
                 }
         }
@@ -78,6 +84,7 @@ struct RootView: View {
         case .slideshow: return model.isPlaying
         case .guests: return model.guests.active
         case .guestReview, .memory, .mystery, .puzzle, .whoTookIt, .awards, .poll, .lottery, .guestbook, .announce: return true
+        case .partyGames, .play, .tournament, .bets, .toast, .coins: return true
         case .googleConnect:
             if case .working = model.googleState { return true }
             return false

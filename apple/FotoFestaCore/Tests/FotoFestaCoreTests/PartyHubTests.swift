@@ -169,7 +169,7 @@ final class PartyHubTests: XCTestCase {
         XCTAssertEqual(wrongKey, 401)
         let invalid = try await action("type=react&player=telefono-1&reaction=9")
         XCTAssertEqual(invalid, 400)
-        let tooLarge = try await action("type=message&player=telefono-1&text=" + String(repeating: "x", count: 5_000))
+        let tooLarge = try await action("type=message&player=telefono-1&text=" + String(repeating: "x", count: 30_000))
         XCTAssertEqual(tooLarge, 413)
     }
 }

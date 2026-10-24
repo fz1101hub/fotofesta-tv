@@ -8,6 +8,7 @@ private let slideshowSettingsKey = "slideshowSettings"
 
 enum Route: Hashable {
     case slideshow, settings, games, memory, mystery, puzzle, whoTookIt, poll, lottery, googleConnect, guests, guestReview, guestWifi, awards, guestbook, announce, library, network
+    case partyGames, play, tournament, bets, toast, coins
 }
 
 /// Da dove vengono le foto della raccolta mostrata nella home.
@@ -892,6 +893,125 @@ final class AppModel {
             self.rehearsal = false
             self.showMessage(L("message.rehearsal_done"))
         }
+    }
+
+    // MARK: - Giochi con i telefoni
+
+    /// Foto da rifare in "Ricrea la foto".
+    private(set) var recreateOriginal: Photo?
+    /// Monete per chi vince una scommessa.
+    static let betCoins = 3
+
+    /// Nuovo gioco `kind` con i testi tradotti; false (con un messaggio) se mancano invitati con il nome.
+    @discardableResult
+    func startPlay(_ kind: PartyPlay.Kind) -> Bool {
+        func texts(_ list: String) -> [String] {
+            list.components(separatedBy: "|").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }.shuffled()
+        }
+        let prompt: String
+        var pool: [String] = []
+        switch kind {
+        case .drawGuess: prompt = L("play.prompt_draw_guess"); pool = texts(L("play.words"))
+        case .drawingWall: prompt = texts(L("play.wall_themes")).first ?? ""
+        case .story: prompt = L("play.prompt_story"); pool = texts(L("play.story_starts"))
+        case .whisper: prompt = L("play.prompt_whisper"); pool = texts(L("play.whisper_phrases"))
+        case .compliments: prompt = L("play.prompt_compliments")
+        case .missions: prompt = L("play.prompt_missions"); pool = texts(L("play.missions"))
+        case .paparazzi: prompt = L("play.prompt_paparazzi")
+        case .sameMoment: prompt = L("play.prompt_moment")
+        case .recreate:
+            guard let original = stillPhotos.randomElement() else {
+                showMessage(L("games.need_photos", 1))
+                return false
+            }
+            recreateOriginal = original
+            prompt = L("play.prompt_recreate")
+            pool = [original.id]
+        case .mole: prompt = L("play.prompt_mole"); pool = texts(L("play.mole_missions"))
+        case .capsule: prompt = L("play.prompt_capsule")
+        }
+        guard guests.partyPlay.start(kind, prompt: prompt, pool: pool) != nil else {
+            let people = guests.partyHub.participants()
+            showMessage(kind == .compliments && !people.isEmpty ? L("play.need_two") : L("play.need_names"))
+            return false
+        }
+        guests.refreshPlay()
+        if path.last != .play { path.append(.play) }
+        return true
+    }
+
+    func playReveal() {
+        guests.partyPlay.reveal()
+        guests.refreshPlay()
+    }
+
+    func playVoting() {
+        guests.partyPlay.startVoting()
+        guests.refreshPlay()
+    }
+
+    /// Stesso gioco, nuovo turno (nuova parola, nuova talpa, nuova star).
+    func playAgain() {
+        guard let kind = guests.play?.kind else { return }
+        startPlay(kind)
+    }
+
+    func stopPlay() {
+        guests.partyPlay.stop()
+        guests.refreshPlay()
+    }
+
+    /// Foto degli invitati arrivate nel gioco in corso (missioni, paparazzi, stesso istante, ricrea).
+    func playPhotos(round: String) -> [Photo] {
+        let byID = Dictionary(guestPhotos.compactMap { photo -> (String, Photo)? in
+            if case let .guest(id) = photo.source { return (id, photo) }
+            return nil
+        }, uniquingKeysWith: { first, _ in first })
+        return guests.partyPlay.taggedPhotos(round: round).compactMap { byID[$0] }
+    }
+
+    /// Didascalia della foto nello slideshow se è nata da un gioco ("Missione: un brindisi").
+    func photoTag(_ photo: Photo) -> String? {
+        guard case let .guest(id) = photo.source, let tag = guests.partyPlay.tag(id) else { return nil }
+        switch tag.kind {
+        case .missions: return tag.text.map { L("tag.mission", $0) }
+        case .paparazzi: return tag.text.map { L("tag.paparazzi", $0) }
+        case .sameMoment: return L("tag.moment")
+        case .recreate: return L("tag.recreate")
+        default: return nil
+        }
+    }
+
+    /// Caccia al QR: il codice compare per trenta secondi sullo schermo.
+    func startTreasure() {
+        guard guests.active else { return }
+        guests.partyPlay.startTreasure()
+        guests.refreshPlay()
+    }
+
+    /// Indirizzo del QR della caccia in corso.
+    var treasureURL: String? {
+        guard let token = guests.treasure, let url = guests.url else { return nil }
+        return url + "&t=" + token
+    }
+
+    func setLights(_ lights: PartyPlay.Lights?) {
+        guests.partyPlay.setLights(lights)
+        guests.refreshPlay()
+    }
+
+    /// Scommessa decisa: chi ha scelto `choice` vince tre monete. Restituisce quanti hanno vinto.
+    func settleBet(_ choice: Int) -> Int {
+        let winners = guests.phoneGame.voters(choice)
+        for player in winners { guests.partyPlay.award(player, amount: Self.betCoins) }
+        guests.phoneGame.stop()
+        guests.refreshPlay()
+        return winners.count
+    }
+
+    /// Roulette dei brindisi: il nome estratto compare anche sui telefoni come annuncio.
+    func announceToast(_ name: String) {
+        guests.announce(L("toast.winner", name))
     }
 
     /// Regista per due minuti: un invitato con il nome dirige lo slideshow dal suo telefono.

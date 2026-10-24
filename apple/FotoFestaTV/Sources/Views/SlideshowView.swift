@@ -88,6 +88,18 @@ struct SlideshowView: View {
                 if let until = model.guests.quietUntil { QuietOverlay(until: until) }
             }
         }
+        .overlay(alignment: .top) {
+            if model.guests.active, let photo = model.currentPhoto, let tag = model.photoTag(photo) {
+                GameTagBadge(text: tag).padding(.top, 40)
+            }
+        }
+        .overlay(alignment: .bottomLeading) {
+            if let url = model.treasureURL {
+                TreasureOverlay(url: url, finders: model.guests.treasureFinders)
+                    .padding(.leading, 90)
+                    .padding(.bottom, 60)
+            }
+        }
         .overlay(alignment: .bottomTrailing) {
             if model.guests.active, !model.guests.developed {
                 DisposableBadge(shots: model.guests.shotsTaken)

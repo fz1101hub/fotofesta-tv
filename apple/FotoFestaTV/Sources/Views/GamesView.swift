@@ -32,6 +32,13 @@ struct GamesView: View {
                             enabled: whoTookItPlayable
                         )
                         gameCard(
+                            L("games.party_title"),
+                            partyOn ? L("games.party_body") : L("games.poll_unavailable"),
+                            "party.popper.fill",
+                            .partyGames,
+                            enabled: partyOn
+                        )
+                        gameCard(
                             L("games.poll_title"),
                             partyOn ? L("games.poll_body") : L("games.poll_unavailable"),
                             "chart.bar.fill",

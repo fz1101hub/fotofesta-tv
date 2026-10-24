@@ -142,7 +142,16 @@ final class GuestParty {
     /// Gioco con i telefoni, servito dalla stessa pagina della festa.
     let phoneGame = PhoneGame()
     /// Reazioni e dediche dei telefoni: si cancellano con le foto a fine festa.
-    let partyHub = PartyHub()
+    let partyHub: PartyHub
+    /// Giochi con i telefoni oltre ai quiz: disegni, missioni, talpa, caccia al QR, monete.
+    let partyPlay: PartyPlay
+    /// Gioco in corso, caccia al QR, luci e monete, per lo schermo.
+    private(set) var play: PartyPlay.State?
+    private(set) var treasure: String?
+    private(set) var treasureFinders: [String] = []
+    private(set) var lights: PartyPlay.Lights?
+    private(set) var coins: [PartyPlay.Coins] = []
+    @ObservationIgnored private var playRevision = -1
     /// Regia dal telefono: PIN nuovo a ogni festa.
     let hostRemote = HostRemote()
     @ObservationIgnored private var messageRevision = -1
@@ -151,6 +160,9 @@ final class GuestParty {
     @ObservationIgnored private let backupFlag = LockedFlag()
 
     init() {
+        let sharedHub = PartyHub()
+        partyHub = sharedHub
+        partyPlay = PartyPlay(hub: sharedHub)
         let defaults = UserDefaults.standard
         active = defaults.bool(forKey: Keys.active)
         approval = defaults.bool(forKey: Keys.approval)
@@ -188,9 +200,11 @@ final class GuestParty {
             while !Task.isCancelled {
                 guard let self else { return }
                 self.refreshMessages()
+                self.refreshPlay()
                 self.saveHubIfChanged()
                 if let status = self.hostStatus?() { self.hostRemote.updateStatus(status) }
-                try? await Task.sleep(for: .seconds(1))
+                // Mezzo secondo: il disegno di "Disegna e indovina" deve crescere quasi dal vivo.
+                try? await Task.sleep(for: .milliseconds(500))
             }
         }
         let store = self.store
@@ -247,6 +261,8 @@ final class GuestParty {
         // Subito, senza aspettare la notifica dell'archivio: la raccolta non deve usare foto cancellate.
         photos = []
         partyHub.clear()
+        partyPlay.clear()
+        refreshPlay()
         try? FileManager.default.removeItem(at: Self.hubFile)
         savedState = nil
         hostRemote.reset()
@@ -381,6 +397,20 @@ final class GuestParty {
         #if os(macOS)
         backupFlag.value = backupCopy && !noTraces
         #endif
+    }
+
+    /// Giochi con i telefoni: si rilegge lo stato solo quando è cambiato.
+    func refreshPlay() {
+        let revision = partyPlay.currentRevision()
+        // La caccia al QR scade da sola: senza cambi si ricontrolla comunque il codice.
+        let currentTreasure = partyPlay.currentTreasure()
+        if currentTreasure != treasure { treasure = currentTreasure }
+        guard revision != playRevision else { return }
+        playRevision = revision
+        play = partyPlay.current()
+        treasureFinders = partyPlay.treasureFinders()
+        lights = partyPlay.currentLights()
+        coins = partyPlay.leaderboard()
     }
 
     private func refreshMessages() {
@@ -534,7 +564,8 @@ final class GuestParty {
             game: phoneGame,
             hub: partyHub,
             host: hostRemote,
-            hostPhoto: { [store] id in store.read(id) }
+            hostPhoto: { [store] id in store.read(id) },
+            play: partyPlay
         )
         failure.server = candidate
         do {
@@ -609,6 +640,7 @@ final class GuestParty {
         let store = self.store
         let flag = approvalFlag
         let hub = partyHub
+        let play = partyPlay
         let backup = backupFlag
         return { data, sender, player in
             guard GuestImageFormat.isDisplayable(data) else { return .unsupported }
@@ -620,6 +652,7 @@ final class GuestParty {
             }
             switch store.add(data, sender: sender, approved: !flag.value) {
             case let .added(photo):
+                play.photoArrived(player: player, photoID: photo.id)
                 if backup.value { Self.backup(data, sender: sender) }
                 return photo.approved ? .shown : .pending
             case .full:

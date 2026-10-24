@@ -186,13 +186,15 @@ public final class PartyHub: @unchecked Sendable {
     public func allReactionCounts() -> [String: Int] { lock.withLock { reactionCounts } }
 
     /// Dedica di un telefono: testo ripulito, al massimo `maxMessageLength` caratteri.
-    public func message(player: String, text: String?, name: String?) -> Result {
+    public func message(player: String, text: String?, name: String?, anonymous: Bool = false) -> Result {
         lock.withLock {
             guard features.messages else { return .disabled }
             guard let cleaned = GuestSender.clean(text, maxLength: Self.maxMessageLength), PhoneGame.isValidPlayer(player) else { return .invalid }
             guard messages.count < Self.maxMessages else { return .full }
             guard allow(&messageTimes, player: player, burst: Self.messageBurst, window: Self.messageWindow) else { return .rateLimited }
-            let signature = remember(player: player, name: name)
+            // Un complimento segreto resta anonimo anche per chi ha già scritto il proprio nome.
+            let remembered = remember(player: player, name: name)
+            let signature = anonymous ? nil : remembered
             let approved = !features.moderateMessages
             messages.append(Message(id: UUID().uuidString, text: cleaned, name: signature, date: now(), approved: approved))
             revision += 1
@@ -233,6 +235,15 @@ public final class PartyHub: @unchecked Sendable {
     public func participants() -> [Participant] {
         lock.withLock { nameOrder.compactMap { player in names[player].map { Participant(player: player, name: $0) } } }
     }
+
+    /// Il telefono `player` partecipa a un gioco con `name`: il nome resta per estrazione e regista.
+    @discardableResult
+    public func join(player: String, name: String?) -> String? {
+        guard PhoneGame.isValidPlayer(player) else { return nil }
+        return lock.withLock { remember(player: player, name: GuestSender.clean(name)) }
+    }
+
+    public func nameOf(_ player: String) -> String? { lock.withLock { names[player] } }
 
     /// Comandi del regista di turno (avanti, indietro, pausa), dalla coda del server.
     public func setOnDirectorCommand(_ handler: (@Sendable (PartyCommand) -> Void)?) {

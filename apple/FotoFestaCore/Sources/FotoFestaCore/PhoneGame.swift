@@ -134,6 +134,9 @@ public final class PhoneGame: @unchecked Sendable {
 
     public func answerCount() -> Int { lock.withLock { answers.count } }
 
+    /// Telefoni che hanno scelto `choice` nella domanda in corso: chi ha vinto una scommessa.
+    public func voters(_ choice: Int) -> [String] { lock.withLock { answers.filter { $0.value == choice }.map(\.key) } }
+
     public func points(of player: String) -> Int { lock.withLock { players[player]?.points ?? 0 } }
 
     /// Classifica: più punti prima; a parità, chi ha cominciato a giocare prima.
