@@ -195,7 +195,7 @@ class GuestUploadServerTest {
         assertEquals("Auguri a tutti", hub.messages().single().text)
         assertEquals(401, action("type=react&player=telefono-1&reaction=0", key = "sbagliata").status)
         assertEquals(400, action("type=react&player=telefono-1&reaction=9").status)
-        assertEquals(413, action("type=message&player=telefono-1&text=" + "x".repeat(5_000)).status)
+        assertEquals(413, action("type=message&player=telefono-1&text=" + "x".repeat(30_000)).status)
         assertEquals(405, get("/party/action").status)
     }
 

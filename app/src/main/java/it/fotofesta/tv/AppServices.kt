@@ -12,6 +12,7 @@ import it.fotofesta.tv.google.SecureTokenStore
 import it.fotofesta.tv.guests.GuestParty
 import it.fotofesta.tv.guests.HostRemote
 import it.fotofesta.tv.guests.PartyHub
+import it.fotofesta.tv.guests.PartyPlay
 import it.fotofesta.tv.guests.PhoneGame
 import it.fotofesta.tv.icloud.ICloudAlbumClient
 import it.fotofesta.tv.icloud.ICloudAlbumStream
@@ -87,8 +88,11 @@ class AppServices(context: Context) {
     /** Regia dal telefono con il PIN mostrato sulla TV. */
     val hostRemote = HostRemote()
 
+    /** Giochi con i telefoni oltre ai quiz: disegni, missioni, talpa, caccia al QR, monete. */
+    val partyPlay = PartyPlay(partyHub)
+
     /** Foto degli invitati: in RAM finché c'è posto, poi in una cartella temporanea con un limite. */
-    val guests = GuestParty(context, guestStore(context), phoneGame, partyHub, hostRemote)
+    val guests = GuestParty(context, guestStore(context), phoneGame, partyHub, hostRemote, partyPlay)
 
     private companion object {
         const val MB = 1024L * 1024

@@ -46,6 +46,8 @@ class GuestUploadServer(
     private val hostRemote: HostRemote? = null,
     /** Foto in attesa di approvazione, per le miniature della pagina di regia. */
     private val hostPhoto: (String) -> ByteArray? = { null },
+    /** Giochi con i telefoni oltre ai quiz: disegni, frasi, missioni, caccia al QR, luci. */
+    private val play: PartyPlay? = null,
     private val maxUploadBytes: Int = MAX_UPLOAD_BYTES,
     private val readTimeoutMillis: Int = READ_TIMEOUT_MS,
     private val headerDeadlineMillis: Long = HEADER_DEADLINE_MS,
@@ -242,7 +244,8 @@ class GuestUploadServer(
                 val player = request.query["player"]
                 val party = hub?.partyJson(player) ?: """{"announcement":null,"director":null}"""
                 val hostOn = hostRemote?.pin() != null
-                Response.json(200, """{"features":$features,"game":${gameJson(game?.current(), player)},"party":$party,"host":$hostOn}""")
+                val playJson = play?.phoneJson(player) ?: "null"
+                Response.json(200, """{"features":$features,"game":${gameJson(game?.current(), player)},"party":$party,"host":$hostOn,"play":$playJson}""")
             }
             "/party/action" -> {
                 if (request.method != "POST") throw HttpError(405, "method")
@@ -372,7 +375,13 @@ class GuestUploadServer(
         // Il limite per telefono di PartyHub si aggira cambiando identificativo: qui conta l'indirizzo.
         if (!allowAction(clientAddress)) throw HttpError(429, "rate", listOf("Retry-After" to "5"))
         val form = readSmallForm(request, body, startedAt, MAX_ACTION_BYTES)
-        val (status, json) = hub.handle(form)
+        val (status, json) = when {
+            form["type"] != "play" -> hub.handle(form)
+            play == null -> 404 to """{"error":"not_found"}"""
+            // Nei tre minuti senza telefoni aspettano anche i giochi.
+            hub.quietLeftMillis() > 0 -> 423 to """{"error":"quiet"}"""
+            else -> play.handle(form)
+        }
         return Response.json(status, json, if (status == 429) listOf("Retry-After" to "3") else emptyList())
     }
 
@@ -596,7 +605,8 @@ class GuestUploadServer(
         private const val MAX_ANSWER_BYTES = 1_024
 
         /** Reazioni e dediche: una dedica di 160 caratteri codificata occupa al massimo circa 1,5 kB. */
-        private const val MAX_ACTION_BYTES = 4_096
+        /** Basta per un disegno dei giochi (al massimo [PartyPlay.MAX_DRAWING_LENGTH] caratteri). */
+        private const val MAX_ACTION_BYTES = 24_576
         private const val MAX_ACTIONS_PER_MINUTE = 150
 
         /** Campi di un modulo "a=1&b=2"; i valori malformati fanno rifiutare la richiesta. */

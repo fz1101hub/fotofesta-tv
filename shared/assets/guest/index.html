@@ -8,6 +8,7 @@
 <style>
   :root { --bg: #0b1222; --card: #17213a; --fg: #eef2fa; --muted: #aab4c8; --accent: #ff7a59; --ok: #6ee7b7; --warn: #fbbf24; --err: #fca5a5; --line: #2a3654; }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   html, body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-text-size-adjust: 100%; }
   main { max-width: 560px; margin: 0 auto; padding: max(20px, env(safe-area-inset-top)) 16px max(32px, env(safe-area-inset-bottom)); }
   .brand { color: var(--accent); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: .8rem; }
@@ -73,6 +74,19 @@
   .pending .yes { background: var(--ok); color: #0b1222; }
   .pending .no { background: #3b1d24; color: var(--err); }
   #speechText { min-height: 160px; font-size: 1.15rem; line-height: 1.5; }
+  .secret { margin: .4rem 0 .6rem; padding: 12px 14px; border-radius: 12px; background: var(--accent); color: #1b1020; font-weight: 700; font-size: 1.1rem; overflow-wrap: anywhere; }
+  .canvas-wrap { position: relative; margin-top: .6rem; }
+  .canvas-wrap canvas { display: block; width: 100%; aspect-ratio: 1; border-radius: 12px; background: #fff; touch-action: none; }
+  .palette { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; margin-top: 8px; }
+  .palette button { aspect-ratio: 1; border-radius: 50%; border: 2px solid var(--line); cursor: pointer; }
+  .palette button.on { border-color: var(--fg); transform: scale(1.12); }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .pair .send { margin-top: 8px; }
+  .ghost { background: #22304f !important; color: var(--fg) !important; }
+  #playStatus { margin-top: .6rem; font-weight: 600; min-height: 1.4em; }
+  #playList { margin: .4rem 0 0; padding-left: 1.1rem; }
+  #lights { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-end; justify-content: center; padding: 0 16px max(28px, env(safe-area-inset-bottom)); color: #fff; font-weight: 700; text-shadow: 0 1px 4px rgba(0,0,0,.6); }
+  #treasureStatus { margin: 1rem 0; padding: 14px; border-radius: 14px; background: var(--card); border: 2px solid var(--ok); font-weight: 700; }
   .linkish { background: none; border: 0; color: var(--muted); text-decoration: underline; font: inherit; padding: 6px 0; cursor: pointer; }
 </style>
 </head>
@@ -104,6 +118,35 @@
       <button type="button" data-director="next" id="directorNext"></button>
     </div>
   </section>
+
+  <p id="treasureStatus" hidden role="status"></p>
+
+  <!-- Giochi con i telefoni oltre ai quiz: disegni, frasi, missioni, talpa, capsula del tempo. -->
+  <section id="play" class="game" hidden aria-live="polite">
+    <div class="game-kicker" id="playKicker"></div>
+    <p class="game-question" id="playTitle"></p>
+    <p id="playPrompt"></p>
+    <p class="muted" id="playInfo"></p>
+    <div class="secret" id="playSecret" hidden></div>
+    <div class="canvas-wrap" id="playPreviousWrap" hidden><canvas id="playPrevious" width="600" height="600"></canvas></div>
+    <ol id="playList" hidden></ol>
+    <div class="choices" id="playChoices"></div>
+    <div id="playDraw" hidden>
+      <div class="canvas-wrap"><canvas id="drawCanvas" width="600" height="600"></canvas></div>
+      <div class="palette" id="palette"></div>
+      <div class="pair">
+        <button type="button" class="send ghost" id="drawClear"></button>
+        <button type="button" class="send" id="drawSend"></button>
+      </div>
+    </div>
+    <div id="playText" hidden>
+      <textarea id="playTextInput" maxlength="200" enterkeyhint="send"></textarea>
+      <button type="button" class="send" id="playTextSend"></button>
+    </div>
+    <p id="playStatus"></p>
+    <p class="muted" id="playCoins" hidden></p>
+  </section>
+  <div id="lights" hidden><span id="lightsHint"></span></div>
 
   <!-- Gioco con i telefoni: compare quando sulla TV c'è una domanda per gli invitati. -->
   <section id="game" class="game" hidden aria-live="polite">
@@ -198,6 +241,62 @@ const IT = {
   directorKicker: "Regista per due minuti",
   directorYou: "Tocca a te: dirigi lo slideshow!",
   directorLeft: "Ti restano %s",
+  playKicker: "Gioco sulla TV",
+  playSend: "Invia",
+  playClear: "Cancella",
+  playSent: "Inviato: guarda la TV!",
+  playRate: "Un attimo prima di inviare di nuovo.",
+  playClosed: "Questo turno è chiuso.",
+  playFailed: "Non inviato: riprova.",
+  playNeedTarget: "Scegli prima a chi scrivere.",
+  coins: "Le tue monete: %s",
+  t_draw_guess: "Disegna e indovina",
+  t_wall: "Muro dei disegni",
+  t_story: "Romanzo a più mani",
+  t_whisper: "Telefono senza fili",
+  t_compliments: "Complimenti segreti",
+  t_missions: "Missioni fotografiche",
+  t_paparazzi: "Paparazzi",
+  t_moment: "Lo stesso istante",
+  t_recreate: "Ricrea la foto",
+  t_mole: "Chi è la talpa?",
+  t_capsule: "Capsula del tempo",
+  drawYou: "Disegna: «%s». Gli altri devono indovinare, e la TV mostra il disegno mentre lo fai.",
+  drawGuess: "Guarda la TV e indovina cosa disegna %s:",
+  guessWrong: "No, non è quello: riprova!",
+  guessRight: "Hai indovinato!",
+  guessWon: "%1 ha indovinato: era «%2»",
+  guessAnswer: "La parola era «%s»",
+  wallHint: "Disegna sul tema e invia: il disegno compare sulla TV. Puoi rifarlo quante volte vuoi.",
+  storyPrevious: "Ultima frase:",
+  storyMine: "Hai appena scritto tu: aspetta che qualcuno continui.",
+  whisperDraw: "Tocca a te! Disegna questa frase:",
+  whisperDescribe: "Tocca a te! Descrivi questo disegno con una frase:",
+  whisperLeft: "Hai %s",
+  whisperWait: "Aspetta il tuo turno: un telefono alla volta.",
+  whisperDone: "Hai giocato il tuo turno: il risultato arriva sulla TV alla fine!",
+  complimentTo: "A chi vuoi fare il complimento?",
+  complimentHint: "Resta anonimo: sulla TV non compare il tuo nome.",
+  missionYour: "La tua missione segreta:",
+  missionHint: "Scatta la foto e mandala con il pulsante qui sotto.",
+  paparazziStar: "Sei la star: scappa dai paparazzi!",
+  paparazziHunt: "Fotografa %s e manda la foto: vincono i primi tre!",
+  momentReady: "Prepara la fotocamera: si scatta tra %s",
+  momentNow: "Scatta adesso e manda la foto!",
+  momentDone: "Tempo scaduto: guarda le foto sulla TV!",
+  recreateHint: "Guarda la foto sulla TV, rifatela uguale e mandatela!",
+  moleYou: "Sei la talpa! Nessuno deve scoprirlo. La tua missione:",
+  moleOthers: "C’è una talpa con una missione segreta: osserva bene gli altri…",
+  moleVote: "Chi è la talpa? Vota:",
+  moleVoted: "Hai votato %s",
+  moleCaught: "La talpa era %s: scoperta!",
+  moleFree: "La talpa era %s: l’ha fatta franca!",
+  capsuleHint: "Resta segreto fino all’apertura della capsula, sulla TV.",
+  capsuleOpen: "La capsula è aperta:",
+  treasureOk: "Hai trovato il QR! Le monete sono tue.",
+  treasureLate: "Troppo tardi: qualcuno è stato più veloce!",
+  treasureAgain: "Questo QR l’hai già trovato.",
+  lightsHint: "Alza il telefono verso la TV! Tocca lo schermo per uscire.",
   quietKicker: "Tre minuti senza telefoni",
   quietText: "Metti giù il telefono e goditi la festa: si riprende tra %s.",
   quietRefused: "Ora no: sono i tre minuti senza telefoni.",
@@ -286,6 +385,62 @@ const EN = {
   directorKicker: "Director for two minutes",
   directorYou: "Your turn: direct the slideshow!",
   directorLeft: "%s left",
+  playKicker: "Game on the TV",
+  playSend: "Send",
+  playClear: "Clear",
+  playSent: "Sent: look at the TV!",
+  playRate: "Wait a moment before sending again.",
+  playClosed: "This round is closed.",
+  playFailed: "Not sent: try again.",
+  playNeedTarget: "First choose who to write to.",
+  coins: "Your coins: %s",
+  t_draw_guess: "Draw and guess",
+  t_wall: "Drawing wall",
+  t_story: "Story with many hands",
+  t_whisper: "Telephone",
+  t_compliments: "Secret compliments",
+  t_missions: "Photo missions",
+  t_paparazzi: "Paparazzi",
+  t_moment: "The same instant",
+  t_recreate: "Recreate the photo",
+  t_mole: "Who is the mole?",
+  t_capsule: "Time capsule",
+  drawYou: "Draw: “%s”. The others must guess, and the TV shows your drawing as you go.",
+  drawGuess: "Look at the TV and guess what %s is drawing:",
+  guessWrong: "No, that’s not it: try again!",
+  guessRight: "You guessed it!",
+  guessWon: "%1 guessed it: it was “%2”",
+  guessAnswer: "The word was “%s”",
+  wallHint: "Draw on the theme and send it: your drawing appears on the TV. You can redo it as often as you like.",
+  storyPrevious: "Last sentence:",
+  storyMine: "You just wrote: wait for someone to continue.",
+  whisperDraw: "Your turn! Draw this sentence:",
+  whisperDescribe: "Your turn! Describe this drawing in one sentence:",
+  whisperLeft: "You have %s",
+  whisperWait: "Wait for your turn: one phone at a time.",
+  whisperDone: "You played your turn: the result comes on the TV at the end!",
+  complimentTo: "Who is your compliment for?",
+  complimentHint: "It stays anonymous: your name does not appear on the TV.",
+  missionYour: "Your secret mission:",
+  missionHint: "Take the photo and send it with the button below.",
+  paparazziStar: "You are the star: run from the paparazzi!",
+  paparazziHunt: "Photograph %s and send the photo: the first three win!",
+  momentReady: "Get your camera ready: shoot in %s",
+  momentNow: "Shoot now and send the photo!",
+  momentDone: "Time is up: look at the photos on the TV!",
+  recreateHint: "Look at the photo on the TV, recreate it and send it!",
+  moleYou: "You are the mole! Nobody must find out. Your mission:",
+  moleOthers: "There is a mole with a secret mission: watch the others carefully…",
+  moleVote: "Who is the mole? Vote:",
+  moleVoted: "You voted for %s",
+  moleCaught: "The mole was %s: caught!",
+  moleFree: "The mole was %s: they got away with it!",
+  capsuleHint: "It stays secret until the capsule is opened on the TV.",
+  capsuleOpen: "The capsule is open:",
+  treasureOk: "You found the QR code! The coins are yours.",
+  treasureLate: "Too late: someone was faster!",
+  treasureAgain: "You already found this QR code.",
+  lightsHint: "Hold your phone up! Tap the screen to leave.",
   quietKicker: "Three minutes without phones",
   quietText: "Put your phone down and enjoy the party: back in %s.",
   quietRefused: "Not now: it's three minutes without phones.",
@@ -374,6 +529,62 @@ const FR = {
   directorKicker: "Réalisateur pendant deux minutes",
   directorYou: "À vous : dirigez le diaporama !",
   directorLeft: "Il vous reste %s",
+  playKicker: "Jeu sur le téléviseur",
+  playSend: "Envoyer",
+  playClear: "Effacer",
+  playSent: "Envoyé : regardez le téléviseur !",
+  playRate: "Patientez un instant avant de renvoyer.",
+  playClosed: "Ce tour est terminé.",
+  playFailed: "Non envoyé : réessayez.",
+  playNeedTarget: "Choisissez d’abord à qui écrire.",
+  coins: "Vos pièces : %s",
+  t_draw_guess: "Dessine et devine",
+  t_wall: "Mur de dessins",
+  t_story: "Roman à plusieurs mains",
+  t_whisper: "Téléphone arabe",
+  t_compliments: "Compliments secrets",
+  t_missions: "Missions photo",
+  t_paparazzi: "Paparazzi",
+  t_moment: "Le même instant",
+  t_recreate: "Recrée la photo",
+  t_mole: "Qui est la taupe ?",
+  t_capsule: "Capsule temporelle",
+  drawYou: "Dessinez : « %s ». Les autres doivent deviner, et le téléviseur montre le dessin pendant que vous le faites.",
+  drawGuess: "Regardez le téléviseur et devinez ce que dessine %s :",
+  guessWrong: "Non, ce n’est pas ça : réessayez !",
+  guessRight: "Vous avez deviné !",
+  guessWon: "%1 a deviné : c’était « %2 »",
+  guessAnswer: "Le mot était « %s »",
+  wallHint: "Dessinez sur le thème et envoyez : le dessin apparaît sur le téléviseur. Vous pouvez le refaire autant de fois que vous voulez.",
+  storyPrevious: "Dernière phrase :",
+  storyMine: "Vous venez d’écrire : attendez que quelqu’un continue.",
+  whisperDraw: "À vous ! Dessinez cette phrase :",
+  whisperDescribe: "À vous ! Décrivez ce dessin en une phrase :",
+  whisperLeft: "Il vous reste %s",
+  whisperWait: "Attendez votre tour : un téléphone à la fois.",
+  whisperDone: "Vous avez joué votre tour : le résultat arrive sur le téléviseur à la fin !",
+  complimentTo: "À qui est destiné votre compliment ?",
+  complimentHint: "Il reste anonyme : votre nom n’apparaît pas sur le téléviseur.",
+  missionYour: "Votre mission secrète :",
+  missionHint: "Prenez la photo et envoyez-la avec le bouton ci-dessous.",
+  paparazziStar: "Vous êtes la star : fuyez les paparazzi !",
+  paparazziHunt: "Photographiez %s et envoyez la photo : les trois premiers gagnent !",
+  momentReady: "Préparez l’appareil photo : on déclenche dans %s",
+  momentNow: "Prenez la photo maintenant et envoyez-la !",
+  momentDone: "Temps écoulé : regardez les photos sur le téléviseur !",
+  recreateHint: "Regardez la photo sur le téléviseur, refaites-la à l’identique et envoyez-la !",
+  moleYou: "Vous êtes la taupe ! Personne ne doit le découvrir. Votre mission :",
+  moleOthers: "Il y a une taupe avec une mission secrète : observez bien les autres…",
+  moleVote: "Qui est la taupe ? Votez :",
+  moleVoted: "Vous avez voté pour %s",
+  moleCaught: "La taupe était %s : démasquée !",
+  moleFree: "La taupe était %s : elle s’en est tirée !",
+  capsuleHint: "Il reste secret jusqu’à l’ouverture de la capsule sur le téléviseur.",
+  capsuleOpen: "La capsule est ouverte :",
+  treasureOk: "Vous avez trouvé le QR ! Les pièces sont à vous.",
+  treasureLate: "Trop tard : quelqu’un a été plus rapide !",
+  treasureAgain: "Vous avez déjà trouvé ce QR.",
+  lightsHint: "Levez votre téléphone ! Touchez l’écran pour quitter.",
   quietKicker: "Trois minutes sans téléphones",
   quietText: "Posez votre téléphone et profitez de la fête : reprise dans %s.",
   quietRefused: "Pas maintenant : ce sont les trois minutes sans téléphones.",
@@ -462,6 +673,62 @@ const ES = {
   directorKicker: "Director por dos minutos",
   directorYou: "Te toca: ¡dirige la presentación!",
   directorLeft: "Te quedan %s",
+  playKicker: "Juego en la TV",
+  playSend: "Enviar",
+  playClear: "Borrar",
+  playSent: "Enviado: ¡mira la TV!",
+  playRate: "Espera un momento antes de volver a enviar.",
+  playClosed: "Esta ronda está cerrada.",
+  playFailed: "No enviado: inténtalo de nuevo.",
+  playNeedTarget: "Elige primero a quién escribir.",
+  coins: "Tus monedas: %s",
+  t_draw_guess: "Dibuja y adivina",
+  t_wall: "Muro de dibujos",
+  t_story: "Novela a muchas manos",
+  t_whisper: "Teléfono escacharrado",
+  t_compliments: "Cumplidos secretos",
+  t_missions: "Misiones fotográficas",
+  t_paparazzi: "Paparazzi",
+  t_moment: "El mismo instante",
+  t_recreate: "Recrea la foto",
+  t_mole: "¿Quién es el topo?",
+  t_capsule: "Cápsula del tiempo",
+  drawYou: "Dibuja: «%s». Los demás deben adivinarlo y la TV muestra el dibujo mientras lo haces.",
+  drawGuess: "Mira la TV y adivina qué dibuja %s:",
+  guessWrong: "No, no es eso: ¡prueba otra vez!",
+  guessRight: "¡Lo has adivinado!",
+  guessWon: "%1 lo ha adivinado: era «%2»",
+  guessAnswer: "La palabra era «%s»",
+  wallHint: "Dibuja sobre el tema y envíalo: el dibujo aparece en la TV. Puedes rehacerlo cuantas veces quieras.",
+  storyPrevious: "Última frase:",
+  storyMine: "Acabas de escribir tú: espera a que alguien continúe.",
+  whisperDraw: "¡Te toca! Dibuja esta frase:",
+  whisperDescribe: "¡Te toca! Describe este dibujo con una frase:",
+  whisperLeft: "Te quedan %s",
+  whisperWait: "Espera tu turno: un móvil cada vez.",
+  whisperDone: "Has jugado tu turno: ¡el resultado sale en la TV al final!",
+  complimentTo: "¿Para quién es tu cumplido?",
+  complimentHint: "Es anónimo: tu nombre no aparece en la TV.",
+  missionYour: "Tu misión secreta:",
+  missionHint: "Haz la foto y mándala con el botón de abajo.",
+  paparazziStar: "Eres la estrella: ¡huye de los paparazzi!",
+  paparazziHunt: "Fotografía a %s y manda la foto: ¡ganan los tres primeros!",
+  momentReady: "Prepara la cámara: se dispara en %s",
+  momentNow: "¡Haz la foto ahora y mándala!",
+  momentDone: "Se acabó el tiempo: ¡mira las fotos en la TV!",
+  recreateHint: "Mira la foto en la TV, rehacedla igual y mandadla!",
+  moleYou: "¡Eres el topo! Nadie debe descubrirlo. Tu misión:",
+  moleOthers: "Hay un topo con una misión secreta: observa bien a los demás…",
+  moleVote: "¿Quién es el topo? Vota:",
+  moleVoted: "Has votado a %s",
+  moleCaught: "El topo era %s: ¡descubierto!",
+  moleFree: "El topo era %s: ¡se ha salido con la suya!",
+  capsuleHint: "Queda en secreto hasta que se abra la cápsula en la TV.",
+  capsuleOpen: "La cápsula está abierta:",
+  treasureOk: "¡Has encontrado el QR! Las monedas son tuyas.",
+  treasureLate: "Demasiado tarde: ¡alguien ha sido más rápido!",
+  treasureAgain: "Este QR ya lo has encontrado.",
+  lightsHint: "¡Levanta el móvil! Toca la pantalla para salir.",
   quietKicker: "Tres minutos sin móviles",
   quietText: "Deja el móvil y disfruta de la fiesta: volvemos en %s.",
   quietRefused: "Ahora no: son los tres minutos sin móviles.",
@@ -550,6 +817,62 @@ const DE = {
   directorKicker: "Zwei Minuten Regie",
   directorYou: "Du bist dran: Steuere die Diashow!",
   directorLeft: "Noch %s",
+  playKicker: "Spiel auf dem Fernseher",
+  playSend: "Senden",
+  playClear: "Löschen",
+  playSent: "Gesendet: Schau auf den Fernseher!",
+  playRate: "Warte kurz, bevor du erneut sendest.",
+  playClosed: "Diese Runde ist vorbei.",
+  playFailed: "Nicht gesendet: Versuch es noch einmal.",
+  playNeedTarget: "Wähle zuerst, wem du schreibst.",
+  coins: "Deine Münzen: %s",
+  t_draw_guess: "Zeichnen und raten",
+  t_wall: "Zeichenwand",
+  t_story: "Geschichte mit vielen Händen",
+  t_whisper: "Stille Post",
+  t_compliments: "Geheime Komplimente",
+  t_missions: "Fotomissionen",
+  t_paparazzi: "Paparazzi",
+  t_moment: "Derselbe Augenblick",
+  t_recreate: "Foto nachstellen",
+  t_mole: "Wer ist der Maulwurf?",
+  t_capsule: "Zeitkapsel",
+  drawYou: "Zeichne: „%s“. Die anderen müssen raten, und der Fernseher zeigt die Zeichnung, während du zeichnest.",
+  drawGuess: "Schau auf den Fernseher und rate, was %s zeichnet:",
+  guessWrong: "Nein, das ist es nicht: Versuch es noch einmal!",
+  guessRight: "Du hast es erraten!",
+  guessWon: "%1 hat es erraten: Es war „%2“",
+  guessAnswer: "Das Wort war „%s“",
+  wallHint: "Zeichne zum Thema und sende es: Die Zeichnung erscheint auf dem Fernseher. Du kannst sie so oft neu machen, wie du willst.",
+  storyPrevious: "Letzter Satz:",
+  storyMine: "Du hast gerade geschrieben: Warte, bis jemand weitermacht.",
+  whisperDraw: "Du bist dran! Zeichne diesen Satz:",
+  whisperDescribe: "Du bist dran! Beschreibe diese Zeichnung in einem Satz:",
+  whisperLeft: "Du hast %s",
+  whisperWait: "Warte, bis du dran bist: ein Handy nach dem anderen.",
+  whisperDone: "Du hast deinen Zug gemacht: Das Ergebnis kommt am Ende auf den Fernseher!",
+  complimentTo: "Für wen ist dein Kompliment?",
+  complimentHint: "Es bleibt anonym: Dein Name erscheint nicht auf dem Fernseher.",
+  missionYour: "Deine geheime Mission:",
+  missionHint: "Mach das Foto und schick es mit der Taste unten.",
+  paparazziStar: "Du bist der Star: Lauf vor den Paparazzi weg!",
+  paparazziHunt: "Fotografiere %s und schick das Foto: Die ersten drei gewinnen!",
+  momentReady: "Kamera bereit: Geknipst wird in %s",
+  momentNow: "Jetzt knipsen und das Foto schicken!",
+  momentDone: "Die Zeit ist um: Schau dir die Fotos auf dem Fernseher an!",
+  recreateHint: "Schaut euch das Foto auf dem Fernseher an, stellt es nach und schickt es!",
+  moleYou: "Du bist der Maulwurf! Niemand darf es merken. Deine Mission:",
+  moleOthers: "Es gibt einen Maulwurf mit geheimer Mission: Beobachte die anderen genau …",
+  moleVote: "Wer ist der Maulwurf? Stimm ab:",
+  moleVoted: "Du hast für %s gestimmt",
+  moleCaught: "Der Maulwurf war %s: entlarvt!",
+  moleFree: "Der Maulwurf war %s: davongekommen!",
+  capsuleHint: "Es bleibt geheim, bis die Kapsel auf dem Fernseher geöffnet wird.",
+  capsuleOpen: "Die Kapsel ist offen:",
+  treasureOk: "Du hast den QR-Code gefunden! Die Münzen gehören dir.",
+  treasureLate: "Zu spät: Jemand war schneller!",
+  treasureAgain: "Diesen QR-Code hast du schon gefunden.",
+  lightsHint: "Halte dein Handy hoch! Tippe auf den Bildschirm, um zu beenden.",
   quietKicker: "Drei Minuten ohne Handys",
   quietText: "Leg das Handy weg und genieß die Party: weiter in %s.",
   quietRefused: "Jetzt nicht: Es sind die drei Minuten ohne Handys.",
@@ -707,6 +1030,7 @@ async function pollGame() {
       showFeatures(state.features || {});
       showGame(state.game);
       showParty(state.party || {});
+      showPlay(state.play || null);
       $("host").hidden = !state.host;
     }
   } catch (e) {
@@ -747,6 +1071,330 @@ function updatePick() {
   $("pick").classList.toggle("off", off);
   $("files").disabled = off;
 }
+
+// Giochi con i telefoni: la TV dice cosa mostrare, la pagina disegna l'occorrente e manda i contributi.
+const COLORS = ["#111111", "#E53935", "#FB8C00", "#FDD835", "#43A047", "#1E88E5", "#8E24AA", "#FFFFFF"];
+const play = { round: null, game: null, offset: 0, target: null, color: 0, strokes: [], dirty: false, live: null, lightsSeen: 0, lightsTimer: null, momentTimer: null };
+$("playKicker").textContent = T.playKicker;
+$("drawClear").textContent = T.playClear;
+$("drawSend").textContent = T.playSend;
+$("playTextSend").textContent = T.playSend;
+$("lightsHint").textContent = T.lightsHint;
+COLORS.forEach((color, index) => {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.style.background = color;
+  button.setAttribute("aria-label", color);
+  button.addEventListener("click", () => {
+    play.color = index;
+    document.querySelectorAll("#palette button").forEach((b, i) => b.classList.toggle("on", i === index));
+  });
+  if (index === 0) button.classList.add("on");
+  $("palette").appendChild(button);
+});
+
+function showPlay(state) {
+  if (!state) { $("play").hidden = true; showLights(null, 0); return; }
+  play.offset = (state.now || Date.now()) - Date.now();
+  $("playCoins").hidden = !(state.coins > 0);
+  $("playCoins").textContent = T.coins.replace("%s", state.coins | 0);
+  showLights(state.lights || null);
+  const game = state.game;
+  $("play").hidden = !game;
+  if (!game) { play.game = null; play.round = null; stopMomentTimer(); return; }
+  if (game.round !== play.round) {
+    // Nuovo gioco o nuovo turno: si riparte puliti.
+    play.round = game.round;
+    play.target = null;
+    play.strokes = [];
+    play.dirty = false;
+    $("playTextInput").value = "";
+    $("playStatus").textContent = "";
+    drawStrokes($("drawCanvas"), []);
+  }
+  play.game = game;
+  renderPlay();
+}
+
+function renderPlay() {
+  const game = play.game;
+  if (!game) return;
+  const kind = game.kind;
+  $("playTitle").textContent = T["t_" + kind] || "";
+  $("playPrompt").textContent = game.prompt || "";
+  let info = "";
+  let secret = "";
+  let input = game.input;
+  let choices = [];
+  let list = null;
+  let previousDrawing = null;
+  switch (kind) {
+    case "draw_guess":
+      if (game.winner) info = T.guessWon.replace("%1", game.winner).replace("%2", game.answer || "");
+      else if (game.revealed) info = T.guessAnswer.replace("%s", game.answer || "");
+      else if (game.you) secret = T.drawYou.replace("%s", game.secret || "");
+      else info = T.drawGuess.replace("%s", game.special || "");
+      break;
+    case "wall": info = T.wallHint; break;
+    case "story":
+      if (game.mine) { info = T.storyMine; input = "none"; }
+      else if (game.previous) { info = T.storyPrevious; secret = game.previous; }
+      break;
+    case "whisper":
+      if (game.turn) {
+        info = (input === "draw" ? T.whisperDraw : T.whisperDescribe) + " " + T.whisperLeft.replace("%s", formatSeconds(game.seconds | 0));
+        if (game.previousDrawing) previousDrawing = game.previousDrawing;
+        else secret = game.previous || "";
+      } else {
+        info = game.done ? T.whisperDone : T.whisperWait;
+        input = "none";
+      }
+      break;
+    case "compliments":
+      info = T.complimentTo + " " + T.complimentHint;
+      choices = game.choices || [];
+      break;
+    case "missions":
+      if (game.secret) { info = T.missionYour; secret = game.secret + " · " + T.missionHint; }
+      break;
+    case "paparazzi": info = game.you ? T.paparazziStar : T.paparazziHunt.replace("%s", game.special || ""); break;
+    case "moment": info = momentText(game); startMomentTimer(); break;
+    case "recreate": info = T.recreateHint; break;
+    case "mole":
+      if (game.revealed) info = (game.caught ? T.moleCaught : T.moleFree).replace("%s", game.special || "");
+      else if (game.voting) { info = game.voted ? T.moleVoted.replace("%s", game.voted) : T.moleVote; choices = game.choices || []; }
+      else if (game.you) { info = T.moleYou; secret = game.secret || ""; }
+      else info = T.moleOthers;
+      break;
+    case "capsule":
+      if (game.revealed) { info = T.capsuleOpen; list = game.entries || []; }
+      else info = T.capsuleHint;
+      break;
+  }
+  if (kind !== "moment") stopMomentTimer();
+  $("playInfo").textContent = info;
+  $("playSecret").hidden = !secret;
+  $("playSecret").textContent = secret;
+  $("playPreviousWrap").hidden = !previousDrawing;
+  if (previousDrawing) drawStrokes($("playPrevious"), parseDrawing(previousDrawing));
+  $("playList").hidden = !list;
+  $("playList").textContent = "";
+  (list || []).forEach((text) => { const li = document.createElement("li"); li.textContent = text; $("playList").appendChild(li); });
+  renderChoices(kind, choices, game);
+  $("playDraw").hidden = input !== "draw";
+  $("playText").hidden = input !== "text";
+  $("playTextInput").placeholder = kind === "draw_guess" ? T.drawGuess.replace("%s", game.special || "").replace(/[:：]\s*$/, "") : "";
+  // Chi disegna in "Disegna e indovina" manda il disegno da solo, mentre lo fa.
+  $("drawSend").hidden = kind === "draw_guess";
+}
+
+function renderChoices(kind, choices, game) {
+  const box = $("playChoices");
+  const names = choices.join("\n");
+  if (box.dataset.names === names + kind && box.childElementCount === choices.length) {
+    box.querySelectorAll("button").forEach((b) => b.classList.toggle("mine", b.textContent === (kind === "mole" ? game.voted : play.target)));
+    return;
+  }
+  box.dataset.names = names + kind;
+  box.textContent = "";
+  choices.forEach((name) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = name;
+    button.classList.toggle("mine", name === (kind === "mole" ? game.voted : play.target));
+    button.addEventListener("click", () => {
+      if (kind === "mole") {
+        sendPlay({ command: "vote", target: name });
+      } else {
+        play.target = name;
+        box.querySelectorAll("button").forEach((b) => b.classList.toggle("mine", b === button));
+      }
+    });
+    box.appendChild(button);
+  });
+}
+
+function formatSeconds(seconds) {
+  return Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2, "0");
+}
+
+function momentText(game) {
+  const now = Date.now() + play.offset;
+  const left = Math.ceil((game.moment - now) / 1000);
+  if (left > 0) return T.momentReady.replace("%s", String(left));
+  if (now < game.moment + 60000) return T.momentNow;
+  return T.momentDone;
+}
+
+function startMomentTimer() {
+  if (play.momentTimer) return;
+  play.momentTimer = setInterval(() => {
+    if (play.game && play.game.kind === "moment") $("playInfo").textContent = momentText(play.game);
+  }, 250);
+}
+
+function stopMomentTimer() {
+  if (play.momentTimer) { clearInterval(play.momentTimer); play.momentTimer = null; }
+}
+
+async function sendPlay(fields) {
+  if (!play.round) return;
+  let status = T.playFailed;
+  try {
+    const response = await sendAction(Object.assign({ type: "play", round: play.round }, fields));
+    let body = null;
+    try { body = await response.json(); } catch (e) {}
+    if (response.ok) {
+      status = body && body.status === "correct" ? T.guessRight : body && body.status === "wrong" ? T.guessWrong : T.playSent;
+      if (fields.text !== undefined) $("playTextInput").value = "";
+    } else if (response.status === 429) status = T.playRate;
+    else if (response.status === 409) status = T.playClosed;
+    else if (response.status === 423) status = T.quietRefused;
+  } catch (e) {}
+  if (fields.command !== "live") $("playStatus").textContent = status;
+  pollGame();
+}
+
+$("playTextSend").addEventListener("click", sendPlayText);
+$("playTextInput").addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); sendPlayText(); }
+});
+
+function sendPlayText() {
+  const text = $("playTextInput").value.trim();
+  if (!text || !play.game) return;
+  if (play.game.kind === "compliments" && !play.target) { $("playStatus").textContent = T.playNeedTarget; return; }
+  const fields = { text: Array.from(text).slice(0, 200).join("") };
+  if (play.game.kind === "compliments") fields.target = play.target;
+  sendPlay(fields);
+}
+
+// Disegno: tratti nelle coordinate 0–1000 della tela quadrata, "colore,x,y,x,y;...".
+const canvas = $("drawCanvas");
+let drawing = null;
+canvas.addEventListener("pointerdown", (event) => {
+  event.preventDefault();
+  canvas.setPointerCapture(event.pointerId);
+  drawing = { c: play.color, p: [] };
+  play.strokes.push(drawing);
+  addPoint(event);
+});
+canvas.addEventListener("pointermove", (event) => { if (drawing) addPoint(event); });
+["pointerup", "pointercancel"].forEach((name) => canvas.addEventListener(name, () => { drawing = null; }));
+
+function addPoint(event) {
+  const rect = canvas.getBoundingClientRect();
+  const x = Math.max(0, Math.min(1000, Math.round((event.clientX - rect.left) / rect.width * 1000)));
+  const y = Math.max(0, Math.min(1000, Math.round((event.clientY - rect.top) / rect.height * 1000)));
+  const points = drawing.p;
+  const n = points.length;
+  if (n >= 2 && Math.abs(points[n - 2] - x) + Math.abs(points[n - 1] - y) < 6) return;
+  // Oltre il limite della TV il disegno smette di crescere.
+  if (encodeDrawing().length > 19000 || play.strokes.length > 390) return;
+  points.push(x, y);
+  play.dirty = true;
+  drawStrokes(canvas, play.strokes);
+}
+
+function encodeDrawing() {
+  return play.strokes.filter((s) => s.p.length >= 2).map((s) => [s.c].concat(s.p).join(",")).join(";");
+}
+
+function parseDrawing(text) {
+  return String(text || "").split(";").map((stroke) => {
+    const numbers = stroke.split(",").map((n) => parseInt(n, 10));
+    return { c: numbers[0] | 0, p: numbers.slice(1) };
+  }).filter((s) => s.p.length >= 2);
+}
+
+function drawStrokes(target, strokes) {
+  const context = target.getContext("2d");
+  const size = target.width;
+  context.fillStyle = "#fff";
+  context.fillRect(0, 0, size, size);
+  context.lineCap = "round";
+  context.lineJoin = "round";
+  context.lineWidth = size * 0.012;
+  strokes.forEach((stroke) => {
+    const color = COLORS[stroke.c] || COLORS[0];
+    context.strokeStyle = color;
+    context.fillStyle = color;
+    const p = stroke.p;
+    if (p.length === 2) {
+      context.beginPath();
+      context.arc(p[0] / 1000 * size, p[1] / 1000 * size, size * 0.012, 0, Math.PI * 2);
+      context.fill();
+      return;
+    }
+    context.beginPath();
+    context.moveTo(p[0] / 1000 * size, p[1] / 1000 * size);
+    for (let i = 2; i + 1 < p.length; i += 2) context.lineTo(p[i] / 1000 * size, p[i + 1] / 1000 * size);
+    context.stroke();
+  });
+}
+
+$("drawClear").addEventListener("click", () => {
+  play.strokes = [];
+  play.dirty = true;
+  drawStrokes(canvas, []);
+});
+$("drawSend").addEventListener("click", () => {
+  const encoded = encodeDrawing();
+  if (encoded) sendPlay({ drawing: encoded });
+});
+// "Disegna e indovina": il disegno parte da solo ogni secondo e mezzo, se è cambiato.
+setInterval(() => {
+  const game = play.game;
+  if (!game || game.kind !== "draw_guess" || !game.you || game.input !== "draw" || !play.dirty) return;
+  const encoded = encodeDrawing();
+  if (!encoded) return;
+  play.dirty = false;
+  sendPlay({ drawing: encoded, command: "live" });
+}, 1500);
+drawStrokes(canvas, []);
+
+// Telefoni come luci: lo stesso colore su tutti i telefoni, calcolato dall'ora della TV.
+function showLights(lights) {
+  const box = $("lights");
+  if (!lights || lights.started === play.lightsSeen) {
+    box.hidden = true;
+    if (play.lightsTimer) { cancelAnimationFrame(play.lightsTimer); play.lightsTimer = null; }
+    return;
+  }
+  box.hidden = false;
+  box.onclick = () => { play.lightsSeen = lights.started; showLights(null); };
+  const seed = Array.from(PLAYER).reduce((sum, c) => sum + c.charCodeAt(0), 0) % 360;
+  const frame = () => {
+    const t = (Date.now() + play.offset - lights.started) / 1000;
+    let color;
+    switch (lights.pattern) {
+      case "wave": color = "hsl(" + ((t * 60 + seed) % 360) + ",90%,55%)"; break;
+      case "pulse": color = "hsl(330,90%," + (25 + 30 * (0.5 + 0.5 * Math.sin(t * Math.PI * 2))) + "%)"; break;
+      case "candle": color = "hsl(" + (30 + 8 * Math.sin(t * 3 + seed)) + ",100%," + (40 + 10 * Math.sin(t * 7.3 + seed) + 5 * Math.sin(t * 13.1)) + "%)"; break;
+      default: color = "hsl(" + ((t * 60) % 360) + ",90%,55%)";
+    }
+    box.style.background = color;
+    play.lightsTimer = requestAnimationFrame(frame);
+  };
+  if (!play.lightsTimer) play.lightsTimer = requestAnimationFrame(frame);
+}
+
+// Caccia al QR: la pagina aperta dal QR della caccia porta il codice nell'indirizzo.
+(async () => {
+  const params = new URLSearchParams(location.search);
+  const token = params.get("t");
+  if (!token) return;
+  params.delete("t");
+  try { history.replaceState(null, "", location.pathname + "?" + params.toString()); } catch (e) {}
+  let text = T.treasureLate;
+  try {
+    const response = await sendAction({ type: "play", command: "treasure", token });
+    if (response.ok) text = T.treasureOk;
+    else if (response.status === 409) text = T.treasureAgain;
+  } catch (e) {}
+  $("treasureStatus").textContent = text;
+  $("treasureStatus").hidden = false;
+})();
 
 // Annuncio della regia e regista di turno.
 let shots = null;

@@ -131,6 +131,8 @@ fun SlideshowScreen(
     reactions: Flow<PartyHub.ReactionEvent> = emptyFlow(),
     /** "Foto che invecchiano": quanto è ingiallita ogni foto (0–1). */
     photoAge: (PhotoItem) -> Float = { 0f },
+    /** Perché la foto è nata in un gioco ("Missione: un brindisi"), se c'è. */
+    photoTag: (PhotoItem) -> String? = { null },
 ) {
     val photo = state.photos.getOrNull(state.currentIndex)
     val screenFocus = remember { FocusRequester() }
@@ -309,6 +311,8 @@ fun SlideshowScreen(
             if (state.party.undeveloped) DisposableBadge(state.party.shotsTaken)
             QuietOverlay(state.party.quietUntilMillis)
             AnnouncementOverlay(state.party.announcement)
+            state.photos.getOrNull(state.currentIndex)?.let(photoTag)?.let { GameTagBadge(it) }
+            state.play.treasureUrl?.let { TreasureOverlay(it) }
         }
 
         if (state.settings.countdown) CountdownOverlay(state.settings)

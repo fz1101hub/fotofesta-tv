@@ -28,6 +28,7 @@ import it.fotofesta.tv.guests.GuestPhotoStore
 import it.fotofesta.tv.guests.HostRemote
 import it.fotofesta.tv.guests.PartyCommand
 import it.fotofesta.tv.guests.PartyHub
+import it.fotofesta.tv.guests.PartyPlay
 import it.fotofesta.tv.guests.WifiNetwork
 import it.fotofesta.tv.guests.guestPhotoId
 import it.fotofesta.tv.guests.toPhotoItem
@@ -44,6 +45,7 @@ import it.fotofesta.tv.model.GoogleConnectState
 import it.fotofesta.tv.model.GuestsUiState
 import it.fotofesta.tv.model.PhotoItem
 import it.fotofesta.tv.model.PartyUiState
+import it.fotofesta.tv.model.PlayUiState
 import it.fotofesta.tv.model.PhotoLimit
 import it.fotofesta.tv.model.PlaybackOrder
 import it.fotofesta.tv.model.PrizeDraw
@@ -132,6 +134,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private var rehearsalJob: Job? = null
     /** Reazioni e dediche dei telefoni durante la festa. */
     private val partyHub = services.partyHub
+    /** Giochi con i telefoni oltre ai quiz. */
+    private val partyPlay = services.partyPlay
     /** Regia dal telefono: i comandi arrivano dai thread del server e si eseguono qui. */
     private val hostRemote = services.hostRemote
     private val _reactions = MutableSharedFlow<PartyHub.ReactionEvent>(extraBufferCapacity = 32, onBufferOverflow = BufferOverflow.DROP_OLDEST)
@@ -235,6 +239,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                 .collect { (party, photos, ready) -> onGuestsChanged(party, photos, ready) }
         }
         partyHub.onChange = ::refreshParty
+        partyPlay.onChange = ::refreshPlay
         partyHub.onReaction = {
             _reactions.tryEmit(it)
             guests.saveHubSoon()
@@ -428,6 +433,116 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    // -----------------------------------------------------------------------------------------
+    // Giochi con i telefoni: disegni, frasi, missioni, talpa, torneo, scommesse, caccia al QR
+    // -----------------------------------------------------------------------------------------
+
+    /** Chiamato anche dai thread del server: lo stato si aggiorna in modo atomico. */
+    private fun refreshPlay() {
+        val treasure = partyPlay.treasure()
+        val url = _state.value.guests.url
+        val play = PlayUiState(
+            game = partyPlay.current(),
+            treasureUrl = if (treasure != null && url != null) "$url&t=$treasure" else null,
+            treasureFinders = partyPlay.treasureFinders(),
+            lights = partyPlay.lights(),
+            coins = partyPlay.leaderboard(),
+        )
+        _state.update { it.copy(play = play) }
+    }
+
+    /** Foto da rifare in "Ricrea la foto". */
+    var recreateOriginal: PhotoItem? = null
+        private set
+
+    /** Nuovo gioco [kind] con i testi tradotti; false (con un messaggio) se mancano invitati con il nome. */
+    fun startPlay(kind: PartyPlay.Kind): Boolean {
+        fun texts(id: Int) = context.getString(id).split('|').map(String::trim).filter(String::isNotEmpty).shuffled()
+        val people = partyHub.participants()
+        val (prompt, pool) = when (kind) {
+            PartyPlay.Kind.DRAW_GUESS -> context.getString(R.string.play_prompt_draw_guess) to texts(R.string.play_words)
+            PartyPlay.Kind.DRAWING_WALL -> texts(R.string.play_wall_themes).first() to emptyList<String>()
+            PartyPlay.Kind.STORY -> context.getString(R.string.play_prompt_story) to texts(R.string.play_story_starts)
+            PartyPlay.Kind.WHISPER -> context.getString(R.string.play_prompt_whisper) to texts(R.string.play_whisper_phrases)
+            PartyPlay.Kind.COMPLIMENTS -> context.getString(R.string.play_prompt_compliments) to emptyList<String>()
+            PartyPlay.Kind.MISSIONS -> context.getString(R.string.play_prompt_missions) to texts(R.string.play_missions)
+            PartyPlay.Kind.PAPARAZZI -> context.getString(R.string.play_prompt_paparazzi) to emptyList<String>()
+            PartyPlay.Kind.SAME_MOMENT -> context.getString(R.string.play_prompt_moment) to emptyList<String>()
+            PartyPlay.Kind.RECREATE -> {
+                val original = _state.value.photos.filterNot { it.video }.randomOrNull()
+                recreateOriginal = original
+                if (original == null) {
+                    showMessage(context.getString(R.string.games_need_photos, 1))
+                    return false
+                }
+                context.getString(R.string.play_prompt_recreate) to listOf(original.id)
+            }
+            PartyPlay.Kind.MOLE -> context.getString(R.string.play_prompt_mole) to texts(R.string.play_mole_missions)
+            PartyPlay.Kind.CAPSULE -> context.getString(R.string.play_prompt_capsule) to emptyList<String>()
+        }
+        if (partyPlay.start(kind, prompt, pool) == null) {
+            showMessage(context.getString(if (kind == PartyPlay.Kind.COMPLIMENTS && people.isNotEmpty()) R.string.play_need_two else R.string.play_need_names))
+            return false
+        }
+        navigate(Destination.PLAY)
+        return true
+    }
+
+    fun playReveal() = partyPlay.reveal()
+
+    fun playVoting() = partyPlay.startVoting()
+
+    /** Stesso gioco, nuovo turno (nuova parola, nuova talpa, nuova star). */
+    fun playAgain() {
+        val kind = partyPlay.current()?.kind ?: return
+        startPlay(kind)
+    }
+
+    /** Foto degli invitati arrivate nel gioco in corso (missioni, paparazzi, stesso istante, ricrea). */
+    fun playPhotos(round: String): List<PhotoItem> {
+        val byId = guestPhotos.associateBy { it.guestPhotoId }
+        return partyPlay.taggedPhotos(round).mapNotNull { byId[it] }
+    }
+
+    /** Didascalia della foto nello slideshow se è nata da un gioco ("Missione: un brindisi"). */
+    fun photoTag(photo: PhotoItem): String? {
+        val tag = photo.guestPhotoId?.let(partyPlay::tag) ?: return null
+        return when (tag.kind) {
+            PartyPlay.Kind.MISSIONS -> tag.text?.let { context.getString(R.string.tag_mission, it) }
+            PartyPlay.Kind.PAPARAZZI -> tag.text?.let { context.getString(R.string.tag_paparazzi, it) }
+            PartyPlay.Kind.SAME_MOMENT -> context.getString(R.string.tag_moment)
+            PartyPlay.Kind.RECREATE -> context.getString(R.string.tag_recreate)
+            else -> null
+        }
+    }
+
+    /** Caccia al QR: il codice compare per trenta secondi sullo schermo. */
+    fun startTreasure() {
+        if (!_state.value.guests.active) return
+        partyPlay.startTreasure()
+        refreshPlay()
+        // Allo scadere il QR sparisce anche se nessuno l'ha trovato.
+        viewModelScope.launch {
+            delay(PartyPlay.TREASURE_MS + 500)
+            refreshPlay()
+        }
+    }
+
+    fun setLights(lights: PartyPlay.Lights?) = partyPlay.setLights(lights)
+
+    /** Scommessa decisa: chi ha scelto [choice] vince tre monete. Restituisce quanti hanno vinto. */
+    fun settleBet(choice: Int): Int {
+        val winners = phoneGame.voters(choice)
+        winners.forEach { partyPlay.award(it, BET_COINS) }
+        phoneGame.stop()
+        return winners.size
+    }
+
+    /** Roulette dei brindisi: il nome estratto compare anche sui telefoni come annuncio. */
+    fun announceToast(name: String) {
+        partyHub.announce(context.getString(R.string.toast_winner, name))
+    }
+
     /** Annuncio dalla TV (schermata "Fai un annuncio"). */
     fun announce(text: String): Boolean {
         val shown = partyHub.announce(text)
@@ -487,7 +602,16 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                 navigate(Destination.HOME)
             }
             Destination.MEMORY, Destination.MYSTERY, Destination.PUZZLE, Destination.WHO_TOOK_IT,
-            Destination.POLL, Destination.LOTTERY -> navigate(Destination.GAMES)
+            Destination.POLL, Destination.LOTTERY, Destination.PARTY_GAMES -> navigate(Destination.GAMES)
+            Destination.PLAY -> {
+                partyPlay.stop()
+                navigate(Destination.PARTY_GAMES)
+            }
+            Destination.TOURNAMENT, Destination.BETS -> {
+                phoneGame.stop()
+                navigate(Destination.PARTY_GAMES)
+            }
+            Destination.TOAST, Destination.COINS -> navigate(Destination.PARTY_GAMES)
             Destination.GOOGLE_CONNECT -> cancelGoogleConnect()
             Destination.SETTINGS, Destination.GAMES, Destination.GUESTS -> navigate(Destination.HOME)
             Destination.GUEST_REVIEW, Destination.AWARDS, Destination.GUESTBOOK, Destination.ANNOUNCE -> navigate(Destination.GUESTS)
@@ -1799,6 +1923,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         sleepJob?.cancel()
         musicPlayer.release()
         partyHub.onChange = null
+        partyPlay.onChange = null
         partyHub.onReaction = null
         partyHub.onDirectorCommand = null
         hostRemote.onCommand = null
@@ -1812,5 +1937,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         /** Passaggi (meno due per ogni reazione) perché una foto sia del tutto ingiallita. */
         const val AGING_STEPS = 8
         const val REHEARSAL_MS = 120_000L
+        /** Monete per chi vince una scommessa. */
+        const val BET_COINS = 3
     }
 }

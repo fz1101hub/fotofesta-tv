@@ -44,6 +44,8 @@ class GuestParty(
     private val hub: PartyHub? = null,
     /** Regia dal telefono: PIN nuovo a ogni festa. */
     private val host: HostRemote? = null,
+    /** Giochi con i telefoni: le foto mandate durante un gioco fotografico vengono etichettate. */
+    private val play: PartyPlay? = null,
 ) {
     data class State(
         val active: Boolean = false,
@@ -195,6 +197,7 @@ class GuestParty(
         stopServing()
         store.clear()
         hub?.clear()
+        play?.clear()
         host?.reset()
         hubSave?.cancel(false)
         hubSave = null
@@ -229,6 +232,7 @@ class GuestParty(
             hub = hub,
             hostRemote = host,
             hostPhoto = store::read,
+            play = play,
         )
         try {
             val port = candidate.start(address, PREFERRED_PORT)
@@ -332,8 +336,10 @@ class GuestParty(
             else -> Unit
         }
         val result = when (val added = store.add(bytes, sender, approved = !_state.value.approval)) {
-            is GuestPhotoStore.AddResult.Added ->
+            is GuestPhotoStore.AddResult.Added -> {
+                play?.photoArrived(player, added.photo.id)
                 if (added.photo.approved) GuestUploadServer.UploadResult.SHOWN else GuestUploadServer.UploadResult.PENDING
+            }
             GuestPhotoStore.AddResult.Full -> GuestUploadServer.UploadResult.FULL
             GuestPhotoStore.AddResult.TooManyPending -> GuestUploadServer.UploadResult.TOO_MANY_PENDING
         }

@@ -5,7 +5,8 @@ import androidx.annotation.StringRes
 import it.fotofesta.tv.R
 import it.fotofesta.tv.guests.PartyHub
 
-enum class Destination { HOME, SETTINGS, SLIDESHOW, GAMES, MEMORY, MYSTERY, PUZZLE, WHO_TOOK_IT, POLL, LOTTERY, GOOGLE_CONNECT, GUESTS, GUEST_REVIEW, AWARDS, GUESTBOOK, ANNOUNCE, GUEST_WIFI, FILE_BROWSER, ICLOUD_LINK, SMB_LOGIN }
+enum class Destination { HOME, SETTINGS, SLIDESHOW, GAMES, MEMORY, MYSTERY, PUZZLE, WHO_TOOK_IT, POLL, LOTTERY, GOOGLE_CONNECT, GUESTS, GUEST_REVIEW, AWARDS, GUESTBOOK, ANNOUNCE, GUEST_WIFI, FILE_BROWSER, ICLOUD_LINK, SMB_LOGIN,
+    PARTY_GAMES, PLAY, TOURNAMENT, BETS, TOAST, COINS }
 
 enum class TransitionType(@StringRes val labelRes: Int) {
     FADE(R.string.transition_fade),
@@ -184,6 +185,16 @@ data class PartyUiState(
     val rehearsal: Boolean = false,
 )
 
+/** Giochi con i telefoni: gioco in corso, caccia al QR, luci e monete. */
+data class PlayUiState(
+    val game: it.fotofesta.tv.guests.PartyPlay.State? = null,
+    /** Indirizzo del QR della caccia in corso (la pagina della festa con il codice). */
+    val treasureUrl: String? = null,
+    val treasureFinders: List<String> = emptyList(),
+    val lights: it.fotofesta.tv.guests.PartyPlay.Lights? = null,
+    val coins: List<it.fotofesta.tv.guests.PartyPlay.Coins> = emptyList(),
+)
+
 /** Cosa si sta scegliendo nel browser di cartelle: una cartella di foto o un brano. */
 enum class BrowserKind { PHOTOS, MUSIC }
 
@@ -281,6 +292,7 @@ data class AppState(
     val message: String? = null,
     val guests: GuestsUiState = GuestsUiState(),
     val party: PartyUiState = PartyUiState(),
+    val play: PlayUiState = PlayUiState(),
     val browser: BrowserState = BrowserState(),
     val icloud: ICloudLinkState = ICloudLinkState(),
     val smb: SmbLoginState = SmbLoginState(),

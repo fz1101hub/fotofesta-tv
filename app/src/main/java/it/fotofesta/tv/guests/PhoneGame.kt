@@ -110,6 +110,10 @@ class PhoneGame {
     @Synchronized
     fun answerCount(): Int = answers.size
 
+    /** Telefoni che hanno scelto [choice] nella domanda in corso: chi ha vinto una scommessa. */
+    @Synchronized
+    fun voters(choice: Int): List<String> = answers.filterValues { it == choice }.keys.toList()
+
     @Synchronized
     fun pointsOf(player: String): Int = players[player]?.points ?: 0
 

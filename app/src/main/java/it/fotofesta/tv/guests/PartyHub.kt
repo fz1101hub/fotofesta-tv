@@ -125,7 +125,7 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
     fun reactionCounts(): Map<String, Int> = HashMap(reactionCounts)
 
     /** Dedica di un telefono: testo ripulito, al massimo [MAX_MESSAGE_LENGTH] caratteri. */
-    fun message(player: String, text: String?, name: String?): Result {
+    fun message(player: String, text: String?, name: String?, anonymous: Boolean = false): Result {
         val result = synchronized(this) {
             val cleaned = GuestSender.clean(text, MAX_MESSAGE_LENGTH)
             when {
@@ -134,7 +134,8 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
                 messages.size >= MAX_MESSAGES -> return Result.FULL
                 !allow(messageTimes, player, MESSAGE_BURST, MESSAGE_WINDOW_MS) -> return Result.RATE_LIMITED
             }
-            val signature = remember(player, name)
+            // Un complimento segreto resta anonimo anche per chi ha già scritto il proprio nome.
+            val signature = remember(player, name).takeUnless { anonymous }
             val approved = !features.moderateMessages
             messages += Message(UUID.randomUUID().toString(), cleaned!!, signature, nowMillis(), approved)
             if (approved) Result.OK else Result.PENDING
@@ -162,6 +163,15 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
     /** Chi ha partecipato con un nome (reazioni o dediche), nell'ordine in cui è arrivato. */
     @Synchronized
     fun participants(): List<Participant> = names.map { (player, name) -> Participant(player, name) }
+
+    /** Il telefono [player] partecipa a un gioco con [name]: il nome resta per estrazione e regista. */
+    fun join(player: String, name: String?): String? {
+        if (!PhoneGame.validPlayer(player)) return null
+        return synchronized(this) { remember(player, GuestSender.clean(name)) }
+    }
+
+    @Synchronized
+    fun nameOf(player: String): String? = names[player]
 
     /** Annuncio della regia ("Il buffet è aperto!"): compare sullo schermo e sui telefoni. */
     fun announce(text: String?): Boolean {

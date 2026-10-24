@@ -167,6 +167,8 @@ class MainActivity : ComponentActivity() {
                     Destination.GUESTS -> state.guests.active
                     Destination.GUEST_REVIEW, Destination.AWARDS, Destination.GUESTBOOK, Destination.ANNOUNCE -> true
                     Destination.POLL, Destination.LOTTERY -> true
+                    Destination.PARTY_GAMES, Destination.PLAY, Destination.TOURNAMENT, Destination.BETS,
+                    Destination.TOAST, Destination.COINS -> true
                     // Il QR per incollare il link dell'album deve restare visibile.
                     Destination.ICLOUD_LINK -> true
                     else -> false
@@ -224,6 +226,7 @@ class MainActivity : ComponentActivity() {
                                 onVideoAudible = viewModel::setVideoAudible,
                                 reactions = viewModel.reactions,
                                 photoAge = viewModel::photoAge,
+                                photoTag = viewModel::photoTag,
                             )
                             Destination.GAMES -> GamesScreen(
                                 // I giochi usano solo le foto: i video si guardano nello slideshow.
@@ -239,7 +242,37 @@ class MainActivity : ComponentActivity() {
                                 onLottery = { viewModel.navigate(Destination.LOTTERY) },
                                 onDirector = viewModel::startDirector,
                                 onQuiet = viewModel::startQuiet,
+                                onPartyGames = { viewModel.navigate(Destination.PARTY_GAMES) },
                             )
+                            Destination.PARTY_GAMES -> PartyGamesScreen(
+                                partyActive = state.guests.active && state.guests.url != null,
+                                play = state.play,
+                                onStart = { viewModel.startPlay(it) },
+                                onTournament = { viewModel.navigate(Destination.TOURNAMENT) },
+                                onBets = { viewModel.navigate(Destination.BETS) },
+                                onToast = { viewModel.navigate(Destination.TOAST) },
+                                onCoins = { viewModel.navigate(Destination.COINS) },
+                                onTreasure = viewModel::startTreasure,
+                                onLights = viewModel::setLights,
+                                onBack = { viewModel.navigate(Destination.GAMES) },
+                            )
+                            Destination.PLAY -> PlayScreen(
+                                play = state.play,
+                                url = state.guests.url,
+                                photos = viewModel::playPhotos,
+                                original = viewModel.recreateOriginal,
+                                onReveal = viewModel::playReveal,
+                                onVote = viewModel::playVoting,
+                                onAgain = viewModel::playAgain,
+                                onBack = viewModel::back,
+                            )
+                            Destination.TOURNAMENT -> {
+                                val photos = remember { state.photos.filterNot { it.video } }
+                                TournamentScreen(photos, phonePlay(state), onBack = viewModel::back)
+                            }
+                            Destination.BETS -> BetsScreen(phonePlay(state), viewModel::lotteryCandidates, viewModel::settleBet, onBack = viewModel::back)
+                            Destination.TOAST -> ToastScreen(viewModel::lotteryCandidates, viewModel::announceToast, onBack = viewModel::back)
+                            Destination.COINS -> CoinsScreen(state.play.coins, onBack = viewModel::back)
                             Destination.POLL -> PollScreen(phonePlay(state), viewModel::lotteryCandidates) { viewModel.navigate(Destination.GAMES) }
                             Destination.LOTTERY -> LotteryScreen(viewModel::lotteryCandidates) { viewModel.navigate(Destination.GAMES) }
                             // Le partite usano le foto presenti all'apertura del gioco: quelle che arrivano
