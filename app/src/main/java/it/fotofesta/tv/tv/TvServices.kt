@@ -1,5 +1,6 @@
 package it.fotofesta.tv.tv
 
+import android.annotation.SuppressLint
 import android.app.ActivityManager
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -153,6 +154,9 @@ class HomeChannel(private val context: Context) {
     private val helper = PreviewChannelHelper(context)
     private val prefs = context.getSharedPreferences("home_channel", Context.MODE_PRIVATE)
 
+    // I metodi dei builder di tvprovider 1.0.0 sono API pubbliche, ma lint li vede come riservati
+    // perché sono dichiarati nelle classi base generiche della libreria.
+    @SuppressLint("RestrictedApi")
     fun publish() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         runCatching {
