@@ -45,7 +45,7 @@ struct GamesView: View {
         NavigationLink(value: route) {
             GameCardLabel(title: title, subtitle: subtitle, systemImage: image, artwork: artwork(for: route))
         }
-        .buttonStyle(.card)
+        .cardButtonStyle()
         .disabled(!enabled)
     }
 
@@ -116,7 +116,7 @@ struct MemoryGameView: View {
                     } label: {
                         cardFace(cards[index], position: index)
                     }
-                    .buttonStyle(.card)
+                    .cardButtonStyle()
                 }
             }
             Spacer(minLength: 0)

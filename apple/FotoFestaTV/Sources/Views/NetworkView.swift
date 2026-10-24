@@ -77,8 +77,10 @@ struct NetworkView: View {
                 Text(L("network.add_title")).font(.headline).foregroundStyle(Theme.secondaryText).padding(.top, 12)
                 HStack(spacing: 32) {
                     TextField(L("network.address_placeholder"), text: $address)
+                        #if os(tvOS)
                         .keyboardType(.numbersAndPunctuation)
                         .textContentType(.URL)
+                        #endif
                         .autocorrectionDisabled()
                         .frame(width: 560)
                         .onSubmit { model.addNetworkAddress(address) }

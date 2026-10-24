@@ -369,6 +369,23 @@ def load_languages(errors: list) -> tuple:
     return languages, info
 
 
+def load_mac(languages: dict, errors: list) -> dict:
+    """Testi che sul Mac sostituiscono quelli dell'Apple TV: stesse chiavi e segnaposto, tutte le lingue."""
+    data = json.loads((TRANSLATIONS / "mac.json").read_text(encoding="utf-8"))
+    mac = {language: texts for language, texts in data.items() if not language.startswith("_")}
+    keys = set(mac.get("en", {}))
+    for language in languages:
+        texts = mac.get(language, {})
+        if set(texts) != keys:
+            errors.append(f"mac {language}: chiavi diverse dall'inglese")
+        for key, text in texts.items():
+            if key not in STRINGS:
+                errors.append(f"mac {language}: chiave sconosciuta {key}")
+            elif PLACEHOLDER.findall(languages[language].get(key, "")) != PLACEHOLDER.findall(text):
+                errors.append(f"mac {language}: segnaposto diversi in {key}")
+    return mac
+
+
 def write_strings(path: Path, entries: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     lines = ["/* Generato da apple/scripts/strings.py: modificare lì, non qui. */", ""]
@@ -392,6 +409,10 @@ def main() -> int:
         # Stesso ordine delle chiavi in tutte le lingue, per confrontare i file a colpo d'occhio.
         write_strings(resources / f"{language}.lproj/Localizable.strings", {key: texts[key] for key in STRINGS if key in texts})
         write_strings(resources / f"{language}.lproj/InfoPlist.strings", info.get(language, {}))
+    # Mac: tabella "Mac" letta prima di Localizable (vedi L() in Theme.swift).
+    mac = load_mac(languages, errors)
+    for language, texts in mac.items():
+        write_strings(ROOT / f"FotoFestaMac/Resources/{language}.lproj/Mac.strings", {key: texts[key] for key in STRINGS if key in texts})
     if unused:
         print("non usate:", ", ".join(unused))
     for error in errors:

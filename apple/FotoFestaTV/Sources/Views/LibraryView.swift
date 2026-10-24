@@ -101,7 +101,7 @@ struct LibraryView: View {
                         } label: {
                             AlbumCard(album: album, inUse: model.libraryAlbumInUse == album.id)
                         }
-                        .buttonStyle(.card)
+                        .cardButtonStyle()
                         .disabled(model.libraryLoading)
                     }
                 }

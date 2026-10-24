@@ -1,7 +1,11 @@
 import CoreImage
 import CoreImage.CIFilterBuiltins
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 /// Codice QR nitido (un pixel per modulo, ingrandito senza interpolazione).
 struct QRCodeView: View {
@@ -12,7 +16,7 @@ struct QRCodeView: View {
     var body: some View {
         Group {
             if let image = Self.makeImage(text) {
-                Image(uiImage: image)
+                Image(platformImage: image)
                     .interpolation(.none)
                     .resizable()
                     .scaledToFit()
@@ -26,12 +30,12 @@ struct QRCodeView: View {
         .accessibilityLabel(Text(accessibilityLabel))
     }
 
-    private static func makeImage(_ text: String) -> UIImage? {
+    private static func makeImage(_ text: String) -> PlatformImage? {
         let filter = CIFilter.qrCodeGenerator()
         filter.message = Data(text.utf8)
         filter.correctionLevel = "M"
         guard let output = filter.outputImage,
               let cgImage = CIContext().createCGImage(output, from: output.extent) else { return nil }
-        return UIImage(cgImage: cgImage)
+        return PlatformImage(cgImage: cgImage)
     }
 }

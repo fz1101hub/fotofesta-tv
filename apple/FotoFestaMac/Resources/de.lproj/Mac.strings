@@ -1,0 +1,31 @@
+/* Generato da apple/scripts/strings.py: modificare lì, non qui. */
+
+"message.google_removed" = "Google Fotos getrennt: Zugriff und Fotoliste wurden von diesem Mac entfernt.";
+"error.google_no_network" = "Der Mac ist nicht mit dem Heimnetzwerk verbunden: Das Smartphone könnte ihn nicht erreichen.";
+"error.network" = "Kein Netzwerk verfügbar. Prüfe die Internetverbindung des Mac.";
+"slideshow.hint_playing" = "← → Foto wechseln  ·  Leertaste oder Klick zum Pausieren  ·  Esc zum Beenden";
+"slideshow.hint_paused" = "Pausiert  ·  Leertaste oder Klick zum Fortsetzen";
+"settings.privacy" = "FotoFesta TV enthält keine Werbung und keine Analysetools. In Google Fotos ausgewählte Fotos werden nicht auf diesen Mac kopiert, sondern während der Diashow von Google geladen; „Trennen und löschen“ widerruft den Zugriff. Gästefotos werden nur über dein Heimnetz übertragen und am Ende der Party gelöscht.";
+"google.subtitle" = "Nutze dein Smartphone: Du musst dein Google-Passwort nicht auf dem Mac eingeben.";
+"google.same_network" = "Das Smartphone muss im selben WLAN wie der Mac sein. Die Seite bleibt zehn Minuten geöffnet.";
+"google.pick_hint" = "Der Mac erkennt automatisch, wenn du fertig bist.";
+"google.streaming_note" = "Die Fotos bleiben in Google Fotos und werden während der Diashow geladen: Der Mac speichert keine Kopien.";
+"guests.intro" = "Die Fotos bleiben nur während der Party auf dem Mac: im Arbeitsspeicher, mit einem kleinen temporären Ordner als Reserve. Beim Beenden der Party werden alle gelöscht.";
+"guests.same_network" = "Die Smartphones müssen im selben Netzwerk wie der Mac sein.";
+"guests.no_network" = "Verbinde den Mac mit deinem Heimnetz (WLAN oder Kabel), um Fotos zu empfangen.";
+"guests.server_failed" = "Der Mac kann gerade keine Fotos empfangen. Beende die Party und starte sie neu.";
+"guests.approval_body" = "Neue Fotos erscheinen erst, wenn du sie am Mac freigibst.";
+"guests.airplay_tip" = "Per AirPlay gesendete Fotos verdecken die Diashow und werden nicht Teil der Party. Um das zu verhindern, schalte unter Systemeinstellungen › Allgemein › AirDrop & Handoff den AirPlay-Empfänger aus oder beschränke ihn auf den aktuellen Benutzer.";
+"guests.end_confirm_body" = "Empfangene Fotos werden vom Mac gelöscht: %ld";
+"message.guests_ended" = "Party beendet: Die Gästefotos wurden vom Mac gelöscht.";
+"wifi.subtitle" = "Gib den Namen und das Passwort deines WLANs ein: Der Mac zeigt dann einen QR‑Code zum Verbinden. Das Passwort bleibt im Schlüsselbund dieses Mac.";
+"games.subtitle" = "Nutze Maus oder Tastatur. Punkte und Daten bleiben auf dem Mac.";
+"phone.mode_remote" = "Am Mac";
+"video.unsupported" = "Dieses Video kann auf dem Mac nicht abgespielt werden.";
+"settings.subtitle_local" = "Die Einstellungen bleiben nur auf diesem Mac.";
+"library.kicker" = "Fotos auf dem Mac";
+"library.subtitle" = "Wähle ein Album aus der Fotomediathek dieses Mac: iCloud-Fotos, Favoriten, deine Alben und geteilte Alben. Die Fotos werden beim Anzeigen aus iCloud geladen.";
+"library.ask" = "FotoFesta TV braucht Zugriff auf die Fotos dieses Mac, um deine Alben anzuzeigen. Sie bleiben in deiner Mediathek: Die App kopiert sie nicht und sendet sie nirgendwohin.";
+"library.denied" = "FotoFesta TV kann die Fotos dieses Mac nicht sehen. Erlaube den Zugriff unter Systemeinstellungen › Datenschutz & Sicherheit › Fotos und komm dann hierher zurück.";
+"library.none" = "Keine Fotos gefunden. Öffne die App Fotos auf dem Mac und aktiviere, falls du iCloud-Fotos nutzt, die Funktion unter Fotos › Einstellungen › iCloud.";
+"network.unreachable" = "Server nicht erreichbar: Prüfe, ob er eingeschaltet und im selben Netzwerk wie der Mac ist.";

@@ -1,0 +1,31 @@
+/* Generato da apple/scripts/strings.py: modificare lì, non qui. */
+
+"message.google_removed" = "Google Foto scollegato: accesso ed elenco delle foto rimossi da questo Mac.";
+"error.google_no_network" = "Il Mac non è collegato alla rete di casa: il telefono non potrebbe raggiungerlo.";
+"error.network" = "Rete non disponibile. Controlla la connessione internet del Mac.";
+"slideshow.hint_playing" = "← → cambia foto  ·  Spazio o clic per la pausa  ·  Esc per uscire";
+"slideshow.hint_paused" = "In pausa  ·  Spazio o clic per riprendere";
+"settings.privacy" = "FotoFesta TV non contiene pubblicità né analytics. Le foto scelte in Google Foto non vengono copiate su questo Mac: si caricano da Google durante lo slideshow, e “Disconnetti e cancella” revoca l'accesso. Le foto degli invitati passano solo dalla rete di casa e vengono cancellate a fine festa.";
+"google.subtitle" = "Usa il telefono: non dovrai scrivere la password di Google sul Mac.";
+"google.same_network" = "Il telefono deve essere nella stessa Wi‑Fi del Mac. La pagina resta aperta dieci minuti.";
+"google.pick_hint" = "Il Mac rileverà automaticamente quando hai finito.";
+"google.streaming_note" = "Le foto restano su Google Foto e si caricano durante lo slideshow: il Mac non ne conserva copie.";
+"guests.intro" = "Le foto restano sul Mac solo durante la festa: in memoria, con una piccola cartella temporanea di riserva. Terminando la festa vengono cancellate tutte.";
+"guests.same_network" = "I telefoni devono essere sulla stessa rete del Mac.";
+"guests.no_network" = "Collega il Mac alla rete di casa (Wi‑Fi o cavo) per ricevere le foto.";
+"guests.server_failed" = "Il Mac non riesce a ricevere foto in questo momento. Termina la festa e ricominciala.";
+"guests.approval_body" = "Le foto nuove compaiono solo dopo che le approvi sul Mac.";
+"guests.airplay_tip" = "Le foto mandate con AirPlay coprono lo slideshow e non entrano nella festa. Per evitarlo, in Impostazioni di Sistema › Generali › AirDrop e Handoff disattiva Ricevitore AirPlay o limitalo all'utente attuale.";
+"guests.end_confirm_body" = "Le foto ricevute verranno cancellate dal Mac: %ld";
+"message.guests_ended" = "Festa terminata: le foto degli invitati sono state cancellate dal Mac.";
+"wifi.subtitle" = "Scrivi nome e password della rete: il Mac mostrerà un QR per entrarci. La password resta nel Portachiavi di questo Mac.";
+"games.subtitle" = "Usa il mouse o la tastiera. Nessun punteggio o dato lascia il Mac.";
+"phone.mode_remote" = "Dal Mac";
+"video.unsupported" = "Questo video non si può riprodurre sul Mac.";
+"settings.subtitle_local" = "Le impostazioni restano solo su questo Mac.";
+"library.kicker" = "Foto del Mac";
+"library.subtitle" = "Scegli un album dalla libreria Foto di questo Mac: Foto di iCloud, preferiti, i tuoi album e gli album condivisi. Le foto si caricano da iCloud quando vengono mostrate.";
+"library.ask" = "FotoFesta TV ha bisogno di accedere alle foto di questo Mac per mostrare i tuoi album. Restano nella tua libreria: l’app non le copia e non le manda da nessuna parte.";
+"library.denied" = "FotoFesta TV non può vedere le foto di questo Mac. Consenti l’accesso in Impostazioni di Sistema › Privacy e sicurezza › Foto, poi torna qui.";
+"library.none" = "Nessuna foto trovata. Apri l’app Foto del Mac e, se usi Foto di iCloud, attivalo in Foto › Impostazioni › iCloud.";
+"network.unreachable" = "Server non raggiungibile: controlla che sia acceso e nella stessa rete del Mac.";

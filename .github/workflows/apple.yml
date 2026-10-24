@@ -1,6 +1,7 @@
 name: Apple TV CI
 
-# Test del nucleo logico e compilazione dell'app tvOS senza firma, su un runner macOS.
+# Test del nucleo logico, compilazione dell'app tvOS senza firma e dell'app Mac con firma ad hoc,
+# su un runner macOS.
 # Con un repository privato i minuti macOS sono a pagamento: in quel caso si può avviare a mano.
 
 on:
@@ -42,7 +43,7 @@ jobs:
       - name: Testi localizzati aggiornati
         run: |
           python3 scripts/strings.py
-          git diff --exit-code -- FotoFestaTV/Resources
+          git diff --exit-code -- FotoFestaTV/Resources FotoFestaMac/Resources
 
       - name: Test del nucleo (FotoFestaCore)
         working-directory: apple/FotoFestaCore
@@ -59,6 +60,26 @@ jobs:
             -configuration Release \
             -destination "generic/platform=tvOS" \
             CODE_SIGNING_ALLOWED=NO
+
+      # Firma ad hoc (nessun team): l'app si apre su un Mac Apple Silicon, che non avvia binari senza
+      # firma. Per il Mac App Store serve la firma con il team (docs/PUBLISHING.md).
+      - name: Compilazione macOS con firma ad hoc
+        run: |
+          xcodebuild build \
+            -project FotoFestaTV.xcodeproj \
+            -scheme FotoFestaMac \
+            -configuration Release \
+            -destination "generic/platform=macOS" \
+            -derivedDataPath build/mac \
+            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM=
+          ditto -c -k --keepParent "build/mac/Build/Products/Release/FotoFesta TV.app" build/FotoFesta-TV-mac.zip
+
+      - name: App Mac di prova
+        uses: actions/upload-artifact@v4
+        with:
+          name: FotoFesta-TV-mac
+          path: apple/build/FotoFesta-TV-mac.zip
+          retention-days: 30
 
       # Schermate dal simulatore, solo su richiesta: avvio a mano o "[screenshots]" nel messaggio
       # dell'ultimo commit. Verifica anche che l'app si avvii senza chiudersi in ogni schermata.

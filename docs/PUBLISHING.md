@@ -153,6 +153,16 @@ Questi passaggi funzionano solo dopo il primo caricamento manuale.
    - screenshot: 1920×1080 o 3840×2160, catturabili dal simulatore con **File › Save Screen**. Bastano quelli della lingua principale: le altre localizzazioni (italiano, inglese, francese, spagnolo, tedesco) li usano se non ne hanno di propri.
 6. Invia per la revisione dalla pagina della versione.
 
+### Versione per Mac (facoltativa)
+
+La stessa app esiste per macOS 14+ (target `FotoFestaMac`, vedi [apple/README.md](../apple/README.md#app-per-mac)). Usa lo stesso bundle ID `it.fotofesta.tv`, quindi è la stessa voce di App Store Connect:
+
+1. Nella pagina dell'app, **+ › macOS** aggiunge la piattaforma; con l'acquisto universale chi ha l'app su Apple TV la trova anche sul Mac.
+2. In **Certificates, Identifiers & Profiles** l'identificativo `it.fotofesta.tv` serve anche per macOS: la firma automatica di Xcode crea il profilo Mac App Store. Gli entitlements (sandbox, rete in uscita e in entrata, libreria Foto) sono in `apple/FotoFestaMac/FotoFestaMac.entitlements`.
+3. Carica la build da Xcode: schema `FotoFestaMac`, **Product › Archive › Distribute App › App Store Connect**. Le lane di fastlane sono solo per tvOS. Il numero di build della versione Mac è indipendente da quello tvOS, ma `CURRENT_PROJECT_VERSION` deve comunque crescere a ogni invio.
+4. Scheda: testi in comune con tvOS (rivedi le frasi che parlano solo di Apple TV e telecomando), screenshot Mac 16:10 (2880×1800, 2560×1600, 1440×900 o 1280×800), presi con ⌘⇧5 dalla finestra a tutto schermo.
+5. Prova la build con TestFlight per Mac prima dell'invio. Nelle note per i revisori vale quanto scritto per Apple TV; il permesso di rete locale e quello della libreria Foto li chiede macOS.
+
 Note per la revisione Apple:
 - **Sign in with Apple** non è richiesto: Google si usa solo per accedere ai contenuti dell'utente su Google Foto (eccezione della linea guida 4.8).
 - **Crittografia**: l'app usa solo la crittografia di sistema (HTTPS verso Google). `ITSAppUsesNonExemptEncryption` è già impostato a `false`.

@@ -2,7 +2,7 @@
 
 **FotoFesta TV** è un’app Android nativa per Android TV e Google TV che mostra foto e video in slideshow da una cartella USB, da un server multimediale della rete di casa (NAS, router, PC con DLNA), dalle cartelle condivise di PC, Mac e NAS (SMB), da un album condiviso di iCloud con il link pubblico, da una selezione sicura in Google Foto oppure dai telefoni degli invitati. Gli ospiti inquadrano un QR sulla TV e mandano le foto attraverso la rete di casa, senza installare nulla. Include durata regolabile, tre transizioni, mosaico, conto alla rovescia, adattamento immagine, ordine casuale, musica locale (un brano o una cartella), controlli D-pad, premi di fine festa e quattro giochi con le fotografie attive, a cui gli invitati possono rispondere dal telefono.
 
-Il repository contiene anche la versione per **Apple TV** (cartella [`apple/`](apple/README.md)), scritta in Swift e SwiftUI, con le stesse funzioni tranne USB, musica e salvaschermo, che tvOS non consente, e le cartelle condivise SMB; in più legge gli album della libreria Foto della Apple TV (Foto di iCloud e album condivisi).
+Il repository contiene anche la versione per **Apple TV** (cartella [`apple/`](apple/README.md)), scritta in Swift e SwiftUI, con le stesse funzioni tranne USB, musica e salvaschermo, che tvOS non consente, e le cartelle condivise SMB; in più legge gli album della libreria Foto della Apple TV (Foto di iCloud e album condivisi). Dagli stessi sorgenti nasce anche l'app per **Mac** (macOS 14+), per usare un Mac collegato al televisore o al proiettore come schermo della festa.
 
 > **Stato del progetto:** versione 1.4.0 per Android TV e 1.2.0 per Apple TV, pronte per la prima pubblicazione dopo le verifiche indicate in [Verifica effettuata](#verifica-effettuata). L’app funziona subito con foto demo, foto degli invitati, USB, cartelle di rete e condivise, album iCloud, musica e giochi. Per Google Foto occorre inserire un proprio client OAuth. La procedura completa per Google Play e App Store è in [PUBLISHING.md](docs/PUBLISHING.md).
 
@@ -43,6 +43,7 @@ Il repository contiene anche la versione per **Apple TV** (cartella [`apple/`](a
 | Lingue | Italiano, inglese, francese, spagnolo e tedesco, anche nella pagina per i telefoni degli invitati, che segue la lingua del telefono; inglese per le altre lingue | Pronta |
 | Google Play | Banner Leanback 320×180 nell’app; per la scheda icona 512×512, grafica 1024×500 e banner TV 1280×720; AAB firmato | Pronta |
 | Apple TV | App tvOS 17+ con icona a livelli, Top Shelf, nelle stesse cinque lingue | Compilata e testata nella CI; da provare su una Apple TV ([apple/README.md](apple/README.md)) |
+| Mac | App macOS 14+ con gli stessi sorgenti SwiftUI, mouse e tastiera, sandbox, stesso bundle ID per l’acquisto universale | Compilata nella CI con firma ad hoc (artifact `FotoFesta-TV-mac`); da provare su un Mac ([apple/README.md](apple/README.md#app-per-mac)) |
 
 ## Scelta dell’approccio
 

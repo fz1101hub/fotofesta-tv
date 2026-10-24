@@ -1,6 +1,10 @@
 import FotoFestaCore
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 /// Festa con le foto degli invitati, nello stile delle schermate di accesso di tvOS: QR su una scheda
 /// bianca a sinistra, a destra titolo, stato e pulsanti di sistema.
@@ -313,12 +317,10 @@ struct GuestWifiView: View {
             Section {
                 TextField(L("wifi.name"), text: $ssid)
                     .textContentType(.username)
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
+                    .plainTextInput()
                 // La password resta visibile: il QR la mostra comunque a chi lo inquadra.
                 TextField(L("wifi.password"), text: $password)
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
+                    .plainTextInput()
             } header: {
                 Text(L("wifi.title"))
             } footer: {

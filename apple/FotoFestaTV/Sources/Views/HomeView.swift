@@ -112,11 +112,11 @@ struct HomeView: View {
                         NavigationLink(value: Route.games) {
                             ShelfCardLabel(title: L("home.tile_games"), subtitle: L("games.title"), systemImage: "gamecontroller.fill")
                         }
-                        .buttonStyle(.card)
+                        .cardButtonStyle()
                         NavigationLink(value: Route.settings) {
                             ShelfCardLabel(title: L("action.settings"), subtitle: L("home.tile_settings_body"), systemImage: "gearshape.fill")
                         }
-                        .buttonStyle(.card)
+                        .cardButtonStyle()
                     }
                     // Spazio per il sollevamento delle schede con il fuoco.
                     .padding(.vertical, 40)

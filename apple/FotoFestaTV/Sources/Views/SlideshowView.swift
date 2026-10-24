@@ -1,6 +1,10 @@
 import FotoFestaCore
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 /// Slideshow a schermo intero. Telecomando: ◀ ▶ foto precedente/successiva, centro o Play/Pausa
 /// per mettere in pausa, su/giù per le informazioni, Menu per uscire.
@@ -48,6 +52,8 @@ struct SlideshowView: View {
             .animation(settings.reducedMotion ? nil : .easeInOut(duration: 0.8), value: model.currentPhoto?.id)
         }
         .buttonStyle(FullScreenButtonStyle())
+        // Sul Mac: frecce, spazio ed Esc dalla tastiera appena si apre lo slideshow.
+        .keyboardFocusOnMac()
         .ignoresSafeArea()
         .overlay(alignment: .bottom) {
             if model.currentPhoto != nil { captionArea(settings: settings) }
@@ -85,7 +91,7 @@ struct SlideshowView: View {
             }
             showInfo()
         }
-        .onPlayPauseCommand {
+        .onPlayPause {
             model.togglePlayback()
             showInfo()
         }

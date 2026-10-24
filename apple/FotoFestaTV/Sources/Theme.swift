@@ -30,9 +30,16 @@ func LP(_ key: String, _ count: Int) -> String {
     L(count == 1 ? "\(key).one" : "\(key).other", count)
 }
 
-/// Testo localizzato da Localizable.strings, con eventuali argomenti in stile printf.
+/// Testo localizzato da Localizable.strings, con eventuali argomenti in stile printf. Sul Mac prima si
+/// cerca nella tabella Mac.strings, che sostituisce i testi su Apple TV e telecomando.
 func L(_ key: String, _ arguments: CVarArg...) -> String {
+    #if os(macOS)
+    let missing = "\u{0}"
+    let mac = Bundle.main.localizedString(forKey: key, value: missing, table: "Mac")
+    let format = mac == missing ? NSLocalizedString(key, comment: "") : mac
+    #else
     let format = NSLocalizedString(key, comment: "")
+    #endif
     return arguments.isEmpty ? format : String(format: format, locale: .current, arguments: arguments)
 }
 

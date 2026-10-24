@@ -1,5 +1,9 @@
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 struct RootView: View {
     @Environment(AppModel.self) private var model
@@ -49,14 +53,16 @@ struct RootView: View {
         .onChange(of: scenePhase, initial: true) { _, phase in
             model.guests.setForeground(phase != .background)
         }
+        #if os(tvOS)
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
             model.guests.lowMemory()
         }
+        #endif
         // Schermo sempre acceso durante lo slideshow in riproduzione, mentre il QR della festa è
         // visibile e durante l'approvazione. Deciso in un solo punto: con più schermate gli eventi di
         // comparsa e scomparsa arrivano in ordine diverso e si annullerebbero a vicenda.
         .onChange(of: keepAwake, initial: true) { _, keep in
-            UIApplication.shared.isIdleTimerDisabled = keep
+            KeepAwake.set(keep)
         }
         #if DEBUG
         .task { model.applyScreenshotScenario() }

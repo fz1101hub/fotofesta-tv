@@ -16,7 +16,7 @@ struct ShelfCard: View {
         Button(action: action) {
             ShelfCardLabel(title: title, subtitle: subtitle, systemImage: systemImage, artwork: artwork, badge: badge)
         }
-        .buttonStyle(.card)
+        .cardButtonStyle()
     }
 }
 

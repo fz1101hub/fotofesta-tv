@@ -35,6 +35,7 @@ __pycache__/
 # App Apple TV: file generati e segreti
 apple/Config/Secrets.xcconfig
 apple/FotoFestaTV/Info.plist
+apple/FotoFestaMac/Info.plist
 apple/build/
 apple/fastlane/report.xml
 apple/FotoFestaCore/.build/

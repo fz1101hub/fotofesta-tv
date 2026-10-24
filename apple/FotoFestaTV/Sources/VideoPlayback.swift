@@ -1,7 +1,11 @@
 import AVFoundation
 import FotoFestaCore
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 import UniformTypeIdentifiers
 
 /// Da dove un video in streaming prende i byte: indirizzo, intestazioni, dove può portare un
@@ -331,6 +335,7 @@ final class VideoPlayback {
 }
 
 /// Vista del video senza controlli: li dà lo slideshow.
+#if canImport(UIKit)
 struct PlayerLayerView: UIViewRepresentable {
     let player: AVPlayer
     let fill: Bool
@@ -352,6 +357,38 @@ struct PlayerLayerView: UIViewRepresentable {
         view.playerLayer.videoGravity = fill ? .resizeAspectFill : .resizeAspect
     }
 }
+#else
+struct PlayerLayerView: NSViewRepresentable {
+    let player: AVPlayer
+    let fill: Bool
+
+    /// Vista AppKit il cui livello è un AVPlayerLayer, che segue la misura della vista.
+    final class LayerView: NSView {
+        let playerLayer = AVPlayerLayer()
+
+        override init(frame frameRect: NSRect) {
+            super.init(frame: frameRect)
+            wantsLayer = true
+            layer = playerLayer
+            playerLayer.backgroundColor = NSColor.black.cgColor
+        }
+
+        @available(*, unavailable)
+        required init?(coder: NSCoder) { fatalError("init(coder:) non usato") }
+    }
+
+    func makeNSView(context: Context) -> LayerView {
+        let view = LayerView()
+        view.playerLayer.player = player
+        return view
+    }
+
+    func updateNSView(_ view: LayerView, context: Context) {
+        view.playerLayer.player = player
+        view.playerLayer.videoGravity = fill ? .resizeAspectFill : .resizeAspect
+    }
+}
+#endif
 
 /// Video dello slideshow, dall'inizio alla fine; con `loop` (unico elemento) ricomincia da capo.
 /// Un video che il dispositivo non sa riprodurre mostra un avviso e poi si salta.

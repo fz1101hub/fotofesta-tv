@@ -1,7 +1,11 @@
 import FotoFestaCore
 import ImageIO
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 /// Decodifica le foto ridimensionate alla risoluzione dello schermo, fuori dal thread principale,
 /// con una piccola cache in memoria per la foto corrente e le successive. Le foto di Google Foto
@@ -10,7 +14,7 @@ import UIKit
 actor ImageLoader {
     static let shared = ImageLoader()
 
-    private let cache = NSCache<NSString, UIImage>()
+    private let cache = NSCache<NSString, PlatformImage>()
     private let network: URLSession = {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.urlCache = nil
@@ -23,7 +27,7 @@ actor ImageLoader {
         cache.totalCostLimit = 160 * 1024 * 1024
     }
 
-    func image(for photo: Photo, maxPixelSize: Int) async -> UIImage? {
+    func image(for photo: Photo, maxPixelSize: Int) async -> PlatformImage? {
         let key = "\(photo.id)#\(maxPixelSize)" as NSString
         if let cached = cache.object(forKey: key) { return cached }
         let decoded: CGImage?
@@ -51,15 +55,15 @@ actor ImageLoader {
                   let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
             decoded = Self.thumbnail(source, maxPixelSize: maxPixelSize)
         case let .library(localIdentifier):
-            // PhotoKit la dà già ridotta (e la scarica da iCloud se serve). Si tiene la UIImage così
+            // PhotoKit la dà già ridotta (e la scarica da iCloud se serve). Si tiene la PlatformImage così
             // com'è: porta con sé l'orientamento della foto, che il solo CGImage perderebbe.
             guard let image = await PhotoLibrary.image(localIdentifier: localIdentifier, maxPixelSize: maxPixelSize) else { return nil }
-            let cost = image.cgImage.map { $0.bytesPerRow * $0.height } ?? maxPixelSize * maxPixelSize * 4
+            let cost = image.platformCGImage.map { $0.bytesPerRow * $0.height } ?? maxPixelSize * maxPixelSize * 4
             cache.setObject(image, forKey: key, cost: cost)
             return image
         }
         guard let decoded else { return nil }
-        let image = UIImage(cgImage: decoded)
+        let image = PlatformImage(cgImage: decoded)
         cache.setObject(image, forKey: key, cost: decoded.bytesPerRow * decoded.height)
         return image
     }
@@ -129,7 +133,7 @@ struct PhotoImage: View {
     /// Con false, durante il caricamento e in caso di errore non si mostra nulla (sfondi, miniature).
     var placeholder = true
 
-    @State private var image: UIImage?
+    @State private var image: PlatformImage?
     @State private var failed = false
 
     var body: some View {
@@ -138,7 +142,7 @@ struct PhotoImage: View {
         // per esempio la didascalia dello slideshow sopra lo sfondo sfocato di una foto verticale.
         Color.clear.overlay {
             if let image {
-                Image(uiImage: image)
+                Image(platformImage: image)
                     .resizable()
                     .aspectRatio(contentMode: fitMode == .crop ? .fill : .fit)
                     .accessibilityLabel(Text(accessibilityLabel ?? photo.title))

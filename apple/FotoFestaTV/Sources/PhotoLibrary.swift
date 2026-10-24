@@ -1,7 +1,11 @@
 import AVFoundation
 import FotoFestaCore
 import Photos
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 /// Album della libreria Foto della Apple TV: tutte le foto, preferiti, album e album condivisi.
 struct LibraryAlbum: Identifiable, Hashable, Sendable {
@@ -137,7 +141,7 @@ enum PhotoLibrary {
     }
 
     /// Foto ridotta al lato massimo indicato; scaricata da iCloud se sul dispositivo non c'è.
-    static func image(localIdentifier: String, maxPixelSize: Int) async -> UIImage? {
+    static func image(localIdentifier: String, maxPixelSize: Int) async -> PlatformImage? {
         guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [localIdentifier], options: nil).firstObject else { return nil }
         let options = PHImageRequestOptions()
         // Una sola risposta, già nella qualità finale.

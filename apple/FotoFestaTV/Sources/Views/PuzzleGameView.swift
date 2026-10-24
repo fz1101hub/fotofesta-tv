@@ -1,6 +1,10 @@
 import FotoFestaCore
 import SwiftUI
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 /// Puzzle con le foto della raccolta: prima si sceglie il livello, poi si scambiano i pezzi finché la
 /// foto è di nuovo intera. Menu dal tabellone torna alla scelta del livello.
@@ -42,7 +46,7 @@ struct PuzzleGameView: View {
                     } label: {
                         LevelCardLabel(level: level)
                     }
-                    .buttonStyle(.card)
+                    .cardButtonStyle()
                 }
             }
             Spacer(minLength: 0)
@@ -109,8 +113,8 @@ private struct PuzzleBoardView: View {
     @State private var board: PuzzleBoard
     @State private var selected: Int?
     /// Pezzi ritagliati dalla foto, nell'ordine giusto: l'elemento `p` è il pezzo `p`.
-    @State private var pieces: [UIImage] = []
-    @State private var full: UIImage?
+    @State private var pieces: [PlatformImage] = []
+    @State private var full: PlatformImage?
     @State private var failed = false
     @State private var showPhoto = false
     @State private var round = 0
@@ -182,7 +186,7 @@ private struct PuzzleBoardView: View {
                     }
                 }
                 if showPhoto, let full {
-                    Image(uiImage: full)
+                    Image(platformImage: full)
                         .resizable()
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                         .accessibilityHidden(true)
@@ -198,7 +202,7 @@ private struct PuzzleBoardView: View {
             // La misura la decide la casella; il pezzo sta sopra, ritagliato.
             Color.clear
                 .overlay {
-                    Image(uiImage: pieces[board.positions[cell]])
+                    Image(platformImage: pieces[board.positions[cell]])
                         .resizable()
                         .scaledToFill()
                 }
@@ -210,7 +214,7 @@ private struct PuzzleBoardView: View {
                     }
                 }
         }
-        .buttonStyle(.card)
+        .cardButtonStyle()
         .focused($focusedCell, equals: cell)
         .accessibilityLabel(cellLabel(cell))
     }
@@ -258,16 +262,16 @@ private struct PuzzleBoardView: View {
 
 /// Taglia la foto nei pezzi del livello, dalla parte centrale in 16:9.
 enum PuzzleSlicer {
-    static func slice(_ image: UIImage, level: PuzzleLevel) -> (pieces: [UIImage], full: UIImage)? {
-        guard let cgImage = image.cgImage else { return nil }
+    static func slice(_ image: PlatformImage, level: PuzzleLevel) -> (pieces: [PlatformImage], full: PlatformImage)? {
+        guard let cgImage = image.platformCGImage else { return nil }
         let crop = PuzzleGeometry.crop(width: cgImage.width, height: cgImage.height)
         guard let full = cgImage.cropping(to: crop.cgRect) else { return nil }
-        var pieces: [UIImage] = []
+        var pieces: [PlatformImage] = []
         for piece in 0..<level.pieces {
             guard let part = cgImage.cropping(to: PuzzleGeometry.piece(piece, of: crop, level: level).cgRect) else { return nil }
-            pieces.append(UIImage(cgImage: part))
+            pieces.append(PlatformImage(cgImage: part))
         }
-        return (pieces, UIImage(cgImage: full))
+        return (pieces, PlatformImage(cgImage: full))
     }
 }
 

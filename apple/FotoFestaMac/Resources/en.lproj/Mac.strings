@@ -1,0 +1,31 @@
+/* Generato da apple/scripts/strings.py: modificare lì, non qui. */
+
+"message.google_removed" = "Google Photos disconnected: access and the list of photos were removed from this Mac.";
+"error.google_no_network" = "The Mac isn’t connected to the home network, so your phone couldn’t reach it.";
+"error.network" = "Network unavailable. Check the Mac's internet connection.";
+"slideshow.hint_playing" = "← → change photo  ·  Space or click to pause  ·  Esc to exit";
+"slideshow.hint_paused" = "Paused  ·  Space or click to resume";
+"settings.privacy" = "FotoFesta TV has no ads or analytics. Photos you pick in Google Photos are not copied to this Mac: they load from Google during the slideshow, and “Disconnect and delete” revokes access. Guest photos travel only over your home network and are deleted when the party ends.";
+"google.subtitle" = "Use your phone: no need to type your Google password on the Mac.";
+"google.same_network" = "The phone must be on the same Wi‑Fi as the Mac. The page stays open for ten minutes.";
+"google.pick_hint" = "The Mac detects automatically when you're done.";
+"google.streaming_note" = "Photos stay in Google Photos and load during the slideshow: the Mac keeps no copies.";
+"guests.intro" = "Photos stay on the Mac only during the party: in memory, with a small temporary folder as a fallback. Ending the party deletes them all.";
+"guests.same_network" = "Phones must be on the same network as the Mac.";
+"guests.no_network" = "Connect the Mac to your home network (Wi‑Fi or cable) to receive photos.";
+"guests.server_failed" = "The Mac can't receive photos right now. End the party and start it again.";
+"guests.approval_body" = "New photos appear only after you approve them on the Mac.";
+"guests.airplay_tip" = "Photos sent with AirPlay cover the slideshow and don't join the party. To prevent this, in System Settings › General › AirDrop & Handoff turn off AirPlay Receiver or limit it to the current user.";
+"guests.end_confirm_body" = "Photos received will be deleted from the Mac: %ld";
+"message.guests_ended" = "Party ended: guest photos were deleted from the Mac.";
+"wifi.subtitle" = "Enter your network name and password: the Mac will show a QR code to join it. The password stays in this Mac's keychain.";
+"games.subtitle" = "Use the mouse or the keyboard. No scores or data leave the Mac.";
+"phone.mode_remote" = "On this Mac";
+"video.unsupported" = "This video can't be played on the Mac.";
+"settings.subtitle_local" = "Settings are saved only on this Mac.";
+"library.kicker" = "Photos on the Mac";
+"library.subtitle" = "Choose an album from the Photos library of this Mac: iCloud Photos, favorites, your albums and shared albums. Photos load from iCloud as they’re shown.";
+"library.ask" = "FotoFesta TV needs access to the photos on this Mac to show your albums. They stay in your library: the app doesn’t copy them or send them anywhere.";
+"library.denied" = "FotoFesta TV can’t see the photos on this Mac. Allow access in System Settings › Privacy & Security › Photos, then come back here.";
+"library.none" = "No photos found. Open the Photos app on the Mac and, if you use iCloud Photos, turn it on in Photos › Settings › iCloud.";
+"network.unreachable" = "Server not reachable: check that it’s on and on the same network as the Mac.";

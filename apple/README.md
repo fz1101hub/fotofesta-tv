@@ -1,6 +1,6 @@
-# FotoFesta TV per Apple TV
+# FotoFesta TV per Apple TV e Mac
 
-Versione tvOS dell'app, scritta in Swift e SwiftUI, pensata per l'App Store. Condivide con l'app Android il comportamento e il flusso Google Foto.
+Versione tvOS dell'app, scritta in Swift e SwiftUI, pensata per l'App Store, con una versione per macOS 14+ fatta con gli stessi sorgenti (vedi [App per Mac](#app-per-mac)). Condivide con l'app Android il comportamento e il flusso Google Foto.
 
 ## Funzioni
 
@@ -33,11 +33,29 @@ Le **cartelle di rete** funzionano come su Android ([CONFIGURATION.md](../docs/C
 
 AirPlay non è un modo per mandare foto alla festa: lo gestisce tvOS sopra l'app, e le app non possono riceverlo. Le foto trasmesse coprono lo slideshow e non entrano nella raccolta. La schermata della festa suggerisce di limitare l'accesso ad AirPlay alle persone di casa (Impostazioni › AirPlay e HomeKit).
 
+## App per Mac
+
+Il target `FotoFestaMac` compila per macOS 14 o successivo gli stessi sorgenti SwiftUI dell'app Apple TV e lo stesso pacchetto `FotoFestaCore`: schermate, slideshow, giochi, festa con i telefoni, Google Foto, libreria Foto e cartelle di rete sono identici. Il Mac collegato a un televisore o a un proiettore (cavo HDMI o AirPlay verso una Apple TV) fa da schermo della festa.
+
+Le differenze stanno tutte in `FotoFestaTV/Sources/Platform.swift`:
+
+| Su Apple TV | Su Mac |
+| --- | --- |
+| Schede `.card` che si sollevano con il fuoco | Schede che si ingrandiscono al passaggio del mouse |
+| Telecomando: frecce, Play/Pausa, Menu | Frecce, barra spaziatrice ed Esc nello slideshow; mouse e trackpad ovunque |
+| Schermo sempre acceso con `isIdleTimerDisabled` | `ProcessInfo.beginActivity(.idleDisplaySleepDisabled)` durante slideshow e festa |
+| `UIImage`, `AVPlayerLayer` in una `UIView` | `NSImage`, `AVPlayerLayer` in una `NSView` |
+| Una scena a tutto schermo | Una sola finestra (niente due server della festa), a tutto schermo con ⌃⌘F; l'app si chiude con l'ultima finestra |
+
+I testi che citano Apple TV, telecomando o Impostazioni di tvOS hanno una versione per Mac in `scripts/translations/mac.json`, che `strings.py` trasforma in `FotoFestaMac/Resources/<lingua>.lproj/Mac.strings`; `L()` guarda prima lì. Icona e logo sono in `FotoFestaMac/Resources/Assets.xcassets`. L'app gira nella sandbox (`FotoFestaMac.entitlements`: rete in uscita, server della festa in entrata, libreria Foto) con hardened runtime. Sul Mac la ricerca dei server DLNA in multicast non richiede entitlement speciali.
+
+Il bundle ID è `it.fotofesta.tv` come su Apple TV, così in App Store Connect la versione Mac si aggiunge alla stessa app ("acquisto universale"). Non ci sono ancora le cartelle locali del Mac (Finder) come sorgente: si possono aggiungere in seguito con `NSOpenPanel` e un segnalibro con ambito di sicurezza.
+
 ## Struttura
 
 ```
 apple/
-├── project.yml                 progetto XcodeGen (target tvOS 17)
+├── project.yml                 progetto XcodeGen (target tvOS 17 e macOS 14)
 ├── Config/                     App.xcconfig + Secrets.example.xcconfig
 ├── FotoFestaCore/              pacchetto Swift senza UI, con test XCTest
 │   ├── Sources/FotoFestaCore/  modelli, ordine di riproduzione, Ken Burns, OAuth, Picker, importazione,
@@ -47,6 +65,7 @@ apple/
 │   ├── Sources/                app SwiftUI (AppModel, GuestParty, schermate, Portachiavi, caricamento immagini,
 │   │                           libreria Foto con PhotoKit)
 │   └── Resources/              asset catalog, foto demo, testi it/en, PrivacyInfo.xcprivacy
+├── FotoFestaMac/               solo per il Mac: entitlements, icona, testi Mac.strings (i sorgenti sono quelli sopra)
 ├── fastlane/                   TestFlight, scheda e invio ad App Store Connect
 └── scripts/                    strings.py (testi localizzati e controllo delle chiavi) e screenshots.sh
                                 (schermate dal simulatore, con il server DLNA finto di ../scripts/fake_dlna.py)
@@ -65,13 +84,22 @@ xcodegen generate
 open FotoFestaTV.xcodeproj                                    # schema FotoFestaTV, destinazione Apple TV
 ```
 
+Per il Mac si sceglie lo schema `FotoFestaMac` con destinazione "My Mac". Da terminale, senza account sviluppatore (firma ad hoc, solo per provarla sul proprio Mac):
+
+```bash
+xcodebuild build -project FotoFestaTV.xcodeproj -scheme FotoFestaMac -configuration Release \
+  -destination "generic/platform=macOS" -derivedDataPath build/mac \
+  CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM=
+open "build/mac/Build/Products/Release/FotoFesta TV.app"
+```
+
 Per modificare i testi: aggiorna `scripts/strings.py`, esegui `python3 scripts/strings.py` (che verifica anche le chiavi usate nel codice) e committa i `.strings` generati. Per la grafica: `python3 ../scripts/make_store_assets.py`.
 
 La pubblicazione è descritta in [docs/PUBLISHING.md](../docs/PUBLISHING.md).
 
 ## Stato di verifica
 
-Il workflow `.github/workflows/apple.yml` gira su un runner macOS 15 con Xcode 26.3 (SDK tvOS 26): i 114 test XCTest del nucleo passano e l'app si compila per tvOS senza firma. Con `[screenshots]` nel messaggio del commit, o avviandolo a mano, il workflow fa anche le schermate nel simulatore (`scripts/screenshots.sh`), comprese festa, premi e gioco con i telefoni: lo script manda foto e risposte come i telefoni degli invitati. Con un repository privato i minuti macOS sono a pagamento. La logica è la stessa dell'app Android, coperta dai test JVM.
+Il workflow `.github/workflows/apple.yml` gira su un runner macOS 15 con Xcode 26.3 (SDK tvOS 26): i 114 test XCTest del nucleo passano, l'app si compila per tvOS senza firma e per macOS con firma ad hoc. L'app Mac compilata si scarica dall'artifact `FotoFesta-TV-mac` (zip con `FotoFesta TV.app`): non essendo firmata con un Developer ID, la prima volta si apre con clic destro › Apri, oppure dopo `xattr -dr com.apple.quarantine "FotoFesta TV.app"`. Con `[screenshots]` nel messaggio del commit, o avviandolo a mano, il workflow fa anche le schermate nel simulatore (`scripts/screenshots.sh`), comprese festa, premi e gioco con i telefoni: lo script manda foto e risposte come i telefoni degli invitati. Con un repository privato i minuti macOS sono a pagamento. La logica è la stessa dell'app Android, coperta dai test JVM.
 
 Con `[screenshots]` nel messaggio dell'ultimo commit (o avviando il workflow a mano) la CI apre anche l'app nel simulatore Apple TV in italiano e fotografa le schermate principali: home, slideshow, impostazioni, giochi, festa. Durante la festa lo script `scripts/screenshots.sh` manda alcune foto come farebbe il telefono di un invitato, per mostrare slideshow, miniature e approvazione. Le PNG a piena risoluzione si scaricano dall'artifact `FotoFestaTV-screenshots` e vanno bene anche per App Store Connect. Il passo fallisce se l'app si chiude da sola in una schermata. Gli scenari sono in `ScreenshotScenario.swift` e sono attivi solo nelle build di debug.
 

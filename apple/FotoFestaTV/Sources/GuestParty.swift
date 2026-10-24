@@ -3,7 +3,11 @@ import Foundation
 import Network
 import Observation
 import Security
+#if canImport(UIKit)
 import UIKit
+#else
+import AppKit
+#endif
 
 /// Perché la Apple TV non riesce a ricevere le foto degli invitati.
 enum GuestProblem: Equatable {
@@ -356,8 +360,7 @@ final class GuestParty {
 
     /// Risoluzione dello schermo collegato (lato lungo, lato corto), tra Full HD e 4K.
     private static func screenPixels() -> (width: Int, height: Int) {
-        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
-        let size = scene?.screen.nativeBounds.size ?? CGSize(width: 3840, height: 2160)
+        let size = screenPixelSize() ?? CGSize(width: 3840, height: 2160)
         let long = Int(max(size.width, size.height))
         let short = Int(min(size.width, size.height))
         return (min(max(long, 1280), 3840), min(max(short, 720), 2160))
@@ -424,7 +427,9 @@ enum WifiPasswordKeychain {
         guard let value else { return true }
         var item = query
         item[kSecValueData as String] = Data(value.utf8)
+        #if os(tvOS)
         item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        #endif
         return SecItemAdd(item as CFDictionary, nil) == errSecSuccess
     }
 }

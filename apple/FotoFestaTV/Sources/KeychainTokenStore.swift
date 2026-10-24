@@ -53,7 +53,9 @@ final class KeychainTokenStore: TokenStore {
         guard let value else { return }
         var item = query(account)
         item[kSecValueData as String] = Data(value.utf8)
+        #if os(tvOS)
         item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        #endif
         SecItemAdd(item as CFDictionary, nil)
     }
 }
