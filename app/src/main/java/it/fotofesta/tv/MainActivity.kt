@@ -309,6 +309,8 @@ class MainActivity : ComponentActivity() {
                                 onShows = { viewModel.navigate(Destination.SHOWS) },
                                 onBuzzer = { viewModel.navigate(Destination.BUZZER) },
                                 onCamera = { viewModel.navigate(Destination.CAMERA) },
+                                silentDisco = state.silentDisco,
+                                onSilentDisco = viewModel::toggleSilentDisco,
                             )
                             Destination.BUZZER -> BuzzerScreen(onBack = viewModel::back)
                             Destination.CAMERA -> CameraScreen(

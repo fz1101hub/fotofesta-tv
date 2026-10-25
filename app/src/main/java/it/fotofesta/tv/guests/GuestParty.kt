@@ -7,9 +7,12 @@ import android.net.LinkProperties
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import android.net.Uri
+import android.webkit.MimeTypeMap
 import android.util.Log
 import it.fotofesta.tv.data.KeystoreStrings
 import it.fotofesta.tv.data.SettingsRepository
+import it.fotofesta.tv.media.BackgroundMusicPlayer
 import it.fotofesta.tv.model.FitMode
 import it.fotofesta.tv.model.GuestProblem
 import it.fotofesta.tv.network.PartyBeacon
@@ -102,6 +105,8 @@ class GuestParty(
     private val beacon = PartyBeacon(context)
     /** Ogni foto salvata, dai thread del server: serve alla copia di sicurezza nella galleria. */
     @Volatile var onPhotoSaved: ((bytes: ByteArray, sender: String?) -> Unit)? = null
+    /** Silent disco accesa: il brano che sta suonando la TV (a volume zero), letto dai thread del server. */
+    @Volatile var discoSource: (() -> BackgroundMusicPlayer.NowPlaying?)? = null
     private var hubSave: ScheduledFuture<*>? = null
     private val hubFile get() = java.io.File(context.noBackupFilesDir, HUB_FILE)
 
@@ -144,8 +149,46 @@ class GuestParty(
         override fun wallPhoto(id: String): ByteArray? =
             id.takeIf { wanted -> store.photos.value.any { it.id == wanted && it.approved } }?.let(store::read)
 
+        override fun discoJson(): String {
+            val source = discoSource ?: return "null"
+            // Accesa ma la musica non è ancora partita: i telefoni aspettano il brano.
+            val now = source() ?: return """{"on":true,"track":null,"position":0,"playing":false}"""
+            return """{"on":true,"track":${GuestUploadServer.jsonString(discoId(now.uri))},""" +
+                """"position":${now.positionMs},"playing":${now.playing}}"""
+        }
+
+        /** Solo il brano in corso: l'id è un'impronta dell'indirizzo, che ai telefoni non arriva mai. */
+        override fun discoTrack(id: String): DiscoTrack? {
+            val uri = discoSource?.invoke()?.uri?.takeIf { discoId(it) == id } ?: return null
+            val parsed = Uri.parse(uri)
+            val length = runCatching {
+                context.contentResolver.openAssetFileDescriptor(parsed, "r")?.use { file ->
+                    file.length.takeIf { it >= 0 } ?: file.parcelFileDescriptor.statSize
+                }
+            }.getOrNull()?.takeIf { it > 0 } ?: return null
+            val type = context.contentResolver.getType(parsed)?.takeIf { it.startsWith("audio/") }
+                ?: MimeTypeMap.getSingleton().getMimeTypeFromExtension(uri.substringAfterLast('/').substringAfterLast('.', "").lowercase())
+                    ?.takeIf { it.startsWith("audio/") }
+                ?: "audio/mpeg"
+            return DiscoTrack(length, type) { offset ->
+                val file = context.contentResolver.openAssetFileDescriptor(parsed, "r") ?: throw IOException("track")
+                file.createInputStream().also { input ->
+                    var left = offset
+                    while (left > 0) {
+                        val skipped = input.skip(left)
+                        if (skipped <= 0) break
+                        left -= skipped
+                    }
+                }
+            }
+        }
+
         private fun asset(path: String) = context.assets.open(path).use { it.readBytes().toString(Charsets.UTF_8) }
     }
+
+    private fun discoId(uri: String): String =
+        java.security.MessageDigest.getInstance("SHA-256").digest(uri.toByteArray(Charsets.UTF_8))
+            .take(12).joinToString("") { "%02x".format(it) }
 
     /** All'avvio del processo: riprende la festa interrotta da poco, altrimenti cancella le foto rimaste. */
     fun initialize() = worker.execute {

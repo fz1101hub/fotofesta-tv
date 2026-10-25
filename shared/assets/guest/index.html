@@ -128,6 +128,23 @@
   .arrive-go:disabled { opacity: .6; }
   #arriveStatus { position: relative; margin: .6rem 0 0; font-weight: 700; }
   #arriveStatus:empty { display: none; }
+
+  /* Silent disco: banda viola, con le onde che si muovono mentre suona */
+  .disco { background: linear-gradient(120deg, var(--violet) 0%, var(--pink) 100%); color: #fff; box-shadow: 0 14px 40px -16px rgba(139,108,255,.7); }
+  .disco .announce-kicker { color: #fff; }
+  .disco > p:not(#discoStatus) { font: 700 1.05rem/1.35 var(--display); }
+  .disco .arrive-go { background: #fff; color: #3b1f8f; }
+  .disco .arrive-go.on { background: rgba(255,255,255,.18); color: #fff; box-shadow: inset 0 0 0 2px rgba(255,255,255,.6); }
+  #discoStatus { position: relative; display: flex; align-items: center; gap: 10px; margin: .7rem 0 0; font: 700 .95rem/1.3 var(--display); }
+  #discoStatus:empty { display: none; }
+  .bars { display: inline-flex; align-items: flex-end; gap: 3px; height: 18px; flex: none; }
+  .bars i { width: 4px; height: 30%; border-radius: 2px; background: #fff; }
+  .playing .bars i { animation: bar .9s ease-in-out infinite alternate; }
+  .playing .bars i:nth-child(2) { animation-delay: -.3s; }
+  .playing .bars i:nth-child(3) { animation-delay: -.6s; }
+  .playing .bars i:nth-child(4) { animation-delay: -.15s; }
+  @keyframes bar { from { height: 20%; } to { height: 100%; } }
+  @media (prefers-reduced-motion: reduce) { .playing .bars i { animation: none; height: 70%; } }
   .links a { display: block; text-align: center; text-decoration: none; }
 
   /* Telecomando (regista e regia) */
@@ -194,6 +211,15 @@
     <input type="text" id="arriveName" maxlength="40" autocomplete="nickname" enterkeyhint="go">
     <button type="button" class="arrive-go" id="arriveGo"></button>
     <p id="arriveStatus" aria-live="polite"></p>
+  </section>
+
+  <!-- Silent disco: la musica che la TV suona a volume zero, nelle cuffie, allineata alla TV. -->
+  <section id="disco" class="announce disco" hidden>
+    <div class="announce-kicker" id="discoTitle"></div>
+    <p id="discoBody"></p>
+    <button type="button" class="arrive-go" id="discoToggle"></button>
+    <p id="discoStatus" aria-live="polite"></p>
+    <audio id="discoAudio" preload="none" playsinline></audio>
   </section>
 
   <!-- Tre minuti senza telefoni: la TV non accetta foto, reazioni e dediche. -->
@@ -484,6 +510,14 @@ const IT = {
   arriveDone: "Fatto! Guarda la TV 🎉",
   hostDoor: "QR dell’ingresso (da stampare)",
   hostWall: "Parete delle foto per un altro schermo",
+  discoTitle: "Silent disco 🎧",
+  discoBody: "Metti le cuffie: la musica della festa suona dal tuo telefono, allineata alla TV.",
+  discoStart: "🎧 Ascolta",
+  discoStop: "Smetti",
+  discoWaiting: "In attesa della musica sulla TV…",
+  discoPlaying: "In riproduzione, allineata alla TV",
+  discoPaused: "La musica è in pausa sulla TV",
+  discoError: "Questo telefono non riesce a suonare il brano. Riprova o usa un altro browser.",
 };
 const EN = {
   announceKicker: "Announcement",
@@ -636,6 +670,14 @@ const EN = {
   arriveDone: "Done! Look at the TV 🎉",
   hostDoor: "Entrance QR (to print)",
   hostWall: "Photo wall for another screen",
+  discoTitle: "Silent disco 🎧",
+  discoBody: "Put on your headphones: the party music plays from your phone, in sync with the TV.",
+  discoStart: "🎧 Listen",
+  discoStop: "Stop",
+  discoWaiting: "Waiting for the music on the TV…",
+  discoPlaying: "Playing in sync with the TV",
+  discoPaused: "The music is paused on the TV",
+  discoError: "This phone can’t play the song. Try again or use another browser.",
 };
 const FR = {
   announceKicker: "Annonce",
@@ -788,6 +830,14 @@ const FR = {
   arriveDone: "C’est fait ! Regardez la TV 🎉",
   hostDoor: "QR de l’entrée (à imprimer)",
   hostWall: "Mur de photos pour un autre écran",
+  discoTitle: "Silent disco 🎧",
+  discoBody: "Mettez vos écouteurs : la musique de la fête joue sur votre téléphone, en phase avec la TV.",
+  discoStart: "🎧 Écouter",
+  discoStop: "Arrêter",
+  discoWaiting: "En attente de la musique sur la TV…",
+  discoPlaying: "Lecture en phase avec la TV",
+  discoPaused: "La musique est en pause sur la TV",
+  discoError: "Ce téléphone ne peut pas lire le morceau. Réessayez ou utilisez un autre navigateur.",
 };
 const ES = {
   announceKicker: "Anuncio",
@@ -940,6 +990,14 @@ const ES = {
   arriveDone: "¡Hecho! Mira la TV 🎉",
   hostDoor: "QR de la entrada (para imprimir)",
   hostWall: "Muro de fotos para otra pantalla",
+  discoTitle: "Silent disco 🎧",
+  discoBody: "Ponte los auriculares: la música de la fiesta suena en tu móvil, sincronizada con la TV.",
+  discoStart: "🎧 Escuchar",
+  discoStop: "Parar",
+  discoWaiting: "Esperando la música en la TV…",
+  discoPlaying: "Sonando sincronizada con la TV",
+  discoPaused: "La música está en pausa en la TV",
+  discoError: "Este móvil no puede reproducir la canción. Inténtalo de nuevo o usa otro navegador.",
 };
 const DE = {
   announceKicker: "Durchsage",
@@ -1092,6 +1150,14 @@ const DE = {
   arriveDone: "Erledigt! Schau auf den Fernseher 🎉",
   hostDoor: "QR für den Eingang (zum Ausdrucken)",
   hostWall: "Fotowand für einen anderen Bildschirm",
+  discoTitle: "Silent Disco 🎧",
+  discoBody: "Setz die Kopfhörer auf: Die Partymusik läuft auf deinem Handy, synchron zum Fernseher.",
+  discoStart: "🎧 Anhören",
+  discoStop: "Stopp",
+  discoWaiting: "Warte auf die Musik am Fernseher…",
+  discoPlaying: "Läuft synchron zum Fernseher",
+  discoPaused: "Die Musik ist am Fernseher pausiert",
+  discoError: "Dieses Handy kann den Titel nicht abspielen. Versuch es erneut oder nimm einen anderen Browser.",
 };
 const TEXTS = { it: IT, en: EN, fr: FR, es: ES, de: DE };
 // Prima lingua del telefono che la pagina conosce, altrimenti inglese.
@@ -1168,6 +1234,7 @@ async function pollGame() {
       showGame(state.game);
       showParty(state.party || {});
       showPlay(state.play || null);
+      showDisco(state.disco || null);
       $("host").hidden = !state.host;
     }
   } catch (e) {
@@ -2241,6 +2308,96 @@ function celebrate() {
     else context.clearRect(0, 0, innerWidth, innerHeight);
   })(started);
 }
+
+// Silent disco: il telefono suona il brano della TV e si riallinea quando si sposta di oltre 0,35 s.
+const disco = { state: null, at: 0, on: false, track: null, error: false };
+const discoAudio = $("discoAudio");
+$("discoTitle").textContent = T.discoTitle;
+$("discoBody").textContent = T.discoBody;
+
+function showDisco(state) {
+  disco.state = state && state.on ? state : null;
+  disco.at = performance.now();
+  $("disco").hidden = !disco.state;
+  if (!disco.state) stopDisco();
+  else syncDisco();
+  renderDisco();
+}
+
+function discoTarget() {
+  const s = disco.state;
+  let seconds = (s.position + (s.playing ? performance.now() - disco.at : 0)) / 1000;
+  // Un brano solo si ripete sulla TV: la posizione continua a crescere.
+  if (isFinite(discoAudio.duration) && discoAudio.duration > 0) seconds %= discoAudio.duration;
+  return seconds;
+}
+
+function syncDisco() {
+  const s = disco.state;
+  if (!disco.on || !s || disco.error) return;
+  if (!s.track || !s.playing) { discoAudio.pause(); return; }
+  if (disco.track !== s.track) {
+    disco.track = s.track;
+    discoAudio.src = "/disco/audio?k=" + encodeURIComponent(KEY) + "&t=" + encodeURIComponent(s.track);
+  }
+  if (discoAudio.readyState >= 1) {
+    const target = discoTarget();
+    if (Math.abs(discoAudio.currentTime - target) > 0.35) discoAudio.currentTime = target;
+  }
+  if (discoAudio.paused) discoAudio.play().catch(() => {});
+}
+
+function stopDisco() {
+  disco.on = false;
+  disco.track = null;
+  discoAudio.pause();
+  discoAudio.removeAttribute("src");
+  discoAudio.load();
+}
+
+function renderDisco() {
+  const button = $("discoToggle");
+  button.textContent = disco.on ? T.discoStop : T.discoStart;
+  button.classList.toggle("on", disco.on);
+  const status = $("discoStatus");
+  status.textContent = "";
+  status.classList.remove("playing");
+  if (!disco.on || !disco.state) return;
+  let text = T.discoPlaying;
+  if (disco.error) text = T.discoError;
+  else if (!disco.state.track) text = T.discoWaiting;
+  else if (!disco.state.playing) text = T.discoPaused;
+  const playing = text === T.discoPlaying;
+  if (playing) {
+    const bars = document.createElement("span");
+    bars.className = "bars";
+    bars.setAttribute("aria-hidden", "true");
+    for (let i = 0; i < 4; i++) bars.appendChild(document.createElement("i"));
+    status.appendChild(bars);
+    status.classList.toggle("playing", !discoAudio.paused);
+  }
+  status.appendChild(document.createTextNode(text));
+}
+
+// Il primo play deve partire dal tocco: i telefoni non suonano audio da soli.
+$("discoToggle").addEventListener("click", () => {
+  if (disco.on) stopDisco();
+  else {
+    disco.on = true;
+    disco.error = false;
+    syncDisco();
+  }
+  renderDisco();
+});
+discoAudio.addEventListener("loadedmetadata", () => { if (disco.on && disco.state) discoAudio.currentTime = discoTarget(); });
+discoAudio.addEventListener("playing", renderDisco);
+discoAudio.addEventListener("pause", renderDisco);
+discoAudio.addEventListener("error", () => {
+  if (!disco.on || !discoAudio.getAttribute("src")) return;
+  disco.error = true;
+  disco.track = null;
+  renderDisco();
+});
 
 // Domanda già in corso sulla TV: si mostra subito, senza aspettare il primo giro.
 pollGame();

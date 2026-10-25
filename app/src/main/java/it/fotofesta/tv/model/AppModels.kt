@@ -359,4 +359,6 @@ data class AppState(
     val usbBackupName: String? = null,
     /** Indirizzo del vecchio telefono usato come telecamera ("192.168.1.20:8080"). */
     val cameraAddress: String = "",
+    /** Silent disco: la musica suona nelle cuffie dei telefoni e la TV resta muta. */
+    val silentDisco: Boolean = false,
 )

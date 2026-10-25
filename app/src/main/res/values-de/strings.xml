@@ -914,4 +914,13 @@
     <string name="extra_unavailable">Der Hauptfernseher nimmt keine zusätzlichen Bildschirme an: Schalte dort die Regie per Telefon ein oder warte nach zu vielen Versuchen ein paar Minuten.</string>
     <string name="extra_not_found">Der Hauptfernseher antwortet nicht: Läuft die Party im selben WLAN?</string>
     <string name="extra_wall_empty">Hier erscheinen die Fotos der Gäste.</string>
+
+    <!-- Silent disco -->
+    <string name="games_disco_title">Silent Disco</string>
+    <string name="games_disco_title_on">Silent Disco: an</string>
+    <string name="games_disco_body">Die Musik läuft in den Kopfhörern der Gäste, über ihre Handys. Der Fernseher bleibt stumm.</string>
+    <string name="games_disco_body_on">Die Handys spielen die Musik synchron zum Fernseher. Drücken zum Ausschalten.</string>
+    <string name="message_disco_on">Silent Disco an: Die Gäste tippen auf der Party-Seite auf 🎧 und setzen die Kopfhörer auf.</string>
+    <string name="message_disco_off">Silent Disco aus: Die Musik läuft wieder über den Fernseher.</string>
+    <string name="message_disco_no_music">Wähle zuerst in den Einstellungen einen Titel oder einen Musikordner.</string>
 </resources>

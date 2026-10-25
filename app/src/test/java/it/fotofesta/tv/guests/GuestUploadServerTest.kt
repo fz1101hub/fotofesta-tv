@@ -39,7 +39,11 @@ class GuestUploadServerTest {
         override fun wallPage() = "<html>parete</html>"
         override fun wallState() = """{"photos":[{"id":"foto-1","sender":null}]}"""
         override fun wallPhoto(id: String) = if (id == "foto-1") jpeg else null
+        override fun discoJson() = """{"on":true,"track":"brano-1","position":1500,"playing":true}"""
+        override fun discoTrack(id: String) =
+            if (id == "brano-1") DiscoTrack(song.size.toLong(), "audio/mpeg") { offset -> song.inputStream().apply { skip(offset) } } else null
     }
+    private val song = ByteArray(3_000) { (it % 251).toByte() }
 
     @Before
     fun setUp() = startServer()
@@ -472,6 +476,47 @@ class GuestUploadServerTest {
         assertEquals("image/jpeg", photo.headers["content-type"])
         assertEquals("private, max-age=3600", photo.headers["cache-control"])
         assertEquals(404, get("/wall/photo?k=$KEY&id=altra").status)
+    }
+
+    private fun getRange(target: String, range: String?): Pair<Reply, ByteArray> {
+        Socket().use { socket ->
+            socket.connect(InetSocketAddress(loopback, port), 2_000)
+            socket.soTimeout = 5_000
+            val rangeHeader = if (range != null) "Range: $range\r\n" else ""
+            socket.getOutputStream().write("GET $target HTTP/1.1\r\nHost: 127.0.0.1:$port\r\n$rangeHeader\r\n".toByteArray())
+            val raw = socket.getInputStream().readBytes()
+            val split = (0 until raw.size - 3).first { raw[it] == '\r'.code.toByte() && raw[it + 1] == '\n'.code.toByte() && raw[it + 2] == '\r'.code.toByte() && raw[it + 3] == '\n'.code.toByte() }
+            val lines = String(raw, 0, split, Charsets.ISO_8859_1).split("\r\n")
+            val headers = lines.drop(1).associate { it.substringBefore(':').lowercase() to it.substringAfter(':').trim() }
+            return Reply(lines.first().split(' ')[1].toInt(), headers, "") to raw.copyOfRange(split + 4, raw.size)
+        }
+    }
+
+    @Test
+    fun `silent disco serves only the song playing, by ranges`() {
+        val party = send("GET /party HTTP/1.1\r\nHost: 127.0.0.1:$port\r\nX-FotoFesta-Key: $KEY\r\n\r\n".toByteArray())
+        assertEquals("brano-1", JSONObject(party.body).getJSONObject("disco").getString("track"))
+        assertEquals(401, get("/disco/audio?t=brano-1").status)
+        assertEquals(404, get("/disco/audio?k=$KEY&t=altro").status)
+
+        val (whole, wholeBody) = getRange("/disco/audio?k=$KEY&t=brano-1", null)
+        assertEquals(200, whole.status)
+        assertEquals("bytes", whole.headers["accept-ranges"])
+        assertEquals("3000", whole.headers["content-length"])
+        assertTrue(wholeBody.contentEquals(song))
+
+        val (part, partBody) = getRange("/disco/audio?k=$KEY&t=brano-1", "bytes=1000-1099")
+        assertEquals(206, part.status)
+        assertEquals("bytes 1000-1099/3000", part.headers["content-range"])
+        assertTrue(partBody.contentEquals(song.copyOfRange(1000, 1100)))
+
+        val (tail, tailBody) = getRange("/disco/audio?k=$KEY&t=brano-1", "bytes=2900-")
+        assertEquals("bytes 2900-2999/3000", tail.headers["content-range"])
+        assertEquals(100, tailBody.size)
+
+        val (outside, _) = getRange("/disco/audio?k=$KEY&t=brano-1", "bytes=5000-")
+        assertEquals(416, outside.status)
+        assertEquals("bytes */3000", outside.headers["content-range"])
     }
 
     @Test

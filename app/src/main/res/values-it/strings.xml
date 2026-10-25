@@ -958,4 +958,13 @@
     <string name="extra_unavailable">La TV principale non accetta schermi aggiuntivi: attiva la regia dal telefono nelle sue impostazioni, o aspetta qualche minuto dopo troppi tentativi.</string>
     <string name="extra_not_found">La TV principale non risponde: la festa è avviata, nella stessa Wi‑Fi?</string>
     <string name="extra_wall_empty">Qui compariranno le foto degli invitati.</string>
+
+    <!-- Silent disco -->
+    <string name="games_disco_title">Silent disco</string>
+    <string name="games_disco_title_on">Silent disco: accesa</string>
+    <string name="games_disco_body">La musica suona nelle cuffie degli invitati, dai loro telefoni. La TV resta muta.</string>
+    <string name="games_disco_body_on">I telefoni suonano la musica allineati alla TV. Premi per spegnerla.</string>
+    <string name="message_disco_on">Silent disco accesa: gli invitati toccano 🎧 nella pagina della festa e mettono le cuffie.</string>
+    <string name="message_disco_off">Silent disco spenta: la musica torna sulla TV.</string>
+    <string name="message_disco_no_music">Scegli prima un brano o una cartella di musica nelle impostazioni.</string>
 </resources>

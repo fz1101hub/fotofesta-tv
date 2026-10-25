@@ -915,4 +915,13 @@
     <string name="extra_unavailable">The main TV doesn’t accept extra screens: turn on the host remote in its settings, or wait a few minutes after too many attempts.</string>
     <string name="extra_not_found">The main TV is not responding: is the party running, on the same Wi‑Fi?</string>
     <string name="extra_wall_empty">Guest photos will appear here.</string>
+
+    <!-- Silent disco -->
+    <string name="games_disco_title">Silent disco</string>
+    <string name="games_disco_title_on">Silent disco: on</string>
+    <string name="games_disco_body">The music plays in the guests’ headphones, from their phones. The TV stays silent.</string>
+    <string name="games_disco_body_on">Phones are playing the music in sync with the TV. Press to switch it off.</string>
+    <string name="message_disco_on">Silent disco on: guests tap 🎧 on the party page and put on their headphones.</string>
+    <string name="message_disco_off">Silent disco off: the music is back on the TV.</string>
+    <string name="message_disco_no_music">Choose a song or a music folder in the settings first.</string>
 </resources>

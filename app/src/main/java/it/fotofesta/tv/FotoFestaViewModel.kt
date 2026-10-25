@@ -867,7 +867,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         if (previous.shuffle != value.shuffle) {
             playbackOrder.reset(_state.value.photos.size, value.shuffle, _state.value.currentIndex)
         }
-        musicPlayer.setVolume(value.musicVolume)
+        musicPlayer.setVolume(musicVolume())
         if (previous.sleepTimerMinutes != value.sleepTimerMinutes) syncSleepTimer()
         if (previous.videos != value.videos) applyCollection(restart = false)
         if (previous.phoneReactions != value.phoneReactions || previous.phoneMessages != value.phoneMessages) syncPartyFeatures()
@@ -1674,6 +1674,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun removeMusic() {
         musicRestoreJob?.cancel()
+        stopSilentDisco()
         musicPlayer.release()
         musicTracks = emptyList()
         settingsRepository.clearMusic()
@@ -1939,6 +1940,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         if (approvalChanged) syncPartyFeatures()
         // Il PIN della regia cambia a ogni festa.
         if (_state.value.party.hostPin != hostRemote.pin()) refreshParty()
+        if (!party.active) stopSilentDisco()
         if (items != guestPhotos || party.active != guestPartyActive) {
             guestPhotos = items
             guestPartyActive = party.active
@@ -2048,9 +2050,42 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
 
     private fun syncMusic() {
         val current = _state.value
-        if (current.isPlaying && audibleVideos.isEmpty()) musicPlayer.play(musicTracks, current.settings.musicVolume)
-        else musicPlayer.pause()
+        // Con la silent disco la musica va avanti anche in pausa, a volume zero: la sentono i telefoni.
+        val volume = musicVolume()
+        if (current.silentDisco || (current.isPlaying && audibleVideos.isEmpty())) {
+            musicPlayer.play(musicTracks, volume)
+            musicPlayer.setVolume(volume)
+        } else {
+            musicPlayer.pause()
+        }
         syncSleepTimer()
+    }
+
+    private fun musicVolume(): Float = if (_state.value.silentDisco) 0f else _state.value.settings.musicVolume
+
+    /** Accende o spegne la silent disco: serve la festa in corso e una musica scelta nelle impostazioni. */
+    fun toggleSilentDisco() {
+        if (_state.value.silentDisco) {
+            stopSilentDisco()
+            showMessage(context.getString(R.string.message_disco_off))
+            return
+        }
+        if (!_state.value.guests.active) return
+        if (_state.value.musicUri == null) {
+            showMessage(context.getString(R.string.message_disco_no_music))
+            return
+        }
+        _state.update { it.copy(silentDisco = true) }
+        guests.discoSource = musicPlayer::nowPlaying
+        syncMusic()
+        showMessage(context.getString(R.string.message_disco_on))
+    }
+
+    private fun stopSilentDisco() {
+        if (!_state.value.silentDisco) return
+        guests.discoSource = null
+        _state.update { it.copy(silentDisco = false) }
+        syncMusic()
     }
 
     /** Un video dello slideshow inizia o smette di suonare. */
@@ -2107,6 +2142,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         smbJob?.cancel()
         usbJob?.cancel()
         sleepJob?.cancel()
+        guests.discoSource = null
         musicPlayer.release()
         stopHotspot()
         partyHub.onChange = null

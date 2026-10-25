@@ -247,7 +247,8 @@ class GuestUploadServer(
                 val party = hub?.partyJson(player) ?: """{"announcement":null,"director":null}"""
                 val hostOn = hostRemote?.pin() != null
                 val playJson = play?.phoneJson(player) ?: "null"
-                Response.json(200, """{"features":$features,"game":${gameJson(game?.current(), player)},"party":$party,"host":$hostOn,"play":$playJson}""")
+                val disco = extras?.discoJson() ?: "null"
+                Response.json(200, """{"features":$features,"game":${gameJson(game?.current(), player)},"party":$party,"host":$hostOn,"play":$playJson,"disco":$disco}""")
             }
             "/party/action" -> {
                 if (request.method != "POST") throw HttpError(405, "method")
@@ -325,6 +326,32 @@ class GuestUploadServer(
                 if (!keyMatches(request.query["k"])) throw HttpError(401, "key")
                 val bytes = pages.wallPhoto(request.query["id"].orEmpty()) ?: throw HttpError(404, "not_found")
                 Response(200, imageType(bytes), bytes, listOf("Cache-Control" to "private, max-age=3600"))
+            }
+            // Silent disco: il brano in corso, a pezzi da un mega (l'audio dei telefoni li chiede uno alla volta).
+            "/disco/audio" -> {
+                if (request.method != "GET" && request.method != "HEAD") throw HttpError(405, "method")
+                val pages = extras ?: throw HttpError(404, "not_found")
+                if (!keyMatches(request.query["k"])) throw HttpError(401, "key")
+                val track = pages.discoTrack(request.query["t"].orEmpty()) ?: throw HttpError(404, "not_found")
+                val range = discoRange(request.headers["range"], track.length, DISCO_CHUNK)
+                    ?: throw HttpError(416, "range", listOf("Content-Range" to "bytes */${track.length}"))
+                val partial = request.headers["range"] != null || range.last < track.length - 1
+                val headers = buildList {
+                    add("Accept-Ranges" to "bytes")
+                    if (partial) add("Content-Range" to "bytes ${range.first}-${range.last}/${track.length}")
+                }
+                Response.stream(if (partial) 206 else 200, track.mimeType, range.last - range.first + 1, headers, request.method == "HEAD") { output ->
+                    track.open(range.first).use { input ->
+                        val buffer = ByteArray(32 * 1024)
+                        var left = range.last - range.first + 1
+                        while (left > 0) {
+                            val read = input.read(buffer, 0, minOf(buffer.size.toLong(), left).toInt())
+                            if (read < 0) break
+                            output.write(buffer, 0, read)
+                            left -= read
+                        }
+                    }
+                }
             }
             "/party/qr.svg" -> {
                 if (request.method != "GET") throw HttpError(405, "method")
@@ -502,8 +529,14 @@ class GuestUploadServer(
         val body: ByteArray,
         val extraHeaders: List<Pair<String, String>> = emptyList(),
         val head: Boolean = false,
+        /** Corpo scritto a pezzi (brani della silent disco), al posto di [body]. */
+        val stream: ((OutputStream) -> Unit)? = null,
+        val length: Long = body.size.toLong(),
     ) {
         companion object {
+            fun stream(status: Int, type: String, length: Long, headers: List<Pair<String, String>>, head: Boolean, write: (OutputStream) -> Unit) =
+                Response(status, type, ByteArray(0), headers, head, write, length)
+
             fun json(status: Int, body: String, headers: List<Pair<String, String>> = emptyList()) =
                 Response(status, "application/json; charset=utf-8", body.toByteArray(Charsets.UTF_8), headers)
 
@@ -521,7 +554,7 @@ class GuestUploadServer(
         val headers = buildString {
             append("HTTP/1.1 ").append(response.status).append(' ').append(reason(response.status)).append("\r\n")
             append("Content-Type: ").append(response.contentType).append("\r\n")
-            append("Content-Length: ").append(response.body.size).append("\r\n")
+            append("Content-Length: ").append(response.length).append("\r\n")
             append("Connection: close\r\n")
             if (response.extraHeaders.none { it.first.equals("Cache-Control", ignoreCase = true) }) append("Cache-Control: no-store\r\n")
             append("X-Content-Type-Options: nosniff\r\n")
@@ -530,7 +563,9 @@ class GuestUploadServer(
             append("\r\n")
         }
         output.write(headers.toByteArray(Charsets.ISO_8859_1))
-        if (!response.head) output.write(response.body)
+        if (response.head) return
+        val stream = response.stream
+        if (stream != null) stream(output) else output.write(response.body)
     }
 
     companion object {
@@ -552,13 +587,16 @@ class GuestUploadServer(
         private const val BACKLOG = 32
 
         private const val PAGE_POLICY = "default-src 'none'; script-src 'unsafe-inline'; " +
-            "style-src 'unsafe-inline'; img-src blob: data:; connect-src 'self'; " +
+            "style-src 'unsafe-inline'; img-src blob: data:; media-src 'self'; connect-src 'self'; " +
             "form-action 'none'; base-uri 'none'; frame-ancestors 'none'"
 
         /** Parete e ingresso mostrano immagini e QR serviti dalla TV stessa. */
         private const val MEDIA_PAGE_POLICY = "default-src 'none'; script-src 'unsafe-inline'; " +
             "style-src 'unsafe-inline'; img-src 'self' blob: data:; connect-src 'self'; " +
             "form-action 'none'; base-uri 'none'; frame-ancestors 'none'"
+
+        /** Pezzi di brano per la silent disco: abbastanza per qualche secondo, mai un thread bloccato a lungo. */
+        private const val DISCO_CHUNK = 1024L * 1024
 
         private const val EXPIRED_PAGE = """<!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>FotoFesta</title></head>
@@ -690,6 +728,7 @@ class GuestUploadServer(
 
         private fun reason(status: Int) = when (status) {
             200 -> "OK"
+            206 -> "Partial Content"
             400 -> "Bad Request"
             401 -> "Unauthorized"
             403 -> "Forbidden"
@@ -699,6 +738,7 @@ class GuestUploadServer(
             411 -> "Length Required"
             413 -> "Payload Too Large"
             415 -> "Unsupported Media Type"
+            416 -> "Range Not Satisfiable"
             421 -> "Misdirected Request"
             423 -> "Locked"
             429 -> "Too Many Requests"

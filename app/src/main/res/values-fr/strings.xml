@@ -958,4 +958,13 @@
     <string name="extra_unavailable">Le téléviseur principal n’accepte pas d’écrans supplémentaires : activez la régie depuis le téléphone dans ses réglages, ou patientez quelques minutes après trop de tentatives.</string>
     <string name="extra_not_found">Le téléviseur principal ne répond pas : la fête est-elle lancée, sur le même Wi‑Fi ?</string>
     <string name="extra_wall_empty">Les photos des invités apparaîtront ici.</string>
+
+    <!-- Silent disco -->
+    <string name="games_disco_title">Silent disco</string>
+    <string name="games_disco_title_on">Silent disco : activée</string>
+    <string name="games_disco_body">La musique joue dans les écouteurs des invités, depuis leur téléphone. La TV reste muette.</string>
+    <string name="games_disco_body_on">Les téléphones jouent la musique en phase avec la TV. Appuyez pour l’arrêter.</string>
+    <string name="message_disco_on">Silent disco activée : les invités touchent 🎧 sur la page de la fête et mettent leurs écouteurs.</string>
+    <string name="message_disco_off">Silent disco arrêtée : la musique revient sur la TV.</string>
+    <string name="message_disco_no_music">Choisissez d’abord un morceau ou un dossier de musique dans les réglages.</string>
 </resources>

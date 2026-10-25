@@ -22,6 +22,39 @@ interface PartyExtras {
 
     /** Foto approvata [id] per la parete; null se non c'è o non è approvata. */
     fun wallPhoto(id: String): ByteArray?
+
+    /** Silent disco per la pagina dei telefoni, in JSON; "null" se è spenta. */
+    fun discoJson(): String = "null"
+
+    /** Brano [id] della silent disco, solo se è quello che sta suonando. */
+    fun discoTrack(id: String): DiscoTrack? = null
+}
+
+/** Brano da mandare ai telefoni della silent disco: lunghezza, tipo e lettura da una posizione. */
+class DiscoTrack(val length: Long, val mimeType: String, val open: (offset: Long) -> java.io.InputStream)
+
+/**
+ * Intervallo "Range: bytes=a-b" per l'audio dei telefoni (Safari lo chiede sempre). Restituisce
+ * l'intervallo da mandare, al massimo [maxChunk] byte: il telefono chiede da solo il resto.
+ * Null se l'intestazione non vale per questo file.
+ */
+fun discoRange(header: String?, length: Long, maxChunk: Long): LongRange? {
+    if (length <= 0) return null
+    if (header == null) return 0L..minOf(length, maxChunk) - 1
+    val spec = header.trim().removePrefix("bytes=").takeIf { header.trim().startsWith("bytes=") && ',' !in it } ?: return null
+    val startText = spec.substringBefore('-').trim()
+    val endText = spec.substringAfter('-', "").trim()
+    val (start, end) = if (startText.isEmpty()) {
+        // "bytes=-500": gli ultimi 500 byte.
+        val suffix = endText.toLongOrNull()?.takeIf { it > 0 } ?: return null
+        (length - suffix).coerceAtLeast(0) to length - 1
+    } else {
+        val first = startText.toLongOrNull() ?: return null
+        val last = endText.toLongOrNull()?.coerceAtMost(length - 1) ?: (length - 1)
+        first to last
+    }
+    if (start < 0 || start >= length || end < start) return null
+    return start..minOf(end, start + maxChunk - 1)
 }
 
 /** QR in SVG, per le pagine servite ai telefoni e agli altri schermi (nessuna immagine da generare). */

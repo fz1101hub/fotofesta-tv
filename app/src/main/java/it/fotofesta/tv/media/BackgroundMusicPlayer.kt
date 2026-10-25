@@ -6,6 +6,7 @@ import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.net.Uri
+import android.os.SystemClock
 import android.util.Log
 
 /**
@@ -37,6 +38,32 @@ class BackgroundMusicPlayer(
     private var wantPlaying = false
     private var volume = 1f
 
+    /** Brano in corso per la silent disco: indirizzo, posizione e se sta suonando. */
+    data class NowPlaying(val uri: String, val positionMs: Long, val playing: Boolean)
+
+    // Letti dai thread del server della festa: si aggiornano solo qui, sul thread principale.
+    @Volatile private var currentUri: String? = null
+    @Volatile private var anchorElapsed = 0L
+    @Volatile private var pausedAt = -1L
+
+    /** Brano e posizione attuali, per i telefoni della silent disco; null se non suona nulla. */
+    fun nowPlaying(): NowPlaying? {
+        val uri = currentUri ?: return null
+        val paused = pausedAt
+        return if (paused >= 0) NowPlaying(uri, paused, false)
+        else NowPlaying(uri, SystemClock.elapsedRealtime() - anchorElapsed, true)
+    }
+
+    private fun markStarted(current: MediaPlayer) {
+        currentUri = playlist.getOrNull(index)
+        anchorElapsed = SystemClock.elapsedRealtime() - runCatching { current.currentPosition.toLong() }.getOrDefault(0L)
+        pausedAt = -1
+    }
+
+    private fun markPaused(current: MediaPlayer?) {
+        pausedAt = current?.let { runCatching { it.currentPosition.toLong() }.getOrNull() } ?: 0L
+    }
+
     fun play(tracks: List<String>, volume: Float) {
         this.volume = volume
         if (tracks.isEmpty()) return
@@ -58,6 +85,7 @@ class BackgroundMusicPlayer(
     fun pause() {
         wantPlaying = false
         player?.takeIf { prepared && it.isPlaying }?.pause()
+        if (currentUri != null) markPaused(player?.takeIf { prepared })
         audioManager?.abandonAudioFocusRequest(focusRequest)
     }
 
@@ -74,6 +102,7 @@ class BackgroundMusicPlayer(
     }
 
     private fun releasePlayer() {
+        currentUri = null
         player?.runCatching { if (prepared) stop() }
         player?.release()
         player = null
@@ -149,6 +178,7 @@ class BackgroundMusicPlayer(
         if (granted == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
             current.setVolume(volume, volume)
             current.start()
+            markStarted(current)
         }
     }
 
@@ -158,14 +188,21 @@ class BackgroundMusicPlayer(
         when (change) {
             AudioManager.AUDIOFOCUS_GAIN -> {
                 current.setVolume(volume, volume)
-                if (wantPlaying && !current.isPlaying) current.start()
+                if (wantPlaying && !current.isPlaying) {
+                    current.start()
+                    markStarted(current)
+                }
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> current.setVolume(volume * 0.3f, volume * 0.3f)
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> if (current.isPlaying) current.pause()
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> if (current.isPlaying) {
+                current.pause()
+                markPaused(current)
+            }
             AudioManager.AUDIOFOCUS_LOSS -> {
                 // Un'altra app ha preso l'audio: la musica riparte al prossimo "play" dello slideshow.
                 wantPlaying = false
                 if (current.isPlaying) current.pause()
+                markPaused(current)
             }
         }
     }
