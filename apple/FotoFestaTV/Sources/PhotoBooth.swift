@@ -42,19 +42,19 @@ final class BoothCamera: NSObject {
         if session.canAddInput(input) { session.addInput(input) }
         if !session.outputs.contains(output), session.canAddOutput(output) { session.addOutput(output) }
         session.commitConfiguration()
-        let session = session
+        let capture = session
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             queue.async {
-                session.startRunning()
+                capture.startRunning()
                 continuation.resume()
             }
         }
-        state = session.isRunning ? .running : .noCamera
+        state = capture.isRunning ? .running : .noCamera
     }
 
     func stop() {
-        let session = session
-        queue.async { session.stopRunning() }
+        let capture = session
+        queue.async { capture.stopRunning() }
         state = .idle
     }
 
