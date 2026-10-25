@@ -12,9 +12,19 @@ if [ -z "${JAVA_HOME:-}" ]; then
 fi
 export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$HOME/android-sdk}"
 export ANDROID_HOME="$ANDROID_SDK_ROOT"
-./gradlew clean testDebugUnitTest assembleDebug lintDebug bundleRelease
+# Google Play (AAB) e Amazon Appstore per Fire TV (APK).
+./gradlew clean testPlayDebugUnitTest assemblePlayDebug assembleAmazonDebug lintPlayDebug lintAmazonDebug bundlePlayRelease assembleAmazonRelease
+rm -rf dist
 mkdir -p dist
-cp app/build/outputs/apk/debug/app-debug.apk dist/FotoFesta-TV-debug.apk
-cp app/build/outputs/bundle/release/app-release.aab dist/FotoFesta-TV-release-unsigned.aab
+cp app/build/outputs/apk/play/debug/app-play-debug.apk dist/FotoFesta-TV-debug.apk
+cp app/build/outputs/apk/amazon/debug/app-amazon-debug.apk dist/FotoFesta-TV-FireTV-debug.apk
+# L'AAB è firmato solo se RELEASE_STORE_FILE è configurato (vedi docs/CONFIGURATION.md).
+if grep -qs '^RELEASE_STORE_FILE=' local.properties || [ -n "${RELEASE_STORE_FILE:-}" ]; then
+  cp app/build/outputs/bundle/playRelease/app-play-release.aab dist/FotoFesta-TV-release.aab
+  cp app/build/outputs/apk/amazon/release/app-amazon-release.apk dist/FotoFesta-TV-FireTV-release.apk
+else
+  cp app/build/outputs/bundle/playRelease/app-play-release.aab dist/FotoFesta-TV-release-unsigned.aab
+  cp app/build/outputs/apk/amazon/release/app-amazon-release-unsigned.apk dist/FotoFesta-TV-FireTV-release-unsigned.apk
+fi
 printf 'SHA-256\n' > dist/SHA256SUMS.txt
 sha256sum dist/*.apk dist/*.aab >> dist/SHA256SUMS.txt

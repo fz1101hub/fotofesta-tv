@@ -1,0 +1,3 @@
+# Chiave JSON dell'account di servizio Google Play (mai nel repository).
+json_key_file(ENV["PLAY_JSON_KEY_FILE"] || "fastlane/play-service-account.json")
+package_name("it.fotofesta.tv")

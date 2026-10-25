@@ -6,14 +6,19 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use(::load)
+}
+
+/** Valore da local.properties, poi da gradle.properties / -P, poi da variabile d'ambiente (CI). */
+fun ownerProperty(name: String): String? =
+    localProperties.getProperty(name)?.takeIf(String::isNotBlank)
+        ?: providers.gradleProperty(name).orNull?.takeIf(String::isNotBlank)
+        ?: providers.environmentVariable(name).orNull?.takeIf(String::isNotBlank)
+
 fun quotedProperty(name: String): String {
-    val local = Properties().apply {
-        val file = rootProject.file("local.properties")
-        if (file.exists()) file.inputStream().use(::load)
-    }
-    val value = local.getProperty(name)
-        ?: providers.gradleProperty(name).orNull
-        ?: ""
+    val value = ownerProperty(name).orEmpty()
     return "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
 }
 
@@ -25,13 +30,26 @@ android {
         applicationId = "it.fotofesta.tv"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 5
+        versionName = "1.4.0"
 
         buildConfigField("String", "PHOTOS_CLIENT_ID", quotedProperty("PHOTOS_CLIENT_ID"))
         buildConfigField("String", "PHOTOS_CLIENT_SECRET", quotedProperty("PHOTOS_CLIENT_SECRET"))
-        buildConfigField("String", "CAST_NAMESPACE", "\"urn:x-cast:it.fotofesta.tv\"")
-        buildConfigField("int", "CAST_PROTOCOL_VERSION", "1")
+        // Pagina del sito che riceve il codice OAuth dal telefono e lo rimanda alla TV (site/google/).
+        buildConfigField("String", "PHOTOS_REDIRECT_URI", quotedProperty("PHOTOS_REDIRECT_URI"))
+    }
+
+    // Due versioni dallo stesso codice: Google Play (Android TV e Google TV) e Amazon Appstore (Fire TV
+    // con Fire OS). Cambiano solo gli aggiornamenti dallo store e qualche voce del manifest.
+    flavorDimensions += "store"
+    productFlavors {
+        create("play") {
+            dimension = "store"
+            isDefault = true
+        }
+        create("amazon") {
+            dimension = "store"
+        }
     }
 
     buildFeatures {
@@ -45,12 +63,54 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
 
+    // La pagina che i telefoni degli invitati aprono è la stessa per Android TV e Apple TV.
+    sourceSets.getByName("main").assets.srcDir("../shared/assets")
+
     packaging {
-        resources.excludes += setOf("META-INF/AL2.0", "META-INF/LGPL2.1")
+        resources.excludes += setOf(
+            "META-INF/AL2.0",
+            "META-INF/LGPL2.1",
+            // Doppioni delle librerie SMB; le licenze sono in assets/licenses.
+            "META-INF/LICENSE.txt",
+            "META-INF/NOTICE.txt",
+            "META-INF/DEPENDENCIES",
+            "META-INF/versions/9/module-info.class",
+            "META-INF/versions/9/OSGI-INF/MANIFEST.MF",
+            // Classi per Java 9+ di BouncyCastle: Android usa quelle normali.
+            "META-INF/versions/9/org/bouncycastle/**",
+            "META-INF/versions/11/**",
+        )
+    }
+
+    // Firma release opzionale: se RELEASE_STORE_FILE non è configurato l'AAB resta non firmato.
+    val releaseStoreFile = ownerProperty("RELEASE_STORE_FILE")?.let(rootProject::file)
+    signingConfigs {
+        // Chiave di debug fissa e pubblica (password "android"), solo per le build di test: ogni APK
+        // della CI si installa sopra il precedente senza disinstallare. Play non accetta build debug.
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+        if (releaseStoreFile != null) {
+            create("release") {
+                storeFile = releaseStoreFile
+                storePassword = ownerProperty("RELEASE_STORE_PASSWORD")
+                keyAlias = ownerProperty("RELEASE_KEY_ALIAS")
+                keyPassword = ownerProperty("RELEASE_KEY_PASSWORD")
+            }
+        }
+    }
+
+    testOptions {
+        // android.util.Log e simili restituiscono valori di default nei test JVM invece di fallire.
+        unitTests.isReturnDefaultValues = true
     }
 
     buildTypes {
         release {
+            signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -84,12 +144,23 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("androidx.documentfile:documentfile:1.1.0")
     implementation("androidx.media:media:1.8.0")
+    // Video nello slideshow: lettore, vista e lettura dei video di Google Foto.
+    implementation("androidx.media3:media3-exoplayer:1.5.1")
+    implementation("androidx.media3:media3-ui:1.5.1")
+    implementation("androidx.media3:media3-datasource-okhttp:1.5.1")
     implementation("com.google.zxing:core:3.5.3")
-
-    implementation("com.google.android.gms:play-services-cast-tv:21.1.1")
-    implementation("com.google.android.gms:play-services-cast:22.3.1")
+    // Cartelle condivise (SMB 2/3) di PC e NAS, ed elenco delle condivisioni (DCE/RPC).
+    implementation("com.hierynomus:smbj:0.14.0")
+    implementation("com.rapid7.client:dcerpc:0.12.13")
+    // Canale di FotoFesta nella schermata Home della TV; aggiornamenti solo nella versione per Google Play.
+    implementation("androidx.tvprovider:tvprovider:1.0.0")
+    "playImplementation"("com.google.android.play:app-update-ktx:2.1.0")
+    "playImplementation"("com.google.android.play:review-ktx:2.0.1")
+    // Play Core porta Fragment 1.1: serve almeno la 1.3 per i launcher dei risultati (permessi, selettori).
+    implementation("androidx.fragment:fragment-ktx:1.8.5")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20250517")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 }

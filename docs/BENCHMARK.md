@@ -14,9 +14,9 @@ Il confronto ha considerato **PixFolio**, **Fotoo**, **Carousel**, **TV Photo** 
 
 ## Decisioni adottate in FotoFesta TV
 
-FotoFesta TV non richiede il login Google quando l’utente usa USB. Il focus è sempre visibile e l’intero flusso è percorribile con D-pad. Le transizioni sono nominate e includono una modalità senza movimento. Musica, cache e disconnessione hanno stati espliciti. Il protocollo Cast è documentato e distinto dalla mera compatibilità con un dispositivo Chromecast with Google TV.
+FotoFesta TV non richiede il login Google quando l’utente usa USB. Il focus è sempre visibile e l’intero flusso è percorribile con D-pad. Le transizioni sono nominate e includono una modalità senza movimento. Musica, streaming e disconnessione hanno stati espliciti. Le foto degli invitati arrivano dai telefoni con un QR e una pagina web servita dalla TV, senza app da installare e senza account, come fa Carousel, ma senza server esterni.
 
-La privacy è local-first. Non sono presenti SDK pubblicitari o analytics. I metadati sensibili non vengono mostrati per impostazione predefinita. I token sono protetti da Android Keystore e gli URL Google autorizzati non attraversano il protocollo Cast.
+La privacy è local-first. Non sono presenti SDK pubblicitari o analytics. I metadati sensibili non vengono mostrati per impostazione predefinita. I token sono protetti da Android Keystore, le foto Google non vengono copiate sulla TV e le foto degli invitati restano sulla rete di casa, senza metadati, e vengono cancellate a fine festa.
 
 ## Elementi differenzianti
 
@@ -24,15 +24,15 @@ La privacy è local-first. Non sono presenti SDK pubblicitari o analytics. I met
 | --- | --- |
 | USB senza account | Funzionamento offline e minimo trattamento dati |
 | Picker Google da QR | Nessuna password digitata con telecomando e consenso granulare |
-| Cache temporanea 4K automatica | Slideshow stabile oltre la scadenza di 60 minuti delle `baseUrl` |
-| Protocollo Cast v1 | Base interoperabile per futuri sender Android, iOS e Web |
+| Streaming Google Foto con rinnovo automatico | Slideshow stabile oltre la scadenza di 60 minuti delle `baseUrl`, nessuna foto occupa spazio sulla TV |
+| Foto degli invitati con QR | Gli ospiti partecipano dal proprio telefono, le foto nuove compaiono subito, approvazione facoltativa |
 | Giochi con foto reali | Esperienza familiare non presente nelle app confrontate |
 | Riduzione movimento | Migliore accessibilità e comfort visivo |
 | Data policy trasparente | Elimina ambiguità tra funzionamento locale, cache e cloud |
 
 ## Anti-pattern evitati
 
-Non viene chiamata “sincronizzazione” una selezione manuale. Non viene promesso accesso a tutta la libreria Google Foto. Non viene richiesto Google per una sorgente locale. Il prezzo non è codificato nell’esperienza e non esistono paywall nascosti. Non vengono esposti GPS, nomi rete o altre informazioni contestuali nello slideshow. Infine, l’app non presume che “Chromecast with Google TV” equivalga al protocollo Google Cast: Cast Connect è implementato separatamente.
+Non viene chiamata “sincronizzazione” una selezione manuale. Non viene promesso accesso a tutta la libreria Google Foto. Non viene richiesto Google per una sorgente locale. Il prezzo non è codificato nell’esperienza e non esistono paywall nascosti. Non vengono esposti GPS, nomi rete o altre informazioni contestuali nello slideshow; la pagina degli invitati toglie i metadati prima dell’invio. Infine, l’app non promette che le app dei telefoni possano “trasmettere” foto dentro FotoFesta: Google Cast funziona solo verso i ricevitori di ciascuna app, quindi l’invio passa dal QR.
 
 ## Riferimenti
 

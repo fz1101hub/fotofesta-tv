@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Versione per l'Amazon Appstore (Fire TV con Fire OS 7 e 8). -->
+<!-- Lint controlla questo file da solo: il launcher TV (LEANBACK_LAUNCHER) è nel manifest principale. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="MissingLeanbackLauncher,MissingLeanbackSupport">
+
+    <!-- L'Amazon Appstore filtra i dispositivi in base alle funzioni richieste: leanback non obbligatorio,
+         come chiede Amazon per le app Fire TV. -->
+    <uses-feature
+        android:name="android.software.leanback"
+        android:required="false"
+        tools:replace="android:required" />
+    <!-- Raccomandazioni nella home di Fire TV: sono notifiche (Fire OS 7 e 8, permesso già concesso). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Come nel manifest principale: i Fire TV non hanno schermo tattile. -->
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <uses-feature android:name="android.hardware.faketouch" android:required="false" />
+
+</manifest>

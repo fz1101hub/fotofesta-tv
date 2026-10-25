@@ -1,0 +1,107 @@
+name: Apple TV CI
+
+# Test del nucleo logico, compilazione dell'app tvOS senza firma e dell'app Mac con firma ad hoc,
+# su un runner macOS.
+# Con un repository privato i minuti macOS sono a pagamento: in quel caso si può avviare a mano.
+
+on:
+  push:
+    branches: [main]
+    paths: ["apple/**", "shared/**", "scripts/fake_dlna.py", ".github/workflows/apple.yml"]
+  pull_request:
+    branches: [main]
+    paths: ["apple/**", "shared/**", "scripts/fake_dlna.py", ".github/workflows/apple.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: apple
+    steps:
+      - uses: actions/checkout@v4
+
+      # App Store Connect accetta solo build fatte con Xcode 26 o successivo.
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Strumenti
+        run: |
+          xcodebuild -version
+          brew install xcodegen
+
+      - name: Testi localizzati aggiornati
+        run: |
+          python3 scripts/strings.py
+          git diff --exit-code -- FotoFestaTV/Resources FotoFestaMac/Resources
+
+      - name: Test del nucleo (FotoFestaCore)
+        working-directory: apple/FotoFestaCore
+        run: swift test
+
+      - name: Progetto Xcode
+        run: xcodegen generate
+
+      - name: Compilazione tvOS senza firma
+        run: |
+          xcodebuild build \
+            -project FotoFestaTV.xcodeproj \
+            -scheme FotoFestaTV \
+            -configuration Release \
+            -destination "generic/platform=tvOS" \
+            CODE_SIGNING_ALLOWED=NO
+
+      # Firma ad hoc (nessun team): l'app si apre su un Mac Apple Silicon, che non avvia binari senza
+      # firma. Per il Mac App Store serve la firma con il team (docs/PUBLISHING.md).
+      - name: Compilazione macOS con firma ad hoc
+        run: |
+          xcodebuild build \
+            -project FotoFestaTV.xcodeproj \
+            -scheme FotoFestaMac \
+            -configuration Release \
+            -destination "generic/platform=macOS" \
+            -derivedDataPath build/mac \
+            CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM=
+          ditto -c -k --keepParent "build/mac/Build/Products/Release/FotoFesta TV.app" build/FotoFesta-TV-mac.zip
+
+      - name: App Mac di prova
+        uses: actions/upload-artifact@v4
+        with:
+          name: FotoFesta-TV-mac
+          path: apple/build/FotoFesta-TV-mac.zip
+          retention-days: 30
+
+      # Schermate dal simulatore, solo su richiesta: avvio a mano o "[screenshots]" nel messaggio
+      # dell'ultimo commit. Verifica anche che l'app si avvii senza chiudersi in ogni schermata.
+      - name: Schermate richieste?
+        id: shots
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          message=$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA" --jq .commit.message)
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch || "$message" == *"[screenshots]"* ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Schermate dal simulatore tvOS
+        if: steps.shots.outputs.run == 'true'
+        run: scripts/screenshots.sh it
+
+      - name: Carica le schermate
+        if: steps.shots.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: FotoFestaTV-screenshots
+          path: apple/build/screenshots/*.png
+          retention-days: 14

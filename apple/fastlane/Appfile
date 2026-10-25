@@ -1,0 +1,2 @@
+# Bundle ID dell'app Apple TV (deve coincidere con quello registrato in App Store Connect).
+app_identifier("it.fotofesta.tv")

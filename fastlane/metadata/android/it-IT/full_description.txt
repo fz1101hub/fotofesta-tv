@@ -1,0 +1,44 @@
+FotoFesta TV trasforma il televisore in una cornice digitale per feste, cene in famiglia e serate tra amici.
+
+<b>Da dove arrivano le foto</b>
+• Google Foto: inquadri un QR con il telefono, accedi e scegli le foto da mostrare. Nessuna password da digitare con il telecomando e accesso solo alle foto che selezioni.
+• Foto degli invitati: gli ospiti inquadrano un QR sulla TV e mandano le foto dal loro telefono, attraverso la rete di casa e senza app da installare. Le foto nuove compaiono subito nello slideshow, con il nome di chi le ha mandate; se vuoi, le approvi prima con il telecomando.
+• Hard disk o chiavetta USB: scegli una cartella, anche senza internet. Foto e video restano sul disco e non vengono copiati.
+• Rete di casa: cartelle condivise di PC, Mac e NAS (SMB, con nome utente e password o come ospite) e server multimediali DLNA di NAS, router, Plex e Jellyfin. Sfogli le cartelle con il telecomando; foto e video si leggono al momento, senza copie sulla TV e senza passare da internet.
+• Album condivisi di iCloud: sull'iPhone attiva «Sito web pubblico», inquadra il QR sulla TV e incolla il link dal telefono. Le foto aggiunte all'album compaiono da sole.
+• Quattro foto dimostrative per provare subito l'app.
+
+<b>Slideshow</b>
+• Durata di ogni foto da 3 a 20 secondi
+• Dissolvenza, scorrimento e zoom dolce
+• Movimento lento (effetto Ken Burns)
+• Foto intera, a tutto schermo o con i lati sfocati, ordine casuale senza ripetizioni
+• Mosaico: la foto attuale in grande e, accanto, le ultime mostrate
+• Conto alla rovescia fino all'orario che scegli, per Mezzanotte, Torta, Brindisi o Sorpresa: negli ultimi secondi numeri giganti riempiono lo schermo, poi compare un messaggio
+• Orologio e musica di sottofondo: un solo brano o un'intera cartella come playlist
+• Pausa automatica dopo 30, 60 o 120 minuti
+• Salvaschermo con le tue foto quando la TV è inattiva
+
+<b>Anche i video</b>
+• I video di USB, rete di casa, iCloud e Google Foto entrano nello slideshow e si vedono dall'inizio alla fine. Preferisci solo foto? Li escludi con l'impostazione “Video”.
+• Audio dei video: mentre un video suona, la musica di sottofondo va in pausa.
+• Tanti formati: MP4, MOV, MKV, WebM, AVI e altri. I codec riproducibili dipendono dalla TV; un video che la TV non sa riprodurre viene saltato.
+• Giochi e salvaschermo usano solo le foto.
+
+<b>Giochi con le foto</b>
+• Trova la coppia: abbina le foto uguali
+• Foto misteriosa: indovina la foto sfocata
+• Puzzle: ricomponi la foto in tre livelli, Facile (6 pezzi), Medio (12) e Difficile (24)
+• Chi l'ha scattata? Indovina quale invitato ha mandato la foto. Servono foto della festa firmate da almeno due invitati
+
+<b>Per la festa</b>
+• Rispondi dal telefono: in “Foto misteriosa” e “Chi l'ha scattata?” gli invitati rispondono dal proprio telefono, sulla stessa pagina della festa che usano per mandare le foto, senza app. La TV mostra quanti hanno risposto, poi svela la soluzione e la classifica.
+• Premi della festa: alla fine arrivano l'Obiettivo d'oro per chi ha mandato più foto, la prima foto della festa e il Gran finale, l'ultima.
+
+<b>Pensata per il telecomando</b>
+Tutto si usa con le frecce del telecomando, con focus ben visibile, testi leggibili da lontano e un'opzione per ridurre le animazioni.
+
+<b>Privacy</b>
+Nessuna pubblicità, nessun tracciamento e nessun server dello sviluppatore. Le foto Google si vedono direttamente da Google Foto e non vengono mai copiate sulla TV, quindi non occupano memoria. Le foto degli invitati vanno dal telefono alla TV senza passare da internet, restano in memoria durante la festa e si cancellano alla fine.
+
+Google Foto non consente alle app di leggere tutta la libreria: le foto vanno scelte di volta in volta dal telefono.

@@ -1,0 +1,662 @@
+package it.fotofesta.tv.guests
+
+import org.json.JSONObject
+import org.junit.After
+import org.junit.Assert.assertArrayEquals
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
+import org.junit.Before
+import org.junit.Test
+import java.io.ByteArrayInputStream
+import java.io.IOException
+import java.net.InetAddress
+import java.net.InetSocketAddress
+import java.net.ServerSocket
+import java.net.Socket
+import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.random.Random
+
+class GuestUploadServerTest {
+    private val loopback: InetAddress = InetAddress.getByName("127.0.0.1")
+    private val received = CopyOnWriteArrayList<Pair<ByteArray, String?>>()
+    private var result = GuestUploadServer.UploadResult.SHOWN
+    private var photoId: String? = null
+    private val deleted = mutableListOf<String>()
+    private var videoBytes: ByteArray? = null
+    private var joinCode: String? = null
+    private lateinit var server: GuestUploadServer
+    private var port = 0
+
+    private val jpeg = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte(), 1, 2, 3, 4)
+
+    private var failures = 0
+    private val game = PhoneGame()
+    private val hub = PartyHub()
+    private val host = HostRemote()
+    private val pendingBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte(), 9, 9)
+
+    private val extras = object : PartyExtras {
+        override fun doorPage() = "<html>ingresso</html>"
+        override fun wallPage() = "<html>parete</html>"
+        override fun wallState() = """{"photos":[{"id":"foto-1","sender":null}]}"""
+        override fun wallPhoto(id: String) = if (id == "foto-1") jpeg else null
+        override fun discoJson() = """{"on":true,"track":"brano-1","position":1500,"playing":true}"""
+        override fun album() = listOf(
+            ZipStream.Entry("FotoFesta-001.jpg", jpeg.size.toLong(), ZipStream.crcOf(jpeg)) { jpeg.inputStream() },
+            ZipStream.Entry("FotoFesta-002.jpg", pendingBytes.size.toLong(), ZipStream.crcOf(pendingBytes)) { pendingBytes.inputStream() },
+        )
+        override fun phoneWallJson(player: String?) = phoneWall.phoneJson(player)
+        override fun phoneWallAction(form: Map<String, String>) = phoneWall.handle(form)
+        override fun discoTrack(id: String) =
+            if (id == "brano-1") DiscoTrack(song.size.toLong(), "audio/mpeg") { offset -> song.inputStream().apply { skip(offset) } } else null
+    }
+    private val phoneWall = PhoneWall()
+    private val song = ByteArray(3_000) { (it % 251).toByte() }
+
+    @Before
+    fun setUp() = startServer()
+
+    private fun startServer(
+        maxUploadsPerMinute: Int = 100,
+        headerDeadlineMillis: Long = GuestUploadServer.HEADER_DEADLINE_MS,
+        nowMillis: () -> Long = { System.nanoTime() / 1_000_000 },
+    ) {
+        if (::server.isInitialized) server.stop()
+        server = GuestUploadServer(
+            key = KEY,
+            page = { "<html>pagina</html>" },
+            onPhoto = { bytes, sender, _ ->
+                received += bytes to sender
+                GuestUploadServer.Upload(result, photoId)
+            },
+            onDeletePhoto = { id -> deleted.add(id) },
+            joinCode = { joinCode },
+            onVideo = { input, length, _, _ ->
+                videoBytes = input.readNBytes(length.toInt())
+                GuestUploadServer.Upload(GuestUploadServer.UploadResult.SHOWN, "b1b2c3d4e5f60718")
+            },
+            onFailure = { failures++ },
+            game = game,
+            hub = hub,
+            hostRemote = host,
+            hostPhoto = { id -> if (id == "attesa-1") pendingBytes else null },
+            extras = extras,
+            maxUploadBytes = 1_000,
+            readTimeoutMillis = 2_000,
+            headerDeadlineMillis = headerDeadlineMillis,
+            maxUploadsPerMinute = maxUploadsPerMinute,
+            nowMillis = nowMillis,
+        )
+        port = server.start(loopback, preferredPort = 0)
+    }
+
+    @After
+    fun tearDown() = server.stop()
+
+    private class Reply(val status: Int, val headers: Map<String, String>, val body: String)
+
+    private fun send(raw: ByteArray): Reply {
+        Socket().use { socket ->
+            socket.connect(InetSocketAddress(loopback, port), 2_000)
+            socket.soTimeout = 5_000
+            socket.getOutputStream().write(raw)
+            socket.getOutputStream().flush()
+            val response = socket.getInputStream().readBytes().toString(Charsets.UTF_8)
+            val head = response.substringBefore("\r\n\r\n")
+            val lines = head.split("\r\n")
+            val status = lines.first().split(' ')[1].toInt()
+            val headers = lines.drop(1).associate { line ->
+                line.substringBefore(':').lowercase() to line.substringAfter(':').trim()
+            }
+            return Reply(status, headers, response.substringAfter("\r\n\r\n"))
+        }
+    }
+
+    private fun get(target: String, host: String = "127.0.0.1:$port") =
+        send("GET $target HTTP/1.1\r\nHost: $host\r\n\r\n".toByteArray())
+
+    private fun post(
+        body: ByteArray,
+        key: String? = KEY,
+        sender: String? = null,
+        length: Long = body.size.toLong(),
+        host: String = "127.0.0.1:$port",
+        uploadId: String? = null,
+    ): Reply {
+        val head = buildString {
+            append("POST /photos HTTP/1.1\r\nHost: $host\r\nContent-Type: image/jpeg\r\n")
+            append("Content-Length: $length\r\n")
+            if (key != null) append("X-FotoFesta-Key: $key\r\n")
+            if (sender != null) append("X-FotoFesta-Sender: $sender\r\n")
+            if (uploadId != null) append("X-FotoFesta-Upload: $uploadId\r\n")
+            append("\r\n")
+        }
+        return send(head.toByteArray() + body)
+    }
+
+    private fun getGame(key: String? = KEY, player: String? = null): Reply {
+        val target = if (player != null) "/game?player=$player" else "/game"
+        val keyHeader = if (key != null) "X-FotoFesta-Key: $key\r\n" else ""
+        return send("GET $target HTTP/1.1\r\nHost: 127.0.0.1:$port\r\n$keyHeader\r\n".toByteArray())
+    }
+
+    private fun answer(form: String, key: String? = KEY): Reply {
+        val body = form.toByteArray()
+        val keyHeader = if (key != null) "X-FotoFesta-Key: $key\r\n" else ""
+        val head = "POST /game/answer HTTP/1.1\r\nHost: 127.0.0.1:$port\r\n" +
+            "Content-Type: application/x-www-form-urlencoded\r\nContent-Length: ${body.size}\r\n$keyHeader\r\n"
+        return send(head.toByteArray() + body)
+    }
+
+    @Test
+    fun `phones read the current question with the key`() {
+        assertEquals(401, getGame(key = null).status)
+        assertEquals(JSONObject.NULL, JSONObject(getGame().body).get("round"))
+        game.ask("Chi l'ha \"scattata\"?", listOf("Giulia", "Marco"), correct = 1)
+        val question = JSONObject(getGame().body)
+        assertEquals(game.current()!!.round, question.getString("round"))
+        assertEquals("Chi l'ha \"scattata\"?", question.getString("question"))
+        assertEquals("Marco", question.getJSONArray("choices").getString(1))
+        assertTrue(question.getBoolean("open"))
+        assertTrue(question.isNull("answer"))
+    }
+
+    @Test
+    fun `phones answer and see the result after the reveal`() {
+        game.ask("?", listOf("A", "B"), correct = 1)
+        val round = game.current()!!.round
+        val reply = answer("round=$round&choice=1&player=telefono-1&name=Giulia%20B")
+        assertEquals(200, reply.status)
+        assertEquals(1, game.answerCount())
+        game.reveal()
+        val result = JSONObject(getGame(player = "telefono-1").body)
+        assertEquals(1, result.getInt("answer"))
+        assertEquals(1, result.getInt("points"))
+        assertEquals("Giulia B", game.leaderboard().single().name)
+        assertEquals(409, answer("round=$round&choice=0&player=telefono-2").status)
+    }
+
+    @Test
+    fun `bad answers are refused`() {
+        game.ask("?", listOf("A", "B"), correct = 0)
+        val round = game.current()!!.round
+        assertEquals(401, answer("round=$round&choice=0&player=telefono-1", key = "sbagliata").status)
+        assertEquals(400, answer("round=$round&choice=9&player=telefono-1").status)
+        assertEquals(400, answer("round=$round&player=telefono-1").status)
+        assertEquals(400, answer("round=$round&choice=0&player=telefono-1&name=%ZZ").status)
+        assertEquals(413, answer("round=$round&choice=0&player=telefono-1&name=" + "x".repeat(2_000)).status)
+        assertEquals(405, send("GET /game/answer HTTP/1.1\r\nHost: 127.0.0.1:$port\r\n\r\n".toByteArray()).status)
+        assertEquals(0, game.answerCount())
+    }
+
+    private fun action(form: String, key: String? = KEY): Reply {
+        val body = form.toByteArray()
+        val keyHeader = if (key != null) "X-FotoFesta-Key: $key\r\n" else ""
+        val head = "POST /party/action HTTP/1.1\r\nHost: 127.0.0.1:$port\r\n" +
+            "Content-Type: application/x-www-form-urlencoded\r\nContent-Length: ${body.size}\r\n$keyHeader\r\n"
+        return send(head.toByteArray() + body)
+    }
+
+    @Test
+    fun `party state has the features and the current game`() {
+        val keyHeader = "X-FotoFesta-Key: $KEY\r\n"
+        assertEquals(401, send("GET /party HTTP/1.1\r\nHost: 127.0.0.1:$port\r\n\r\n".toByteArray()).status)
+        game.askPoll("Dove andranno in viaggio?", listOf("Mare", "Montagna"))
+        val state = JSONObject(send("GET /party?player=telefono-1 HTTP/1.1\r\nHost: 127.0.0.1:$port\r\n$keyHeader\r\n".toByteArray()).body)
+        assertTrue(state.getJSONObject("features").getBoolean("reactions"))
+        val poll = state.getJSONObject("game")
+        assertTrue(poll.getBoolean("poll"))
+        assertTrue(poll.isNull("tally"))
+        game.answer(poll.getString("round"), 1, "telefono-1", null)
+        game.reveal()
+        val closed = JSONObject(send("GET /party HTTP/1.1\r\nHost: 127.0.0.1:$port\r\n$keyHeader\r\n".toByteArray()).body)
+        assertEquals(1, closed.getJSONObject("game").getJSONArray("tally").getInt(1))
+    }
+
+    @Test
+    fun `phones send reactions and messages`() {
+        hub.showing("foto-1")
+        assertEquals(200, action("type=react&player=telefono-1&reaction=0").status)
+        assertEquals(1, hub.reactionCount("foto-1"))
+        assertEquals(200, action("type=message&player=telefono-1&name=Giulia&text=Auguri%20a%20tutti").status)
+        assertEquals("Auguri a tutti", hub.messages().single().text)
+        assertEquals(401, action("type=react&player=telefono-1&reaction=0", key = "sbagliata").status)
+        assertEquals(400, action("type=react&player=telefono-1&reaction=9").status)
+        assertEquals(413, action("type=message&player=telefono-1&text=" + "x".repeat(30_000)).status)
+        assertEquals(405, get("/party/action").status)
+    }
+
+    private fun hostRequest(method: String, target: String, form: String? = null, token: String? = null): Reply {
+        val body = form?.toByteArray() ?: ByteArray(0)
+        val head = buildString {
+            append("$method $target HTTP/1.1\r\nHost: 127.0.0.1:$port\r\nX-FotoFesta-Key: $KEY\r\n")
+            if (token != null) append("X-FotoFesta-Host: $token\r\n")
+            if (form != null) append("Content-Type: application/x-www-form-urlencoded\r\nContent-Length: ${body.size}\r\n")
+            append("\r\n")
+        }
+        return send(head.toByteArray() + body)
+    }
+
+    @Test
+    fun `the host logs in with the pin and controls the party`() {
+        val commands = CopyOnWriteArrayList<PartyCommand>()
+        host.onCommand = { commands += it }
+        val wrong = if (host.pin() == "000000") "111111" else "000000"
+        assertEquals(403, hostRequest("POST", "/party/host/login", "pin=$wrong").status)
+        val login = hostRequest("POST", "/party/host/login", "pin=${host.pin()}")
+        assertEquals(200, login.status)
+        val token = JSONObject(login.body).getString("token")
+        assertEquals(401, hostRequest("GET", "/party/host").status)
+        host.updateStatus(HostRemote.Status(slideshow = true, playing = true, pendingPhotos = listOf(HostRemote.PendingPhoto("attesa-1", null))))
+        val status = JSONObject(hostRequest("GET", "/party/host", token = token).body)
+        assertTrue(status.getBoolean("playing"))
+        assertEquals(200, hostRequest("POST", "/party/host", "command=pause", token).status)
+        assertEquals(401, hostRequest("POST", "/party/host", "command=pause", "falso").status)
+        assertEquals(listOf<PartyCommand>(PartyCommand.Pause), commands.toList())
+        val photo = hostRequest("GET", "/party/host/photo?id=attesa-1", token = token)
+        assertEquals(200, photo.status)
+        assertEquals("image/jpeg", photo.headers["content-type"])
+        assertEquals(404, hostRequest("GET", "/party/host/photo?id=altra", token = token).status)
+        assertEquals(401, hostRequest("GET", "/party/host/photo?id=attesa-1").status)
+        assertTrue(JSONObject(hostRequest("GET", "/party").body).getBoolean("host"))
+    }
+
+    @Test
+    fun `json strings are escaped`() {
+        assertEquals("\"a\\\"b\\\\c\\u000a\"", GuestUploadServer.jsonString("a\"b\\c\n"))
+        assertEquals("\"Città\"", GuestUploadServer.jsonString("Città"))
+    }
+
+    @Test
+    fun `page requires the key from the QR code`() {
+        val page = get("/?k=$KEY")
+        assertEquals(200, page.status)
+        assertEquals("<html>pagina</html>", page.body)
+        assertTrue(page.headers.getValue("content-security-policy").contains("default-src 'none'"))
+        assertEquals("no-store", page.headers["cache-control"])
+
+        assertEquals(403, get("/").status)
+        assertEquals(403, get("/?k=wrong").status)
+    }
+
+    @Test
+    fun `photo with the key is handed over with the sender`() {
+        val reply = post(jpeg, sender = "Zia%20Maria%20%F0%9F%8E%89")
+        assertEquals(200, reply.status)
+        assertEquals("""{"status":"shown"}""", reply.body)
+        assertArrayEquals(jpeg, received.single().first)
+        assertEquals("Zia Maria 🎉", received.single().second)
+    }
+
+    @Test
+    fun `pending and full results are reported to the phone`() {
+        result = GuestUploadServer.UploadResult.PENDING
+        assertEquals("""{"status":"pending"}""", post(jpeg).body)
+        result = GuestUploadServer.UploadResult.FULL
+        assertEquals(507, post(jpeg).status)
+        result = GuestUploadServer.UploadResult.UNSUPPORTED
+        assertEquals(415, post(jpeg).status)
+        result = GuestUploadServer.UploadResult.TOO_MANY_PENDING
+        val tooMany = post(jpeg)
+        assertEquals(507, tooMany.status)
+        assertEquals("""{"error":"pending_full"}""", tooMany.body)
+    }
+
+    @Test
+    fun `a repeated upload is stored only once`() {
+        assertEquals(200, post(jpeg, uploadId = "abcdef123456").status)
+        assertEquals(200, post(jpeg, uploadId = "abcdef123456").status)
+        assertEquals(1, received.size)
+        assertEquals(200, post(jpeg, uploadId = "other-upload-1").status)
+        assertEquals(2, received.size)
+    }
+
+    @Test
+    fun `uploads from one phone are rate limited`() {
+        startServer(maxUploadsPerMinute = 2)
+        assertEquals(200, post(jpeg).status)
+        assertEquals(200, post(jpeg).status)
+        val limited = post(jpeg)
+        assertEquals(429, limited.status)
+        assertEquals("10", limited.headers["retry-after"])
+        assertEquals(2, received.size)
+    }
+
+    @Test
+    fun `slow requests are dropped after the header deadline`() {
+        // Orologio finto: ogni lettura sembra durare un secondo, il limite è di 5 secondi.
+        var clock = 0L
+        startServer(headerDeadlineMillis = 5_000, nowMillis = { clock += 1_000; clock })
+        Socket().use { socket ->
+            socket.connect(InetSocketAddress(loopback, port), 2_000)
+            socket.soTimeout = 5_000
+            socket.getOutputStream().write("GET /?k=$KEY HTTP/1.1\r\nHost: 127.0.0.1:$port\r\n\r\n".toByteArray())
+            assertTrue(socket.getInputStream().readBytes().isEmpty())
+        }
+    }
+
+    @Test
+    fun `a deliberate stop is not reported as a failure`() {
+        server.stop()
+        assertEquals(0, failures)
+    }
+
+    @Test
+    fun `uploads without the right key are refused`() {
+        assertEquals(401, post(jpeg, key = null).status)
+        assertEquals(401, post(jpeg, key = "wrong").status)
+        assertTrue(received.isEmpty())
+    }
+
+    @Test
+    fun `files that are not images are refused`() {
+        assertEquals(415, post("<script>".toByteArray()).status)
+        assertTrue(received.isEmpty())
+    }
+
+    @Test
+    fun `oversized and empty uploads are refused before reading`() {
+        assertEquals(413, post(ByteArray(0), length = 5_000).status)
+        assertEquals(400, post(ByteArray(0)).status)
+        assertTrue(received.isEmpty())
+    }
+
+    @Test
+    fun `requests for another host are refused`() {
+        assertEquals(421, get("/?k=$KEY", host = "attacker.example").status)
+        assertEquals(421, post(jpeg, host = "attacker.example:$port").status)
+        assertEquals(421, send("GET /?k=$KEY HTTP/1.1\r\n\r\n".toByteArray()).status)
+        assertTrue(received.isEmpty())
+    }
+
+    @Test
+    fun `unknown paths and methods`() {
+        assertEquals(404, get("/favicon.ico").status)
+        assertEquals(405, get("/photos").status)
+        assertEquals(405, send("DELETE / HTTP/1.1\r\nHost: 127.0.0.1:$port\r\n\r\n".toByteArray()).status)
+    }
+
+    @Test
+    fun `chunked uploads are refused`() {
+        val raw = "POST /photos HTTP/1.1\r\nHost: 127.0.0.1:$port\r\nX-FotoFesta-Key: $KEY\r\n" +
+            "Transfer-Encoding: chunked\r\n\r\n0\r\n\r\n"
+        assertEquals(411, send(raw.toByteArray()).status)
+    }
+
+    @Test
+    fun `huge headers are refused`() {
+        val raw = "GET / HTTP/1.1\r\nHost: 127.0.0.1:$port\r\nX-Big: ${"a".repeat(20_000)}\r\n\r\n"
+        assertEquals(431, send(raw.toByteArray()).status)
+    }
+
+    @Test
+    fun `stop closes the port`() {
+        server.stop()
+        val fixed = freeLowPort()
+        assertEquals(fixed, server.start(loopback, preferredPort = fixed))
+        server.stop()
+        assertFalse(server.isRunning)
+        // Senza nessuno in ascolto la connessione viene rifiutata. Ri-occupare la porta non è una
+        // prova affidabile (sui runner della CI può finire a una connessione in uscita di un altro
+        // test), e una connessione a sé stessi riesce solo se il sistema sceglie per caso la stessa
+        // porta come porta locale: tre tentativi bastano a escluderlo.
+        val refused = (1..3).any {
+            runCatching {
+                Socket().use { socket -> socket.connect(InetSocketAddress(loopback, fixed), 1_000) }
+            }.exceptionOrNull() is java.net.ConnectException
+        }
+        assertTrue(refused)
+    }
+
+    /** Porta libera tra 20000 e 29999, fuori dall'intervallo delle porte effimere. */
+    private fun freeLowPort(): Int {
+        repeat(50) {
+            val candidate = 20_000 + Random.nextInt(10_000)
+            val free = runCatching {
+                ServerSocket().use { socket ->
+                    socket.reuseAddress = true
+                    socket.bind(InetSocketAddress(loopback, candidate))
+                }
+            }.isSuccess
+            if (free) return candidate
+        }
+        error("Nessuna porta libera tra 20000 e 29999")
+    }
+
+    @Test
+    fun `parses request line, query and headers`() {
+        val raw = "GET /?k=abc&x=1 HTTP/1.1\r\nHost: tv:8\r\nX-Test:  value \r\n\r\nbody"
+        val request = GuestUploadServer.readRequest(ByteArrayInputStream(raw.toByteArray()))!!
+        assertEquals("GET", request.method)
+        assertEquals("/", request.path)
+        assertEquals("abc", request.query["k"])
+        assertEquals("value", request.headers["x-test"])
+        assertNull(GuestUploadServer.readRequest(ByteArrayInputStream(ByteArray(0))))
+    }
+
+    @Test
+    fun `conflicting content lengths are rejected`() {
+        val raw = "POST /photos HTTP/1.1\r\nContent-Length: 1\r\nContent-Length: 2\r\n\r\n"
+        try {
+            GuestUploadServer.readRequest(ByteArrayInputStream(raw.toByteArray()))
+            fail("Intestazioni ambigue accettate")
+        } catch (_: Exception) {
+        }
+    }
+
+    @Test
+    fun `host header uses brackets for IPv6`() {
+        assertEquals("192.168.1.5:8765", GuestUploadServer.hostHeader(InetAddress.getByName("192.168.1.5"), 8765))
+        assertEquals("[::1]:80", GuestUploadServer.hostHeader(InetAddress.getByName("::1"), 80).replace("0:0:0:0:0:0:0:1", "::1"))
+    }
+
+    @Test
+    fun `image formats are recognised from their first bytes`() {
+        assertEquals(ImageFormat.JPEG, ImageFormat.sniff(jpeg))
+        val png = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0)
+        assertEquals(ImageFormat.PNG, ImageFormat.sniff(png))
+        val webp = "RIFF\u0000\u0000\u0000\u0000WEBPVP8 ".toByteArray(Charsets.ISO_8859_1)
+        assertEquals(ImageFormat.WEBP, ImageFormat.sniff(webp))
+        assertNull(ImageFormat.sniff("GIF89a".toByteArray()))
+        assertNull(ImageFormat.sniff(ByteArray(2)))
+    }
+
+    @Test
+    fun `sender names are limited and stripped of hidden characters`() {
+        assertNull(GuestSender.clean(null))
+        assertNull(GuestSender.clean("   ​ "))
+        assertEquals("Anna Rossi", GuestSender.clean(" Anna \t‮Rossi\u0000 "))
+        val long = "🎉".repeat(50)
+        val cleaned = GuestSender.clean(long)!!
+        assertEquals(GuestSender.MAX_LENGTH, cleaned.codePointCount(0, cleaned.length))
+        assertEquals("🎉".repeat(GuestSender.MAX_LENGTH), cleaned)
+    }
+
+    private companion object {
+        const val KEY = "test-key_123"
+    }
+
+    @Test
+    fun `wall and entrance pages need the key`() {
+        assertEquals(403, get("/wall?k=sbagliata").status)
+        val wall = get("/wall?k=$KEY")
+        assertEquals(200, wall.status)
+        assertEquals("<html>parete</html>", wall.body)
+        assertTrue(wall.headers["content-security-policy"]!!.contains("img-src 'self'"))
+        assertEquals("<html>ingresso</html>", get("/door?k=$KEY").body)
+        assertEquals(401, get("/wall/state").status)
+        assertTrue(get("/wall/state?k=$KEY").body.contains("foto-1"))
+        val photo = get("/wall/photo?k=$KEY&id=foto-1")
+        assertEquals(200, photo.status)
+        assertEquals("image/jpeg", photo.headers["content-type"])
+        assertEquals("private, max-age=3600", photo.headers["cache-control"])
+        assertEquals(404, get("/wall/photo?k=$KEY&id=altra").status)
+    }
+
+    private fun getRange(target: String, range: String?): Pair<Reply, ByteArray> {
+        Socket().use { socket ->
+            socket.connect(InetSocketAddress(loopback, port), 2_000)
+            socket.soTimeout = 5_000
+            val rangeHeader = if (range != null) "Range: $range\r\n" else ""
+            socket.getOutputStream().write("GET $target HTTP/1.1\r\nHost: 127.0.0.1:$port\r\n$rangeHeader\r\n".toByteArray())
+            val raw = socket.getInputStream().readBytes()
+            val split = (0 until raw.size - 3).first { raw[it] == '\r'.code.toByte() && raw[it + 1] == '\n'.code.toByte() && raw[it + 2] == '\r'.code.toByte() && raw[it + 3] == '\n'.code.toByte() }
+            val lines = String(raw, 0, split, Charsets.ISO_8859_1).split("\r\n")
+            val headers = lines.drop(1).associate { it.substringBefore(':').lowercase() to it.substringAfter(':').trim() }
+            return Reply(lines.first().split(' ')[1].toInt(), headers, "") to raw.copyOfRange(split + 4, raw.size)
+        }
+    }
+
+    private fun postForm(path: String, form: String, key: String? = KEY): Reply {
+        val body = form.toByteArray()
+        val keyHeader = if (key != null) "X-FotoFesta-Key: $key\r\n" else ""
+        val head = "POST $path HTTP/1.1\r\nHost: 127.0.0.1:$port\r\n" +
+            "Content-Type: application/x-www-form-urlencoded\r\nContent-Length: ${body.size}\r\n$keyHeader\r\n"
+        return send(head.toByteArray() + body)
+    }
+
+    @Test
+    fun `only the sender can delete a photo, with the receipt`() {
+        photoId = "a1b2c3d4e5f60718"
+        val reply = JSONObject(post(jpeg).body)
+        assertEquals("a1b2c3d4e5f60718", reply.getString("id"))
+        val receipt = reply.getString("receipt")
+        assertEquals(22, receipt.length)
+        assertEquals(403, postForm("/photos/delete", "id=a1b2c3d4e5f60718&receipt=AAAAAAAAAAAAAAAAAAAAAA").status)
+        assertEquals(403, postForm("/photos/delete", "id=ffffffffffffffff&receipt=$receipt").status)
+        assertEquals(401, postForm("/photos/delete", "id=a1b2c3d4e5f60718&receipt=$receipt", key = null).status)
+        assertTrue(deleted.isEmpty())
+        assertEquals(200, postForm("/photos/delete", "id=a1b2c3d4e5f60718&receipt=$receipt").status)
+        assertEquals(listOf("a1b2c3d4e5f60718"), deleted)
+    }
+
+    @Test
+    fun `festa local with the four digit code`() {
+        assertEquals(403, get("/").status)
+        joinCode = "4821"
+        assertEquals(421, get("/", host = "altro.local:$port").status)
+        val page = get("/", host = "festa.local:$port")
+        assertEquals(200, page.status)
+        assertTrue(page.body.contains("/join"))
+        assertEquals(403, postForm("/join", "code=1111", key = null).status)
+        val joined = postForm("/join", "code=4821", key = null)
+        assertEquals(200, joined.status)
+        assertEquals(KEY, JSONObject(joined.body).getString("key"))
+        repeat(5) { postForm("/join", "code=0000", key = null) }
+        assertEquals(429, postForm("/join", "code=4821", key = null).status)
+    }
+
+    @Test
+    fun `short videos are streamed to the handler with a receipt`() {
+        val video = ByteArray(3_000) { 7 }.also { "ftypmp42".toByteArray().copyInto(it, 4) }
+        val head = "POST /videos HTTP/1.1\r\nHost: 127.0.0.1:$port\r\nContent-Type: video/mp4\r\n" +
+            "Content-Length: ${video.size}\r\nX-FotoFesta-Key: $KEY\r\n\r\n"
+        // Più grande del limite delle foto (1 000 byte in questo test): i video hanno il loro.
+        val reply = send(head.toByteArray() + video)
+        assertEquals(200, reply.status)
+        assertEquals("b1b2c3d4e5f60718", JSONObject(reply.body).getString("id"))
+        assertTrue(videoBytes!!.contentEquals(video))
+        val noKey = "POST /videos HTTP/1.1\r\nHost: 127.0.0.1:$port\r\nContent-Length: 10\r\n\r\n0123456789"
+        assertEquals(401, send(noKey.toByteArray()).status)
+        val huge = "POST /videos HTTP/1.1\r\nHost: 127.0.0.1:$port\r\nContent-Length: ${GuestUploadServer.MAX_VIDEO_BYTES + 1}\r\nX-FotoFesta-Key: $KEY\r\n\r\n"
+        assertEquals(413, send(huge.toByteArray()).status)
+    }
+
+    @Test
+    fun `guests download the approved photos as a zip`() {
+        assertEquals(401, get("/party/album.zip").status)
+        Socket().use { socket ->
+            socket.connect(InetSocketAddress(loopback, port), 2_000)
+            socket.soTimeout = 5_000
+            socket.getOutputStream().write("GET /party/album.zip?k=$KEY HTTP/1.1\r\nHost: 127.0.0.1:$port\r\n\r\n".toByteArray())
+            val raw = socket.getInputStream().readBytes()
+            val split = (0 until raw.size - 3).first { raw[it] == 13.toByte() && raw[it + 1] == 10.toByte() && raw[it + 2] == 13.toByte() && raw[it + 3] == 10.toByte() }
+            val head = String(raw, 0, split, Charsets.ISO_8859_1)
+            assertTrue(head.startsWith("HTTP/1.1 200"))
+            assertTrue(head.contains("Content-Type: application/zip"))
+            val zip = raw.copyOfRange(split + 4, raw.size)
+            assertTrue(head.contains("Content-Length: ${zip.size}"))
+            val names = mutableListOf<String>()
+            java.util.zip.ZipInputStream(zip.inputStream()).use { input ->
+                while (true) {
+                    val entry = input.nextEntry ?: break
+                    names += entry.name
+                    val bytes = input.readBytes()
+                    assertTrue(bytes.contentEquals(if (entry.name.endsWith("001.jpg")) jpeg else pendingBytes))
+                }
+            }
+            assertEquals(listOf("FotoFesta-001.jpg", "FotoFesta-002.jpg"), names)
+        }
+    }
+
+    @Test
+    fun `phones join the phone wall through party actions`() {
+        assertEquals(403, action("type=wall&command=join&player=telefono-1").status)
+        phoneWall.start()
+        assertEquals(200, action("type=wall&command=join&player=telefono-1").status)
+        val party = send("GET /party?player=telefono-1 HTTP/1.1\r\nHost: 127.0.0.1:$port\r\nX-FotoFesta-Key: $KEY\r\n\r\n".toByteArray())
+        assertEquals(0, JSONObject(party.body).getJSONObject("phoneWall").getInt("slot"))
+        assertEquals(401, action("type=wall&command=join&player=telefono-2", key = null).status)
+    }
+
+    @Test
+    fun `silent disco serves only the song playing, by ranges`() {
+        val party = send("GET /party HTTP/1.1\r\nHost: 127.0.0.1:$port\r\nX-FotoFesta-Key: $KEY\r\n\r\n".toByteArray())
+        assertEquals("brano-1", JSONObject(party.body).getJSONObject("disco").getString("track"))
+        assertEquals(401, get("/disco/audio?t=brano-1").status)
+        assertEquals(404, get("/disco/audio?k=$KEY&t=altro").status)
+
+        val (whole, wholeBody) = getRange("/disco/audio?k=$KEY&t=brano-1", null)
+        assertEquals(200, whole.status)
+        assertEquals("bytes", whole.headers["accept-ranges"])
+        assertEquals("3000", whole.headers["content-length"])
+        assertTrue(wholeBody.contentEquals(song))
+
+        val (part, partBody) = getRange("/disco/audio?k=$KEY&t=brano-1", "bytes=1000-1099")
+        assertEquals(206, part.status)
+        assertEquals("bytes 1000-1099/3000", part.headers["content-range"])
+        assertTrue(partBody.contentEquals(song.copyOfRange(1000, 1100)))
+
+        val (tail, tailBody) = getRange("/disco/audio?k=$KEY&t=brano-1", "bytes=2900-")
+        assertEquals("bytes 2900-2999/3000", tail.headers["content-range"])
+        assertEquals(100, tailBody.size)
+
+        val (outside, _) = getRange("/disco/audio?k=$KEY&t=brano-1", "bytes=5000-")
+        assertEquals(416, outside.status)
+        assertEquals("bytes */3000", outside.headers["content-range"])
+    }
+
+    @Test
+    fun `qr codes point to the party, the entrance and the wall`() {
+        assertEquals(401, get("/party/qr.svg").status)
+        val qr = get("/party/qr.svg?k=$KEY&for=door")
+        assertEquals(200, qr.status)
+        assertEquals("image/svg+xml", qr.headers["content-type"])
+        assertTrue(qr.body.startsWith("<svg"))
+        // QR diversi per indirizzi diversi.
+        val party = get("/party/qr.svg?k=$KEY").body
+        val wall = get("/party/qr.svg?k=$KEY&for=wall").body
+        assertTrue(party != qr.body && party != wall && wall != qr.body)
+        assertEquals(QrSvg.encode("http://127.0.0.1:$port/?k=$KEY&arrivo=1"), qr.body)
+        assertEquals(QrSvg.encode("http://127.0.0.1:$port/wall?k=$KEY"), wall)
+    }
+
+    @Test
+    fun `extra screens get the key only with the host pin`() {
+        host.setEnabled(true)
+        val pin = host.pin()!!
+        fun login(value: String) = send(
+            ("POST /screen/login HTTP/1.1\r\nHost: 127.0.0.1:$port\r\nContent-Type: application/x-www-form-urlencoded\r\n" +
+                "Content-Length: ${"pin=$value".length}\r\n\r\npin=$value").toByteArray(),
+        )
+        assertEquals(403, login("000000".takeIf { it != pin } ?: "111111").status)
+        val accepted = login(pin)
+        assertEquals(200, accepted.status)
+        assertEquals("""{"key":"$KEY"}""", accepted.body)
+        host.setEnabled(false)
+        assertEquals(404, login(pin).status)
+    }
+}

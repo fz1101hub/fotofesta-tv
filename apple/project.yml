@@ -1,0 +1,158 @@
+# Progetto Xcode delle app Apple TV e Mac, generato con XcodeGen: `brew install xcodegen && xcodegen generate`.
+# Le due app condividono sorgenti (FotoFestaTV/Sources), testi e nucleo (FotoFestaCore); le differenze
+# di piattaforma stanno in FotoFestaTV/Sources/Platform.swift.
+name: FotoFestaTV
+options:
+  bundleIdPrefix: it.fotofesta
+  developmentLanguage: en
+  deploymentTarget:
+    tvOS: "17.0"
+    macOS: "14.0"
+packages:
+  FotoFestaCore:
+    path: FotoFestaCore
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.2.0"
+    CURRENT_PROJECT_VERSION: "3"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+targets:
+  FotoFestaTV:
+    type: application
+    platform: tvOS
+    sources:
+      - path: FotoFestaTV/Sources
+      - path: FotoFestaTV/Resources
+      # Pagina che i telefoni degli invitati aprono: la stessa dell'app Android.
+      - path: ../shared/assets/guest/index.html
+        buildPhase: resources
+      # Pagina per autorizzare Google Foto dal telefono: anche questa condivisa con Android.
+      - path: ../shared/assets/guest/google.html
+        buildPhase: resources
+      # Ingresso con il QR degli arrivi e parete delle foto per un secondo schermo, come su Android.
+      - path: ../shared/assets/guest/door.html
+        buildPhase: resources
+      - path: ../shared/assets/guest/wall.html
+        buildPhase: resources
+    dependencies:
+      - package: FotoFestaCore
+    configFiles:
+      Debug: Config/App.xcconfig
+      Release: Config/App.xcconfig
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: it.fotofesta.tv
+        PRODUCT_NAME: FotoFesta TV
+        TARGETED_DEVICE_FAMILY: "3"
+        ASSETCATALOG_COMPILER_APPICON_NAME: "App Icon & Top Shelf Image"
+        CODE_SIGN_STYLE: Automatic
+        # Vuoto finché Apple non concede l'entitlement multicast (vedi Config/App.xcconfig).
+        CODE_SIGN_ENTITLEMENTS: $(FOTOFESTA_ENTITLEMENTS)
+        LOCALIZATION_PREFERS_STRING_CATALOGS: NO
+    info:
+      path: FotoFestaTV/Info.plist
+      properties:
+        CFBundleDisplayName: FotoFesta TV
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleDevelopmentRegion: en
+        CFBundleLocalizations: [en, it, fr, es, de]
+        LSApplicationCategoryType: public.app-category.photography
+        UIRequiredDeviceCapabilities: [arm64]
+        UILaunchScreen: {}
+        UIUserInterfaceStyle: Dark
+        ITSAppUsesNonExemptEncryption: false
+        NSLocalNetworkUsageDescription: "FotoFesta TV receives the photos your guests send from their phones and shows the photos of the media servers (NAS, PC) on your home network."
+        # Cartelle di rete: i server DLNA parlano solo http, e solo nella rete di casa.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        NSPhotoLibraryUsageDescription: "FotoFesta TV shows the albums of your Photos library in the slideshow. Photos stay in your library and aren’t sent anywhere."
+        # Luci della festa (Hue, WLED, Nanoleaf) e stampanti AirPrint trovate nella rete di casa.
+        NSBonjourServices: [_hue._tcp, _wled._tcp, _nanoleafapi._tcp, _ipp._tcp]
+        # Cabina fotografica con l'iPhone o l'iPad collegato con Continuity Camera.
+        NSCameraUsageDescription: "FotoFesta TV uses the camera only for the photo booth: the strips stay in the party on this device."
+        NSCameraUseContinuityCameraDeviceType: true
+        PhotosClientID: $(PHOTOS_CLIENT_ID)
+        PhotosClientSecret: $(PHOTOS_CLIENT_SECRET)
+        PhotosRedirectURI: $(PHOTOS_REDIRECT_URI)
+        # Indirizzo pubblico di site/privacy/ (vedi docs/PUBLISHING.md): l'app lo mostra come QR nelle impostazioni.
+        PrivacyPolicyURL: "https://EXAMPLE.github.io/fotofesta-tv/privacy/"
+  FotoFestaMac:
+    type: application
+    platform: macOS
+    sources:
+      - path: FotoFestaTV/Sources
+      # Testi, foto demo e privacy dell'Apple TV; icona e logo stanno nel catalogo del Mac.
+      - path: FotoFestaTV/Resources
+        excludes:
+          - "Assets.xcassets"
+          - "Assets.xcassets/**"
+      # Icona, logo e testi che sul Mac sostituiscono quelli su Apple TV e telecomando (Mac.strings).
+      - path: FotoFestaMac/Resources
+      - path: ../shared/assets/guest/index.html
+        buildPhase: resources
+      - path: ../shared/assets/guest/google.html
+        buildPhase: resources
+      - path: ../shared/assets/guest/door.html
+        buildPhase: resources
+      - path: ../shared/assets/guest/wall.html
+        buildPhase: resources
+    dependencies:
+      - package: FotoFestaCore
+    configFiles:
+      Debug: Config/App.xcconfig
+      Release: Config/App.xcconfig
+    settings:
+      base:
+        # Stesso identificativo dell'app Apple TV: su App Store Connect le due piattaforme stanno nella
+        # stessa scheda (acquisto universale), con le stesse risposte sulla privacy.
+        PRODUCT_BUNDLE_IDENTIFIER: it.fotofesta.tv
+        PRODUCT_NAME: FotoFesta TV
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_ENTITLEMENTS: FotoFestaMac/FotoFestaMac.entitlements
+        ENABLE_HARDENED_RUNTIME: YES
+        COMBINE_HIDPI_IMAGES: YES
+        LOCALIZATION_PREFERS_STRING_CATALOGS: NO
+    info:
+      path: FotoFestaMac/Info.plist
+      properties:
+        CFBundleDisplayName: FotoFesta TV
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleDevelopmentRegion: en
+        CFBundleLocalizations: [en, it, fr, es, de]
+        LSApplicationCategoryType: public.app-category.photography
+        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
+        ITSAppUsesNonExemptEncryption: false
+        NSLocalNetworkUsageDescription: "FotoFesta TV receives the photos your guests send from their phones and shows the photos of the media servers (NAS, PC) on your home network."
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        NSPhotoLibraryUsageDescription: "FotoFesta TV shows the albums of your Photos library in the slideshow. Photos stay in your library and aren’t sent anywhere."
+        # Luci della festa (Hue, WLED, Nanoleaf) e stampanti AirPrint trovate nella rete di casa.
+        NSBonjourServices: [_hue._tcp, _wled._tcp, _nanoleafapi._tcp, _ipp._tcp]
+        NSCameraUsageDescription: "FotoFesta TV uses the camera only for the photo booth: the strips stay in the party on this Mac."
+        PhotosClientID: $(PHOTOS_CLIENT_ID)
+        PhotosClientSecret: $(PHOTOS_CLIENT_SECRET)
+        PhotosRedirectURI: $(PHOTOS_REDIRECT_URI)
+        PrivacyPolicyURL: "https://EXAMPLE.github.io/fotofesta-tv/privacy/"
+schemes:
+  FotoFestaTV:
+    build:
+      targets:
+        FotoFestaTV: all
+    run:
+      config: Debug
+    archive:
+      config: Release
+  FotoFestaMac:
+    build:
+      targets:
+        FotoFestaMac: all
+    run:
+      config: Debug
+    archive:
+      config: Release

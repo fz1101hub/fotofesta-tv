@@ -1,0 +1,15 @@
+FotoFesta TV shows on your TV the photos you choose. It contains no ads, analytics or tracking and sends no data to the developer.
+
+Google Photos (optional): the Apple TV talks directly to Google over encrypted connections. The app only requests access to the photos you pick on your phone, not to the rest of your library. Picked photos and videos are not copied to the Apple TV: they load from Google while they are shown and are kept only in memory. The Apple TV keeps the list of chosen photos in the app's preferences and the Google tokens (access and refresh) in the Keychain.
+
+Guest photos (optional): during the party the Apple TV receives, over your home network and without passing through the internet, the photos guests send from their phones, with the name they choose to give. The page on the phone resizes them and removes metadata such as location. Photos are kept in memory and in a temporary folder on the Apple TV and are deleted with "End party and delete photos", or at the first launch after 12 hours without new photos. If you set up the Wi‑Fi QR code, the network name and password stay on this Apple TV. If guests answer the party games from their phones, answers and names are kept only in memory on the Apple TV and are deleted when the game or the party ends.
+
+iCloud Photos (optional): with your permission, given to tvOS, the app reads the albums of this Apple TV's Photos library, including shared albums, and shows their photos. Photos are not copied or sent anywhere; only the identifier of the chosen album stays in the app's preferences. You can withdraw the permission in the Apple TV settings.
+
+Network folders (optional): the Apple TV reads photos and videos from the media servers on your home network that you choose (NAS, PC), without going through the internet and without copying them. The folder name and server identifier stay in the app's preferences.
+
+Settings › "Disconnect and delete" removes the list of photos and the token, closes the selection at Google and revokes access. You can also revoke access at myaccount.google.com/permissions. The list is also deleted when you choose another source or when Google closes the selection.
+
+The full privacy policy is available at the privacy policy URL of this app and as a QR code in the app's Settings.
+
+Data controller: [da completare] · Contact: [da completare]
