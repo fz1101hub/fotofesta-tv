@@ -2,6 +2,8 @@ package it.fotofesta.tv.data
 
 import android.annotation.SuppressLint
 import android.content.Context
+import it.fotofesta.tv.hardware.Ipp
+import it.fotofesta.tv.hardware.PartyLights
 import it.fotofesta.tv.model.Countdown
 import it.fotofesta.tv.model.CountdownEvent
 import it.fotofesta.tv.model.FitMode
@@ -239,30 +241,30 @@ class SettingsRepository(context: Context) {
     }
 
     /** Luci della festa collegate (Hue, WLED, Nanoleaf), con la chiave avuta all'abbinamento. */
-    fun saveLights(devices: List<it.fotofesta.tv.hardware.PartyLights.Device>) {
+    fun saveLights(devices: List<PartyLights.Device>) {
         val array = org.json.JSONArray(devices.map { it.toJson() })
         runCatching { lightSecrets.put("lights", array.toString()) }
     }
 
-    fun loadLights(): List<it.fotofesta.tv.hardware.PartyLights.Device> = runCatching {
+    fun loadLights(): List<PartyLights.Device> = runCatching {
         val array = org.json.JSONArray(lightSecrets.get("lights") ?: return emptyList())
-        (0 until array.length()).mapNotNull { array.optJSONObject(it)?.let(it.fotofesta.tv.hardware.PartyLights.Device::fromJson) }
+        (0 until array.length()).mapNotNull { array.optJSONObject(it)?.let(PartyLights.Device::fromJson) }
     }.getOrDefault(emptyList())
 
     // Le chiavi delle luci danno il controllo delle lampade di casa: cifrate come le password.
     private val lightSecrets by lazy { KeystoreStrings(sources, "fotofesta_lights_v1") }
 
     /** Stampante delle foto (IPP) e stampante degli scontrini. */
-    fun savePrinter(printer: it.fotofesta.tv.hardware.Ipp.Printer?) {
+    fun savePrinter(printer: Ipp.Printer?) {
         sources.edit().apply {
             if (printer == null) remove("ipp_host").remove("ipp_port").remove("ipp_path").remove("ipp_name")
             else putString("ipp_host", printer.host).putInt("ipp_port", printer.port).putString("ipp_path", printer.path).putString("ipp_name", printer.name)
         }.apply()
     }
 
-    fun loadPrinter(): it.fotofesta.tv.hardware.Ipp.Printer? {
+    fun loadPrinter(): Ipp.Printer? {
         val host = sources.getString("ipp_host", null) ?: return null
-        return it.fotofesta.tv.hardware.Ipp.Printer(host, sources.getInt("ipp_port", it.fotofesta.tv.hardware.Ipp.PORT), sources.getString("ipp_path", null) ?: "ipp/print", sources.getString("ipp_name", null) ?: host)
+        return Ipp.Printer(host, sources.getInt("ipp_port", Ipp.PORT), sources.getString("ipp_path", null) ?: "ipp/print", sources.getString("ipp_name", null) ?: host)
     }
 
     fun saveReceiptPrinter(host: String?, wide: Boolean) {
