@@ -1021,4 +1021,8 @@
         <item quantity="many">%d téléphones en ligne</item>
         <item quantity="other">%d téléphones en ligne</item>
     </plurals>
+
+    <!-- Slideshow a ritmo -->
+    <string name="settings_beat_sync">Diaporama en rythme</string>
+    <string name="settings_beat_sync_body">Avec la musique de fond, les photos changent au début de chaque mesure et battent au rythme. La TV écoute les 45 premières secondes de chaque morceau.</string>
 </resources>

@@ -293,6 +293,7 @@ class MainActivity : ComponentActivity() {
                                 arrivals = viewModel.arrivals,
                                 photoAge = viewModel::photoAge,
                                 photoTag = viewModel::photoTag,
+                                nextBeatIn = viewModel::nextBeatIn,
                             ) } }
                             Destination.GAMES -> GamesScreen(
                                 // I giochi usano solo le foto: i video si guardano nello slideshow.

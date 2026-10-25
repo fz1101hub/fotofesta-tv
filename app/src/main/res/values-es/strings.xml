@@ -1021,4 +1021,8 @@
         <item quantity="many">%d móviles en fila</item>
         <item quantity="other">%d móviles en fila</item>
     </plurals>
+
+    <!-- Slideshow a ritmo -->
+    <string name="settings_beat_sync">Presentación al ritmo</string>
+    <string name="settings_beat_sync_body">Con la música de fondo, las fotos cambian al inicio de cada compás y laten con el ritmo. La TV escucha los primeros 45 segundos de cada canción.</string>
 </resources>

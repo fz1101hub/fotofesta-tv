@@ -1021,4 +1021,8 @@
         <item quantity="many">%d telefoni in fila</item>
         <item quantity="other">%d telefoni in fila</item>
     </plurals>
+
+    <!-- Slideshow a ritmo -->
+    <string name="settings_beat_sync">Slideshow a ritmo</string>
+    <string name="settings_beat_sync_body">Con la musica di sottofondo le foto cambiano a inizio battuta e pulsano sul battito. La TV ascolta i primi 45 secondi di ogni brano.</string>
 </resources>

@@ -47,6 +47,7 @@ class SettingsRepository(context: Context) {
         reducedMotion = prefs.getBoolean("reduced_motion", false),
         showClock = prefs.getBoolean("clock", true),
         musicVolume = prefs.getFloat("volume", 0.35f),
+        beatSync = prefs.getBoolean("beat_sync", false),
         kenBurns = prefs.getBoolean("ken_burns", false),
         sleepTimerMinutes = prefs.getInt("sleep_timer", 0),
         countdown = prefs.getBoolean("countdown", false),
@@ -86,6 +87,7 @@ class SettingsRepository(context: Context) {
             .putBoolean("reduced_motion", value.reducedMotion)
             .putBoolean("clock", value.showClock)
             .putFloat("volume", value.musicVolume)
+            .putBoolean("beat_sync", value.beatSync)
             .putBoolean("ken_burns", value.kenBurns)
             .putInt("sleep_timer", value.sleepTimerMinutes)
             .putBoolean("countdown", value.countdown)

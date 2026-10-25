@@ -34,6 +34,8 @@ import it.fotofesta.tv.guests.WifiNetwork
 import it.fotofesta.tv.guests.guestPhotoId
 import it.fotofesta.tv.guests.toPhotoItem
 import it.fotofesta.tv.media.BackgroundMusicPlayer
+import it.fotofesta.tv.media.BeatAnalyzer
+import it.fotofesta.tv.media.BeatMath
 import it.fotofesta.tv.media.Fanfare
 import it.fotofesta.tv.model.AppState
 import it.fotofesta.tv.model.BrowserEntry
@@ -113,6 +115,9 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private val musicPlayer = BackgroundMusicPlayer(context) {
         showMessage(context.getString(R.string.message_music_error))
     }
+    /** Battito dei brani per lo slideshow a ritmo, calcolato una volta per brano. */
+    private val beats = BeatAnalyzer(context)
+    private var beatJob: Job? = null
     private val services = context.appServices
     private val googleAuth = services.googleAuth
     private val googlePicker = services.googlePicker
@@ -2189,6 +2194,24 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             musicPlayer.pause()
         }
         syncSleepTimer()
+    }
+
+    /**
+     * Slideshow a ritmo: millisecondi fino al prossimo battito multiplo di [every] che cade dopo
+     * almeno [minMs]. Null se è spento, se la musica non suona o se il brano non è ancora analizzato
+     * (l'analisi parte qui, una volta per brano).
+     */
+    fun nextBeatIn(minMs: Long, every: Int): Long? {
+        if (!_state.value.settings.beatSync) return null
+        val now = musicPlayer.nowPlaying()?.takeIf { it.playing } ?: return null
+        val beat = beats.cached(now.uri)
+        if (beat == null) {
+            if (!beats.known(now.uri) && beatJob?.isActive != true) {
+                beatJob = viewModelScope.launch(Dispatchers.Default) { beats.analyze(now.uri) }
+            }
+            return null
+        }
+        return BeatMath.delayToBeat(now.positionMs, beat, minMs, every)
     }
 
     private fun musicVolume(): Float = if (_state.value.silentDisco) 0f else _state.value.settings.musicVolume

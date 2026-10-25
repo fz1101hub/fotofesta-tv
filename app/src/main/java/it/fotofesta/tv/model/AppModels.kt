@@ -104,6 +104,8 @@ data class SlideshowSettings(
     val reducedMotion: Boolean = false,
     val showClock: Boolean = true,
     val musicVolume: Float = 0.35f,
+    /** Slideshow a ritmo: con la musica di sottofondo le foto cambiano a inizio battuta e pulsano sul battito. */
+    val beatSync: Boolean = false,
     /** Zoom e spostamento lenti durante la permanenza di ogni foto (disattivati da [reducedMotion]). */
     val kenBurns: Boolean = false,
     /** Minuti di riproduzione dopo i quali lo slideshow va in pausa; 0 = disattivato. */

@@ -405,6 +405,13 @@ fun SettingsScreen(
                                 subtitle = stringResource(R.string.settings_volume_body),
                                 value = stringResource(R.string.settings_volume_value, (settings.musicVolume * 100).roundToInt()),
                             )
+                            SettingsItem(
+                                stringResource(R.string.settings_beat_sync),
+                                { onChange(settings.copy(beatSync = !settings.beatSync)) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_beat_sync_body),
+                                checked = settings.beatSync,
+                            )
                         }
                         SettingsCategory.PARTY -> {
                             SettingsItem(

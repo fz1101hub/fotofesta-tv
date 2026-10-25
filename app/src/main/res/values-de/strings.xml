@@ -976,4 +976,8 @@
         <item quantity="one">%d Handy dabei</item>
         <item quantity="other">%d Handys dabei</item>
     </plurals>
+
+    <!-- Slideshow a ritmo -->
+    <string name="settings_beat_sync">Diashow im Takt</string>
+    <string name="settings_beat_sync_body">Mit Hintergrundmusik wechseln die Fotos am Taktanfang und pulsieren im Beat. Der Fernseher hört sich die ersten 45 Sekunden jedes Titels an.</string>
 </resources>

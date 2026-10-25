@@ -65,6 +65,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -106,6 +107,7 @@ import java.util.Locale
 import java.util.TimeZone
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.graphics.vector.ImageVector
 
@@ -113,6 +115,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 private const val FRESH_PHOTO_MS = 60_000L
 private const val NEWS_MESSAGES = 5
 private const val CONTROLS_TIMEOUT_MS = 5_000L
+
+// Slideshow a ritmo: la foto cambia a inizio battuta (quattro battiti) e pulsa sul battito.
+private const val BAR_BEATS = 4
+private const val BEAT_MIN_WAIT_MS = 60L
+private const val BEAT_PULSE_SCALE = 1.012f
+private const val BEAT_PULSE_MS = 240
 
 /**
  * Slideshow a schermo intero. In basso restano sempre titolo, data o mittente, posizione e una
@@ -138,6 +146,8 @@ fun SlideshowScreen(
     photoAge: (PhotoItem) -> Float = { 0f },
     /** Perché la foto è nata in un gioco ("Missione: un brindisi"), se c'è. */
     photoTag: (PhotoItem) -> String? = { null },
+    /** Slideshow a ritmo: millisecondi al prossimo battito (ogni N battiti) dopo un minimo; null senza ritmo. */
+    nextBeatIn: (minMs: Long, every: Int) -> Long? = { _, _ -> null },
 ) {
     val photo = state.photos.getOrNull(state.currentIndex)
     val screenFocus = remember { FocusRequester() }
@@ -197,8 +207,29 @@ fun SlideshowScreen(
     val showingVideo = photo?.video == true
     LaunchedEffect(state.isPlaying, state.slideTick, state.settings.intervalSeconds, canAdvance, showingVideo) {
         if (state.isPlaying && canAdvance && !showingVideo) {
-            delay(state.settings.intervalSeconds * 1_000L)
+            val interval = state.settings.intervalSeconds * 1_000L
+            // A ritmo, la foto cambia al primo inizio di battuta dopo la durata scelta.
+            delay(nextBeatIn(interval, BAR_BEATS) ?: interval)
             onNext()
+        }
+    }
+    // Sul battito la foto si allarga appena e torna: niente con movimento ridotto o modalità leggera.
+    val beatPulse = remember { Animatable(1f) }
+    val pulsing = state.settings.beatSync && state.isPlaying && !state.settings.reducedMotion && !state.settings.lightMode
+    LaunchedEffect(pulsing) {
+        if (!pulsing) {
+            beatPulse.snapTo(1f)
+            return@LaunchedEffect
+        }
+        while (true) {
+            val wait = nextBeatIn(BEAT_MIN_WAIT_MS, 1)
+            if (wait == null) {
+                delay(1_000)
+                continue
+            }
+            delay(wait)
+            beatPulse.snapTo(BEAT_PULSE_SCALE)
+            launch { beatPulse.animateTo(1f, tween(BEAT_PULSE_MS)) }
         }
     }
     PrefetchPhoto(upcoming?.takeUnless { it.video }, state.settings.fitMode, viewport)
@@ -270,7 +301,10 @@ fun SlideshowScreen(
                     }
                 },
                 label = "slideTransition",
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().graphicsLayer {
+                    scaleX = beatPulse.value
+                    scaleY = beatPulse.value
+                },
             ) { item ->
                 if (item.video) {
                     VideoSlide(

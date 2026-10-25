@@ -977,4 +977,8 @@
         <item quantity="one">%d phone in line</item>
         <item quantity="other">%d phones in line</item>
     </plurals>
+
+    <!-- Slideshow a ritmo -->
+    <string name="settings_beat_sync">Slideshow to the beat</string>
+    <string name="settings_beat_sync_body">With background music, photos change at the start of a bar and pulse on the beat. The TV listens to the first 45 seconds of each song.</string>
 </resources>
