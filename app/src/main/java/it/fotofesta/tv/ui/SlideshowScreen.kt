@@ -52,6 +52,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -413,6 +414,11 @@ fun SlideshowScreen(
             NewsOverlay(partyTitle, photoTag(photo) ?: photo.sender?.let { stringResource(R.string.guest_photo_from, it) }, ticker)
         }
         if (state.settings.openingTitles) OpeningTitles(partyTitle, rememberTodayText())
+        if (photo != null && state.settings.rivalParty) RivalPartyOverlay(state.slideTick)
+        if (photo != null && state.settings.boredTv && state.guests.active) {
+            val lastGuestPhoto = remember(state.photos) { state.photos.maxOfOrNull { it.receivedAtMillis ?: 0L } ?: 0L }
+            BoredTvOverlay(lastGuestPhoto, Modifier.align(Alignment.BottomEnd).padding(end = 48.dp, bottom = 120.dp))
+        }
         SponsorOverlay(state.slideTick, state.settings.sponsorEvery, setup.sponsors, loadSponsor)
 
         Column(
@@ -565,6 +571,8 @@ fun SlidePhoto(
     durationMillis: Int,
     modifier: Modifier = Modifier,
 ) {
+    val panoramas = settings.panoramas && !settings.reducedMotion
+    var aspect by remember(photo.id) { mutableFloatStateOf(0f) }
     Box(modifier) {
         if (settings.fitMode == FitMode.BLUR) BlurredBackdrop(photo, Modifier.fillMaxSize())
         KenBurnsPhoto(
@@ -574,7 +582,11 @@ fun SlidePhoto(
             playing = playing,
             durationMillis = durationMillis,
             modifier = Modifier.fillMaxSize(),
+            onAspect = if (panoramas) { value -> aspect = value } else null,
         )
+        if (panoramas && aspect >= PANORAMA_ASPECT) {
+            PanoramaPhoto(photo, aspect, playing, durationMillis, Modifier.fillMaxSize())
+        }
     }
 }
 

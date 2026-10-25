@@ -38,6 +38,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import it.fotofesta.tv.model.PhotoItem
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.res.stringResource
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -102,6 +104,16 @@ import it.fotofesta.tv.ui.WhoTookItScreen
 import it.fotofesta.tv.ui.PhonePlay
 import it.fotofesta.tv.ui.BuzzerScreen
 import it.fotofesta.tv.ui.AnywhereScreen
+import it.fotofesta.tv.ui.QuizScreen
+import it.fotofesta.tv.ui.DifferencesScreen
+import it.fotofesta.tv.ui.OnThisDayScreen
+import it.fotofesta.tv.ui.ChaptersScreen
+import it.fotofesta.tv.ui.MuseumScreen
+import it.fotofesta.tv.ui.DreamScreen
+import it.fotofesta.tv.ui.LivingQrScreen
+import it.fotofesta.tv.ui.SoundShowScreen
+import it.fotofesta.tv.ui.ArtworkScreen
+import it.fotofesta.tv.ui.AbsentScreen
 import it.fotofesta.tv.ui.NetworkCheckScreen
 import it.fotofesta.tv.ui.PhoneWallScreen
 import it.fotofesta.tv.ui.PinDialog
@@ -235,6 +247,9 @@ class MainActivity : ComponentActivity() {
                     Destination.TOAST, Destination.COINS -> true
                     Destination.SHOWS, Destination.REWIND, Destination.BARCODE, Destination.PHOTO_MOSAIC, Destination.CREDITS,
                     Destination.TELETEXT, Destination.SKY, Destination.STATS -> true
+                    Destination.ABSENT, Destination.ARTWORK, Destination.SOUND_SHOW, Destination.LIVING_QR, Destination.DREAM,
+                    Destination.MUSEUM, Destination.CHAPTERS, Destination.ON_THIS_DAY, Destination.DIFFERENCES,
+                    Destination.QUIZ_HOSTS, Destination.QUIZ_KIDS, Destination.QUIZ_SONGS -> true
                     Destination.BUZZER, Destination.CAMERA, Destination.DOOR, Destination.EXTRA_SCREEN, Destination.ANYWHERE, Destination.PHONE_WALL, Destination.NETWORK_CHECK -> true
                     // Il QR per incollare il link dell'album deve restare visibile.
                     Destination.ICLOUD_LINK -> true
@@ -338,6 +353,7 @@ class MainActivity : ComponentActivity() {
                                 silentDisco = state.silentDisco,
                                 onSilentDisco = viewModel::toggleSilentDisco,
                                 onPhoneWall = viewModel::startPhoneWall,
+                                onMoreGame = { viewModel.navigate(it) },
                             )
                             Destination.NETWORK_CHECK -> NetworkCheckScreen(
                                 check = state.networkCheck,
@@ -370,6 +386,7 @@ class MainActivity : ComponentActivity() {
                                 onTeletext = { viewModel.navigate(Destination.TELETEXT) },
                                 onSky = { viewModel.navigate(Destination.SKY) },
                                 onStats = { viewModel.navigate(Destination.STATS) },
+                                onMore = { viewModel.navigate(it) },
                                 enoughPhotos = state.photos.count { !it.video } >= 2,
                                 onBack = { viewModel.navigate(Destination.GAMES) },
                             )
@@ -393,6 +410,43 @@ class MainActivity : ComponentActivity() {
                             Destination.STATS -> {
                                 val stats = remember(state.photos, state.party.messages) { viewModel.partyStats() }
                                 StatsScreen(stats, state.photos.firstOrNull { it.id == stats.favorite }, onBack = viewModel::back)
+                            }
+                            Destination.ABSENT -> AbsentScreen(remember(state.party) { viewModel.absentRoll() }, onBack = viewModel::back)
+                            Destination.ARTWORK -> ArtworkScreen(remember { state.photos }, stringResource(state.settings.template.titleRes), onBack = viewModel::back)
+                            Destination.SOUND_SHOW -> SoundShowScreen(remember { state.photos }, onBack = viewModel::back)
+                            Destination.LIVING_QR -> LivingQrScreen(state.guests.url, remember { state.photos }, onBack = viewModel::back)
+                            Destination.DREAM -> DreamScreen(remember { state.photos }, onBack = viewModel::back)
+                            Destination.MUSEUM -> MuseumScreen(remember { state.photos }, setup.brand.name.ifBlank { stringResource(state.settings.template.titleRes) }, onBack = viewModel::back)
+                            Destination.CHAPTERS -> ChaptersScreen(remember { state.photos }, remember { viewModel.partyChapters() }, onBack = viewModel::back)
+                            Destination.ON_THIS_DAY -> {
+                                val found by produceState<List<Pair<PhotoItem, Long>>?>(null) { value = viewModel.onThisDay() }
+                                OnThisDayScreen(found.orEmpty(), onBack = viewModel::back, loading = found == null)
+                            }
+                            Destination.DIFFERENCES -> DifferencesScreen(remember { state.photos }, onBack = viewModel::back)
+                            Destination.QUIZ_HOSTS, Destination.QUIZ_KIDS, Destination.QUIZ_SONGS -> {
+                                val kind = state.destination
+                                QuizScreen(
+                                    title = stringResource(
+                                        when (kind) {
+                                            Destination.QUIZ_HOSTS -> R.string.games_quiz_hosts_title
+                                            Destination.QUIZ_KIDS -> R.string.games_quiz_kids_title
+                                            else -> R.string.games_quiz_songs_title
+                                        }
+                                    ),
+                                    items = remember(kind) { viewModel.buildQuiz(kind) },
+                                    emptyText = stringResource(
+                                        when (kind) {
+                                            Destination.QUIZ_HOSTS -> R.string.quiz_hosts_empty
+                                            Destination.QUIZ_KIDS -> R.string.quiz_kids_empty
+                                            else -> R.string.quiz_songs_empty
+                                        }
+                                    ),
+                                    phones = phonePlay(state),
+                                    loadImage = viewModel::kidPhoto,
+                                    onPlayTrack = viewModel::playSnippet,
+                                    onStopTrack = viewModel::stopSnippet,
+                                    onBack = viewModel::back,
+                                )
                             }
                             Destination.PARTY_GAMES -> PartyGamesScreen(
                                 partyActive = state.guests.active && state.guests.url != null,

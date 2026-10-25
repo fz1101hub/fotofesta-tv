@@ -8,7 +8,9 @@ import it.fotofesta.tv.guests.PartyHub
 enum class Destination { HOME, SETTINGS, SLIDESHOW, GAMES, MEMORY, MYSTERY, PUZZLE, WHO_TOOK_IT, POLL, LOTTERY, GOOGLE_CONNECT, GUESTS, GUEST_REVIEW, AWARDS, GUESTBOOK, ANNOUNCE, GUEST_WIFI, FILE_BROWSER, ICLOUD_LINK, SMB_LOGIN,
     PARTY_GAMES, PLAY, TOURNAMENT, BETS, TOAST, COINS,
     SHOWS, REWIND, BARCODE, PHOTO_MOSAIC, CREDITS, TELETEXT, SKY, STATS,
-    BUZZER, CAMERA, DOOR, EXTRA_SCREEN, ANYWHERE, PHONE_WALL, NETWORK_CHECK }
+    BUZZER, CAMERA, DOOR, EXTRA_SCREEN, ANYWHERE, PHONE_WALL, NETWORK_CHECK,
+    ABSENT, ARTWORK, SOUND_SHOW, LIVING_QR, DREAM, MUSEUM, CHAPTERS, ON_THIS_DAY,
+    DIFFERENCES, QUIZ_HOSTS, QUIZ_KIDS, QUIZ_SONGS }
 
 enum class TransitionType(@StringRes val labelRes: Int) {
     FADE(R.string.transition_fade),
@@ -132,6 +134,12 @@ data class SlideshowSettings(
     val alwaysParty: Boolean = false,
     /** Locale fisso: ora in cui la festa si azzera ogni notte (-1 = mai). */
     val nightlyReset: Int = -1,
+    /** Le foto molto larghe (panoramiche) scorrono da un lato all'altro invece di restare piccole. */
+    val panoramas: Boolean = true,
+    /** Ogni tanto arriva un messaggio scherzoso dalla "festa rivale". */
+    val rivalParty: Boolean = false,
+    /** Senza foto nuove dagli invitati per un po', la TV fa capire che si annoia. */
+    val boredTv: Boolean = false,
     /** Zoom e spostamento lenti durante la permanenza di ogni foto (disattivati da [reducedMotion]). */
     val kenBurns: Boolean = false,
     /** Minuti di riproduzione dopo i quali lo slideshow va in pausa; 0 = disattivato. */

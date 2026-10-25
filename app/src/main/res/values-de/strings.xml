@@ -1072,4 +1072,93 @@
         <item quantity="one">Jedes %d. Foto</item>
         <item quantity="other">Alle %d Fotos</item>
     </plurals>
+
+    <!-- Ondata 11: giochi ed effetti -->
+    <string name="show_absent">Wer fehlt?</string>
+    <string name="show_absent_body">Die erwarteten Gäste, die noch kein Foto geschickt haben, und die schon da sind.</string>
+    <string name="show_artwork">Das Kunstwerk der Party</string>
+    <string name="show_artwork_body">Ein abstraktes Bild, gemalt mit den Farben der Fotos.</string>
+    <string name="show_sound">Die Party klingt</string>
+    <string name="show_sound_body">Eine Spieluhr-Melodie, ein Ton pro Foto, aus seinem Licht und seinen Farben.</string>
+    <string name="show_living_qr">Lebender QR-Code</string>
+    <string name="show_living_qr_body">Der Party-QR-Code aus den Fotos der Gäste, und er lässt sich trotzdem scannen.</string>
+    <string name="show_dream">Traum</string>
+    <string name="show_dream_body">Die Fotos gehen langsam ineinander über, wie in einem Traum.</string>
+    <string name="show_museum">Museum</string>
+    <string name="show_museum_body">Jedes Foto in einem Goldrahmen mit Museumsschild.</string>
+    <string name="show_chapters">Kapitel der Party</string>
+    <string name="show_chapters_body">Die Party in Kapiteln, gesetzt in der Regie.</string>
+    <string name="show_on_this_day">An diesem Tag</string>
+    <string name="show_on_this_day_body">Fotos, die an diesem Datum in früheren Jahren aufgenommen wurden, aus den Fotoquellen.</string>
+    <string name="show_differences">Finde die Unterschiede</string>
+    <string name="absent_empty">Füge die erwarteten Gäste in der Regie hinzu („Party vorbereiten“).</string>
+    <string name="artwork_caption">%1$s, gemalt mit %2$d Fotos</string>
+    <string name="artwork_title">Komposition mit Partyfarben</string>
+    <string name="artwork_technique">Licht auf Fernseher, aus %d Fotos</string>
+    <string name="artwork_again">Noch eins malen</string>
+    <string name="sound_again">Nochmal spielen</string>
+    <string name="sound_loading">Die Fotos werden gestimmt…</string>
+    <string name="museum_subtitle">Dauerausstellung: %s</string>
+    <string name="museum_work">Ohne Titel Nr. %d</string>
+    <string name="museum_unknown">Unbekannter Künstler</string>
+    <string name="museum_technique">Smartphone-Fotografie, Digitaldruck auf Fernseher</string>
+    <string name="museum_collection">Sammlung: %s</string>
+    <string name="chapters_empty">Setze in der Regie ein Kapitel (z. B. „Abendessen“, „Die Torte“), dann werden die Fotos hier gruppiert.</string>
+    <string name="chapters_number">Kapitel %d</string>
+    <string name="chapters_first">Der Anfang</string>
+    <string name="on_this_day_loading">Fotos von diesem Tag werden gesucht…</string>
+    <string name="on_this_day_empty">Kein Foto von diesem Datum aus früheren Jahren.</string>
+    <string name="differences_subtitle">%d Unterschiede zwischen den beiden Fotos: Wer findet sie zuerst?</string>
+    <string name="differences_next">Nächstes Foto</string>
+    <string name="differences_reveal">Unterschiede zeigen</string>
+    <string name="quiz_progress">Frage %1$d von %2$d</string>
+    <string name="quiz_reveal">Antwort zeigen</string>
+    <string name="quiz_next">Nächste Frage</string>
+    <string name="quiz_restart">Von vorne</string>
+    <string name="quiz_play_again">Ausschnitt nochmal</string>
+    <string name="quiz_kids_question">Wer ist das als Kind?</string>
+    <string name="quiz_songs_question">Welches Lied ist das?</string>
+    <string name="quiz_hosts_empty">Schreib die Fragen in der Regie: eine pro Zeile, „Frage? | richtige Antwort | falsch | falsch“.</string>
+    <string name="quiz_kids_empty">Lade in der Regie mindestens zwei Kinderfotos mit Namen hoch.</string>
+    <string name="quiz_songs_empty">Wähle in den Einstellungen einen Musikordner mit mindestens drei Liedern.</string>
+    <string name="games_differences_title">Finde die Unterschiede</string>
+    <string name="games_differences_body">Zwei Kopien eines Partyfotos: Fünf Dinge sind anders.</string>
+    <string name="games_quiz_hosts_title">Das Quiz der Gastgeber</string>
+    <string name="games_quiz_hosts_body">Fragen aus der Regie, mit den Antworten auf den Handys.</string>
+    <string name="games_quiz_kids_title">Wer ist das als Kind?</string>
+    <string name="games_quiz_kids_body">Kinderfotos aus der Regie: Rate, wer das ist.</string>
+    <string name="games_quiz_songs_title">Errate das Lied</string>
+    <string name="games_quiz_songs_body">Ein paar Sekunden Partymusik: Welches Lied ist das?</string>
+    <string name="message_chapter">Neues Kapitel: %s</string>
+    <plurals name="absent_missing">
+        <item quantity="one">%d fehlt</item>
+        <item quantity="other">%d fehlen</item>
+    </plurals>
+    <plurals name="absent_present">
+        <item quantity="one">%d ist schon da</item>
+        <item quantity="other">%d sind schon da</item>
+    </plurals>
+    <plurals name="on_this_day_years">
+        <item quantity="one">Heute vor %d Jahr</item>
+        <item quantity="other">Heute vor %d Jahren</item>
+    </plurals>
+
+    <!-- Ondata 11: sovrapposizioni dello slideshow -->
+    <string name="settings_panoramas">Laufende Panoramen</string>
+    <string name="settings_panoramas_body">Sehr breite Fotos füllen die Bildschirmhöhe und gleiten von einer Seite zur anderen.</string>
+    <string name="settings_rival_party">Die Konkurrenzparty</string>
+    <string name="settings_rival_party_body">Ab und zu kommt eine freche Nachricht von einer erfundenen Party nebenan. Nur zum Spaß.</string>
+    <string name="settings_bored_tv">Der Fernseher langweilt sich</string>
+    <string name="settings_bored_tv_body">Nach 10 Minuten ohne neue Gästefotos gähnt der Fernseher und bittet um eins.</string>
+    <string name="rival_from">Nachricht von der Konkurrenzparty</string>
+    <string name="rival_1">Bei uns sind mehr Leute. Und die Torte ist größer.</string>
+    <string name="rival_2">Nur ein paar Fotos in den letzten Minuten? Wir sind bei 40.</string>
+    <string name="rival_3">Unser DJ sagt, eurer spielt zu langsam.</string>
+    <string name="rival_4">Hier tanzen alle. Und bei euch?</string>
+    <string name="rival_5">Wetten, dass ihr keine 10 Fotos in 5 Minuten schafft?</string>
+    <string name="rival_6">Wir haben die Torte schon aufgegessen. Habt ihr eure überhaupt angeschnitten?</string>
+    <string name="rival_7">Ein Gruppenfoto mit allen? Haben wir vor einer Stunde gemacht.</string>
+    <string name="rival_8">Na gut… eure Party ist auch nicht schlecht. 😉</string>
+    <string name="bored_title">Mir ist langweilig…</string>
+    <string name="bored_body">Seit %d Minuten keine neuen Fotos: Wer schickt mir das nächste?</string>
 </resources>

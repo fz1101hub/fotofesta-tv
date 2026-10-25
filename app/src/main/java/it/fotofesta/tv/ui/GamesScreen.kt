@@ -19,6 +19,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.CameraAlt
+import androidx.compose.material.icons.rounded.ChildCare
+import androidx.compose.material.icons.rounded.LibraryMusic
+import androidx.compose.material.icons.rounded.Quiz
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SportsEsports
 import androidx.compose.material.icons.rounded.Casino
 import androidx.compose.material.icons.rounded.Celebration
@@ -45,6 +49,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import it.fotofesta.tv.R
+import it.fotofesta.tv.model.Destination
 
 /** Numero minimo di foto perché i giochi abbiano senso (almeno due coppie / due risposte). */
 const val MIN_GAME_PHOTOS = 2
@@ -75,6 +80,8 @@ fun GamesScreen(
     silentDisco: Boolean = false,
     onSilentDisco: () -> Unit = {},
     onPhoneWall: () -> Unit = {},
+    /** Giochi dell'ondata 11: trova le differenze e i quiz sui festeggiati, da piccoli e delle canzoni. */
+    onMoreGame: (Destination) -> Unit = {},
 ) {
     val playable = photoCount >= MIN_GAME_PHOTOS
     Column(Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 40.dp), verticalArrangement = Arrangement.spacedBy(26.dp)) {
@@ -233,6 +240,43 @@ fun GamesScreen(
                     stringResource(R.string.games_camera_body),
                     Icons.Rounded.CameraAlt,
                     onCamera,
+                    Modifier.width(GAME_TILE_WIDTH),
+                )
+            }
+            item {
+                GameTile(
+                    stringResource(R.string.games_differences_title),
+                    stringResource(R.string.games_differences_body),
+                    Icons.Rounded.Search,
+                    { onMoreGame(Destination.DIFFERENCES) },
+                    Modifier.width(GAME_TILE_WIDTH),
+                    enabled = playable,
+                )
+            }
+            item {
+                GameTile(
+                    stringResource(R.string.games_quiz_hosts_title),
+                    stringResource(R.string.games_quiz_hosts_body),
+                    Icons.Rounded.Quiz,
+                    { onMoreGame(Destination.QUIZ_HOSTS) },
+                    Modifier.width(GAME_TILE_WIDTH),
+                )
+            }
+            item {
+                GameTile(
+                    stringResource(R.string.games_quiz_kids_title),
+                    stringResource(R.string.games_quiz_kids_body),
+                    Icons.Rounded.ChildCare,
+                    { onMoreGame(Destination.QUIZ_KIDS) },
+                    Modifier.width(GAME_TILE_WIDTH),
+                )
+            }
+            item {
+                GameTile(
+                    stringResource(R.string.games_quiz_songs_title),
+                    stringResource(R.string.games_quiz_songs_body),
+                    Icons.Rounded.LibraryMusic,
+                    { onMoreGame(Destination.QUIZ_SONGS) },
                     Modifier.width(GAME_TILE_WIDTH),
                 )
             }

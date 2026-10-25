@@ -25,9 +25,10 @@ fun KenBurnsPhoto(
     playing: Boolean,
     durationMillis: Int,
     modifier: Modifier = Modifier,
+    onAspect: ((Float) -> Unit)? = null,
 ) {
     if (!enabled) {
-        PhotoContent(photo, fitMode, modifier)
+        PhotoContent(photo, fitMode, modifier, onAspect = onAspect)
         return
     }
     val motion = remember(photo.id) { KenBurnsMotion.forPhoto(photo.id) }
@@ -50,5 +51,6 @@ fun KenBurnsPhoto(
             translationX = motion.offsetXAt(value) * size.width
             translationY = motion.offsetYAt(value) * size.height
         },
+        onAspect = onAspect,
     )
 }

@@ -14,6 +14,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,6 +61,8 @@ fun PhotoContent(
     contentDescription: String? = photo.title,
     /** Con false, durante il caricamento e in caso di errore non si mostra nulla (sfondi). */
     placeholder: Boolean = true,
+    /** Rapporto larghezza/altezza della foto, appena caricata (per le panoramiche). */
+    onAspect: ((Float) -> Unit)? = null,
 ) {
     val scale = if (fitMode == FitMode.CROP) ContentScale.Crop else ContentScale.Fit
     // Anche le foto demo passano da Coil: decodifica fuori dal thread principale e ridotta alla
@@ -79,7 +82,13 @@ fun PhotoContent(
                 Unit
             }
             is AsyncImagePainter.State.Error -> if (placeholder) UnavailablePhoto() else Unit
-            else -> SubcomposeAsyncImageContent()
+            else -> {
+                if (onAspect != null) {
+                    val size = painter.intrinsicSize
+                    LaunchedEffect(size) { if (size.height > 0f && size.width > 0f) onAspect(size.width / size.height) }
+                }
+                SubcomposeAsyncImageContent()
+            }
         }
     }
 }

@@ -120,6 +120,9 @@ class SettingsRepository(context: Context) {
         kiosk = prefs.getBoolean("kiosk", false),
         alwaysParty = prefs.getBoolean("always_party", false),
         nightlyReset = prefs.getInt("nightly_reset", -1).takeIf { it in RESET_OPTIONS } ?: -1,
+        panoramas = prefs.getBoolean("panoramas", true),
+        rivalParty = prefs.getBoolean("rival_party", false),
+        boredTv = prefs.getBoolean("bored_tv", false),
         kenBurns = prefs.getBoolean("ken_burns", false),
         sleepTimerMinutes = prefs.getInt("sleep_timer", 0),
         countdown = prefs.getBoolean("countdown", false),
@@ -173,6 +176,9 @@ class SettingsRepository(context: Context) {
             .putBoolean("kiosk", value.kiosk)
             .putBoolean("always_party", value.alwaysParty)
             .putInt("nightly_reset", value.nightlyReset)
+            .putBoolean("panoramas", value.panoramas)
+            .putBoolean("rival_party", value.rivalParty)
+            .putBoolean("bored_tv", value.boredTv)
             .putBoolean("ken_burns", value.kenBurns)
             .putInt("sleep_timer", value.sleepTimerMinutes)
             .putBoolean("countdown", value.countdown)

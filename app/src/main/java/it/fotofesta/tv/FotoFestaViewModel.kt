@@ -54,6 +54,9 @@ import it.fotofesta.tv.model.PartyUiState
 import it.fotofesta.tv.model.PlayUiState
 import it.fotofesta.tv.model.PhotoLimit
 import it.fotofesta.tv.model.PinPurpose
+import it.fotofesta.tv.model.PhotoRef
+import it.fotofesta.tv.ui.QuizItem
+import it.fotofesta.tv.model.PartyGames
 import it.fotofesta.tv.model.CheckStatus
 import it.fotofesta.tv.model.NetworkCheck
 import it.fotofesta.tv.model.PlaybackOrder
@@ -788,6 +791,12 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             is PartyCommand.SetSchedule -> partySetup.setSchedule(command.text)
             is PartyCommand.SetGuestList -> partySetup.setGuestList(command.text)
             PartyCommand.RemoveLogo -> partySetup.setLogo(null)
+            is PartyCommand.SetQuiz -> partySetup.setQuiz(command.text)
+            is PartyCommand.RemoveKid -> partySetup.removeKid(command.id)
+            is PartyCommand.Chapter -> {
+                partyHub.chapter(command.title)
+                showMessage(context.getString(R.string.message_chapter, command.title))
+            }
             is PartyCommand.RemoveSponsor -> partySetup.removeSponsor(command.id)
         }
     }
@@ -911,6 +920,97 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     fun rearrangePhoneWall() = phoneWall.rearrange()
 
     fun phoneWallFinale() = phoneWall.finale()
+
+    // -----------------------------------------------------------------------------------------
+    // Ondata 11: chi non c'è, capitoli, quiz, accadde oggi
+    // -----------------------------------------------------------------------------------------
+
+    /** Invitati attesi contro chi si è visto: arrivati dall'ingresso, nomi sulle foto, giochi e reazioni. */
+    fun absentRoll(): PartyGames.Roll {
+        val seen = partyHub.arrivals().map { it.name } +
+            guests.store.photos.value.mapNotNull { it.sender } +
+            partyHub.participants().map { it.name } +
+            phoneGame.names()
+        return PartyGames.roll(partySetup.state.value.guestList, seen)
+    }
+
+    fun partyChapters(): List<PartyHub.ChapterMark> = partyHub.chapters()
+
+    fun kidPhoto(id: String): ByteArray? = partySetup.kidPhoto(id)
+
+    /** Domande per i quiz con i telefoni. */
+    fun buildQuiz(kind: Destination): List<QuizItem> = when (kind) {
+        Destination.QUIZ_HOSTS -> PartyGames.parseQuiz(partySetup.state.value.quiz).shuffled().map { question ->
+            val (choices, correct) = PartyGames.shuffle(question)
+            QuizItem(question.text, choices, correct)
+        }
+        Destination.QUIZ_KIDS -> {
+            val setup = partySetup.state.value
+            val pool = setup.kids.map { it.name } + setup.guestList + partyHub.participants().map { it.name }
+            setup.kids.shuffled().mapNotNull { kid ->
+                val (choices, correct) = PartyGames.nameChoices(kid.name, pool)
+                if (choices.size < 2) null else QuizItem(context.getString(R.string.quiz_kids_question), choices, correct, imageKey = kid.id)
+            }
+        }
+        Destination.QUIZ_SONGS -> {
+            val titles = musicTracks.associateWith { PartyGames.songTitle(Uri.decode(Uri.parse(it).lastPathSegment ?: it)) }
+            musicTracks.shuffled().take(MAX_SONG_ROUNDS).mapNotNull { track ->
+                val (choices, correct) = PartyGames.nameChoices(titles.getValue(track), titles.values.toList())
+                if (choices.size < 3) null else QuizItem(context.getString(R.string.quiz_songs_question), choices, correct, track = track)
+            }
+        }
+        else -> emptyList()
+    }
+
+    private var snippetPlayer: android.media.MediaPlayer? = null
+    private var snippetJob: Job? = null
+
+    /** Quindici secondi del brano da indovinare, da un terzo della durata; intanto la musica tace. */
+    fun playSnippet(track: String) {
+        stopSnippet()
+        musicPlayer.pause()
+        val player = android.media.MediaPlayer()
+        snippetPlayer = player
+        runCatching {
+            player.setDataSource(context, Uri.parse(track))
+            player.setOnPreparedListener { prepared ->
+                prepared.seekTo(prepared.duration / 3)
+                prepared.start()
+            }
+            player.prepareAsync()
+        }.onFailure { stopSnippet() }
+        snippetJob = viewModelScope.launch {
+            delay(SNIPPET_MS)
+            stopSnippet()
+        }
+    }
+
+    fun stopSnippet() {
+        snippetJob?.cancel()
+        snippetJob = null
+        snippetPlayer?.let { runCatching { it.stop() }; it.release() }
+        snippetPlayer = null
+        syncMusic()
+    }
+
+    /** Foto della raccolta scattate oggi negli anni passati (data dai dati EXIF dei file). */
+    suspend fun onThisDay(): List<Pair<PhotoItem, Long>> = withContext(Dispatchers.IO) {
+        val now = System.currentTimeMillis()
+        basePhotos.asSequence().filterNot { it.video }.take(MAX_ON_THIS_DAY_SCAN).mapNotNull { photo ->
+            val taken = takenAt(photo) ?: return@mapNotNull null
+            if (PartyGames.sameDayPastYear(taken, now)) photo to taken else null
+        }.toList().sortedBy { it.second }
+    }
+
+    private fun takenAt(photo: PhotoItem): Long? = runCatching {
+        val exif = when (val ref = photo.ref) {
+            is PhotoRef.LocalFile -> android.media.ExifInterface(ref.path)
+            is PhotoRef.LocalUri -> context.contentResolver.openInputStream(Uri.parse(ref.value))?.use { android.media.ExifInterface(it) }
+            else -> null
+        } ?: return@runCatching null
+        val text = exif.getAttribute(android.media.ExifInterface.TAG_DATETIME_ORIGINAL) ?: exif.getAttribute(android.media.ExifInterface.TAG_DATETIME) ?: return@runCatching null
+        java.text.SimpleDateFormat("yyyy:MM:dd HH:mm:ss", java.util.Locale.ROOT).parse(text)?.time
+    }.getOrNull()
 
     fun partyLogo(): ByteArray? = partySetup.logo()
 
@@ -1211,7 +1311,14 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             Destination.TOAST, Destination.COINS -> navigate(Destination.PARTY_GAMES)
             Destination.SHOWS, Destination.BUZZER, Destination.CAMERA -> navigate(Destination.GAMES)
             Destination.REWIND, Destination.BARCODE, Destination.PHOTO_MOSAIC, Destination.CREDITS,
-            Destination.TELETEXT, Destination.SKY, Destination.STATS -> navigate(Destination.SHOWS)
+            Destination.TELETEXT, Destination.SKY, Destination.STATS,
+            Destination.ABSENT, Destination.ARTWORK, Destination.SOUND_SHOW, Destination.LIVING_QR,
+            Destination.DREAM, Destination.MUSEUM, Destination.CHAPTERS, Destination.ON_THIS_DAY -> navigate(Destination.SHOWS)
+            Destination.DIFFERENCES, Destination.QUIZ_HOSTS, Destination.QUIZ_KIDS, Destination.QUIZ_SONGS -> {
+                phoneGame.stop()
+                stopSnippet()
+                navigate(Destination.GAMES)
+            }
             Destination.GOOGLE_CONNECT -> cancelGoogleConnect()
             Destination.SETTINGS, Destination.GAMES, Destination.GUESTS -> navigate(Destination.HOME)
             Destination.EXTRA_SCREEN, Destination.ANYWHERE -> navigate(Destination.GUESTS)
@@ -2625,6 +2732,9 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         usbJob?.cancel()
         sleepJob?.cancel()
         guests.discoSource = null
+        snippetJob?.cancel()
+        snippetPlayer?.let { runCatching { it.stop() }; it.release() }
+        snippetPlayer = null
         musicPlayer.release()
         stopHotspot()
         partyHub.onChange = null
@@ -2648,6 +2758,9 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         const val CAPSULE_PHOTOS = "foto"
         const val INDEX_TIMEOUT_MS = 90_000L
         const val PIN_LENGTH = 4
+        const val MAX_SONG_ROUNDS = 10
+        const val SNIPPET_MS = 15_000L
+        const val MAX_ON_THIS_DAY_SCAN = 3_000
         const val REVIEW_MIN_PHOTOS = 10
         const val REVIEW_EVERY_MS = 90L * 24 * 60 * 60_000
         /** Sotto questo segnale (dBm) i telefoni lontani dalla TV mandano le foto a fatica. */

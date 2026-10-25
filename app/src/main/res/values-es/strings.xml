@@ -1118,4 +1118,96 @@
         <item quantity="many">Cada %d fotos</item>
         <item quantity="other">Cada %d fotos</item>
     </plurals>
+
+    <!-- Ondata 11: giochi ed effetti -->
+    <string name="show_absent">¿Quién falta?</string>
+    <string name="show_absent_body">Los invitados esperados que aún no han enviado una foto, y los que ya están.</string>
+    <string name="show_artwork">La obra de arte de la fiesta</string>
+    <string name="show_artwork_body">Un cuadro abstracto pintado con los colores de las fotos.</string>
+    <string name="show_sound">La fiesta suena</string>
+    <string name="show_sound_body">Una melodía de cajita de música, una nota por foto, según su luz y sus colores.</string>
+    <string name="show_living_qr">QR viviente</string>
+    <string name="show_living_qr_body">El QR de la fiesta dibujado con las fotos de los invitados, y se escanea igual.</string>
+    <string name="show_dream">Sueño</string>
+    <string name="show_dream_body">Las fotos se funden unas con otras, despacio, como en un sueño.</string>
+    <string name="show_museum">Museo</string>
+    <string name="show_museum_body">Cada foto en un marco dorado con su cartela de museo.</string>
+    <string name="show_chapters">Capítulos de la fiesta</string>
+    <string name="show_chapters_body">La fiesta contada en capítulos, marcados desde la dirección.</string>
+    <string name="show_on_this_day">Tal día como hoy</string>
+    <string name="show_on_this_day_body">Las fotos tomadas en esta fecha en años pasados, de las fuentes de fotos.</string>
+    <string name="show_differences">Encuentra las diferencias</string>
+    <string name="absent_empty">Añade los invitados esperados desde la dirección («Preparar la fiesta»).</string>
+    <string name="artwork_caption">%1$s, pintada con %2$d fotos</string>
+    <string name="artwork_title">Composición con los colores de la fiesta</string>
+    <string name="artwork_technique">Luz sobre TV, a partir de %d fotos</string>
+    <string name="artwork_again">Pintar otro</string>
+    <string name="sound_again">Volver a tocar</string>
+    <string name="sound_loading">Afinando las fotos…</string>
+    <string name="museum_subtitle">Colección permanente: %s</string>
+    <string name="museum_work">Sin título n.º %d</string>
+    <string name="museum_unknown">Artista desconocido</string>
+    <string name="museum_technique">Fotografía con smartphone, impresión digital sobre TV</string>
+    <string name="museum_collection">Colección: %s</string>
+    <string name="chapters_empty">Marca un capítulo desde la dirección (p. ej. «La cena», «La tarta») y las fotos se agrupan aquí.</string>
+    <string name="chapters_number">Capítulo %d</string>
+    <string name="chapters_first">El principio</string>
+    <string name="on_this_day_loading">Buscando las fotos de este día…</string>
+    <string name="on_this_day_empty">Ninguna foto tomada en esta fecha en años pasados.</string>
+    <string name="differences_subtitle">%d diferencias entre las dos fotos: ¿quién las encuentra primero?</string>
+    <string name="differences_next">Foto siguiente</string>
+    <string name="differences_reveal">Mostrar las diferencias</string>
+    <string name="quiz_progress">Pregunta %1$d de %2$d</string>
+    <string name="quiz_reveal">Mostrar la respuesta</string>
+    <string name="quiz_next">Pregunta siguiente</string>
+    <string name="quiz_restart">Empezar de nuevo</string>
+    <string name="quiz_play_again">Volver a escuchar</string>
+    <string name="quiz_kids_question">¿Quién es de pequeño?</string>
+    <string name="quiz_songs_question">¿Qué canción es?</string>
+    <string name="quiz_hosts_empty">Escribe las preguntas desde la dirección: una por línea, «¿Pregunta? | respuesta correcta | incorrecta | incorrecta».</string>
+    <string name="quiz_kids_empty">Sube desde la dirección al menos dos fotos de pequeños con el nombre.</string>
+    <string name="quiz_songs_empty">Elige en los ajustes una carpeta de música con al menos tres canciones.</string>
+    <string name="games_differences_title">Encuentra las diferencias</string>
+    <string name="games_differences_body">Dos copias de una foto de la fiesta: cinco cosas han cambiado.</string>
+    <string name="games_quiz_hosts_title">El quiz de los homenajeados</string>
+    <string name="games_quiz_hosts_body">Preguntas escritas desde la dirección, con las respuestas en los móviles.</string>
+    <string name="games_quiz_kids_title">¿Quién es de pequeño?</string>
+    <string name="games_quiz_kids_body">Fotos de pequeños subidas desde la dirección: adivina quiénes son.</string>
+    <string name="games_quiz_songs_title">Adivina la canción</string>
+    <string name="games_quiz_songs_body">Unos segundos de la música de la fiesta: ¿qué canción es?</string>
+    <string name="message_chapter">Nuevo capítulo: %s</string>
+    <plurals name="absent_missing">
+        <item quantity="one">Falta %d persona</item>
+        <item quantity="many">Faltan %d personas</item>
+        <item quantity="other">Faltan %d personas</item>
+    </plurals>
+    <plurals name="absent_present">
+        <item quantity="one">%d ya está aquí</item>
+        <item quantity="many">%d ya están aquí</item>
+        <item quantity="other">%d ya están aquí</item>
+    </plurals>
+    <plurals name="on_this_day_years">
+        <item quantity="one">Hoy hace %d año</item>
+        <item quantity="many">Hoy hace %d años</item>
+        <item quantity="other">Hoy hace %d años</item>
+    </plurals>
+
+    <!-- Ondata 11: sovrapposizioni dello slideshow -->
+    <string name="settings_panoramas">Panorámicas en movimiento</string>
+    <string name="settings_panoramas_body">Las fotos muy anchas llenan la altura de la pantalla y se deslizan de un lado a otro.</string>
+    <string name="settings_rival_party">La fiesta rival</string>
+    <string name="settings_rival_party_body">De vez en cuando llega un mensaje de desafío de una fiesta imaginaria de al lado. Solo para reír.</string>
+    <string name="settings_bored_tv">La TV se aburre</string>
+    <string name="settings_bored_tv_body">Tras 10 minutos sin fotos nuevas de los invitados, la TV bosteza y pide una.</string>
+    <string name="rival_from">Mensaje de la fiesta rival</string>
+    <string name="rival_1">Aquí hay más gente. Y la tarta es más grande.</string>
+    <string name="rival_2">¿Solo unas fotos en los últimos minutos? Nosotros vamos por 40.</string>
+    <string name="rival_3">Nuestro DJ dice que el vuestro va demasiado lento.</string>
+    <string name="rival_4">Aquí baila todo el mundo. ¿Y ahí?</string>
+    <string name="rival_5">¿A que no mandáis 10 fotos en 5 minutos?</string>
+    <string name="rival_6">Nosotros ya nos hemos acabado la tarta. ¿Vosotros la habéis cortado?</string>
+    <string name="rival_7">¿Una foto de grupo con todos? Nosotros la hicimos hace una hora.</string>
+    <string name="rival_8">Vale, vale… vuestra fiesta tampoco está mal. 😉</string>
+    <string name="bored_title">Me estoy aburriendo…</string>
+    <string name="bored_body">Ninguna foto nueva desde hace %d minutos: ¿quién me manda la siguiente?</string>
 </resources>

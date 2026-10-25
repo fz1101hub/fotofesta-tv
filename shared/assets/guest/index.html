@@ -184,6 +184,9 @@
   .upload { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; margin-top: 8px; border-radius: 12px; background: var(--raised); font-weight: 700; cursor: pointer; }
   .upload input { position: absolute; width: 1px; height: 1px; opacity: 0; }
   #setupBox textarea { min-height: 110px; }
+  .kids { list-style: none; padding: 0; margin: 8px 0; display: flex; flex-wrap: wrap; gap: 8px; }
+  .kids li { display: flex; align-items: center; gap: 6px; background: var(--raised); border-radius: 999px; padding: 4px 4px 4px 12px; }
+  .kids button { width: 28px; height: 28px; border-radius: 50%; border: 0; background: var(--err); color: #000; font-weight: 800; cursor: pointer; }
 
   /* Testo più grande e contrasto alto */
   html.large { font-size: 118%; }
@@ -477,6 +480,14 @@
         <label class="field" for="setupGuests" id="setupGuestsLabel" style="margin-top:12px"></label>
         <textarea id="setupGuests" maxlength="4000"></textarea>
         <button type="button" class="wide" id="setupGuestsSave"></button>
+        <label class="field" for="setupChapter" id="setupChapterLabel" style="margin-top:12px"></label>
+        <div class="row"><input type="text" id="setupChapter" maxlength="60"><button type="button" id="setupChapterSave"></button></div>
+        <label class="field" for="setupQuiz" id="setupQuizLabel" style="margin-top:12px"></label>
+        <textarea id="setupQuiz" maxlength="6000"></textarea>
+        <button type="button" class="wide" id="setupQuizSave"></button>
+        <p class="muted" id="setupKidsLabel" style="margin-top:12px"></p>
+        <ul class="kids" id="setupKids"></ul>
+        <div class="row"><input type="text" id="setupKidName" maxlength="40"><label class="upload"><span id="setupKidPick"></span><input type="file" id="setupKidFile" accept="image/*"></label></div>
         <p class="muted" id="setupStatus" aria-live="polite"></p>
       </details>
       <details id="invite" style="margin-top:12px">
@@ -732,6 +743,16 @@ const IT = {
   setupRemove: "Togli",
   setupUploading: "Mando alla TV…",
   setupFull: "Non c'è più posto: togli prima uno sponsor.",
+  setupChapterLabel: "Nuovo capitolo della festa (es. «La torta»)",
+  setupChapterSave: "Inizia",
+  setupChapterPlaceholder: "La torta",
+  setupQuizLabel: "Quiz dei festeggiati, una domanda per riga: domanda | giusta | sbagliata | sbagliata",
+  setupQuizPlaceholder: "Dove si sono conosciuti? | A Roma | A Parigi | Al mare",
+  setupKidsLabel: "Foto da piccoli per «Chi è da piccolo?» (solo sulla TV)",
+  setupKidName: "Nome",
+  setupKidPick: "Aggiungi foto",
+  setupKidNeedsName: "Scrivi prima il nome, poi scegli la foto.",
+  setupKidsFull: "Non c'è più posto: togli prima una foto da piccolo.",
 };
 const EN = {
   announceKicker: "Announcement",
@@ -961,6 +982,16 @@ const EN = {
   setupRemove: "Remove",
   setupUploading: "Sending to the TV…",
   setupFull: "No more room: remove a sponsor first.",
+  setupChapterLabel: "New chapter of the party (e.g. “The cake”)",
+  setupChapterSave: "Start",
+  setupChapterPlaceholder: "The cake",
+  setupQuizLabel: "Hosts' quiz, one question per line: question | right answer | wrong | wrong",
+  setupQuizPlaceholder: "Where did they meet? | In Rome | In Paris | At the beach",
+  setupKidsLabel: "Childhood photos for “Who is it as a child?” (only on the TV)",
+  setupKidName: "Name",
+  setupKidPick: "Add photo",
+  setupKidNeedsName: "Write the name first, then choose the photo.",
+  setupKidsFull: "No more room: remove a childhood photo first.",
 };
 const FR = {
   announceKicker: "Annonce",
@@ -1190,6 +1221,16 @@ const FR = {
   setupRemove: "Retirer",
   setupUploading: "Envoi à la TV…",
   setupFull: "Plus de place : retirez d'abord un sponsor.",
+  setupChapterLabel: "Nouveau chapitre de la fête (ex. « Le gâteau »)",
+  setupChapterSave: "Commencer",
+  setupChapterPlaceholder: "Le gâteau",
+  setupQuizLabel: "Quiz des fêtés, une question par ligne : question | bonne | fausse | fausse",
+  setupQuizPlaceholder: "Où se sont-ils rencontrés ? | À Rome | À Paris | À la plage",
+  setupKidsLabel: "Photos d'enfance pour « Qui est-ce, enfant ? » (seulement sur la TV)",
+  setupKidName: "Prénom",
+  setupKidPick: "Ajouter une photo",
+  setupKidNeedsName: "Écrivez d'abord le prénom, puis choisissez la photo.",
+  setupKidsFull: "Plus de place : retirez d'abord une photo d'enfance.",
 };
 const ES = {
   announceKicker: "Anuncio",
@@ -1419,6 +1460,16 @@ const ES = {
   setupRemove: "Quitar",
   setupUploading: "Enviando a la TV…",
   setupFull: "No queda sitio: quita primero un patrocinador.",
+  setupChapterLabel: "Nuevo capítulo de la fiesta (p. ej. «La tarta»)",
+  setupChapterSave: "Empezar",
+  setupChapterPlaceholder: "La tarta",
+  setupQuizLabel: "Quiz de los homenajeados, una pregunta por línea: pregunta | correcta | incorrecta | incorrecta",
+  setupQuizPlaceholder: "¿Dónde se conocieron? | En Roma | En París | En la playa",
+  setupKidsLabel: "Fotos de pequeños para «¿Quién es de pequeño?» (solo en la TV)",
+  setupKidName: "Nombre",
+  setupKidPick: "Añadir foto",
+  setupKidNeedsName: "Escribe primero el nombre y luego elige la foto.",
+  setupKidsFull: "No queda sitio: quita primero una foto de pequeño.",
 };
 const DE = {
   announceKicker: "Durchsage",
@@ -1648,6 +1699,16 @@ const DE = {
   setupRemove: "Entfernen",
   setupUploading: "Wird an den Fernseher gesendet…",
   setupFull: "Kein Platz mehr: Entferne zuerst einen Sponsor.",
+  setupChapterLabel: "Neues Kapitel der Party (z. B. „Die Torte“)",
+  setupChapterSave: "Starten",
+  setupChapterPlaceholder: "Die Torte",
+  setupQuizLabel: "Gastgeber-Quiz, eine Frage pro Zeile: Frage | richtig | falsch | falsch",
+  setupQuizPlaceholder: "Wo haben sie sich kennengelernt? | In Rom | In Paris | Am Meer",
+  setupKidsLabel: "Kinderfotos für „Wer ist das als Kind?“ (nur auf dem Fernseher)",
+  setupKidName: "Name",
+  setupKidPick: "Foto hinzufügen",
+  setupKidNeedsName: "Schreib zuerst den Namen, dann wähle das Foto.",
+  setupKidsFull: "Kein Platz mehr: Entferne zuerst ein Kinderfoto.",
 };
 const TEXTS = { it: IT, en: EN, fr: FR, es: ES, de: DE };
 // Prima lingua del telefono che la pagina conosce, altrimenti inglese.
@@ -3500,7 +3561,12 @@ function showSetup(setup) {
 
 // Regia: prepara la festa.
 const ACCENTS = ["#ff7a57", "#ff4f9a", "#8b6cff", "#3da9fc", "#4cd787", "#ffc145", "#e5484d", "#c8a26b"];
-for (const id of ["setupTitle", "setupNameLabel", "setupColorLabel", "setupLogoLabel", "setupLogoPick", "setupSponsorLabel", "setupSponsorPick", "setupScheduleLabel", "setupGuestsLabel"]) $(id).textContent = T[id];
+for (const id of ["setupTitle", "setupNameLabel", "setupColorLabel", "setupLogoLabel", "setupLogoPick", "setupSponsorLabel", "setupSponsorPick", "setupScheduleLabel", "setupGuestsLabel", "setupChapterLabel", "setupQuizLabel", "setupKidsLabel", "setupKidPick"]) $(id).textContent = T[id];
+$("setupChapterSave").textContent = T.setupChapterSave;
+$("setupQuizSave").textContent = T.setupSave;
+$("setupQuiz").placeholder = T.setupQuizPlaceholder;
+$("setupChapter").placeholder = T.setupChapterPlaceholder;
+$("setupKidName").placeholder = T.setupKidName;
 $("setupNameSave").textContent = T.setupSave;
 $("setupScheduleSave").textContent = T.setupSave;
 $("setupGuestsSave").textContent = T.setupSave;
@@ -3526,7 +3592,20 @@ function showHostSetup(setup) {
     $("setupName").value = setup.name || "";
     $("setupSchedule").value = (setup.schedule || []).map((slot) => slot.time + " " + slot.title).join("\n");
     $("setupGuests").value = (setup.guests || []).join("\n");
+    $("setupQuiz").value = setup.quiz || "";
   }
+  const kids = $("setupKids");
+  kids.textContent = "";
+  (setup.kids || []).forEach((kid) => {
+    const li = document.createElement("li");
+    const name = document.createElement("span");
+    name.textContent = kid.name;
+    const remove = document.createElement("button");
+    remove.type = "button"; remove.textContent = "✕"; remove.setAttribute("aria-label", T.setupRemove);
+    remove.addEventListener("click", () => hostCommand({ command: "kid_remove", id: kid.id }));
+    li.append(name, remove);
+    kids.appendChild(li);
+  });
   for (const button of $("setupColors").children) button.classList.toggle("on", button.dataset.color === setup.accent);
   const logo = $("setupLogo");
   logo.textContent = "";
@@ -3562,6 +3641,12 @@ function showHostSetup(setup) {
 $("setupNameSave").addEventListener("click", () => hostCommand({ command: "brand_name", text: $("setupName").value.trim() }).then(setupDone));
 $("setupScheduleSave").addEventListener("click", () => hostCommand({ command: "schedule", text: $("setupSchedule").value }).then(setupDone));
 $("setupGuestsSave").addEventListener("click", () => hostCommand({ command: "guest_list", text: $("setupGuests").value }).then(setupDone));
+$("setupQuizSave").addEventListener("click", () => hostCommand({ command: "quiz", text: $("setupQuiz").value }).then(setupDone));
+$("setupChapterSave").addEventListener("click", () => {
+  const title = $("setupChapter").value.trim();
+  if (!title) { $("setupChapter").focus(); return; }
+  hostCommand({ command: "chapter", text: title }).then(() => { $("setupChapter").value = ""; setupDone(); });
+});
 
 // Logo e sponsor: ridotti sul telefono prima di mandarli (al massimo 1280 pixel per lato).
 async function shrinkImage(file, maxSide, type) {
@@ -3573,17 +3658,17 @@ async function shrinkImage(file, maxSide, type) {
   canvas.canvas.width = 0; canvas.canvas.height = 0;
   return blob;
 }
-async function uploadSetupImage(file, kind) {
+async function uploadSetupImage(file, kind, name) {
   $("setupStatus").textContent = T.setupUploading;
   try {
     const blob = await shrinkImage(file, kind === "logo" ? 512 : 1280, kind === "logo" ? "image/png" : "image/jpeg");
-    const response = await fetch("/party/host/upload?kind=" + kind, {
+    const response = await fetch("/party/host/upload?kind=" + kind + (name ? "&name=" + encodeURIComponent(name) : ""), {
       method: "POST",
       headers: { "X-FotoFesta-Key": KEY, "X-FotoFesta-Host": hostToken, "Content-Type": blob.type },
       body: blob,
     });
     if (response.ok) { logoVersion++; setupDone(); pollHost(); return; }
-    $("setupStatus").textContent = response.status === 507 ? T.setupFull : T.offline;
+    $("setupStatus").textContent = response.status === 507 ? (kind === "kid" ? T.setupKidsFull : T.setupFull) : T.offline;
   } catch (e) {
     $("setupStatus").textContent = T.unsupported;
   }
@@ -3597,6 +3682,15 @@ $("setupSponsorFile").addEventListener("change", async (event) => {
   const files = Array.from(event.target.files || []);
   event.target.value = "";
   for (const file of files) await uploadSetupImage(file, "sponsor");
+});
+$("setupKidFile").addEventListener("change", async (event) => {
+  const file = event.target.files && event.target.files[0];
+  event.target.value = "";
+  const name = $("setupKidName").value.trim();
+  if (!file) return;
+  if (!name) { $("setupStatus").textContent = T.setupKidNeedsName; $("setupKidName").focus(); return; }
+  await uploadSetupImage(file, "kid", name);
+  $("setupKidName").value = "";
 });
 
 // Testo più grande, ricordato da questo telefono.

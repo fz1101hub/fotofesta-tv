@@ -24,11 +24,17 @@ class PartySetup(private val directory: File) {
         val time: String get() = String.format(java.util.Locale.ROOT, "%02d:%02d", minuteOfDay / 60, minuteOfDay % 60)
     }
 
+    /** Foto di un invitato da piccolo, per il gioco "Chi è da piccolo?". */
+    data class Kid(val id: String, val name: String)
+
     data class State(
         val brand: Brand = Brand(),
         val schedule: List<Slot> = emptyList(),
         val sponsors: List<String> = emptyList(),
         val guestList: List<String> = emptyList(),
+        /** Quiz sui festeggiati, una domanda per riga ("Domanda? | giusta | sbagliata"). */
+        val quiz: String = "",
+        val kids: List<Kid> = emptyList(),
     )
 
     private val random = SecureRandom()
@@ -80,6 +86,30 @@ class PartySetup(private val directory: File) {
         state.copy(guestList = names)
     }
 
+    fun setQuiz(text: String?) = update { it.copy(quiz = text.orEmpty().take(MAX_QUIZ_TEXT)) }
+
+    /** Foto da piccolo di [name] per il gioco; null se sono già [MAX_KIDS] o non è un'immagine. */
+    fun addKid(name: String?, bytes: ByteArray): String? = synchronized(this) {
+        val cleanName = GuestSender.clean(name) ?: return null
+        if (bytes.size > MAX_IMAGE_BYTES || ImageFormat.sniff(bytes) == null || _state.value.kids.size >= MAX_KIDS) return null
+        directory.mkdirs()
+        val id = ByteArray(6).also(random::nextBytes).joinToString("") { "%02x".format(it) }
+        File(directory, "kid_$id").writeBytes(bytes)
+        update { it.copy(kids = it.kids + Kid(id, cleanName)) }
+        id
+    }
+
+    fun removeKid(id: String) = synchronized(this) {
+        // Solo gli id conosciuti: il nome del file non deve mai venire da fuori così com'è.
+        if (_state.value.kids.none { it.id == id }) return@synchronized
+        File(directory, "kid_$id").delete()
+        update { it.copy(kids = it.kids.filterNot { kid -> kid.id == id }) }
+    }
+
+    fun kidPhoto(id: String): ByteArray? = synchronized(this) {
+        id.takeIf { wanted -> _state.value.kids.any { it.id == wanted } }?.let { File(directory, "kid_$it") }?.takeIf { it.exists() }?.readBytes()
+    }
+
     /** Tutto in un JSON, immagini comprese: per preparare una chiavetta o un'altra TV. */
     fun exportJson(): String = synchronized(this) {
         val current = _state.value
@@ -91,6 +121,8 @@ class PartySetup(private val directory: File) {
             put("schedule", JSONArray(current.schedule.map { "${it.time} ${it.title}" }))
             put("guests", JSONArray(current.guestList))
             put("sponsors", JSONArray(current.sponsors.mapNotNull { sponsor(it) }.map { Base64.getEncoder().encodeToString(it) }))
+            // Le foto da piccoli restano sulla TV: sono personali e pesanti.
+            put("quiz", current.quiz)
         }.toString()
     }
 
@@ -104,6 +136,7 @@ class PartySetup(private val directory: File) {
         setLogo(json.optString("logo").takeIf(String::isNotEmpty)?.let { runCatching { Base64.getDecoder().decode(it) }.getOrNull() })
         setSchedule(json.optJSONArray("schedule")?.let { array -> (0 until array.length()).joinToString("\n") { array.optString(it) } })
         setGuestList(json.optJSONArray("guests")?.let { array -> (0 until array.length()).joinToString("\n") { array.optString(it) } })
+        setQuiz(json.optString("quiz"))
         json.optJSONArray("sponsors")?.let { array ->
             for (index in 0 until minOf(array.length(), MAX_SPONSORS)) {
                 runCatching { Base64.getDecoder().decode(array.optString(index)) }.getOrNull()?.let(::addSponsor)
@@ -133,6 +166,8 @@ class PartySetup(private val directory: File) {
             put("schedule", JSONArray(current.schedule.map { JSONObject().put("time", it.time).put("title", it.title) }))
             put("sponsors", JSONArray(current.sponsors))
             put("guests", JSONArray(current.guestList))
+            put("quiz", current.quiz)
+            put("kids", JSONArray(current.kids.map { JSONObject().put("id", it.id).put("name", it.name) }))
         }.toString()
     }
 
@@ -149,6 +184,8 @@ class PartySetup(private val directory: File) {
                         put("schedule", JSONArray(next.schedule.map { "${it.time} ${it.title}" }))
                         put("guests", JSONArray(next.guestList))
                         put("sponsors", JSONArray(next.sponsors))
+                        put("quiz", next.quiz)
+                        put("kids", JSONArray(next.kids.map { JSONObject().put("id", it.id).put("name", it.name) }))
                     }.toString(),
                 )
             }
@@ -167,6 +204,13 @@ class PartySetup(private val directory: File) {
             schedule = parseSchedule(list("schedule").joinToString("\n")),
             sponsors = list("sponsors").filter { File(directory, "sponsor_$it").exists() },
             guestList = list("guests"),
+            quiz = json.optString("quiz"),
+            kids = json.optJSONArray("kids")?.let { array ->
+                (0 until array.length()).mapNotNull { index ->
+                    val item = array.optJSONObject(index) ?: return@mapNotNull null
+                    Kid(item.optString("id"), item.optString("name")).takeIf { File(directory, "kid_${it.id}").exists() }
+                }
+            }.orEmpty(),
         )
     }.getOrDefault(State())
 
@@ -174,6 +218,8 @@ class PartySetup(private val directory: File) {
         const val MAX_IMAGE_BYTES = 2 * 1024 * 1024
         const val MAX_SPONSORS = 8
         const val MAX_GUESTS = 300
+        const val MAX_KIDS = 40
+        const val MAX_QUIZ_TEXT = 6_000
         const val MAX_SLOTS = 30
         private const val MAX_NAME = 60
         private const val LOGO = "logo"

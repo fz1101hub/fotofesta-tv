@@ -1118,4 +1118,96 @@
         <item quantity="many">Toutes les %d photos</item>
         <item quantity="other">Toutes les %d photos</item>
     </plurals>
+
+    <!-- Ondata 11: giochi ed effetti -->
+    <string name="show_absent">Qui manque ?</string>
+    <string name="show_absent_body">Les invités attendus qui n\'ont pas encore envoyé de photo, et ceux déjà là.</string>
+    <string name="show_artwork">L\'œuvre d\'art de la fête</string>
+    <string name="show_artwork_body">Un tableau abstrait peint avec les couleurs des photos.</string>
+    <string name="show_sound">La fête joue</string>
+    <string name="show_sound_body">Un air de boîte à musique, une note par photo, selon sa lumière et ses couleurs.</string>
+    <string name="show_living_qr">QR vivant</string>
+    <string name="show_living_qr_body">Le QR de la fête dessiné avec les photos des invités, et il se scanne quand même.</string>
+    <string name="show_dream">Rêve</string>
+    <string name="show_dream_body">Les photos se fondent les unes dans les autres, lentement, comme dans un rêve.</string>
+    <string name="show_museum">Musée</string>
+    <string name="show_museum_body">Chaque photo dans un cadre doré avec son cartel de musée.</string>
+    <string name="show_chapters">Chapitres de la fête</string>
+    <string name="show_chapters_body">La fête racontée en chapitres, marqués depuis la régie.</string>
+    <string name="show_on_this_day">Ce jour-là</string>
+    <string name="show_on_this_day_body">Les photos prises à cette date les années passées, depuis les sources de photos.</string>
+    <string name="show_differences">Jeu des différences</string>
+    <string name="absent_empty">Ajoutez les invités attendus depuis la régie (« Préparer la fête »).</string>
+    <string name="artwork_caption">%1$s, peinte avec %2$d photos</string>
+    <string name="artwork_title">Composition aux couleurs de la fête</string>
+    <string name="artwork_technique">Lumière sur TV, d\'après %d photos</string>
+    <string name="artwork_again">En peindre un autre</string>
+    <string name="sound_again">Rejouer</string>
+    <string name="sound_loading">J\'accorde les photos…</string>
+    <string name="museum_subtitle">Collection permanente : %s</string>
+    <string name="museum_work">Sans titre n° %d</string>
+    <string name="museum_unknown">Artiste inconnu</string>
+    <string name="museum_technique">Photographie sur smartphone, tirage numérique sur TV</string>
+    <string name="museum_collection">Collection : %s</string>
+    <string name="chapters_empty">Marquez un chapitre depuis la régie (ex. « Le dîner », « Le gâteau ») et les photos se regroupent ici.</string>
+    <string name="chapters_number">Chapitre %d</string>
+    <string name="chapters_first">Le début</string>
+    <string name="on_this_day_loading">Je cherche les photos de ce jour…</string>
+    <string name="on_this_day_empty">Aucune photo prise à cette date les années passées.</string>
+    <string name="differences_subtitle">%d différences entre les deux photos : qui les trouve en premier ?</string>
+    <string name="differences_next">Photo suivante</string>
+    <string name="differences_reveal">Montrer les différences</string>
+    <string name="quiz_progress">Question %1$d sur %2$d</string>
+    <string name="quiz_reveal">Montrer la réponse</string>
+    <string name="quiz_next">Question suivante</string>
+    <string name="quiz_restart">Recommencer</string>
+    <string name="quiz_play_again">Réécouter l\'extrait</string>
+    <string name="quiz_kids_question">Qui est-ce, enfant ?</string>
+    <string name="quiz_songs_question">Quelle est cette chanson ?</string>
+    <string name="quiz_hosts_empty">Écrivez les questions depuis la régie : une par ligne, « Question ? | bonne réponse | fausse | fausse ».</string>
+    <string name="quiz_kids_empty">Ajoutez depuis la régie au moins deux photos d\'enfance avec le prénom.</string>
+    <string name="quiz_songs_empty">Choisissez dans les réglages un dossier de musique d\'au moins trois chansons.</string>
+    <string name="games_differences_title">Jeu des différences</string>
+    <string name="games_differences_body">Deux copies d\'une photo de la fête : cinq choses ont changé.</string>
+    <string name="games_quiz_hosts_title">Le quiz des fêtés</string>
+    <string name="games_quiz_hosts_body">Questions écrites depuis la régie, avec les réponses sur les téléphones.</string>
+    <string name="games_quiz_kids_title">Qui est-ce, enfant ?</string>
+    <string name="games_quiz_kids_body">Photos d\'enfance ajoutées depuis la régie : devinez qui c\'est.</string>
+    <string name="games_quiz_songs_title">Devinez la chanson</string>
+    <string name="games_quiz_songs_body">Quelques secondes de la musique de la fête : quelle chanson ?</string>
+    <string name="message_chapter">Nouveau chapitre : %s</string>
+    <plurals name="absent_missing">
+        <item quantity="one">%d absent</item>
+        <item quantity="many">%d absents</item>
+        <item quantity="other">%d absents</item>
+    </plurals>
+    <plurals name="absent_present">
+        <item quantity="one">%d est là</item>
+        <item quantity="many">%d sont là</item>
+        <item quantity="other">%d sont là</item>
+    </plurals>
+    <plurals name="on_this_day_years">
+        <item quantity="one">Il y a %d an, aujourd\'hui</item>
+        <item quantity="many">Il y a %d ans, aujourd\'hui</item>
+        <item quantity="other">Il y a %d ans, aujourd\'hui</item>
+    </plurals>
+
+    <!-- Ondata 11: sovrapposizioni dello slideshow -->
+    <string name="settings_panoramas">Panoramas qui défilent</string>
+    <string name="settings_panoramas_body">Les photos très larges remplissent la hauteur de l\'écran et glissent d\'un côté à l\'autre.</string>
+    <string name="settings_rival_party">La fête rivale</string>
+    <string name="settings_rival_party_body">De temps en temps, un message moqueur arrive d\'une fête imaginaire d\'à côté. Pour rire.</string>
+    <string name="settings_bored_tv">La TV s\'ennuie</string>
+    <string name="settings_bored_tv_body">Après 10 minutes sans nouvelle photo des invités, la TV bâille et en réclame une.</string>
+    <string name="rival_from">Message de la fête rivale</string>
+    <string name="rival_1">Chez nous il y a plus de monde. Et le gâteau est plus gros.</string>
+    <string name="rival_2">Seulement quelques photos ces dernières minutes ? Nous, on en est à 40.</string>
+    <string name="rival_3">Notre DJ dit que le vôtre joue trop lentement.</string>
+    <string name="rival_4">Ici tout le monde danse. Et chez vous ?</string>
+    <string name="rival_5">Parie que vous n\'enverrez pas 10 photos en 5 minutes ?</string>
+    <string name="rival_6">On a fini le gâteau. Vous l\'avez au moins coupé ?</string>
+    <string name="rival_7">Une photo de groupe avec tout le monde ? On l\'a faite il y a une heure.</string>
+    <string name="rival_8">Bon, d\'accord… votre fête n\'est pas mal non plus. 😉</string>
+    <string name="bored_title">Je m\'ennuie…</string>
+    <string name="bored_body">Aucune nouvelle photo depuis %d minutes : qui m\'envoie la suivante ?</string>
 </resources>

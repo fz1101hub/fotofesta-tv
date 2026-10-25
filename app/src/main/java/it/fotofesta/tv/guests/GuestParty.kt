@@ -243,9 +243,13 @@ class GuestParty(
 
         override fun sponsor(id: String): ByteArray? = setup?.sponsor(id)
 
-        override fun hostUpload(kind: String, bytes: ByteArray): Boolean {
+        override fun hostUpload(kind: String, bytes: ByteArray, name: String?): Boolean {
             val target = setup ?: return false
-            return if (kind == "logo") target.setLogo(bytes) else target.addSponsor(bytes) != null
+            return when (kind) {
+                "logo" -> target.setLogo(bytes)
+                "kid" -> target.addKid(name, bytes) != null
+                else -> target.addSponsor(bytes) != null
+            }
         }
 
         override fun phoneWallJson(player: String?): String = phoneWall?.phoneJson(player) ?: "null"

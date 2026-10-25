@@ -1073,4 +1073,93 @@
         <item quantity="one">Every photo</item>
         <item quantity="other">Every %d photos</item>
     </plurals>
+
+    <!-- Ondata 11: giochi ed effetti -->
+    <string name="show_absent">Who\'s missing?</string>
+    <string name="show_absent_body">The expected guests who haven\'t sent a photo yet, and those already here.</string>
+    <string name="show_artwork">The party\'s artwork</string>
+    <string name="show_artwork_body">An abstract painting made with the colours of the photos.</string>
+    <string name="show_sound">The party plays</string>
+    <string name="show_sound_body">A music-box tune with one note per photo, from its light and colours.</string>
+    <string name="show_living_qr">Living QR</string>
+    <string name="show_living_qr_body">The party QR drawn with the guests\' photos, and it still scans.</string>
+    <string name="show_dream">Dream</string>
+    <string name="show_dream_body">The photos melt into each other, slowly, like in a dream.</string>
+    <string name="show_museum">Museum</string>
+    <string name="show_museum_body">Every photo in a gilded frame with its museum label.</string>
+    <string name="show_chapters">Chapters of the party</string>
+    <string name="show_chapters_body">The party told in chapters, marked from the host remote.</string>
+    <string name="show_on_this_day">On this day</string>
+    <string name="show_on_this_day_body">Photos taken on today\'s date in past years, from the photo sources.</string>
+    <string name="show_differences">Spot the differences</string>
+    <string name="absent_empty">Add the expected guests from the host remote (“Get the party ready”).</string>
+    <string name="artwork_caption">%1$s, painted with %2$d photos</string>
+    <string name="artwork_title">Composition with party colours</string>
+    <string name="artwork_technique">Light on TV, from %d photos</string>
+    <string name="artwork_again">Paint another</string>
+    <string name="sound_again">Play again</string>
+    <string name="sound_loading">Tuning the photos…</string>
+    <string name="museum_subtitle">Permanent collection: %s</string>
+    <string name="museum_work">Untitled no. %d</string>
+    <string name="museum_unknown">Unknown artist</string>
+    <string name="museum_technique">Smartphone photograph, digital print on TV</string>
+    <string name="museum_collection">Collection: %s</string>
+    <string name="chapters_empty">Mark a chapter from the host remote (e.g. “Dinner”, “The cake”) and the photos will be grouped here.</string>
+    <string name="chapters_number">Chapter %d</string>
+    <string name="chapters_first">The beginning</string>
+    <string name="on_this_day_loading">Looking for photos from this day…</string>
+    <string name="on_this_day_empty">No photo taken on this date in past years.</string>
+    <string name="differences_subtitle">%d differences between the two photos: who spots them first?</string>
+    <string name="differences_next">Next photo</string>
+    <string name="differences_reveal">Show the differences</string>
+    <string name="quiz_progress">Question %1$d of %2$d</string>
+    <string name="quiz_reveal">Show the answer</string>
+    <string name="quiz_next">Next question</string>
+    <string name="quiz_restart">Start again</string>
+    <string name="quiz_play_again">Play the snippet again</string>
+    <string name="quiz_kids_question">Who is this as a child?</string>
+    <string name="quiz_songs_question">Which song is it?</string>
+    <string name="quiz_hosts_empty">Write the questions from the host remote: one per line, “Question? | right answer | wrong | wrong”.</string>
+    <string name="quiz_kids_empty">Upload at least two childhood photos with a name from the host remote.</string>
+    <string name="quiz_songs_empty">Choose a music folder with at least three songs in the settings.</string>
+    <string name="games_differences_title">Spot the differences</string>
+    <string name="games_differences_body">Two copies of a party photo: five things have changed.</string>
+    <string name="games_quiz_hosts_title">The hosts\' quiz</string>
+    <string name="games_quiz_hosts_body">Questions written from the host remote, with the answers on the phones.</string>
+    <string name="games_quiz_kids_title">Who is it as a child?</string>
+    <string name="games_quiz_kids_body">Childhood photos uploaded from the host remote: guess who they are.</string>
+    <string name="games_quiz_songs_title">Guess the song</string>
+    <string name="games_quiz_songs_body">A few seconds of the party\'s music: which song is it?</string>
+    <string name="message_chapter">New chapter: %s</string>
+    <plurals name="absent_missing">
+        <item quantity="one">Missing: %d</item>
+        <item quantity="other">Missing: %d</item>
+    </plurals>
+    <plurals name="absent_present">
+        <item quantity="one">%d is here</item>
+        <item quantity="other">%d are here</item>
+    </plurals>
+    <plurals name="on_this_day_years">
+        <item quantity="one">%d year ago today</item>
+        <item quantity="other">%d years ago today</item>
+    </plurals>
+
+    <!-- Ondata 11: sovrapposizioni dello slideshow -->
+    <string name="settings_panoramas">Scrolling panoramas</string>
+    <string name="settings_panoramas_body">Very wide photos fill the height of the screen and glide from one side to the other.</string>
+    <string name="settings_rival_party">The rival party</string>
+    <string name="settings_rival_party_body">Now and then a teasing message arrives from an imaginary party next door. Just for fun.</string>
+    <string name="settings_bored_tv">The TV gets bored</string>
+    <string name="settings_bored_tv_body">After 10 minutes without new photos from the guests, the TV yawns and asks for one.</string>
+    <string name="rival_from">Message from the rival party</string>
+    <string name="rival_1">We\'ve got more people than you. And a bigger cake.</string>
+    <string name="rival_2">Only a few photos in the last few minutes? We\'re at 40.</string>
+    <string name="rival_3">Our DJ says yours is playing too slow.</string>
+    <string name="rival_4">Here everybody is dancing. And over there?</string>
+    <string name="rival_5">Bet you can\'t send 10 photos in 5 minutes.</string>
+    <string name="rival_6">We\'ve finished the cake. Have you even cut yours?</string>
+    <string name="rival_7">A group photo with everyone? We did it an hour ago.</string>
+    <string name="rival_8">Okay, okay… your party isn\'t bad either. 😉</string>
+    <string name="bored_title">I\'m getting bored…</string>
+    <string name="bored_body">No new photos for %d minutes: who\'s sending the next one?</string>
 </resources>

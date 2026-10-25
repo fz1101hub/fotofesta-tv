@@ -26,6 +26,9 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
         val videos: Boolean = false,
     )
 
+    /** Inizio di un capitolo della festa ("Il taglio della torta"): le foto dopo [atMillis] gli appartengono. */
+    data class ChapterMark(val title: String, val atMillis: Long)
+
     /** Canzone chiesta da un telefono, per chi fa la musica. */
     data class SongRequest(val id: String, val text: String, val name: String?, val atMillis: Long)
 
@@ -69,6 +72,7 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
     private val reactionTimes = HashMap<String, ArrayDeque<Long>>()
     private val messageTimes = HashMap<String, ArrayDeque<Long>>()
     private val songs = ArrayList<SongRequest>()
+    private val chapters = ArrayList<ChapterMark>()
     private val songTimes = HashMap<String, ArrayDeque<Long>>()
     private val messages = ArrayList<Message>()
     private val names = LinkedHashMap<String, String>()
@@ -212,6 +216,18 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
         onChange?.invoke()
         return Result.OK
     }
+
+    /** Nuovo capitolo, dalla regia: al massimo [MAX_CHAPTERS]. */
+    fun chapter(title: String) {
+        synchronized(this) {
+            if (chapters.size >= MAX_CHAPTERS) return
+            chapters += ChapterMark(title, nowMillis())
+        }
+        onChange?.invoke()
+    }
+
+    @Synchronized
+    fun chapters(): List<ChapterMark> = chapters.toList()
 
     /** Canzoni chieste, dalla più vecchia. */
     @Synchronized
@@ -441,6 +457,7 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
             messages.clear()
             songs.clear()
             songTimes.clear()
+            chapters.clear()
             names.clear()
             arrivals.clear()
         }
@@ -559,6 +576,7 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
         const val DISPOSABLE_SHOTS = 27
         const val MAX_MESSAGES = 500
         const val MAX_SONGS = 200
+        const val MAX_CHAPTERS = 20
         const val MAX_SONG_LENGTH = 80
         const val SONG_BURST = 3
         const val SONG_WINDOW_MS = 5 * 60_000L

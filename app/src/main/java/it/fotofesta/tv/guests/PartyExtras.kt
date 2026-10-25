@@ -39,8 +39,8 @@ interface PartyExtras {
 
     fun sponsor(id: String): ByteArray? = null
 
-    /** Logo o sponsor mandato dalla regia: false se non va bene. */
-    fun hostUpload(kind: String, bytes: ByteArray): Boolean = false
+    /** Logo, sponsor o foto da piccolo ([name]) mandata dalla regia: false se non va bene. */
+    fun hostUpload(kind: String, bytes: ByteArray, name: String? = null): Boolean = false
 
     /** Foto approvate da portare a casa in un archivio; null se chi organizza non lo permette. */
     fun album(): List<ZipStream.Entry>? = null

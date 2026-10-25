@@ -80,6 +80,22 @@ class HostRemoteTest {
     }
 
     @Test
+    fun `quiz, chapters and childhood photos are host commands`() {
+        val received = mutableListOf<PartyCommand>()
+        host.onCommand = { received += it }
+        val token = token()
+        assertEquals(200, host.handle(token, mapOf("command" to "quiz", "text" to "Dove? | Roma | Parigi")).first)
+        assertEquals(200, host.handle(token, mapOf("command" to "chapter", "text" to " La torta ")).first)
+        assertEquals(400, host.handle(token, mapOf("command" to "chapter", "text" to " ")).first)
+        assertEquals(200, host.handle(token, mapOf("command" to "kid_remove", "id" to "a1b2c3")).first)
+        assertEquals(400, host.handle(token, mapOf("command" to "kid_remove", "id" to "../logo")).first)
+        assertEquals(
+            listOf(PartyCommand.SetQuiz("Dove? | Roma | Parigi"), PartyCommand.Chapter("La torta"), PartyCommand.RemoveKid("a1b2c3")),
+            received,
+        )
+    }
+
+    @Test
     fun `status lists what waits for approval`() {
         val hub = PartyHub { now }
         hub.setFeatures(PartyHub.Features(moderateMessages = true))

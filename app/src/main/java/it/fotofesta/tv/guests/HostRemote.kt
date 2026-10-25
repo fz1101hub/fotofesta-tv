@@ -27,6 +27,10 @@ sealed interface PartyCommand {
     data class SetGuestList(val text: String) : PartyCommand
     data object RemoveLogo : PartyCommand
     data class RemoveSponsor(val id: String) : PartyCommand
+    data class SetQuiz(val text: String) : PartyCommand
+    data class RemoveKid(val id: String) : PartyCommand
+    /** Nuovo capitolo della festa: le foto da adesso in poi gli appartengono. */
+    data class Chapter(val title: String) : PartyCommand
 }
 
 /**
@@ -152,6 +156,9 @@ class HostRemote(
             "guest_list" -> PartyCommand.SetGuestList(form["text"].orEmpty().take(MAX_SETUP_TEXT))
             "logo_remove" -> PartyCommand.RemoveLogo
             "sponsor_remove" -> id?.let(PartyCommand::RemoveSponsor)
+            "quiz" -> PartyCommand.SetQuiz(form["text"].orEmpty().take(MAX_SETUP_TEXT))
+            "kid_remove" -> id?.let(PartyCommand::RemoveKid)
+            "chapter" -> GuestSender.clean(form["text"], 60)?.let(PartyCommand::Chapter)
             else -> null
         } ?: return 400 to """{"error":"invalid"}"""
         onCommand?.invoke(command)

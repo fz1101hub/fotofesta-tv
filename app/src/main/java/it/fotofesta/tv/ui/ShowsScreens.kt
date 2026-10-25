@@ -32,6 +32,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Cloud
+import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
+import androidx.compose.material.icons.rounded.Museum
+import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.PersonSearch
+import androidx.compose.material.icons.rounded.QrCode2
 import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.FastRewind
 import androidx.compose.material.icons.rounded.GridOn
@@ -77,6 +85,7 @@ import coil.request.SuccessResult
 import coil.size.Precision
 import coil.size.Scale
 import it.fotofesta.tv.R
+import it.fotofesta.tv.model.Destination
 import it.fotofesta.tv.guests.PartyHub
 import it.fotofesta.tv.guests.PartyPlay
 import it.fotofesta.tv.model.FitMode
@@ -103,6 +112,8 @@ fun ShowsScreen(
     onTeletext: () -> Unit,
     onSky: () -> Unit,
     onStats: () -> Unit,
+    /** Spettacoli dell'ondata 11: chi non c'è, opera d'arte, la festa suona, QR vivente, sogno, museo, capitoli, accadde oggi. */
+    onMore: (Destination) -> Unit = {},
     enoughPhotos: Boolean,
     onBack: () -> Unit,
 ) {
@@ -114,6 +125,14 @@ fun ShowsScreen(
         ShowTile(R.string.show_teletext, R.string.show_teletext_body, Icons.Rounded.Tv, onTeletext),
         ShowTile(R.string.show_sky, R.string.show_sky_body, Icons.Rounded.AutoAwesome, onSky),
         ShowTile(R.string.show_stats, R.string.show_stats_body, Icons.Rounded.BarChart, onStats),
+        ShowTile(R.string.show_absent, R.string.show_absent_body, Icons.Rounded.PersonSearch) { onMore(Destination.ABSENT) },
+        ShowTile(R.string.show_artwork, R.string.show_artwork_body, Icons.Rounded.Palette) { onMore(Destination.ARTWORK) },
+        ShowTile(R.string.show_sound, R.string.show_sound_body, Icons.Rounded.MusicNote) { onMore(Destination.SOUND_SHOW) },
+        ShowTile(R.string.show_living_qr, R.string.show_living_qr_body, Icons.Rounded.QrCode2) { onMore(Destination.LIVING_QR) },
+        ShowTile(R.string.show_dream, R.string.show_dream_body, Icons.Rounded.Cloud) { onMore(Destination.DREAM) },
+        ShowTile(R.string.show_museum, R.string.show_museum_body, Icons.Rounded.Museum) { onMore(Destination.MUSEUM) },
+        ShowTile(R.string.show_chapters, R.string.show_chapters_body, Icons.AutoMirrored.Rounded.MenuBook) { onMore(Destination.CHAPTERS) },
+        ShowTile(R.string.show_on_this_day, R.string.show_on_this_day_body, Icons.Rounded.History) { onMore(Destination.ON_THIS_DAY) },
     )
     Column(Modifier.fillMaxSize().background(Background).padding(horizontal = 48.dp, vertical = 36.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Row(Modifier.fillMaxWidth()) {
@@ -129,7 +148,10 @@ fun ShowsScreen(
         ) {
             itemsIndexed(tiles) { index, tile ->
                 // Le foto servono a tutti tranne Televideo, cielo e numeri.
-                val enabled = enoughPhotos || tile.title in setOf(R.string.show_teletext, R.string.show_sky, R.string.show_stats, R.string.show_credits)
+                val enabled = enoughPhotos || tile.title in setOf(
+                    R.string.show_teletext, R.string.show_sky, R.string.show_stats, R.string.show_credits,
+                    R.string.show_absent, R.string.show_living_qr, R.string.show_on_this_day,
+                )
                 FocusSurface(onClick = tile.onClick, modifier = Modifier.height(130.dp).then(if (index == 0) Modifier.initialFocus() else Modifier), enabled = enabled) {
                     Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Icon(tile.icon, contentDescription = null, tint = if (it) OnFocus else Accent, modifier = Modifier.size(30.dp))
@@ -146,7 +168,7 @@ fun ShowsScreen(
 
 /** Header comune degli spettacoli: titolo, sottotitolo e Indietro. */
 @Composable
-private fun ShowHeader(title: String, subtitle: String?, onBack: () -> Unit, focusBack: Boolean = true) {
+internal fun ShowHeader(title: String, subtitle: String?, onBack: () -> Unit, focusBack: Boolean = true) {
     Row(Modifier.fillMaxWidth()) {
         SectionTitle(stringResource(R.string.shows_kicker), title, subtitle, modifier = Modifier.weight(1f))
         Spacer(Modifier.width(16.dp))
@@ -221,7 +243,7 @@ private fun rememberClock(epochMillis: Long): String = remember(epochMillis) {
 // ---------------------------------------------------------------------------------------------
 
 /** Pixel della foto ridotta a [width]×[height], per i colori medi; null se non si carica. */
-private suspend fun loadPixels(context: Context, photo: PhotoItem, width: Int, height: Int): Pair<IntArray, android.graphics.Bitmap>? {
+internal suspend fun loadPixels(context: Context, photo: PhotoItem, width: Int, height: Int): Pair<IntArray, android.graphics.Bitmap>? {
     val request = ImageRequest.Builder(context)
         .data(photo.ref.coilModel())
         .size(width, height)

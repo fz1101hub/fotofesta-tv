@@ -340,13 +340,13 @@ class GuestUploadServer(
                 if (!keyMatches(request.headers["x-fotofesta-key"])) throw HttpError(401, "key")
                 val remote = hostRemote ?: throw HttpError(404, "not_found")
                 if (!remote.isHost(request.headers["x-fotofesta-host"])) throw HttpError(401, "host")
-                val kind = request.query["kind"]?.takeIf { it == "logo" || it == "sponsor" } ?: throw HttpError(400, "invalid")
+                val kind = request.query["kind"]?.takeIf { it == "logo" || it == "sponsor" || it == "kid" } ?: throw HttpError(400, "invalid")
                 val length = request.headers["content-length"]?.trim()?.toIntOrNull() ?: throw HttpError(411, "length")
                 if (length <= 0) throw HttpError(400, "empty")
                 if (length > PartySetup.MAX_IMAGE_BYTES) throw HttpError(413, "too_large")
                 val bytes = readBody(body, length, deadline = startedAt + bodyDeadlineMillis, now = nowMillis)
                 if (ImageFormat.sniff(bytes) == null) throw HttpError(415, "unsupported")
-                if (extras?.hostUpload(kind, bytes) != true) throw HttpError(507, "full")
+                if (extras?.hostUpload(kind, bytes, request.query["name"]) != true) throw HttpError(507, "full")
                 Response.json(200, """{"status":"ok"}""")
             }
             "/party/host/sponsor" -> {

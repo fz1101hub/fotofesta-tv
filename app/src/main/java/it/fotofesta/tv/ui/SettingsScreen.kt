@@ -316,6 +316,14 @@ fun SettingsScreen(
                                 enabled = !settings.reducedMotion,
                             )
                             SettingsItem(
+                                stringResource(R.string.settings_panoramas),
+                                { onChange(settings.copy(panoramas = !settings.panoramas)) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_panoramas_body),
+                                checked = settings.panoramas && !settings.reducedMotion,
+                                enabled = !settings.reducedMotion,
+                            )
+                            SettingsItem(
                                 stringResource(R.string.settings_reduced_motion),
                                 { onChange(settings.copy(reducedMotion = !settings.reducedMotion)) },
                                 toCategory,
@@ -508,6 +516,20 @@ fun SettingsScreen(
                                 subtitle = stringResource(R.string.settings_sponsors_body),
                                 value = if (state.settings.sponsorEvery == 0) stringResource(R.string.settings_off)
                                 else quantityStringResource(R.plurals.settings_sponsors_every, state.settings.sponsorEvery),
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_rival_party),
+                                { onChange(state.settings.copy(rivalParty = !state.settings.rivalParty)) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_rival_party_body),
+                                checked = state.settings.rivalParty,
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_bored_tv),
+                                { onChange(state.settings.copy(boredTv = !state.settings.boredTv)) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_bored_tv_body),
+                                checked = state.settings.boredTv,
                             )
                             SettingsItem(
                                 stringResource(R.string.settings_network_check),

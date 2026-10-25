@@ -77,4 +77,34 @@ class PartySetupTest {
         setup.removeSponsor(setup.state.value.sponsors.first())
         assertTrue(setup.addSponsor(png) != null)
     }
+
+    @Test
+    fun `quiz and childhood photos survive a restart and stay private`() {
+        val dir = folder.newFolder()
+        val setup = PartySetup(dir)
+        setup.setQuiz("Dove? | Roma | Parigi")
+        val id = setup.addKid("Giulia", png)!!
+        assertNull(setup.addKid(null, png))
+        assertNull(setup.addKid("Luca", byteArrayOf(1, 2, 3)))
+        val again = PartySetup(dir)
+        assertEquals("Dove? | Roma | Parigi", again.state.value.quiz)
+        assertEquals(listOf("Giulia"), again.state.value.kids.map { it.name })
+        assertTrue(again.kidPhoto(id)!!.contentEquals(png))
+        assertFalse(again.publicJson().contains("Giulia"))
+        assertFalse(again.publicJson().contains("Parigi"))
+    }
+
+    @Test
+    fun `only known childhood photos can be removed`() {
+        val dir = folder.newFolder()
+        val setup = PartySetup(dir)
+        setup.setLogo(png)
+        val id = setup.addKid("Giulia", png)!!
+        setup.removeKid("../logo")
+        assertTrue(setup.logo() != null)
+        assertNull(setup.kidPhoto("../logo"))
+        setup.removeKid(id)
+        assertTrue(setup.state.value.kids.isEmpty())
+        assertNull(setup.kidPhoto(id))
+    }
 }
