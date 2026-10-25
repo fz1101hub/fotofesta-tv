@@ -30,7 +30,7 @@ struct GuestsView: View {
         }
         .focusScope(namespace)
         .confirmationDialog(L("guests.end_confirm_title"), isPresented: $confirmingEnd, titleVisibility: .visible) {
-            Button(L("guests.end"), role: .destructive) { model.endGuestParty() }
+            Button(L("guests.end"), role: .destructive) { model.requestEndParty() }
             Button(L("action.cancel"), role: .cancel) {}
         } message: {
             Text(L("guests.end_confirm_body", model.guests.photos.count))

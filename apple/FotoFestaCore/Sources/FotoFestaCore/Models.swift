@@ -112,11 +112,22 @@ public enum PartyTemplate: String, Codable, CaseIterable, Sendable {
     }
 }
 
+/// Cornice dell'evento sullo slideshow, con nome e logo scelti dalla regia.
+public enum FrameStyle: String, Codable, CaseIterable, Sendable {
+    case none, band, border
+}
+
 /// Impostazioni dello slideshow, salvate in UserDefaults come JSON.
 /// La decodifica tollera chiavi mancanti o valori sconosciuti, così gli aggiornamenti non azzerano le scelte.
 public struct SlideshowSettings: Codable, Equatable, Sendable {
     public static let intervalOptions = [3, 5, 8, 12, 20]
     public static let sleepTimerOptions = [30, 60, 120]
+    /// Uno sponsor ogni tante foto (0 = mai).
+    public static let sponsorOptions = [0, 5, 10, 20]
+    /// Margini dello schermo in percentuale, per i proiettori che tagliano i bordi.
+    public static let marginOptions = [0, 2, 4, 6]
+    /// Ora dell'azzeramento notturno (-1 = mai).
+    public static let resetOptions = [-1, 2, 3, 4, 5, 6]
 
     public var intervalSeconds = 8
     public var transition: TransitionStyle = .fade
@@ -148,6 +159,38 @@ public struct SlideshowSettings: Codable, Equatable, Sendable {
     public var portrait = false
     /// Modello di festa scelto: dà il titolo a sigla, TG, titoli di coda e Televideo.
     public var template: PartyTemplate = .none
+    /// Cornice dell'evento (nome e logo dalla regia).
+    public var frameStyle: FrameStyle = .none
+    /// Uno sponsor ogni `sponsorEvery` foto (0 = mai).
+    public var sponsorEvery = 0
+    /// Margini dello schermo in percentuale.
+    public var screenMargin = 0
+    /// Gli annunci della regia si leggono anche ad alta voce.
+    public var speakAnnouncements = false
+    /// Chiosco: impostazioni e fine della festa chiedono il PIN.
+    public var kiosk = false
+    /// All'apertura dell'app la festa parte da sola (locali, uso fisso).
+    public var alwaysParty = false
+    /// Ora in cui la festa si azzera ogni notte (-1 = mai).
+    public var nightlyReset = -1
+    /// Le foto molto larghe (panoramiche) scorrono da un lato all'altro.
+    public var panoramas = true
+    /// Ogni tanto arriva un messaggio scherzoso dalla "festa rivale".
+    public var rivalParty = false
+    /// Senza foto nuove dagli invitati per un po', lo schermo fa capire che si annoia.
+    public var boredScreen = false
+    /// Le luci collegate (Hue, WLED, Nanoleaf) prendono il colore della foto.
+    public var partyLights = true
+    /// Ogni foto nuova degli invitati si stampa (IPP).
+    public var autoPrint = false
+    /// Ogni foto nuova degli invitati esce come scontrino.
+    public var autoReceipt = false
+    /// Server FTP per le fotocamere con il Wi‑Fi durante la festa.
+    public var ftpServer = false
+    /// Live Photo della libreria Foto: si anima il breve video prima della foto.
+    public var livePhotos = true
+    /// Foto HDR con la luminosità piena sugli schermi che la supportano.
+    public var hdrPhotos = false
 
     public init() {}
 
@@ -155,6 +198,8 @@ public struct SlideshowSettings: Codable, Equatable, Sendable {
         case intervalSeconds, transition, fitMode, layout, shuffle, reducedMotion, showClock, kenBurns, sleepTimerMinutes
         case countdown, countdownMinutes, countdownEvent, videos, videoSound
         case filter, confetti, newsMode, openingTitles, portrait, template
+        case frameStyle, sponsorEvery, screenMargin, speakAnnouncements, kiosk, alwaysParty, nightlyReset
+        case panoramas, rivalParty, boredScreen, partyLights, autoPrint, autoReceipt, ftpServer, livePhotos, hdrPhotos
     }
 
     public init(from decoder: Decoder) throws {
@@ -183,6 +228,22 @@ public struct SlideshowSettings: Codable, Equatable, Sendable {
         if let openingTitles = value(Bool.self, .openingTitles) { self.openingTitles = openingTitles }
         if let portrait = value(Bool.self, .portrait) { self.portrait = portrait }
         if let template = value(PartyTemplate.self, .template) { self.template = template }
+        if let style = value(FrameStyle.self, .frameStyle) { frameStyle = style }
+        if let every = value(Int.self, .sponsorEvery), Self.sponsorOptions.contains(every) { sponsorEvery = every }
+        if let margin = value(Int.self, .screenMargin), Self.marginOptions.contains(margin) { screenMargin = margin }
+        if let speak = value(Bool.self, .speakAnnouncements) { speakAnnouncements = speak }
+        if let kiosk = value(Bool.self, .kiosk) { self.kiosk = kiosk }
+        if let always = value(Bool.self, .alwaysParty) { alwaysParty = always }
+        if let hour = value(Int.self, .nightlyReset), Self.resetOptions.contains(hour) { nightlyReset = hour }
+        if let panoramas = value(Bool.self, .panoramas) { self.panoramas = panoramas }
+        if let rival = value(Bool.self, .rivalParty) { rivalParty = rival }
+        if let bored = value(Bool.self, .boredScreen) { boredScreen = bored }
+        if let lights = value(Bool.self, .partyLights) { partyLights = lights }
+        if let print = value(Bool.self, .autoPrint) { autoPrint = print }
+        if let receipt = value(Bool.self, .autoReceipt) { autoReceipt = receipt }
+        if let ftp = value(Bool.self, .ftpServer) { ftpServer = ftp }
+        if let live = value(Bool.self, .livePhotos) { livePhotos = live }
+        if let hdr = value(Bool.self, .hdrPhotos) { hdrPhotos = hdr }
     }
 
     /// Il movimento lento è attivo solo se non è stata chiesta la riduzione del movimento.

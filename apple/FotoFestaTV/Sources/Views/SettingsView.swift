@@ -1,5 +1,6 @@
 import FotoFestaCore
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Impostazioni nello stile dell'app Impostazioni di tvOS: a sinistra l'icona dell'app (AppLogo, una
 /// copia piatta dell'icona a livelli), a destra un elenco nativo diviso in sezioni.
@@ -7,6 +8,9 @@ struct SettingsView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @FocusState private var policyFocused: Bool
+    @State private var exporting = false
+    @State private var exportDocument = ConfigDocument(data: Data())
+    @State private var importing = false
 
     var body: some View {
         HStack(spacing: 0) {
@@ -243,6 +247,8 @@ struct SettingsView: View {
                 Text(L("guests.approval_body"))
             }
 
+            venueSection(settings)
+
             Section {
                 Button(L("settings.google_disconnect"), role: .destructive) {
                     model.disconnectGoogle()
@@ -271,6 +277,80 @@ struct SettingsView: View {
                     .focused($policyFocused)
                 }
             }
+        }
+    }
+
+    /// Evento e uso fisso in un locale: cornice, sponsor, margini, voce, chiosco, festa sempre attiva,
+    /// azzeramento notturno e (sul Mac) configurazione da passare a un altro schermo.
+    @ViewBuilder
+    private func venueSection(_ settings: SlideshowSettings) -> some View {
+        Section(L("settings.cat_venue")) {
+            Picker(selection: binding(\.frameStyle)) {
+                Text(L("settings.frame_none")).tag(FrameStyle.none)
+                Text(L("settings.frame_band")).tag(FrameStyle.band)
+                Text(L("settings.frame_border")).tag(FrameStyle.border)
+            } label: {
+                described(L("settings.frame"), L("settings.frame_body"))
+            }
+            Picker(selection: binding(\.sponsorEvery)) {
+                ForEach(SlideshowSettings.sponsorOptions, id: \.self) { every in
+                    Text(every == 0 ? L("settings.off") : LP("settings.sponsors_every", every)).tag(every)
+                }
+            } label: {
+                described(L("settings.sponsors"), L("settings.sponsors_body"))
+            }
+            Picker(selection: binding(\.screenMargin)) {
+                ForEach(SlideshowSettings.marginOptions, id: \.self) { margin in
+                    Text(margin == 0 ? L("settings.off") : "\(margin)%").tag(margin)
+                }
+            } label: {
+                described(L("settings.margin"), L("settings.margin_body"))
+            }
+            Toggle(isOn: binding(\.speakAnnouncements)) {
+                described(L("settings.speak"), L("settings.speak_body"))
+            }
+            Toggle(isOn: Binding(get: { settings.kiosk && model.kioskLock.hasPin }, set: { _ in model.toggleKiosk() })) {
+                described(L("settings.kiosk"), L("settings.kiosk_body"))
+            }
+            Toggle(isOn: binding(\.alwaysParty)) {
+                described(L("settings.always_party"), L("settings.always_party_body"))
+            }
+            Picker(selection: binding(\.nightlyReset)) {
+                ForEach(SlideshowSettings.resetOptions, id: \.self) { hour in
+                    Text(hour < 0 ? L("settings.off") : String(format: "%02d:00", hour)).tag(hour)
+                }
+            } label: {
+                described(L("settings.nightly_reset"), L("settings.nightly_reset_body"))
+            }
+            #if os(macOS)
+            Button {
+                exportDocument = ConfigDocument(data: model.exportConfig() ?? Data())
+                exporting = true
+            } label: {
+                described(L("settings.export"), L("settings.export_body"))
+            }
+            Button { importing = true } label: {
+                described(L("settings.import"), L("settings.import_body"))
+            }
+            #endif
+        }
+        #if os(macOS)
+        .fileExporter(isPresented: $exporting, document: exportDocument, contentType: .json, defaultFilename: VenueConfig.fileName) { result in
+            if case .failure = result { model.showMessage(L("message.export_failed")) } else { model.showMessage(L("message.export_done")) }
+        }
+        .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in
+            guard case let .success(url) = result else { return }
+            let access = url.startAccessingSecurityScopedResource()
+            defer { if access { url.stopAccessingSecurityScopedResource() } }
+            if let data = try? Data(contentsOf: url) { _ = model.importConfig(data) } else { model.showMessage(L("message.import_failed")) }
+        }
+        #endif
+    }
+
+    private func described(_ title: String, _ body: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+            Text(body).font(.caption).foregroundStyle(.secondary)
         }
     }
 

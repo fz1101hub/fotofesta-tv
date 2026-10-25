@@ -24,6 +24,8 @@ struct SlideshowView: View {
     @State private var confetti = 0
     @State private var celebrated: Set<String> = []
     @State private var openedAt = Date()
+    /// Cambi di foto da quando si è aperto lo slideshow: decide quando passa uno sponsor.
+    @State private var photoChanges = 0
 
     var body: some View {
         // "Riduci movimento" vale sia dalle impostazioni dell'app sia da quelle di sistema.
@@ -76,6 +78,14 @@ struct SlideshowView: View {
                     .background(.regularMaterial, in: Capsule())
                     .padding(.horizontal, 90)
                     .padding(.top, 60)
+            }
+        }
+        // Il prossimo momento della scaletta preparata dalla regia.
+        .overlay(alignment: .bottomTrailing) {
+            if !model.guests.setup.schedule.isEmpty, model.currentPhoto != nil {
+                ScheduleBadge(schedule: model.guests.setup.schedule)
+                    .padding(.trailing, 90)
+                    .padding(.bottom, 220)
             }
         }
         .overlay {
@@ -133,7 +143,14 @@ struct SlideshowView: View {
             if settings.openingTitles {
                 OpeningTitles(title: model.partyTitle, subtitle: openedAt.formatted(date: .complete, time: .omitted))
             }
+            // Cornice con nome e logo dell'evento, e gli sponsor ogni tante foto.
+            EventFrameOverlay(style: settings.frameStyle, brand: model.guests.setup.brand) { model.guests.partySetup.logo() }
+            SponsorOverlay(tick: photoChanges, every: settings.sponsorEvery, sponsors: model.guests.setup.sponsors) {
+                model.guests.partySetup.sponsor($0)
+            }
         }
+        .modifier(ScreenMargin(percent: settings.screenMargin))
+        .background(Color.black.ignoresSafeArea())
         // Coriandoli: una foto degli invitati appena arrivata.
         .onChange(of: model.currentPhoto?.id) { _, _ in
             guard model.settings.confetti, let photo = model.currentPhoto, case .guest = photo.source,
@@ -153,6 +170,7 @@ struct SlideshowView: View {
             }
         }
         .onChange(of: model.currentPhoto?.id) { previous, _ in
+            photoChanges += 1
             guard let previous else { return }
             recentIDs = Array(([previous] + recentIDs.filter { $0 != previous }).prefix(6))
         }

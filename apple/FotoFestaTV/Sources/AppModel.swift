@@ -131,6 +131,15 @@ final class AppModel {
     @ObservationIgnored private var rehearsalTask: Task<Void, Never>?
     /// Prova generale in corso, con telefoni simulati.
     private(set) var rehearsal = false
+    /// Tastierino del chiosco aperto e per cosa.
+    var pinRequest: PinPurpose?
+    /// Ultimo sblocco del chiosco: le schermate protette si riaprono senza PIN per qualche minuto.
+    var kioskUnlockedUntil = Date.distantPast
+    @ObservationIgnored let kioskLock = KioskLock()
+    @ObservationIgnored var venueClock: Task<Void, Never>?
+    @ObservationIgnored var announcedSlots: Set<String> = []
+    @ObservationIgnored var lastResetDay = -1
+    @ObservationIgnored let speaker = AnnouncementSpeaker()
     /// Passaggi (meno due per ogni reazione) perché una foto sia del tutto ingiallita.
     static let agingSteps = 8
     static let rehearsalTime: TimeInterval = 120
@@ -190,6 +199,7 @@ final class AppModel {
         guests.onSong = { [weak self] song in
             self?.showMessage(song.name.map { L("song.message_named", $0, song.text) } ?? L("song.message", song.text))
         }
+        guests.onAnnouncement = { [weak self] announcement in self?.announcementArrived(announcement) }
         guestsChanged()
         // Regia dal telefono e regista di turno: i comandi arrivano dalla coda del server.
         let run: @Sendable (PartyCommand) -> Void = { [weak self] command in
@@ -201,6 +211,11 @@ final class AppModel {
         if UserDefaults.standard.string(forKey: Self.sourceKey) == "library" { restoreLibraryAlbum() }
         networkSaved = UserDefaults.standard.data(forKey: Self.networkFolderKey).flatMap { try? JSONDecoder().decode(NetworkFolder.self, from: $0) }
         if UserDefaults.standard.string(forKey: Self.sourceKey) == "network", let folder = networkSaved { restoreNetworkFolder(folder) }
+        startVenueClock()
+        // Festa sempre attiva (locali, uso fisso): parte da sola all'apertura dell'app.
+        if settings.alwaysParty {
+            Task { @MainActor [weak self] in self?.startPartyAndPlay() }
+        }
     }
 
     /// Impostazioni salvate; usate anche dalla coda del server degli invitati (adattamento delle foto).

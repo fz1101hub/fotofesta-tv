@@ -16,7 +16,7 @@ struct RootView: View {
                 .navigationDestination(for: Route.self) { route in
                     switch route {
                     case .slideshow: SlideshowView().portrait(model.settings.portrait)
-                    case .settings: SettingsView()
+                    case .settings: KioskGate(purpose: .settings) { SettingsView() }
                     case .games: GamesView()
                     case .memory: MemoryGameView()
                     case .mystery: MysteryGameView()
@@ -68,6 +68,14 @@ struct RootView: View {
             }
         }
         .animation(.easeInOut(duration: 0.3), value: model.message)
+        // Chiosco: scelta del PIN, spegnimento e fine della festa.
+        .sheet(item: $model.pinRequest) { purpose in
+            PinPadView(purpose: purpose) { pin in
+                model.submitPin(pin, for: purpose)
+            } onCancel: {
+                model.cancelPin()
+            }
+        }
         // Il server per le foto degli invitati resta acceso solo con l'app in primo piano. "Inattiva"
         // (Centro di Controllo aperto sopra l'app) non conta come uscita.
         .onChange(of: scenePhase, initial: true) { _, phase in

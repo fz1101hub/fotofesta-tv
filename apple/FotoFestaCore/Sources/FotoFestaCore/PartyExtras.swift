@@ -97,7 +97,7 @@ public enum QRSVG {
             }
         }
         return #"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 \#(size) \#(size)" shape-rendering="crispEdges">"# +
-            #"<rect width="\#(size)" height="\#(size)" fill="#fff"/><path fill="#000" d="\#(path)"/></svg>"#
+            ##"<rect width="\##(size)" height="\##(size)" fill="#fff"/><path fill="#000" d="\##(path)"/></svg>"##
     }
 
     /// Moduli del QR (true = nero), riga per riga dall'alto, senza il margine bianco del generatore.

@@ -194,6 +194,8 @@ final class GuestParty {
     @ObservationIgnored var onArrival: ((PartyHub.Arrival) -> Void)?
     /// Una canzone appena chiesta: chi fa la musica la vede anche sulla TV.
     @ObservationIgnored var onSong: ((PartyHub.SongRequest) -> Void)?
+    /// Un annuncio nuovo della regia o della scaletta: si può leggere ad alta voce.
+    @ObservationIgnored var onAnnouncement: ((PartyHub.Announcement) -> Void)?
     @ObservationIgnored private var wallRevision = -1
     @ObservationIgnored private var setupRevision = -1
     @ObservationIgnored private var messageRevision = -1
@@ -573,7 +575,9 @@ final class GuestParty {
         messageRevision = revision
         messages = partyHub.approvedMessages()
         pendingMessages = partyHub.pendingMessages()
+        let previousAnnouncement = announcement?.serial
         announcement = partyHub.currentAnnouncement()
+        if let announcement, announcement.serial != previousAnnouncement { onAnnouncement?(announcement) }
         director = partyHub.currentDirector()
         let quietLeft = partyHub.quietTimeLeft()
         quietUntil = quietLeft > 0 ? Date().addingTimeInterval(quietLeft) : nil
