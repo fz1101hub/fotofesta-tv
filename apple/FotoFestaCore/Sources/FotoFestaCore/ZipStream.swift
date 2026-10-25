@@ -104,10 +104,15 @@ public enum ZipStream {
     /// Data e ora nel formato MS-DOS delle voci ZIP (ora locale).
     static func dosDateTime(_ date: Date) -> (time: UInt16, date: UInt16) {
         let parts = Calendar(identifier: .gregorian).dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
-        let year = max((parts.year ?? 1980) - 1980, 0)
-        let time = UInt16(((parts.hour ?? 0) << 11) | ((parts.minute ?? 0) << 5) | ((parts.second ?? 0) / 2))
-        let day = UInt16((year << 9) | ((parts.month ?? 1) << 5) | (parts.day ?? 1))
-        return (time, day)
+        let year: Int = min(max((parts.year ?? 1980) - 1980, 0), 127)
+        let hour: Int = parts.hour ?? 0
+        let minute: Int = parts.minute ?? 0
+        let second: Int = (parts.second ?? 0) / 2
+        let month: Int = parts.month ?? 1
+        let dayOfMonth: Int = parts.day ?? 1
+        let time: Int = (hour << 11) | (minute << 5) | second
+        let day: Int = (year << 9) | (month << 5) | dayOfMonth
+        return (UInt16(time), UInt16(day))
     }
 }
 
