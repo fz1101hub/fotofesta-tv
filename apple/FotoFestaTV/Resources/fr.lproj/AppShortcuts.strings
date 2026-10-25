@@ -1,0 +1,7 @@
+/* Frasi di Siri e dei Comandi rapidi per FotoFesta. */
+"Start the party in ${applicationName}" = "Lance la fête avec ${applicationName}";
+"Start ${applicationName}" = "Lance ${applicationName}";
+"Show the photos in ${applicationName}" = "Montre les photos avec ${applicationName}";
+"Next photo in ${applicationName}" = "Photo suivante avec ${applicationName}";
+"Make an announcement in ${applicationName}" = "Fais une annonce avec ${applicationName}";
+"End the party in ${applicationName}" = "Termine la fête avec ${applicationName}";

@@ -25,5 +25,8 @@
 	<!-- Fotocamera collegata con il cavo USB (Image Capture). -->
 	<key>com.apple.security.device.usb</key>
 	<true/>
+	<!-- Cabina fotografica con la fotocamera del Mac. -->
+	<key>com.apple.security.device.camera</key>
+	<true/>
 </dict>
 </plist>

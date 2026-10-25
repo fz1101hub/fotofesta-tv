@@ -12,7 +12,7 @@ enum Route: Hashable {
     case shows, rewind, barcode, photoMosaic, credits, teletext, sky, stats
     case door, phoneWall
     case absent, artwork, soundShow, livingQR, dream, museum, chapters, onThisDay, differences, quizHosts, quizKids
-    case devices
+    case devices, photoBooth
 }
 
 /// Da dove vengono le foto della raccolta mostrata nella home.
@@ -161,8 +161,9 @@ final class AppModel {
     private static let networkFolderKey = "networkFolder"
 
     init() {
-        settings = Self.storedSettings()
-        ImageLoader.hdr = settings.hdrPhotos
+        let storedSettings = Self.storedSettings()
+        settings = storedSettings
+        ImageLoader.hdr = storedSettings.hdrPhotos
         var initialPhotos = Self.demoPhotos
         var initialLabel = L("source.demo")
         var initialMessage: String?
@@ -224,6 +225,7 @@ final class AppModel {
         networkSaved = UserDefaults.standard.data(forKey: Self.networkFolderKey).flatMap { try? JSONDecoder().decode(NetworkFolder.self, from: $0) }
         if UserDefaults.standard.string(forKey: Self.sourceKey) == "network", let folder = networkSaved { restoreNetworkFolder(folder) }
         startVenueClock()
+        IntentTarget.model = self
         // Festa sempre attiva (locali, uso fisso): parte da sola all'apertura dell'app.
         if settings.alwaysParty {
             Task { @MainActor [weak self] in self?.startPartyAndPlay() }

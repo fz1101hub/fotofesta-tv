@@ -31,6 +31,7 @@ struct GamesView: View {
                             .whoTookIt,
                             enabled: whoTookItPlayable
                         )
+                        gameCard(L("booth.title"), L("booth.subtitle"), "camera.on.rectangle.fill", .photoBooth, enabled: true)
                         gameCard(L("games.differences_title"), L("games.differences_body"), "magnifyingglass", .differences, enabled: playable)
                         gameCard(L("games.quiz_hosts_title"), L("games.quiz_hosts_body"), "questionmark.bubble.fill", .quizHosts, enabled: true)
                         gameCard(L("games.quiz_kids_title"), L("games.quiz_kids_body"), "figure.and.child.holdinghands", .quizKids, enabled: true)

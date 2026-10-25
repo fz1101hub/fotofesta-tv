@@ -70,6 +70,9 @@ targets:
         NSPhotoLibraryUsageDescription: "FotoFesta TV shows the albums of your Photos library in the slideshow. Photos stay in your library and aren’t sent anywhere."
         # Luci della festa (Hue, WLED, Nanoleaf) e stampanti AirPrint trovate nella rete di casa.
         NSBonjourServices: [_hue._tcp, _wled._tcp, _nanoleafapi._tcp, _ipp._tcp]
+        # Cabina fotografica con l'iPhone o l'iPad collegato con Continuity Camera.
+        NSCameraUsageDescription: "FotoFesta TV uses the camera only for the photo booth: the strips stay in the party on this device."
+        NSCameraUseContinuityCameraDeviceType: true
         PhotosClientID: $(PHOTOS_CLIENT_ID)
         PhotosClientSecret: $(PHOTOS_CLIENT_SECRET)
         PhotosRedirectURI: $(PHOTOS_REDIRECT_URI)
@@ -131,6 +134,7 @@ targets:
         NSPhotoLibraryUsageDescription: "FotoFesta TV shows the albums of your Photos library in the slideshow. Photos stay in your library and aren’t sent anywhere."
         # Luci della festa (Hue, WLED, Nanoleaf) e stampanti AirPrint trovate nella rete di casa.
         NSBonjourServices: [_hue._tcp, _wled._tcp, _nanoleafapi._tcp, _ipp._tcp]
+        NSCameraUsageDescription: "FotoFesta TV uses the camera only for the photo booth: the strips stay in the party on this Mac."
         PhotosClientID: $(PHOTOS_CLIENT_ID)
         PhotosClientSecret: $(PHOTOS_CLIENT_SECRET)
         PhotosRedirectURI: $(PHOTOS_REDIRECT_URI)
