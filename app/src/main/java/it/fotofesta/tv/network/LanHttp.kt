@@ -58,6 +58,8 @@ class LanHttp(
 
     fun post(url: String, headers: Map<String, String>, body: ByteArray): LanResponse = request("POST", url, headers, body)
 
+    fun put(url: String, headers: Map<String, String>, body: ByteArray): LanResponse = request("PUT", url, headers, body)
+
     /** L'indirizzo è nella rete di casa e quindi raggiungibile da questo client. */
     fun accepts(url: String): Boolean = runCatching { target(url) }.isSuccess
 
