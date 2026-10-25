@@ -143,6 +143,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private val partyHub = services.partyHub
     /** Giochi con i telefoni oltre ai quiz. */
     private val partyPlay = services.partyPlay
+    private val phoneWall = services.phoneWall
     /** Regia dal telefono: i comandi arrivano dai thread del server e si eseguono qui. */
     private val hostRemote = services.hostRemote
     private val _reactions = MutableSharedFlow<PartyHub.ReactionEvent>(extraBufferCapacity = 32, onBufferOverflow = BufferOverflow.DROP_OLDEST)
@@ -258,6 +259,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         }
         partyHub.onChange = ::refreshParty
         partyPlay.onChange = ::refreshPlay
+        phoneWall.onChange = { _state.update { it.copy(phoneWall = phoneWall.state()) } }
         partyHub.onArrival = { arrival ->
             _arrivals.tryEmit(arrival)
             Fanfare.play()
@@ -773,6 +775,27 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun setLights(lights: PartyPlay.Lights?) = partyPlay.setLights(lights)
 
+    /** Muro di telefoni: i telefoni si mettono in fila, poi la TV manda una foto degli invitati. */
+    fun startPhoneWall() {
+        if (!_state.value.guests.active) return
+        phoneWall.start()
+        navigate(Destination.PHONE_WALL)
+    }
+
+    /** Manda ai telefoni in fila una foto degli invitati, diversa da quella di prima se ce n'è un'altra. */
+    fun showPhoneWall() {
+        val ids = guestPhotos.filterNot { it.video }.mapNotNull { it.guestPhotoId }
+        if (ids.isEmpty()) {
+            showMessage(context.getString(R.string.message_phone_wall_no_photos))
+            return
+        }
+        val previous = phoneWall.state()?.photoId
+        val next = ids.filter { it != previous }.randomOrNull() ?: ids.first()
+        if (!phoneWall.show(next)) showMessage(context.getString(R.string.message_phone_wall_nobody))
+    }
+
+    fun rearrangePhoneWall() = phoneWall.rearrange()
+
     /** Scommessa decisa: chi ha scelto [choice] vince tre monete. Restituisce quanti hanno vinto. */
     fun settleBet(choice: Int): Int {
         val winners = phoneGame.voters(choice)
@@ -888,6 +911,10 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             Destination.GOOGLE_CONNECT -> cancelGoogleConnect()
             Destination.SETTINGS, Destination.GAMES, Destination.GUESTS -> navigate(Destination.HOME)
             Destination.EXTRA_SCREEN, Destination.ANYWHERE -> navigate(Destination.GUESTS)
+            Destination.PHONE_WALL -> {
+                phoneWall.stop()
+                navigate(Destination.GAMES)
+            }
             Destination.GUEST_REVIEW, Destination.AWARDS, Destination.GUESTBOOK, Destination.ANNOUNCE, Destination.DOOR -> navigate(Destination.GUESTS)
             Destination.GUEST_WIFI -> navigate(wifiReturnTo)
             Destination.FILE_BROWSER -> if (_state.value.browser.directory != null) browserUp() else closeBrowser()
@@ -2040,7 +2067,10 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         if (approvalChanged) syncPartyFeatures()
         // Il PIN della regia cambia a ogni festa.
         if (_state.value.party.hostPin != hostRemote.pin()) refreshParty()
-        if (!party.active) stopSilentDisco()
+        if (!party.active) {
+            stopSilentDisco()
+            if (phoneWall.state() != null) phoneWall.stop()
+        }
         if (items != guestPhotos || party.active != guestPartyActive) {
             guestPhotos = items
             guestPartyActive = party.active
@@ -2247,6 +2277,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         stopHotspot()
         partyHub.onChange = null
         partyPlay.onChange = null
+        phoneWall.onChange = null
         partyHub.onReaction = null
         partyHub.onArrival = null
         partyHub.onDirectorCommand = null

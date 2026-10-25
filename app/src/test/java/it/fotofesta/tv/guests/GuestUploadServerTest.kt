@@ -40,9 +40,12 @@ class GuestUploadServerTest {
         override fun wallState() = """{"photos":[{"id":"foto-1","sender":null}]}"""
         override fun wallPhoto(id: String) = if (id == "foto-1") jpeg else null
         override fun discoJson() = """{"on":true,"track":"brano-1","position":1500,"playing":true}"""
+        override fun phoneWallJson(player: String?) = phoneWall.phoneJson(player)
+        override fun phoneWallAction(form: Map<String, String>) = phoneWall.handle(form)
         override fun discoTrack(id: String) =
             if (id == "brano-1") DiscoTrack(song.size.toLong(), "audio/mpeg") { offset -> song.inputStream().apply { skip(offset) } } else null
     }
+    private val phoneWall = PhoneWall()
     private val song = ByteArray(3_000) { (it % 251).toByte() }
 
     @Before
@@ -490,6 +493,16 @@ class GuestUploadServerTest {
             val headers = lines.drop(1).associate { it.substringBefore(':').lowercase() to it.substringAfter(':').trim() }
             return Reply(lines.first().split(' ')[1].toInt(), headers, "") to raw.copyOfRange(split + 4, raw.size)
         }
+    }
+
+    @Test
+    fun `phones join the phone wall through party actions`() {
+        assertEquals(403, action("type=wall&command=join&player=telefono-1").status)
+        phoneWall.start()
+        assertEquals(200, action("type=wall&command=join&player=telefono-1").status)
+        val party = send("GET /party?player=telefono-1 HTTP/1.1\r\nHost: 127.0.0.1:$port\r\nX-FotoFesta-Key: $KEY\r\n\r\n".toByteArray())
+        assertEquals(0, JSONObject(party.body).getJSONObject("phoneWall").getInt("slot"))
+        assertEquals(401, action("type=wall&command=join&player=telefono-2", key = null).status)
     }
 
     @Test

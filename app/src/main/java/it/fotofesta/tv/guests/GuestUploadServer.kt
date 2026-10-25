@@ -248,7 +248,8 @@ class GuestUploadServer(
                 val hostOn = hostRemote?.pin() != null
                 val playJson = play?.phoneJson(player) ?: "null"
                 val disco = extras?.discoJson() ?: "null"
-                Response.json(200, """{"features":$features,"game":${gameJson(game?.current(), player)},"party":$party,"host":$hostOn,"play":$playJson,"disco":$disco}""")
+                val wall = extras?.phoneWallJson(player) ?: "null"
+                Response.json(200, """{"features":$features,"game":${gameJson(game?.current(), player)},"party":$party,"host":$hostOn,"play":$playJson,"disco":$disco,"phoneWall":$wall}""")
             }
             "/party/action" -> {
                 if (request.method != "POST") throw HttpError(405, "method")
@@ -453,6 +454,10 @@ class GuestUploadServer(
         if (!allowAction(clientAddress)) throw HttpError(429, "rate", listOf("Retry-After" to "5"))
         val form = readSmallForm(request, body, startedAt, MAX_ACTION_BYTES)
         val (status, json) = when {
+            form["type"] == "wall" -> when {
+                hub.quietLeftMillis() > 0 -> 423 to """{"error":"quiet"}"""
+                else -> extras?.phoneWallAction(form) ?: (404 to """{"error":"not_found"}""")
+            }
             form["type"] != "play" -> hub.handle(form)
             play == null -> 404 to """{"error":"not_found"}"""
             // Nei tre minuti senza telefoni aspettano anche i giochi.

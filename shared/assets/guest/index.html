@@ -144,6 +144,14 @@
   .playing .bars i:nth-child(3) { animation-delay: -.6s; }
   .playing .bars i:nth-child(4) { animation-delay: -.15s; }
   @keyframes bar { from { height: 20%; } to { height: 100%; } }
+
+  /* Muro di telefoni: a tutto schermo il numero del telefono, poi il suo pezzo di foto */
+  .wallcard { background: linear-gradient(120deg, var(--accent) 0%, var(--gold) 100%); }
+  #phoneWallScreen { position: fixed; inset: 0; z-index: 60; background: #000; display: grid; place-items: center; touch-action: none; }
+  #phoneWallScreen canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #phoneWallNumber { position: relative; color: #fff; font: 900 min(60vw, 40vh)/1 var(--display); text-shadow: 0 0 40px rgba(255,122,87,.8); }
+  #phoneWallHint { position: absolute; left: 16px; right: 16px; bottom: max(24px, env(safe-area-inset-bottom)); color: rgba(255,255,255,.75); font: 700 1rem/1.3 var(--display); text-align: center; }
+  #phoneWallExit { position: absolute; top: max(12px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); width: 44px; height: 44px; border: 0; border-radius: 50%; background: rgba(255,255,255,.16); color: #fff; font-size: 1.2rem; cursor: pointer; }
   @media (prefers-reduced-motion: reduce) { .playing .bars i { animation: none; height: 70%; } }
   .links a { display: block; text-align: center; text-decoration: none; }
 
@@ -221,6 +229,20 @@
     <p id="discoStatus" aria-live="polite"></p>
     <audio id="discoAudio" preload="none" playsinline></audio>
   </section>
+
+  <!-- Muro di telefoni: i telefoni sul tavolo formano insieme una foto grande. -->
+  <section id="phoneWall" class="announce wallcard" hidden>
+    <div class="announce-kicker" id="phoneWallTitle"></div>
+    <p id="phoneWallBody"></p>
+    <button type="button" class="arrive-go" id="phoneWallJoin"></button>
+    <p id="phoneWallStatus" aria-live="polite"></p>
+  </section>
+  <div id="phoneWallScreen" hidden>
+    <canvas id="phoneWallCanvas"></canvas>
+    <div id="phoneWallNumber"></div>
+    <div id="phoneWallHint"></div>
+    <button type="button" id="phoneWallExit"></button>
+  </div>
 
   <!-- Tre minuti senza telefoni: la TV non accetta foto, reazioni e dediche. -->
   <div id="quiet" class="announce" hidden role="status">
@@ -518,6 +540,14 @@ const IT = {
   discoPlaying: "In riproduzione, allineata alla TV",
   discoPaused: "La musica è in pausa sulla TV",
   discoError: "Questo telefono non riesce a suonare il brano. Riprova o usa un altro browser.",
+  phoneWallTitle: "Muro di telefoni 📱📱📱",
+  phoneWallBody: "Metti il telefono sul tavolo accanto agli altri: insieme formano una foto gigante.",
+  phoneWallJoin: "Entra nel muro",
+  phoneWallYou: "Sei il numero %d: guarda la TV per sapere dove mettere il telefono.",
+  phoneWallHint: "Metti il telefono in verticale dove la TV mostra questo numero, schermo in su, luminosità al massimo.",
+  phoneWallLate: "Il muro è già partito: entri al prossimo giro.",
+  phoneWallFull: "Il muro è al completo.",
+  phoneWallLeave: "Esci dal muro",
 };
 const EN = {
   announceKicker: "Announcement",
@@ -678,6 +708,14 @@ const EN = {
   discoPlaying: "Playing in sync with the TV",
   discoPaused: "The music is paused on the TV",
   discoError: "This phone can’t play the song. Try again or use another browser.",
+  phoneWallTitle: "Phone wall 📱📱📱",
+  phoneWallBody: "Put your phone on the table next to the others: together they make one big photo.",
+  phoneWallJoin: "Join the wall",
+  phoneWallYou: "You are number %d: look at the TV to see where to put your phone.",
+  phoneWallHint: "Put the phone upright where the TV shows this number, screen up, brightness at maximum.",
+  phoneWallLate: "The wall has already started: you can join the next round.",
+  phoneWallFull: "The wall is full.",
+  phoneWallLeave: "Leave the wall",
 };
 const FR = {
   announceKicker: "Annonce",
@@ -838,6 +876,14 @@ const FR = {
   discoPlaying: "Lecture en phase avec la TV",
   discoPaused: "La musique est en pause sur la TV",
   discoError: "Ce téléphone ne peut pas lire le morceau. Réessayez ou utilisez un autre navigateur.",
+  phoneWallTitle: "Mur de téléphones 📱📱📱",
+  phoneWallBody: "Posez votre téléphone sur la table à côté des autres : ensemble, ils forment une photo géante.",
+  phoneWallJoin: "Rejoindre le mur",
+  phoneWallYou: "Vous êtes le numéro %d : regardez la TV pour savoir où poser votre téléphone.",
+  phoneWallHint: "Posez le téléphone à la verticale là où la TV affiche ce numéro, écran vers le haut, luminosité au maximum.",
+  phoneWallLate: "Le mur a déjà commencé : vous pourrez rejoindre le prochain tour.",
+  phoneWallFull: "Le mur est complet.",
+  phoneWallLeave: "Quitter le mur",
 };
 const ES = {
   announceKicker: "Anuncio",
@@ -998,6 +1044,14 @@ const ES = {
   discoPlaying: "Sonando sincronizada con la TV",
   discoPaused: "La música está en pausa en la TV",
   discoError: "Este móvil no puede reproducir la canción. Inténtalo de nuevo o usa otro navegador.",
+  phoneWallTitle: "Muro de móviles 📱📱📱",
+  phoneWallBody: "Pon el móvil en la mesa junto a los demás: juntos forman una foto gigante.",
+  phoneWallJoin: "Unirse al muro",
+  phoneWallYou: "Eres el número %d: mira la TV para saber dónde poner el móvil.",
+  phoneWallHint: "Pon el móvil en vertical donde la TV muestra este número, pantalla hacia arriba, brillo al máximo.",
+  phoneWallLate: "El muro ya ha empezado: podrás unirte en la próxima ronda.",
+  phoneWallFull: "El muro está completo.",
+  phoneWallLeave: "Salir del muro",
 };
 const DE = {
   announceKicker: "Durchsage",
@@ -1158,6 +1212,14 @@ const DE = {
   discoPlaying: "Läuft synchron zum Fernseher",
   discoPaused: "Die Musik ist am Fernseher pausiert",
   discoError: "Dieses Handy kann den Titel nicht abspielen. Versuch es erneut oder nimm einen anderen Browser.",
+  phoneWallTitle: "Handy‑Wand 📱📱📱",
+  phoneWallBody: "Leg dein Handy neben die anderen auf den Tisch: Zusammen ergeben sie ein riesiges Foto.",
+  phoneWallJoin: "Mitmachen",
+  phoneWallYou: "Du bist Nummer %d: Schau auf den Fernseher, wo dein Handy hinkommt.",
+  phoneWallHint: "Leg das Handy hochkant dorthin, wo der Fernseher diese Nummer zeigt, Bildschirm nach oben, Helligkeit auf Maximum.",
+  phoneWallLate: "Die Wand läuft schon: Du kannst in der nächsten Runde mitmachen.",
+  phoneWallFull: "Die Wand ist voll.",
+  phoneWallLeave: "Wand verlassen",
 };
 const TEXTS = { it: IT, en: EN, fr: FR, es: ES, de: DE };
 // Prima lingua del telefono che la pagina conosce, altrimenti inglese.
@@ -1235,6 +1297,7 @@ async function pollGame() {
       showParty(state.party || {});
       showPlay(state.play || null);
       showDisco(state.disco || null);
+      showPhoneWall(state.phoneWall || null);
       $("host").hidden = !state.host;
     }
   } catch (e) {
@@ -2398,6 +2461,108 @@ discoAudio.addEventListener("error", () => {
   disco.track = null;
   renderDisco();
 });
+
+// Muro di telefoni: ogni telefono disegna il suo pezzo della foto, come se tutti insieme
+// formassero un unico schermo di colonne × righe telefoni (della stessa misura di questo).
+const phoneWall = { state: null, image: null, serial: -1, closed: false, busy: false };
+$("phoneWallTitle").textContent = T.phoneWallTitle;
+$("phoneWallBody").textContent = T.phoneWallBody;
+$("phoneWallJoin").textContent = T.phoneWallJoin;
+$("phoneWallExit").textContent = "\u2715";
+$("phoneWallExit").setAttribute("aria-label", T.phoneWallLeave);
+
+function showPhoneWall(state) {
+  phoneWall.state = state;
+  const joined = !!(state && state.slot != null);
+  if (!joined) phoneWall.closed = false;
+  $("phoneWall").hidden = !state;
+  $("phoneWallJoin").hidden = joined || (state && state.phase === "showing");
+  let status = "";
+  if (state && !joined && state.phase === "showing") status = T.phoneWallLate;
+  else if (joined) status = T.phoneWallYou.replace("%d", state.slot + 1);
+  $("phoneWallStatus").textContent = status;
+  const screen = $("phoneWallScreen");
+  screen.hidden = !joined || phoneWall.closed;
+  if (screen.hidden) return;
+  if (state.phase === "showing" && state.photo) {
+    if (phoneWall.serial !== state.serial) {
+      phoneWall.serial = state.serial;
+      loadWallImage(state.photo, state.serial);
+    }
+  } else {
+    phoneWall.serial = -1;
+    phoneWall.image = null;
+  }
+  drawPhoneWall();
+}
+
+async function loadWallImage(id, serial) {
+  try {
+    const response = await fetch("/wall/photo?k=" + encodeURIComponent(KEY) + "&id=" + encodeURIComponent(id), { cache: "force-cache" });
+    if (!response.ok) return;
+    const url = URL.createObjectURL(await response.blob());
+    const image = new Image();
+    image.onload = () => {
+      if (phoneWall.serial !== serial) { URL.revokeObjectURL(url); return; }
+      if (phoneWall.image) URL.revokeObjectURL(phoneWall.image.src);
+      phoneWall.image = image;
+      drawPhoneWall();
+    };
+    image.src = url;
+  } catch (e) {}
+}
+
+function drawPhoneWall() {
+  const state = phoneWall.state;
+  const canvas = $("phoneWallCanvas");
+  const image = phoneWall.image;
+  const showing = !!(state && state.phase === "showing" && image);
+  $("phoneWallNumber").hidden = showing;
+  $("phoneWallHint").hidden = showing;
+  if (state && !showing) {
+    $("phoneWallNumber").textContent = state.slot + 1;
+    $("phoneWallHint").textContent = T.phoneWallHint;
+  }
+  const context = canvas.getContext("2d");
+  const ratio = Math.min(window.devicePixelRatio || 1, 2);
+  const width = innerWidth, height = innerHeight;
+  canvas.width = Math.round(width * ratio);
+  canvas.height = Math.round(height * ratio);
+  context.setTransform(ratio, 0, 0, ratio, 0, 0);
+  context.fillStyle = "#000";
+  context.fillRect(0, 0, width, height);
+  if (!showing) return;
+  // La foto copre tutto il muro; questo telefono ne mostra la sua casella.
+  const columns = Math.max(1, state.columns | 0), rows = Math.max(1, state.rows | 0);
+  const wallWidth = width * columns, wallHeight = height * rows;
+  const scale = Math.max(wallWidth / image.naturalWidth, wallHeight / image.naturalHeight);
+  const drawWidth = image.naturalWidth * scale, drawHeight = image.naturalHeight * scale;
+  const left = (wallWidth - drawWidth) / 2 - (state.slot % columns) * width;
+  const top = (wallHeight - drawHeight) / 2 - Math.floor(state.slot / columns) * height;
+  context.drawImage(image, left, top, drawWidth, drawHeight);
+}
+
+async function joinPhoneWall() {
+  if (phoneWall.busy) return;
+  phoneWall.busy = true;
+  phoneWall.closed = false;
+  try {
+    const response = await sendAction({ type: "wall", command: "join" });
+    if (!response.ok) $("phoneWallStatus").textContent = response.status === 507 ? T.phoneWallFull : (response.status === 409 ? T.phoneWallLate : T.offline);
+  } catch (e) {
+    $("phoneWallStatus").textContent = T.offline;
+  }
+  phoneWall.busy = false;
+  pollGame();
+}
+
+$("phoneWallJoin").addEventListener("click", joinPhoneWall);
+$("phoneWallExit").addEventListener("click", () => {
+  phoneWall.closed = true;
+  $("phoneWallScreen").hidden = true;
+  sendAction({ type: "wall", command: "leave" }).catch(() => {}).then(pollGame);
+});
+window.addEventListener("resize", () => { if (!$("phoneWallScreen").hidden) drawPhoneWall(); });
 
 // Domanda già in corso sulla TV: si mostra subito, senza aspettare il primo giro.
 pollGame();

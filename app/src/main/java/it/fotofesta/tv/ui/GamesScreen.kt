@@ -30,6 +30,7 @@ import androidx.compose.material.icons.rounded.PhoneDisabled
 import androidx.compose.material.icons.rounded.PhotoCamera
 import androidx.compose.material.icons.rounded.Poll
 import androidx.compose.material.icons.rounded.Videocam
+import androidx.compose.material.icons.rounded.ViewColumn
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -73,6 +74,7 @@ fun GamesScreen(
     /** Silent disco accesa: la musica è nelle cuffie dei telefoni. */
     silentDisco: Boolean = false,
     onSilentDisco: () -> Unit = {},
+    onPhoneWall: () -> Unit = {},
 ) {
     val playable = photoCount >= MIN_GAME_PHOTOS
     Column(Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 40.dp), verticalArrangement = Arrangement.spacedBy(26.dp)) {
@@ -204,6 +206,16 @@ fun GamesScreen(
                     onSilentDisco,
                     Modifier.width(GAME_TILE_WIDTH),
                     enabled = partyActive || silentDisco,
+                )
+            }
+            item {
+                GameTile(
+                    stringResource(R.string.games_phone_wall_title),
+                    stringResource(if (partyActive) R.string.games_phone_wall_body else R.string.games_poll_unavailable),
+                    Icons.Rounded.ViewColumn,
+                    onPhoneWall,
+                    Modifier.width(GAME_TILE_WIDTH),
+                    enabled = partyActive,
                 )
             }
             item {

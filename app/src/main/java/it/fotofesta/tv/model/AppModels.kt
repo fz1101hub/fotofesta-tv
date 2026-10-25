@@ -8,7 +8,7 @@ import it.fotofesta.tv.guests.PartyHub
 enum class Destination { HOME, SETTINGS, SLIDESHOW, GAMES, MEMORY, MYSTERY, PUZZLE, WHO_TOOK_IT, POLL, LOTTERY, GOOGLE_CONNECT, GUESTS, GUEST_REVIEW, AWARDS, GUESTBOOK, ANNOUNCE, GUEST_WIFI, FILE_BROWSER, ICLOUD_LINK, SMB_LOGIN,
     PARTY_GAMES, PLAY, TOURNAMENT, BETS, TOAST, COINS,
     SHOWS, REWIND, BARCODE, PHOTO_MOSAIC, CREDITS, TELETEXT, SKY, STATS,
-    BUZZER, CAMERA, DOOR, EXTRA_SCREEN, ANYWHERE }
+    BUZZER, CAMERA, DOOR, EXTRA_SCREEN, ANYWHERE, PHONE_WALL }
 
 enum class TransitionType(@StringRes val labelRes: Int) {
     FADE(R.string.transition_fade),
@@ -361,4 +361,6 @@ data class AppState(
     val cameraAddress: String = "",
     /** Silent disco: la musica suona nelle cuffie dei telefoni e la TV resta muta. */
     val silentDisco: Boolean = false,
+    /** Muro di telefoni in corso: telefoni in fila e foto mandata. */
+    val phoneWall: it.fotofesta.tv.guests.PhoneWall.State? = null,
 )

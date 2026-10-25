@@ -1002,4 +1002,23 @@
     <string name="anywhere_hotspot_body">I telefoni si collegano alla TV con il QR. Non tutte le Fire TV e Android TV riescono a crearla.</string>
     <string name="anywhere_light_body">Meno lavoro per la chiavetta: scalda meno e il powerbank dura di più.</string>
     <string name="anywhere_go">Si parte!</string>
+
+    <!-- Muro di telefoni -->
+    <string name="games_phone_wall_title">Muro di telefoni</string>
+    <string name="games_phone_wall_body">Telefoni uno accanto all’altro sul tavolo: ognuno mostra un pezzo della stessa foto.</string>
+    <string name="phone_wall_kicker">Muro di telefoni</string>
+    <string name="phone_wall_title">Una foto, tanti telefoni</string>
+    <string name="phone_wall_subtitle">Gli invitati toccano «Muro di telefoni» nella pagina della festa: ogni telefono mostra il suo numero. Mettili in verticale in quest’ordine, schermo in su e luminosità al massimo.</string>
+    <string name="phone_wall_waiting">Aspetto i telefoni…</string>
+    <string name="phone_wall_show">Mostra una foto</string>
+    <string name="phone_wall_another">Un’altra foto</string>
+    <string name="phone_wall_rearrange">Rimetti in fila</string>
+    <string name="phone_wall_tip">Rende meglio con telefoni di misura simile. Si mandano solo foto degli invitati già sulla TV.</string>
+    <string name="message_phone_wall_no_photos">Per il muro serve almeno una foto degli invitati sulla TV.</string>
+    <string name="message_phone_wall_nobody">Nessun telefono si è ancora messo in fila.</string>
+    <plurals name="phone_wall_count">
+        <item quantity="one">%d telefono in fila</item>
+        <item quantity="many">%d telefoni in fila</item>
+        <item quantity="other">%d telefoni in fila</item>
+    </plurals>
 </resources>

@@ -102,9 +102,11 @@ import it.fotofesta.tv.ui.WhoTookItScreen
 import it.fotofesta.tv.ui.PhonePlay
 import it.fotofesta.tv.ui.BuzzerScreen
 import it.fotofesta.tv.ui.AnywhereScreen
+import it.fotofesta.tv.ui.PhoneWallScreen
 import it.fotofesta.tv.ui.DoorScreen
 import it.fotofesta.tv.ui.ExtraScreen
 import it.fotofesta.tv.guests.ExtraScreenClient
+import it.fotofesta.tv.guests.guestPhotoId
 import it.fotofesta.tv.ui.CameraScreen
 import it.fotofesta.tv.ui.projectorBoost
 import it.fotofesta.tv.tv.TvFeatures
@@ -222,7 +224,7 @@ class MainActivity : ComponentActivity() {
                     Destination.TOAST, Destination.COINS -> true
                     Destination.SHOWS, Destination.REWIND, Destination.BARCODE, Destination.PHOTO_MOSAIC, Destination.CREDITS,
                     Destination.TELETEXT, Destination.SKY, Destination.STATS -> true
-                    Destination.BUZZER, Destination.CAMERA, Destination.DOOR, Destination.EXTRA_SCREEN, Destination.ANYWHERE -> true
+                    Destination.BUZZER, Destination.CAMERA, Destination.DOOR, Destination.EXTRA_SCREEN, Destination.ANYWHERE, Destination.PHONE_WALL -> true
                     // Il QR per incollare il link dell'album deve restare visibile.
                     Destination.ICLOUD_LINK -> true
                     else -> false
@@ -312,6 +314,14 @@ class MainActivity : ComponentActivity() {
                                 onCamera = { viewModel.navigate(Destination.CAMERA) },
                                 silentDisco = state.silentDisco,
                                 onSilentDisco = viewModel::toggleSilentDisco,
+                                onPhoneWall = viewModel::startPhoneWall,
+                            )
+                            Destination.PHONE_WALL -> PhoneWallScreen(
+                                wall = state.phoneWall,
+                                photo = state.phoneWall?.photoId?.let { id -> state.photos.firstOrNull { it.guestPhotoId == id } },
+                                onShow = viewModel::showPhoneWall,
+                                onRearrange = viewModel::rearrangePhoneWall,
+                                onBack = viewModel::back,
                             )
                             Destination.BUZZER -> BuzzerScreen(onBack = viewModel::back)
                             Destination.CAMERA -> CameraScreen(

@@ -14,6 +14,7 @@ import it.fotofesta.tv.guests.HostRemote
 import it.fotofesta.tv.guests.PartyHub
 import it.fotofesta.tv.guests.PartyPlay
 import it.fotofesta.tv.guests.PhoneGame
+import it.fotofesta.tv.guests.PhoneWall
 import it.fotofesta.tv.icloud.ICloudAlbumClient
 import it.fotofesta.tv.icloud.ICloudAlbumStream
 import it.fotofesta.tv.guests.GuestPhotoStore
@@ -93,8 +94,12 @@ class AppServices(context: Context) {
     /** Giochi con i telefoni oltre ai quiz: disegni, missioni, talpa, caccia al QR, monete. */
     val partyPlay = PartyPlay(partyHub)
 
+    /** Muro di telefoni: un pezzo della stessa foto su ogni telefono, uno accanto all'altro. */
+    val phoneWall = PhoneWall()
+
     /** Foto degli invitati: in RAM finché c'è posto, poi in una cartella temporanea con un limite. */
     val guests = GuestParty(context, guestStore(context), phoneGame, partyHub, hostRemote, partyPlay).apply {
+        phoneWall = this@AppServices.phoneWall
         // Schermo DLNA: le foto mandate dai telefoni con "Riproduci su" entrano nella festa.
         val appContext = context.applicationContext
         dlnaFactory = {

@@ -28,6 +28,12 @@ interface PartyExtras {
 
     /** Brano [id] della silent disco, solo se è quello che sta suonando. */
     fun discoTrack(id: String): DiscoTrack? = null
+
+    /** Muro di telefoni per il telefono [player], in JSON; "null" se è spento. */
+    fun phoneWallJson(player: String?): String = "null"
+
+    /** Iscrizione al muro di telefoni: stato HTTP e risposta; null se la TV non lo offre. */
+    fun phoneWallAction(form: Map<String, String>): Pair<Int, String>? = null
 }
 
 /** Brano da mandare ai telefoni della silent disco: lunghezza, tipo e lettura da una posizione. */

@@ -107,6 +107,8 @@ class GuestParty(
     @Volatile var onPhotoSaved: ((bytes: ByteArray, sender: String?) -> Unit)? = null
     /** Silent disco accesa: il brano che sta suonando la TV (a volume zero), letto dai thread del server. */
     @Volatile var discoSource: (() -> BackgroundMusicPlayer.NowPlaying?)? = null
+    /** Muro di telefoni: i telefoni sul tavolo mostrano insieme una foto della parete. */
+    @Volatile var phoneWall: PhoneWall? = null
     private var hubSave: ScheduledFuture<*>? = null
     private val hubFile get() = java.io.File(context.noBackupFilesDir, HUB_FILE)
 
@@ -182,6 +184,10 @@ class GuestParty(
                 }
             }
         }
+
+        override fun phoneWallJson(player: String?): String = phoneWall?.phoneJson(player) ?: "null"
+
+        override fun phoneWallAction(form: Map<String, String>): Pair<Int, String>? = phoneWall?.handle(form)
 
         private fun asset(path: String) = context.assets.open(path).use { it.readBytes().toString(Charsets.UTF_8) }
     }

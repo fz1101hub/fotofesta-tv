@@ -959,4 +959,22 @@
     <string name="anywhere_hotspot_body">Phones connect to the TV with the QR. Not every Fire TV or Android TV can create one.</string>
     <string name="anywhere_light_body">Less work for the stick: it stays cooler and the power bank lasts longer.</string>
     <string name="anywhere_go">Let’s go!</string>
+
+    <!-- Muro di telefoni -->
+    <string name="games_phone_wall_title">Phone wall</string>
+    <string name="games_phone_wall_body">Phones side by side on the table: each one shows a piece of the same photo.</string>
+    <string name="phone_wall_kicker">Phone wall</string>
+    <string name="phone_wall_title">One photo, many phones</string>
+    <string name="phone_wall_subtitle">Guests tap “Phone wall” on the party page: each phone shows its number. Lay them upright in this order, screens up and brightness at maximum.</string>
+    <string name="phone_wall_waiting">Waiting for the phones…</string>
+    <string name="phone_wall_show">Show a photo</string>
+    <string name="phone_wall_another">Another photo</string>
+    <string name="phone_wall_rearrange">Line up again</string>
+    <string name="phone_wall_tip">Same-size phones work best. Only guest photos already on the TV are sent.</string>
+    <string name="message_phone_wall_no_photos">The phone wall needs at least one guest photo on the TV.</string>
+    <string name="message_phone_wall_nobody">No phone has joined the wall yet.</string>
+    <plurals name="phone_wall_count">
+        <item quantity="one">%d phone in line</item>
+        <item quantity="other">%d phones in line</item>
+    </plurals>
 </resources>
