@@ -123,6 +123,16 @@ class SettingsRepository(context: Context) {
         panoramas = prefs.getBoolean("panoramas", true),
         rivalParty = prefs.getBoolean("rival_party", false),
         boredTv = prefs.getBoolean("bored_tv", false),
+        partyLights = prefs.getBoolean("party_lights", true),
+        autoPrint = prefs.getBoolean("auto_print", false),
+        autoReceipt = prefs.getBoolean("auto_receipt", false),
+        ftpServer = prefs.getBoolean("ftp_server", false),
+        usbCamera = prefs.getBoolean("usb_camera", true),
+        nasCopy = prefs.getBoolean("nas_copy", false),
+        usbStorage = prefs.getBoolean("usb_storage", false),
+        hotFolder = prefs.getBoolean("hot_folder", false),
+        motionPhotos = prefs.getBoolean("motion_photos", true),
+        hdrPhotos = prefs.getBoolean("hdr_photos", false),
         kenBurns = prefs.getBoolean("ken_burns", false),
         sleepTimerMinutes = prefs.getInt("sleep_timer", 0),
         countdown = prefs.getBoolean("countdown", false),
@@ -179,6 +189,16 @@ class SettingsRepository(context: Context) {
             .putBoolean("panoramas", value.panoramas)
             .putBoolean("rival_party", value.rivalParty)
             .putBoolean("bored_tv", value.boredTv)
+            .putBoolean("party_lights", value.partyLights)
+            .putBoolean("auto_print", value.autoPrint)
+            .putBoolean("auto_receipt", value.autoReceipt)
+            .putBoolean("ftp_server", value.ftpServer)
+            .putBoolean("usb_camera", value.usbCamera)
+            .putBoolean("nas_copy", value.nasCopy)
+            .putBoolean("usb_storage", value.usbStorage)
+            .putBoolean("hot_folder", value.hotFolder)
+            .putBoolean("motion_photos", value.motionPhotos)
+            .putBoolean("hdr_photos", value.hdrPhotos)
             .putBoolean("ken_burns", value.kenBurns)
             .putInt("sleep_timer", value.sleepTimerMinutes)
             .putBoolean("countdown", value.countdown)
@@ -216,6 +236,45 @@ class SettingsRepository(context: Context) {
     fun loadUsbBackup(): Pair<String, String>? {
         val uri = sources.getString("usb_backup_uri", null) ?: return null
         return uri to sources.getString("usb_backup_name", null).orEmpty()
+    }
+
+    /** Luci della festa collegate (Hue, WLED, Nanoleaf), con la chiave avuta all'abbinamento. */
+    fun saveLights(devices: List<it.fotofesta.tv.hardware.PartyLights.Device>) {
+        val array = org.json.JSONArray(devices.map { it.toJson() })
+        runCatching { lightSecrets.put("lights", array.toString()) }
+    }
+
+    fun loadLights(): List<it.fotofesta.tv.hardware.PartyLights.Device> = runCatching {
+        val array = org.json.JSONArray(lightSecrets.get("lights") ?: return emptyList())
+        (0 until array.length()).mapNotNull { array.optJSONObject(it)?.let(it.fotofesta.tv.hardware.PartyLights.Device::fromJson) }
+    }.getOrDefault(emptyList())
+
+    // Le chiavi delle luci danno il controllo delle lampade di casa: cifrate come le password.
+    private val lightSecrets by lazy { KeystoreStrings(sources, "fotofesta_lights_v1") }
+
+    /** Stampante delle foto (IPP) e stampante degli scontrini. */
+    fun savePrinter(printer: it.fotofesta.tv.hardware.Ipp.Printer?) {
+        sources.edit().apply {
+            if (printer == null) remove("ipp_host").remove("ipp_port").remove("ipp_path").remove("ipp_name")
+            else putString("ipp_host", printer.host).putInt("ipp_port", printer.port).putString("ipp_path", printer.path).putString("ipp_name", printer.name)
+        }.apply()
+    }
+
+    fun loadPrinter(): it.fotofesta.tv.hardware.Ipp.Printer? {
+        val host = sources.getString("ipp_host", null) ?: return null
+        return it.fotofesta.tv.hardware.Ipp.Printer(host, sources.getInt("ipp_port", it.fotofesta.tv.hardware.Ipp.PORT), sources.getString("ipp_path", null) ?: "ipp/print", sources.getString("ipp_name", null) ?: host)
+    }
+
+    fun saveReceiptPrinter(host: String?, wide: Boolean) {
+        sources.edit().putString("receipt_host", host).putBoolean("receipt_wide", wide).apply()
+    }
+
+    fun loadReceiptPrinter(): Pair<String, Boolean>? =
+        sources.getString("receipt_host", null)?.let { it to sources.getBoolean("receipt_wide", false) }
+
+    /** Password del server FTP per le fotocamere: sei cifre, la stessa finché non si cambia. */
+    fun ftpPassword(): String = sources.getString("ftp_password", null) ?: (100_000 + java.security.SecureRandom().nextInt(900_000)).toString().also {
+        sources.edit().putString("ftp_password", it).apply()
     }
 
     /** Indirizzo del vecchio telefono usato come telecamera. */

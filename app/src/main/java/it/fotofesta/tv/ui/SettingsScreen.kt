@@ -109,6 +109,8 @@ fun SettingsScreen(
     onKiosk: () -> Unit = {},
     /** Prova della rete della festa, con un telefono. */
     onNetworkCheck: () -> Unit = {},
+    /** Luci, stampanti e fotocamere della festa. */
+    onDevices: () -> Unit = {},
     /** Impostazioni e preparazione della festa su un file della chiavetta, e ritorno. */
     onExport: () -> Unit = {},
     onImport: () -> Unit = {},
@@ -322,6 +324,29 @@ fun SettingsScreen(
                                 subtitle = stringResource(R.string.settings_panoramas_body),
                                 checked = settings.panoramas && !settings.reducedMotion,
                                 enabled = !settings.reducedMotion,
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_motion_photos),
+                                { onChange(settings.copy(motionPhotos = !settings.motionPhotos)) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_motion_photos_body),
+                                checked = settings.motionPhotos,
+                            )
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                                SettingsItem(
+                                    stringResource(R.string.settings_hdr),
+                                    { onChange(settings.copy(hdrPhotos = !settings.hdrPhotos)) },
+                                    toCategory,
+                                    subtitle = stringResource(R.string.settings_hdr_body),
+                                    checked = settings.hdrPhotos,
+                                )
+                            }
+                            SettingsItem(
+                                stringResource(R.string.settings_hot_folder),
+                                { onChange(settings.copy(hotFolder = !settings.hotFolder)) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_hot_folder_body),
+                                checked = settings.hotFolder,
                             )
                             SettingsItem(
                                 stringResource(R.string.settings_reduced_motion),
@@ -538,6 +563,19 @@ fun SettingsScreen(
                                 subtitle = stringResource(R.string.settings_network_check_body),
                             )
                             SettingsItem(
+                                stringResource(R.string.devices_title),
+                                onDevices,
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_devices_body),
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_nas_copy),
+                                { onChange(state.settings.copy(nasCopy = !state.settings.nasCopy)) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_nas_copy_body),
+                                checked = state.settings.nasCopy,
+                            )
+                            SettingsItem(
                                 stringResource(R.string.settings_fixed_address),
                                 { onChange(state.settings.copy(fixedAddress = !state.settings.fixedAddress)) },
                                 toCategory,
@@ -715,6 +753,13 @@ fun SettingsScreen(
                                 toCategory,
                                 subtitle = stringResource(R.string.settings_usb_backup_body),
                                 value = state.usbBackupName ?: stringResource(R.string.settings_wifi_none),
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_usb_storage),
+                                { onChange(settings.copy(usbStorage = !settings.usbStorage)) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_usb_storage_body),
+                                checked = settings.usbStorage,
                             )
                             if (fireTv) {
                                 // Solo da leggere: le frasi di Alexa arrivano alla sessione multimediale dell'app.

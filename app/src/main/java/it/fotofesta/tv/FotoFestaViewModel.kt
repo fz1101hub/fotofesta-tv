@@ -34,6 +34,10 @@ import it.fotofesta.tv.guests.TimeCapsule
 import it.fotofesta.tv.guests.WifiNetwork
 import it.fotofesta.tv.guests.guestPhotoId
 import it.fotofesta.tv.guests.toPhotoItem
+import it.fotofesta.tv.hardware.Ipp
+import it.fotofesta.tv.hardware.PartyHardware
+import it.fotofesta.tv.hardware.PartyLights
+import it.fotofesta.tv.hardware.UsbCamera
 import it.fotofesta.tv.media.BackgroundMusicPlayer
 import it.fotofesta.tv.media.BeatAnalyzer
 import it.fotofesta.tv.media.BeatMath
@@ -55,6 +59,7 @@ import it.fotofesta.tv.model.PlayUiState
 import it.fotofesta.tv.model.PhotoLimit
 import it.fotofesta.tv.model.PinPurpose
 import it.fotofesta.tv.model.PhotoRef
+import it.fotofesta.tv.network.FtpServer
 import it.fotofesta.tv.ui.QuizItem
 import it.fotofesta.tv.model.PartyGames
 import it.fotofesta.tv.model.CheckStatus
@@ -87,6 +92,8 @@ import it.fotofesta.tv.tv.HomeChannel
 import it.fotofesta.tv.store.StoreHome
 import it.fotofesta.tv.tv.TvFeatures
 import it.fotofesta.tv.tv.TvHotspot
+import it.fotofesta.tv.ui.coilModel
+import it.fotofesta.tv.ui.loadPixels
 import kotlin.coroutines.resume
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -134,6 +141,16 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private val guests = services.guests
     private val networkMedia = services.networkMedia
     private val smbShares = services.smbShares
+    /** Luci, stampanti e fotocamere della festa (ondata 12). */
+    private val hardware = PartyHardware()
+    private var ftp: FtpServer? = null
+    private val usbCamera = UsbCamera(
+        context,
+        onPhoto = { bytes -> guests.addPhoto(bytes, context.getString(R.string.devices_camera_sender)) },
+        onStatus = { name -> _state.update { it.copy(devices = it.devices.copy(usbCamera = name)) } },
+    )
+    /** Foto stampate da sole in questa festa: oltre [MAX_AUTO_PRINTS] ci si ferma (carta e inchiostro). */
+    private var autoPrinted = 0
     /** Nomi dei computer con cartelle condivise trovati in rete, per mostrarli al posto dell'indirizzo. */
     private val smbNames = java.util.concurrent.ConcurrentHashMap<String, String>()
     private var smbJob: Job? = null
@@ -300,6 +317,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         partyHub.onArrival = { arrival ->
             _arrivals.tryEmit(arrival)
             Fanfare.play()
+            hardware.flash()
             // Fuori dallo slideshow il benvenuto è un messaggio in basso.
             if (_state.value.destination != Destination.SLIDESHOW) {
                 showMessage(context.getString(R.string.arrival_message, arrival.name, arrival.order))
@@ -324,7 +342,16 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         syncPartyRules()
         syncPartyFeatures()
         syncTvServices()
+        syncHardware()
         refreshParty()
+        // Le luci seguono la foto sullo schermo durante lo slideshow.
+        viewModelScope.launch {
+            _state.map { state ->
+                state.photos.getOrNull(state.currentIndex)?.takeIf { state.destination == Destination.SLIDESHOW && state.settings.partyLights }
+            }.distinctUntilChanged().collect { photo ->
+                if (photo != null && hardware.lights.isNotEmpty()) photoColor(photo)?.let(hardware::showPhotoColor)
+            }
+        }
         // La pagina di regia mostra cosa c'è sullo schermo e cosa aspetta l'approvazione.
         viewModelScope.launch {
             _state.map { state ->
@@ -388,17 +415,197 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         val gallery = settings.backupCopy && !settings.noTraces && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
         // "Festa senza tracce" vale anche per la chiavetta.
         val usb = settingsRepository.loadUsbBackup()?.first?.takeIf { !settings.noTraces }?.let(Uri::parse)
-        guests.onPhotoSaved = if (gallery || usb != null) {
+        // Anche le copie sul NAS e le stampe sono tracce: niente con la festa senza tracce.
+        val nas = settingsRepository.loadSmbFolder()?.location?.takeIf { settings.nasCopy && !settings.noTraces }
+        val printer = settingsRepository.loadPrinter()?.takeIf { settings.autoPrint && !settings.noTraces }
+        val receipt = settingsRepository.loadReceiptPrinter()?.takeIf { settings.autoReceipt && !settings.noTraces }
+        guests.onPhotoSaved = if (gallery || usb != null || nas != null || printer != null || receipt != null) {
             { bytes, sender ->
                 viewModelScope.launch(Dispatchers.IO) {
                     if (gallery && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) backupPhoto(bytes, sender)
                     if (usb != null) usbBackupPhoto(usb, bytes, sender)
+                    if (nas != null) nasCopyPhoto(nas, bytes, sender)
+                    if (printer != null) autoPrintPhoto(printer, bytes, sender)
+                    if (receipt != null) printReceipt(receipt.first, receipt.second, bytes, sender)
                 }
             }
         } else {
             null
         }
     }
+
+    // -------------------------------------------------------------------------------------------
+    // Ondata 12: dispositivi della festa
+    // -------------------------------------------------------------------------------------------
+
+    private var nasWarned = false
+
+    /** Copia in tempo reale sulla cartella di rete, in FotoFesta-copie/<data>. */
+    private fun nasCopyPhoto(folder: SmbLocation, bytes: ByteArray, sender: String?) {
+        val now = System.currentTimeMillis()
+        val day = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ROOT).format(java.util.Date(now))
+        if (!knownSmbLogin(folder)) return
+        runCatching { smbShares.writeCopy(folder, day, backupName(now, sender), bytes) }.onFailure {
+            Log.w(TAG, "Copia sul NAS non riuscita", it)
+            if (!nasWarned) {
+                nasWarned = true
+                viewModelScope.launch { showMessage(context.getString(R.string.message_nas_copy_failed)) }
+            }
+        }
+    }
+
+    private fun autoPrintPhoto(printer: Ipp.Printer, bytes: ByteArray, sender: String?) {
+        if (autoPrinted >= MAX_AUTO_PRINTS) return
+        autoPrinted++
+        if (autoPrinted == MAX_AUTO_PRINTS) viewModelScope.launch { showMessage(context.getString(R.string.message_print_limit, MAX_AUTO_PRINTS)) }
+        hardware.print(printer, bytes, sender?.let { "FotoFesta · $it" } ?: "FotoFesta")
+    }
+
+    private fun receiptTitle(): String =
+        partySetup.state.value.brand.name.ifBlank { context.getString(_state.value.settings.template.titleRes) }
+
+    private fun printReceipt(host: String, wide: Boolean, bytes: ByteArray?, sender: String?, done: (Boolean) -> Unit = {}) {
+        val now = java.text.SimpleDateFormat("HH:mm · dd/MM/yyyy", java.util.Locale.getDefault()).format(java.util.Date())
+        val lines = listOfNotNull(sender?.let { context.getString(R.string.guest_photo_from, it) })
+        hardware.receipt(host, wide, bytes, receiptTitle(), lines, now, done)
+    }
+
+    /** Luci, server FTP e fotocamera USB come chiedono le impostazioni e lo stato della festa. */
+    private fun syncHardware() {
+        val settings = _state.value.settings
+        val active = _state.value.guests.active
+        hardware.lights = if (settings.partyLights) settingsRepository.loadLights() else emptyList()
+        val wantFtp = settings.ftpServer && active
+        if (wantFtp && ftp == null) {
+            val server = FtpServer(FTP_USER, settingsRepository::ftpPassword, { _, bytes ->
+                guests.addPhoto(bytes, context.getString(R.string.devices_camera_sender))
+            })
+            ftp = if (runCatching { server.start() }.isSuccess) server else {
+                showMessage(context.getString(R.string.message_ftp_failed))
+                null
+            }
+        } else if (!wantFtp && ftp != null) {
+            ftp?.stop()
+            ftp = null
+        }
+        if (settings.usbCamera && active) usbCamera.start() else usbCamera.stop()
+        if (!active) autoPrinted = 0
+        val address = _state.value.guests.url?.let { Uri.parse(it).host }
+        _state.update {
+            it.copy(
+                devices = it.devices.copy(
+                    lights = settingsRepository.loadLights(),
+                    printer = settingsRepository.loadPrinter(),
+                    receiptHost = settingsRepository.loadReceiptPrinter()?.first,
+                    receiptWide = settingsRepository.loadReceiptPrinter()?.second ?: false,
+                    ftpAddress = address?.takeIf { ftp != null },
+                    ftpPort = ftp?.localPort?.takeIf { port -> port > 0 } ?: FtpServer.DEFAULT_PORT,
+                    ftpPassword = settingsRepository.ftpPassword(),
+                ),
+            )
+        }
+    }
+
+    fun openDevices() = navigate(Destination.DEVICES)
+
+    /** Collega una luce trovata in rete; Hue e Nanoleaf vogliono prima il pulsante. */
+    fun pairLight(device: PartyLights.Device) {
+        if (device.kind == PartyLights.Kind.WLED) {
+            saveLight(device)
+            return
+        }
+        _state.update { it.copy(devices = it.devices.copy(pairing = device.name)) }
+        viewModelScope.launch {
+            // Un minuto per premere il pulsante: si riprova ogni due secondi.
+            var token: String? = null
+            repeat(30) {
+                if (token != null || _state.value.devices.pairing != device.name) return@repeat
+                token = withContext(Dispatchers.IO) { hardware.pair(device) }
+                if (token == null) delay(2_000)
+            }
+            _state.update { it.copy(devices = it.devices.copy(pairing = null)) }
+            val key = token
+            if (key == null) showMessage(context.getString(R.string.message_light_not_paired))
+            else saveLight(device.copy(token = key))
+        }
+    }
+
+    fun cancelPairing() = _state.update { it.copy(devices = it.devices.copy(pairing = null)) }
+
+    private fun saveLight(device: PartyLights.Device) {
+        val lights = settingsRepository.loadLights().filterNot { it.host == device.host && it.kind == device.kind } + device
+        settingsRepository.saveLights(lights)
+        syncHardware()
+        hardware.test(device)
+        showMessage(context.getString(R.string.message_light_paired, device.name))
+    }
+
+    fun removeLight(device: PartyLights.Device) {
+        settingsRepository.saveLights(settingsRepository.loadLights().filterNot { it.host == device.host && it.kind == device.kind })
+        syncHardware()
+    }
+
+    fun testLight(device: PartyLights.Device) = hardware.test(device)
+
+    fun choosePrinter(printer: Ipp.Printer) {
+        viewModelScope.launch {
+            if (withContext(Dispatchers.IO) { hardware.canPrint(printer) }) {
+                settingsRepository.savePrinter(printer)
+                syncHardware()
+                syncPartyRules()
+                showMessage(context.getString(R.string.message_printer_ready, printer.name))
+            } else {
+                showMessage(context.getString(R.string.message_printer_unsupported, printer.name))
+            }
+        }
+    }
+
+    fun removePrinter() {
+        settingsRepository.savePrinter(null)
+        syncHardware()
+        syncPartyRules()
+    }
+
+    /** Stampa la foto sullo schermo (o una foto demo) come prova. */
+    fun testPrinter() {
+        val printer = settingsRepository.loadPrinter() ?: return
+        viewModelScope.launch {
+            val bytes = withContext(Dispatchers.IO) { currentPhotoJpeg() } ?: return@launch
+            hardware.print(printer, bytes, "FotoFesta") { ok ->
+                viewModelScope.launch { showMessage(context.getString(if (ok) R.string.message_print_sent else R.string.message_print_failed)) }
+            }
+        }
+    }
+
+    fun setReceiptPrinter(host: String?, wide: Boolean) {
+        settingsRepository.saveReceiptPrinter(host?.trim()?.takeIf { it.isNotEmpty() }, wide)
+        syncHardware()
+        syncPartyRules()
+    }
+
+    fun testReceipt() {
+        val (host, wide) = settingsRepository.loadReceiptPrinter() ?: return
+        viewModelScope.launch {
+            val bytes = withContext(Dispatchers.IO) { currentPhotoJpeg() }
+            printReceipt(host, wide, bytes, null) { ok ->
+                viewModelScope.launch { showMessage(context.getString(if (ok) R.string.message_print_sent else R.string.message_print_failed)) }
+            }
+        }
+    }
+
+    /** La foto sullo schermo in JPEG, ridotta (al massimo 2048 pixel), per le prove di stampa. */
+    private suspend fun currentPhotoJpeg(): ByteArray? {
+        val state = _state.value
+        val photo = state.photos.getOrNull(state.currentIndex)?.takeUnless { it.video } ?: return null
+        val request = coil.request.ImageRequest.Builder(context).data(photo.ref.coilModel()).size(2048).allowHardware(false).build()
+        val drawable = (context.imageLoader.execute(request) as? coil.request.SuccessResult)?.drawable ?: return null
+        val bitmap = (drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap ?: return null
+        return java.io.ByteArrayOutputStream().also { bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, it) }.toByteArray()
+    }
+
+    /** Colore medio della foto sullo schermo, per le luci. */
+    private suspend fun photoColor(photo: PhotoItem): Int? =
+        if (photo.video) null else loadPixels(context, photo, 8, 8)?.first?.let(PartyShows::average)
 
     /** Schermo DLNA e canale della schermata Home, come chiedono le impostazioni. */
     private fun syncTvServices() {
@@ -1323,6 +1530,10 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             Destination.SETTINGS, Destination.GAMES, Destination.GUESTS -> navigate(Destination.HOME)
             Destination.EXTRA_SCREEN, Destination.ANYWHERE -> navigate(Destination.GUESTS)
             Destination.NETWORK_CHECK -> navigate(Destination.GUESTS)
+            Destination.DEVICES -> {
+                cancelPairing()
+                navigate(Destination.SETTINGS)
+            }
             Destination.PHONE_WALL -> {
                 phoneWall.stop()
                 navigate(Destination.GAMES)
@@ -1416,6 +1627,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             refreshParty()
         }
         if (previous.dlnaReceiver != value.dlnaReceiver || previous.homeChannel != value.homeChannel) syncTvServices()
+        if (previous.nasCopy != value.nasCopy || previous.autoPrint != value.autoPrint || previous.autoReceipt != value.autoReceipt) syncPartyRules()
+        if (previous.partyLights != value.partyLights || previous.ftpServer != value.ftpServer || previous.usbCamera != value.usbCamera) syncHardware()
     }
 
     fun loadUsb(treeUri: Uri) {
@@ -2512,6 +2725,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             stopSilentDisco()
             if (phoneWall.state() != null) phoneWall.stop()
         }
+        if (party.active != guestPartyActive) syncHardware()
         if (items != guestPhotos || party.active != guestPartyActive) {
             guestPhotos = items
             guestPartyActive = party.active
@@ -2732,6 +2946,9 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         usbJob?.cancel()
         sleepJob?.cancel()
         guests.discoSource = null
+        ftp?.stop()
+        usbCamera.stop()
+        hardware.close()
         snippetJob?.cancel()
         snippetPlayer?.let { runCatching { it.stop() }; it.release() }
         snippetPlayer = null
@@ -2760,6 +2977,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         const val PIN_LENGTH = 4
         const val MAX_SONG_ROUNDS = 10
         const val SNIPPET_MS = 15_000L
+        const val MAX_AUTO_PRINTS = 100
+        const val FTP_USER = "fotofesta"
         const val MAX_ON_THIS_DAY_SCAN = 3_000
         const val REVIEW_MIN_PHOTOS = 10
         const val REVIEW_EVERY_MS = 90L * 24 * 60 * 60_000

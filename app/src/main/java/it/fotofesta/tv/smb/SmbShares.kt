@@ -232,6 +232,27 @@ class SmbShares(
         }
     }
 
+    /**
+     * Copia in tempo reale: scrive [bytes] come [name] in [folder]/[COPY_FOLDER]/[day], creando le
+     * cartelle che mancano. Le copie restano fuori dallo slideshow: [scanPhotos] salta [COPY_FOLDER].
+     */
+    fun writeCopy(folder: SmbLocation, day: String, name: String, bytes: ByteArray) = withDisk(folder) { disk ->
+        var path = folder.smbPath.trim('\\')
+        for (part in listOf(COPY_FOLDER, day)) {
+            path = if (path.isEmpty()) part else "$path\\$part"
+            if (!disk.folderExists(path)) disk.mkdir(path)
+        }
+        disk.openFile(
+            "$path\\$name",
+            EnumSet.of(AccessMask.GENERIC_WRITE),
+            null,
+            SMB2ShareAccess.ALL,
+            SMB2CreateDisposition.FILE_OVERWRITE_IF,
+            null,
+        ).use { file -> file.write(bytes, 0L) }
+        Unit
+    }
+
     /** Chiude le connessioni: servono di nuovo solo quando si sceglie un'altra cartella condivisa. */
     @Synchronized
     fun disconnectAll() {
@@ -325,6 +346,7 @@ class SmbShares(
         name == "." || name == ".." ||
             // File nascosti e di sistema, cestini e miniature dei NAS (@eaDir di Synology, #recycle…).
             name.first() in HIDDEN_PREFIXES || name.equals("System Volume Information", ignoreCase = true) ||
+            name.equals(COPY_FOLDER, ignoreCase = true) ||
             attributes and (HIDDEN or SYSTEM) != 0L
 
     private fun extension(name: String): String = name.substringAfterLast('.', "").lowercase()
@@ -341,6 +363,8 @@ class SmbShares(
     }
 
     companion object {
+        /** Cartella delle copie in tempo reale delle foto degli invitati. */
+        const val COPY_FOLDER = "FotoFesta-copie"
         private const val MAX_PHOTOS = 10_000
         private const val MAX_FOLDERS = 2_000
         private val DIRECTORY = FileAttributes.FILE_ATTRIBUTE_DIRECTORY.value

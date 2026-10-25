@@ -114,6 +114,8 @@ import it.fotofesta.tv.ui.LivingQrScreen
 import it.fotofesta.tv.ui.SoundShowScreen
 import it.fotofesta.tv.ui.ArtworkScreen
 import it.fotofesta.tv.ui.AbsentScreen
+import it.fotofesta.tv.ui.DevicesActions
+import it.fotofesta.tv.ui.DevicesScreen
 import it.fotofesta.tv.ui.NetworkCheckScreen
 import it.fotofesta.tv.ui.PhoneWallScreen
 import it.fotofesta.tv.ui.PinDialog
@@ -303,6 +305,7 @@ class MainActivity : ComponentActivity() {
                                 onRemoveMusic = viewModel::removeMusic,
                                 onKiosk = viewModel::toggleKiosk,
                                 onNetworkCheck = viewModel::openNetworkCheck,
+                                onDevices = viewModel::openDevices,
                                 onExport = viewModel::exportSetup,
                                 onImport = viewModel::importSetup,
                                 onDisconnectGoogle = viewModel::disconnectGoogle,
@@ -354,6 +357,24 @@ class MainActivity : ComponentActivity() {
                                 onSilentDisco = viewModel::toggleSilentDisco,
                                 onPhoneWall = viewModel::startPhoneWall,
                                 onMoreGame = { viewModel.navigate(it) },
+                            )
+                            Destination.DEVICES -> DevicesScreen(
+                                devices = state.devices,
+                                settings = state.settings,
+                                partyActive = state.guests.active,
+                                actions = DevicesActions(
+                                    onSettings = viewModel::updateSettings,
+                                    onPairLight = viewModel::pairLight,
+                                    onCancelPairing = viewModel::cancelPairing,
+                                    onRemoveLight = viewModel::removeLight,
+                                    onTestLight = viewModel::testLight,
+                                    onChoosePrinter = viewModel::choosePrinter,
+                                    onRemovePrinter = viewModel::removePrinter,
+                                    onTestPrinter = viewModel::testPrinter,
+                                    onReceiptPrinter = viewModel::setReceiptPrinter,
+                                    onTestReceipt = viewModel::testReceipt,
+                                    onBack = viewModel::back,
+                                ),
                             )
                             Destination.NETWORK_CHECK -> NetworkCheckScreen(
                                 check = state.networkCheck,

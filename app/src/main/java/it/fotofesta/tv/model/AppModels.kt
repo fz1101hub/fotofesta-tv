@@ -10,7 +10,7 @@ enum class Destination { HOME, SETTINGS, SLIDESHOW, GAMES, MEMORY, MYSTERY, PUZZ
     SHOWS, REWIND, BARCODE, PHOTO_MOSAIC, CREDITS, TELETEXT, SKY, STATS,
     BUZZER, CAMERA, DOOR, EXTRA_SCREEN, ANYWHERE, PHONE_WALL, NETWORK_CHECK,
     ABSENT, ARTWORK, SOUND_SHOW, LIVING_QR, DREAM, MUSEUM, CHAPTERS, ON_THIS_DAY,
-    DIFFERENCES, QUIZ_HOSTS, QUIZ_KIDS, QUIZ_SONGS }
+    DIFFERENCES, QUIZ_HOSTS, QUIZ_KIDS, QUIZ_SONGS, DEVICES }
 
 enum class TransitionType(@StringRes val labelRes: Int) {
     FADE(R.string.transition_fade),
@@ -140,6 +140,26 @@ data class SlideshowSettings(
     val rivalParty: Boolean = false,
     /** Senza foto nuove dagli invitati per un po', la TV fa capire che si annoia. */
     val boredTv: Boolean = false,
+    /** Le luci collegate (Hue, WLED, Nanoleaf) prendono il colore della foto sullo schermo. */
+    val partyLights: Boolean = true,
+    /** Ogni foto nuova degli invitati si stampa sulla stampante di casa (IPP). */
+    val autoPrint: Boolean = false,
+    /** Ogni foto nuova degli invitati esce come scontrino dalla stampante termica. */
+    val autoReceipt: Boolean = false,
+    /** Server FTP per le fotocamere con il Wi‑Fi, attivo durante la festa. */
+    val ftpServer: Boolean = false,
+    /** Le foto delle fotocamere collegate con il cavo USB entrano nella festa. */
+    val usbCamera: Boolean = true,
+    /** Copia in tempo reale delle foto degli invitati sulla cartella di rete (NAS/PC). */
+    val nasCopy: Boolean = false,
+    /** Foto degli invitati salvate sulla chiavetta invece che nella memoria della TV. */
+    val usbStorage: Boolean = false,
+    /** La cartella della chiavetta si ricontrolla spesso: le foto nuove compaiono subito. */
+    val hotFolder: Boolean = false,
+    /** Le foto in movimento di Pixel e Samsung mostrano il loro breve video. */
+    val motionPhotos: Boolean = true,
+    /** Foto HDR (Ultra HDR) con la luminosità piena sulle TV che la supportano (Android 14+). */
+    val hdrPhotos: Boolean = false,
     /** Zoom e spostamento lenti durante la permanenza di ogni foto (disattivati da [reducedMotion]). */
     val kenBurns: Boolean = false,
     /** Minuti di riproduzione dopo i quali lo slideshow va in pausa; 0 = disattivato. */
@@ -424,4 +444,21 @@ data class AppState(
     /** PIN del chiosco da scrivere, con il motivo; null se non serve. */
     val pinRequest: PinPurpose? = null,
     val networkCheck: NetworkCheck = NetworkCheck(),
+    val devices: DevicesUiState = DevicesUiState(),
+)
+
+/** Dispositivi della festa: luci, stampanti e fotocamere collegate. */
+data class DevicesUiState(
+    val lights: List<it.fotofesta.tv.hardware.PartyLights.Device> = emptyList(),
+    val printer: it.fotofesta.tv.hardware.Ipp.Printer? = null,
+    val receiptHost: String? = null,
+    val receiptWide: Boolean = false,
+    /** Indirizzo del server FTP mentre è attivo ("192.168.1.10"), altrimenti null. */
+    val ftpAddress: String? = null,
+    val ftpPort: Int = it.fotofesta.tv.network.FtpServer.DEFAULT_PORT,
+    val ftpPassword: String = "",
+    /** Nome della fotocamera collegata con il cavo USB, se c'è. */
+    val usbCamera: String? = null,
+    /** Abbinamento in corso (in attesa del pulsante della luce). */
+    val pairing: String? = null,
 )
