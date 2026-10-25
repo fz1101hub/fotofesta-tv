@@ -73,6 +73,7 @@ import it.fotofesta.tv.smb.SmbFolder
 import it.fotofesta.tv.smb.SmbLocation
 import it.fotofesta.tv.smb.SmbLogin
 import it.fotofesta.tv.tv.HomeChannel
+import it.fotofesta.tv.store.StoreHome
 import it.fotofesta.tv.tv.TvFeatures
 import it.fotofesta.tv.tv.TvHotspot
 import kotlin.coroutines.resume
@@ -341,9 +342,13 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private fun syncTvServices() {
         val settings = _state.value.settings
         guests.setDlna(settings.dlnaReceiver)
-        // Fire TV non mostra i canali delle app nella schermata Home.
-        if (TvFeatures.isFireTv(context)) return
         viewModelScope.launch(Dispatchers.IO) {
+            // Fire TV non mostra i canali di Android TV: nella versione Amazon usa le raccomandazioni.
+            if (TvFeatures.isFireTv(context)) {
+                val home = StoreHome(context)
+                if (settings.homeChannel) home.publish() else home.remove()
+                return@launch
+            }
             val channel = HomeChannel(context)
             if (settings.homeChannel) channel.publish() else channel.remove()
         }

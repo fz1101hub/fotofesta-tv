@@ -864,4 +864,19 @@
     <string name="browser_no_usb_fire">No USB drive connected. On a Fire TV Stick, connect the drive with an OTG adapter (micro‑USB or USB‑C, with power); the Fire TV Cube has a USB port.</string>
     <string name="settings_alexa">Voice commands with Alexa</string>
     <string name="settings_alexa_body">During the slideshow: “Alexa, pause”, “Alexa, resume”, “Alexa, next”, “Alexa, previous”. To open the app: “Alexa, open FotoFesta TV”.</string>
+
+    <!-- Ondata 7: Fire TV -->
+    <string name="keyboard_hint_fire">Typing is faster from your phone: in the Amazon Fire TV app, open the remote and tap the keyboard.</string>
+    <string name="keyboard_hint_google">Typing is faster from your phone: in the Google TV app, open the remote and tap the keyboard.</string>
+    <string name="settings_fire_recommendations">Shortcuts on the Fire TV home</string>
+    <string name="settings_fire_recommendations_body">Party, slideshow, games and shows among the apps’ recommendations on the Fire TV home, with the demo pictures. Not every Fire TV home shows them.</string>
+    <string name="fire_recommendations_channel">Shortcuts on the home screen</string>
+    <string name="fire_rec_party">Guests send photos from their phones with a QR code.</string>
+    <string name="fire_rec_slideshow">Your photos on the big screen, with music.</string>
+    <string name="fire_rec_games">Quizzes, drawings and party games with phones.</string>
+    <string name="fire_rec_shows">Rewind the party, photo mosaic, credits and more.</string>
+    <string name="settings_alexa_dj">Alexa as DJ</string>
+    <string name="settings_alexa_dj_body">Say “Alexa, play party music”: Amazon Music or Spotify keep playing while the photos go by. Leave the app’s background music off, otherwise it takes over.</string>
+    <string name="settings_alexa_routine">“Alexa, party time!” routine</string>
+    <string name="settings_alexa_routine_body">In the Alexa app: Routines › + › When you say “party time” › Add action › Customised: “open FotoFesta TV”. If you like, add the lights and the music too.</string>
 </resources>

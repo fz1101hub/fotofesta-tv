@@ -863,4 +863,19 @@
     <string name="browser_no_usb_fire">Kein USB-Speicher verbunden. Am Fire TV Stick mit einem OTG-Adapter (Micro‑USB oder USB‑C, mit Stromversorgung) anschließen; der Fire TV Cube hat einen USB-Anschluss.</string>
     <string name="settings_alexa">Sprachbefehle mit Alexa</string>
     <string name="settings_alexa_body">Während der Diashow: „Alexa, Pause“, „Alexa, weiter abspielen“, „Alexa, nächstes“, „Alexa, vorheriges“. Zum Öffnen: „Alexa, öffne FotoFesta TV“.</string>
+
+    <!-- Ondata 7: Fire TV -->
+    <string name="keyboard_hint_fire">Schneller tippen mit dem Telefon: In der App Amazon Fire TV die Fernbedienung öffnen und auf die Tastatur tippen.</string>
+    <string name="keyboard_hint_google">Schneller tippen mit dem Telefon: In der App Google TV die Fernbedienung öffnen und auf die Tastatur tippen.</string>
+    <string name="settings_fire_recommendations">Verknüpfungen auf der Fire-TV-Startseite</string>
+    <string name="settings_fire_recommendations_body">Party, Diashow, Spiele und Shows unter den App-Empfehlungen auf der Fire-TV-Startseite, mit den Demobildern. Nicht jede Fire-TV-Startseite zeigt sie.</string>
+    <string name="fire_recommendations_channel">Verknüpfungen auf der Startseite</string>
+    <string name="fire_rec_party">Gäste schicken Fotos per QR-Code vom Telefon.</string>
+    <string name="fire_rec_slideshow">Deine Fotos auf dem großen Bildschirm, mit Musik.</string>
+    <string name="fire_rec_games">Quiz, Zeichnungen und Partyspiele mit den Telefonen.</string>
+    <string name="fire_rec_shows">Party zurückspulen, Fotomosaik, Abspann und mehr.</string>
+    <string name="settings_alexa_dj">Alexa als DJ</string>
+    <string name="settings_alexa_dj_body">Sag „Alexa, spiele Partymusik“: Amazon Music oder Spotify laufen weiter, während die Fotos wechseln. Lass die Hintergrundmusik der App aus, sonst übernimmt sie.</string>
+    <string name="settings_alexa_routine">Routine „Alexa, Party!“</string>
+    <string name="settings_alexa_routine_body">In der Alexa-App: Routinen › + › Wenn du „Party“ sagst › Aktion hinzufügen › Benutzerdefiniert: „öffne FotoFesta TV“. Wenn du willst, auch Licht und Musik dazunehmen.</string>
 </resources>

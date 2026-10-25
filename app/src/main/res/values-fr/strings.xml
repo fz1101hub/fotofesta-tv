@@ -906,4 +906,19 @@
     <string name="browser_no_usb_fire">Aucune clé ni disque USB branché. Sur un Fire TV Stick, branchez-le avec un adaptateur OTG (micro‑USB ou USB‑C, avec alimentation) ; le Fire TV Cube a un port USB.</string>
     <string name="settings_alexa">Commandes vocales avec Alexa</string>
     <string name="settings_alexa_body">Pendant le diaporama : « Alexa, pause », « Alexa, reprends », « Alexa, suivant », « Alexa, précédent ». Pour ouvrir l’app : « Alexa, ouvre FotoFesta TV ».</string>
+
+    <!-- Ondata 7: Fire TV -->
+    <string name="keyboard_hint_fire">C’est plus rapide depuis le téléphone : dans l’app Amazon Fire TV, ouvrez la télécommande et touchez le clavier.</string>
+    <string name="keyboard_hint_google">C’est plus rapide depuis le téléphone : dans l’app Google TV, ouvrez la télécommande et touchez le clavier.</string>
+    <string name="settings_fire_recommendations">Raccourcis sur l’accueil Fire TV</string>
+    <string name="settings_fire_recommendations_body">Fête, diaporama, jeux et spectacles parmi les recommandations des apps sur l’accueil Fire TV, avec les images de démo. Tous les accueils Fire TV ne les affichent pas.</string>
+    <string name="fire_recommendations_channel">Raccourcis sur l’accueil</string>
+    <string name="fire_rec_party">Les invités envoient leurs photos depuis leur téléphone avec un QR code.</string>
+    <string name="fire_rec_slideshow">Vos photos sur grand écran, en musique.</string>
+    <string name="fire_rec_games">Quiz, dessins et jeux de fête avec les téléphones.</string>
+    <string name="fire_rec_shows">Rembobinage, photomosaïque, générique et plus.</string>
+    <string name="settings_alexa_dj">Alexa en DJ</string>
+    <string name="settings_alexa_dj_body">Dites « Alexa, mets de la musique de fête » : Amazon Music ou Spotify continuent pendant que les photos défilent. Laissez la musique de fond de l’app désactivée, sinon elle prend le relais.</string>
+    <string name="settings_alexa_routine">Routine « Alexa, c’est la fête ! »</string>
+    <string name="settings_alexa_routine_body">Dans l’app Alexa : Routines › + › Quand vous dites « c’est la fête » › Ajouter une action › Personnalisée : « ouvre FotoFesta TV ». Ajoutez aussi les lumières et la musique si vous voulez.</string>
 </resources>

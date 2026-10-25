@@ -528,6 +528,7 @@ fun GuestWifiScreen(
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
             modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth(),
         )
+        PhoneKeyboardHint(Modifier.widthIn(max = 640.dp))
         Row {
             TvButton(stringResource(R.string.wifi_save), { onSave(ssid, password) }, icon = Icons.Rounded.Save)
         }

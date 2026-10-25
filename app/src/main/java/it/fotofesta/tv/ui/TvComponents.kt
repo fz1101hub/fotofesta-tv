@@ -65,6 +65,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import it.fotofesta.tv.R
+import it.fotofesta.tv.tv.TvFeatures
 import java.util.Locale
 
 /**
@@ -416,6 +417,17 @@ fun SectionTitle(kicker: String, title: String, subtitle: String? = null, modifi
 }
 
 /** Testo descrittivo su sfondo scuro, ad esempio per un elenco vuoto. */
+/**
+ * Ricorda che si può scrivere con la tastiera del telefono: app Amazon Fire TV o Google TV, che fanno
+ * da telecomando. Va sotto i campi di testo più lunghi (password Wi‑Fi, indirizzi, annunci).
+ */
+@Composable
+fun PhoneKeyboardHint(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val fireTv = remember { TvFeatures.isFireTv(context) }
+    HintText(stringResource(if (fireTv) R.string.keyboard_hint_fire else R.string.keyboard_hint_google), modifier)
+}
+
 @Composable
 fun HintText(text: String, modifier: Modifier = Modifier, color: Color = TextSecondary) {
     Text(text, modifier = modifier.fillMaxWidth(), style = MaterialTheme.typography.bodyLarge, color = color)

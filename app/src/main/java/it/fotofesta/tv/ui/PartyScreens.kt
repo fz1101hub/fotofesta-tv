@@ -571,6 +571,7 @@ fun AnnounceScreen(onAnnounce: (String) -> Unit, onBack: () -> Unit) {
             )
             TvButton(stringResource(R.string.announce_send), { onAnnounce(text) }, icon = Icons.Rounded.Campaign, enabled = text.isNotBlank())
         }
+        PhoneKeyboardHint()
     }
 }
 

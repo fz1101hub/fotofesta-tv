@@ -122,6 +122,7 @@ fun SmbLoginScreen(
                 modifier = fieldModifier.initialFocus("share"),
             )
         }
+        PhoneKeyboardHint(Modifier.widthIn(max = 760.dp))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             TvButton(
                 stringResource(R.string.smb_connect),

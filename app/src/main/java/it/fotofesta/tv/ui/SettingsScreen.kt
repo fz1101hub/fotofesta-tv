@@ -44,6 +44,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import it.fotofesta.tv.R
+import it.fotofesta.tv.store.StoreHome
 import it.fotofesta.tv.tv.TvFeatures
 import it.fotofesta.tv.model.AppState
 import it.fotofesta.tv.model.FitMode
@@ -529,12 +530,12 @@ fun SettingsScreen(
                                 subtitle = stringResource(R.string.settings_auto_start_body),
                                 checked = settings.autoStart,
                             )
-                            if (!fireTv) {
+                            if (!fireTv || StoreHome.SUPPORTED) {
                                 SettingsItem(
-                                    stringResource(R.string.settings_home_channel),
+                                    stringResource(if (fireTv) R.string.settings_fire_recommendations else R.string.settings_home_channel),
                                     { onChange(settings.copy(homeChannel = !settings.homeChannel)) },
                                     toCategory,
-                                    subtitle = stringResource(R.string.settings_home_channel_body),
+                                    subtitle = stringResource(if (fireTv) R.string.settings_fire_recommendations_body else R.string.settings_home_channel_body),
                                     checked = settings.homeChannel,
                                 )
                             }
@@ -559,6 +560,18 @@ fun SettingsScreen(
                                     {},
                                     toCategory,
                                     subtitle = stringResource(R.string.settings_alexa_body),
+                                )
+                                SettingsItem(
+                                    stringResource(R.string.settings_alexa_dj),
+                                    {},
+                                    toCategory,
+                                    subtitle = stringResource(R.string.settings_alexa_dj_body),
+                                )
+                                SettingsItem(
+                                    stringResource(R.string.settings_alexa_routine),
+                                    {},
+                                    toCategory,
+                                    subtitle = stringResource(R.string.settings_alexa_routine_body),
                                 )
                             }
                             if (state.usbBackupName != null) {

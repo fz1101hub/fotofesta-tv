@@ -11,6 +11,8 @@
         android:name="android.software.leanback"
         android:required="false"
         tools:replace="android:required" />
+    <!-- Raccomandazioni nella home di Fire TV: sono notifiche (Fire OS 7 e 8, permesso già concesso). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Come nel manifest principale: i Fire TV non hanno schermo tattile. -->
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <uses-feature android:name="android.hardware.faketouch" android:required="false" />

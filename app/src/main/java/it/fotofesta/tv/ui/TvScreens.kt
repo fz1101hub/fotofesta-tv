@@ -290,6 +290,7 @@ fun CameraScreen(
                 TvButton(stringResource(R.string.camera_meter_reset), { record = 0f }, icon = Icons.Rounded.Refresh, ghost = true)
             }
             HintText(stringResource(R.string.camera_help))
+            PhoneKeyboardHint()
         }
         Box(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(20.dp)).background(SurfaceDark), contentAlignment = Alignment.Center) {
             val image = frame

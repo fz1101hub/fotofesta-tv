@@ -906,4 +906,19 @@
     <string name="browser_no_usb_fire">Nessun disco USB collegato. Sul Fire TV Stick collega il disco con un adattatore OTG (micro‑USB o USB‑C, con alimentazione); il Fire TV Cube ha una porta USB.</string>
     <string name="settings_alexa">Comandi vocali con Alexa</string>
     <string name="settings_alexa_body">Durante lo slideshow: «Alexa, pausa», «Alexa, riprendi», «Alexa, avanti», «Alexa, indietro». Per aprire l’app: «Alexa, apri FotoFesta TV».</string>
+
+    <!-- Ondata 7: Fire TV -->
+    <string name="keyboard_hint_fire">Si scrive prima dal telefono: nell’app Amazon Fire TV apri il telecomando e tocca la tastiera.</string>
+    <string name="keyboard_hint_google">Si scrive prima dal telefono: nell’app Google TV apri il telecomando e tocca la tastiera.</string>
+    <string name="settings_fire_recommendations">Scorciatoie nella home di Fire TV</string>
+    <string name="settings_fire_recommendations_body">Festa, slideshow, giochi e spettacoli tra i consigli delle app nella home di Fire TV, con le immagini demo. Non tutte le home di Fire TV li mostrano.</string>
+    <string name="fire_recommendations_channel">Scorciatoie nella home</string>
+    <string name="fire_rec_party">Gli invitati mandano le foto dal telefono con un QR.</string>
+    <string name="fire_rec_slideshow">Le tue foto sul grande schermo, con la musica.</string>
+    <string name="fire_rec_games">Quiz, disegni e giochi della festa con i telefoni.</string>
+    <string name="fire_rec_shows">Riavvolgi la festa, fotomosaico, titoli di coda e altro.</string>
+    <string name="settings_alexa_dj">Alexa come DJ</string>
+    <string name="settings_alexa_dj_body">Di’ «Alexa, metti musica da festa»: Amazon Music o Spotify continuano a suonare mentre scorrono le foto. Lascia spenta la musica di sottofondo dell’app, altrimenti prende il suo posto.</string>
+    <string name="settings_alexa_routine">Routine «Alexa, festa!»</string>
+    <string name="settings_alexa_routine_body">Nell’app Alexa: Routine › + › Quando dici «festa» › Aggiungi azione › Personalizzata: «apri FotoFesta TV». Se vuoi, aggiungi anche le luci e la musica.</string>
 </resources>

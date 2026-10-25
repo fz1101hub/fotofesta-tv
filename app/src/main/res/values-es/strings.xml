@@ -906,4 +906,19 @@
     <string name="browser_no_usb_fire">No hay ninguna unidad USB conectada. En un Fire TV Stick, conéctala con un adaptador OTG (micro‑USB o USB‑C, con alimentación); el Fire TV Cube tiene un puerto USB.</string>
     <string name="settings_alexa">Comandos de voz con Alexa</string>
     <string name="settings_alexa_body">Durante la presentación: «Alexa, pausa», «Alexa, reanuda», «Alexa, siguiente», «Alexa, anterior». Para abrir la app: «Alexa, abre FotoFesta TV».</string>
+
+    <!-- Ondata 7: Fire TV -->
+    <string name="keyboard_hint_fire">Es más rápido desde el teléfono: en la app Amazon Fire TV, abre el mando y toca el teclado.</string>
+    <string name="keyboard_hint_google">Es más rápido desde el teléfono: en la app Google TV, abre el mando y toca el teclado.</string>
+    <string name="settings_fire_recommendations">Accesos directos en el inicio de Fire TV</string>
+    <string name="settings_fire_recommendations_body">Fiesta, presentación, juegos y espectáculos entre las recomendaciones de las apps en el inicio de Fire TV, con las imágenes de demostración. No todos los inicios de Fire TV las muestran.</string>
+    <string name="fire_recommendations_channel">Accesos directos en el inicio</string>
+    <string name="fire_rec_party">Los invitados envían fotos desde el teléfono con un QR.</string>
+    <string name="fire_rec_slideshow">Tus fotos en la pantalla grande, con música.</string>
+    <string name="fire_rec_games">Concursos, dibujos y juegos de fiesta con los teléfonos.</string>
+    <string name="fire_rec_shows">Rebobinar la fiesta, fotomosaico, créditos y más.</string>
+    <string name="settings_alexa_dj">Alexa como DJ</string>
+    <string name="settings_alexa_dj_body">Di «Alexa, pon música de fiesta»: Amazon Music o Spotify siguen sonando mientras pasan las fotos. Deja apagada la música de fondo de la app, si no la sustituye.</string>
+    <string name="settings_alexa_routine">Rutina «Alexa, ¡fiesta!»</string>
+    <string name="settings_alexa_routine_body">En la app Alexa: Rutinas › + › Cuando digas «fiesta» › Añadir acción › Personalizada: «abre FotoFesta TV». Si quieres, añade también las luces y la música.</string>
 </resources>
