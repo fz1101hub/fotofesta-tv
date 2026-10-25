@@ -967,4 +967,25 @@
     <string name="message_disco_on">Silent disco accesa: gli invitati toccano 🎧 nella pagina della festa e mettono le cuffie.</string>
     <string name="message_disco_off">Silent disco spenta: la musica torna sulla TV.</string>
     <string name="message_disco_no_music">Scegli prima un brano o una cartella di musica nelle impostazioni.</string>
+
+    <!-- Capsula del tempo su chiavetta -->
+    <string name="capsule_button">Capsula del tempo su chiavetta</string>
+    <string name="capsule_folder">Capsula del tempo %s</string>
+    <string name="capsule_file">Apri la capsula</string>
+    <string name="capsule_html_kicker">Capsula del tempo</string>
+    <string name="capsule_html_sealed">Sigillata il {date}</string>
+    <string name="capsule_html_opens">Si apre il {date}.</string>
+    <string name="capsule_html_day">Manca {n} giorno</string>
+    <string name="capsule_html_days">Mancano {n} giorni</string>
+    <string name="capsule_html_peek">Sbircia comunque</string>
+    <string name="capsule_html_photos">Foto</string>
+    <string name="capsule_html_messages">Dediche</string>
+    <string name="capsule_html_wishes">Propositi per il prossimo anno</string>
+    <string name="capsule_html_arrivals">Chi c’era</string>
+    <string name="message_capsule_writing">Sto chiudendo la capsula del tempo sulla chiavetta…</string>
+    <string name="message_capsule_done">Capsula del tempo sulla chiavetta: apri «Apri la capsula» su un computer dal %s.</string>
+    <string name="message_capsule_failed">Non è stato possibile scrivere la capsula. Controlla la chiavetta.</string>
+    <string name="message_capsule_no_usb">Scegli prima una cartella della chiavetta nelle impostazioni.</string>
+    <string name="message_capsule_no_traces">Con «Festa senza tracce» le foto non si conservano: niente capsula.</string>
+    <string name="message_capsule_empty">Non c’è ancora niente da mettere nella capsula: nessuna foto o dedica.</string>
 </resources>

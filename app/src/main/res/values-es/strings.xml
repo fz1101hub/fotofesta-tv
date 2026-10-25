@@ -967,4 +967,25 @@
     <string name="message_disco_on">Silent disco activada: los invitados tocan 🎧 en la página de la fiesta y se ponen los auriculares.</string>
     <string name="message_disco_off">Silent disco apagada: la música vuelve a la TV.</string>
     <string name="message_disco_no_music">Elige primero una canción o una carpeta de música en los ajustes.</string>
+
+    <!-- Capsula del tempo su chiavetta -->
+    <string name="capsule_button">Cápsula del tiempo en USB</string>
+    <string name="capsule_folder">Cápsula del tiempo %s</string>
+    <string name="capsule_file">Abrir la cápsula</string>
+    <string name="capsule_html_kicker">Cápsula del tiempo</string>
+    <string name="capsule_html_sealed">Sellada el {date}</string>
+    <string name="capsule_html_opens">Se abre el {date}.</string>
+    <string name="capsule_html_day">Falta {n} día</string>
+    <string name="capsule_html_days">Faltan {n} días</string>
+    <string name="capsule_html_peek">Echar un vistazo igualmente</string>
+    <string name="capsule_html_photos">Fotos</string>
+    <string name="capsule_html_messages">Dedicatorias</string>
+    <string name="capsule_html_wishes">Propósitos para el próximo año</string>
+    <string name="capsule_html_arrivals">Quién estaba</string>
+    <string name="message_capsule_writing">Cerrando la cápsula del tiempo en la memoria USB…</string>
+    <string name="message_capsule_done">Cápsula del tiempo en la memoria USB: abre «Abrir la cápsula» en un ordenador a partir del %s.</string>
+    <string name="message_capsule_failed">No se ha podido escribir la cápsula. Revisa la memoria USB.</string>
+    <string name="message_capsule_no_usb">Elige primero una carpeta de la memoria USB en los ajustes.</string>
+    <string name="message_capsule_no_traces">Con «Fiesta sin huellas» las fotos no se guardan: no hay cápsula.</string>
+    <string name="message_capsule_empty">Todavía no hay nada que guardar en la cápsula: ni fotos ni dedicatorias.</string>
 </resources>

@@ -29,6 +29,7 @@ import it.fotofesta.tv.guests.HostRemote
 import it.fotofesta.tv.guests.PartyCommand
 import it.fotofesta.tv.guests.PartyHub
 import it.fotofesta.tv.guests.PartyPlay
+import it.fotofesta.tv.guests.TimeCapsule
 import it.fotofesta.tv.guests.WifiNetwork
 import it.fotofesta.tv.guests.guestPhotoId
 import it.fotofesta.tv.guests.toPhotoItem
@@ -391,6 +392,97 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                 viewModelScope.launch { showMessage(context.getString(R.string.message_usb_backup_failed)) }
             }
         }
+    }
+
+    /**
+     * Capsula del tempo sulla chiavetta: foto approvate, dediche, propositi della capsula e chi è
+     * arrivato, in una pagina che si apre tra un anno (ma si può sbirciare).
+     */
+    fun sealCapsule() {
+        if (_state.value.busy) return
+        if (_state.value.settings.noTraces) {
+            showMessage(context.getString(R.string.message_capsule_no_traces))
+            return
+        }
+        val tree = settingsRepository.loadUsbBackup()?.first?.let(Uri::parse)
+        if (tree == null) {
+            showMessage(context.getString(R.string.message_capsule_no_usb))
+            return
+        }
+        val photos = guests.store.photos.value.filter { it.approved }.sortedBy { it.receivedAtMillis }
+        val messages = partyHub.messages().map { TimeCapsule.Note(it.text, it.name) }
+        val wishes = partyPlay.current()?.takeIf { it.kind == PartyPlay.Kind.CAPSULE }?.entries
+            ?.mapNotNull { entry -> entry.text?.let { TimeCapsule.Note(it, entry.name) } }.orEmpty()
+        val arrivals = partyHub.arrivals().map { it.name }
+        if (photos.isEmpty() && messages.isEmpty() && wishes.isEmpty()) {
+            showMessage(context.getString(R.string.message_capsule_empty))
+            return
+        }
+        _state.update { it.copy(busy = true, message = context.getString(R.string.message_capsule_writing)) }
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) { runCatching { writeCapsule(tree, photos, messages, wishes, arrivals) } }
+            _state.update { it.copy(busy = false) }
+            result.onSuccess { opens -> showMessage(context.getString(R.string.message_capsule_done, opens)) }
+                .onFailure {
+                    Log.w(TAG, "Capsula del tempo non scritta", it)
+                    showMessage(context.getString(R.string.message_capsule_failed))
+                }
+        }
+    }
+
+    /** Scrive la capsula in FotoFesta/<capsula e data> e restituisce la data di apertura, già scritta. */
+    private fun writeCapsule(
+        tree: Uri,
+        photos: List<GuestPhotoStore.Photo>,
+        messages: List<TimeCapsule.Note>,
+        wishes: List<TimeCapsule.Note>,
+        arrivals: List<String>,
+    ): String {
+        val now = System.currentTimeMillis()
+        val openAt = java.util.Calendar.getInstance().apply {
+            timeInMillis = now
+            add(java.util.Calendar.YEAR, 1)
+        }.timeInMillis
+        val dateFormat = java.text.DateFormat.getDateInstance(java.text.DateFormat.LONG)
+        val root = DocumentFile.fromTreeUri(context, tree) ?: throw IOException("Chiavetta non trovata")
+        val app = root.findFile(USB_BACKUP_FOLDER)?.takeIf { it.isDirectory } ?: root.createDirectory(USB_BACKUP_FOLDER)
+        val stamp = java.text.SimpleDateFormat("yyyy-MM-dd HH.mm", java.util.Locale.ROOT).format(java.util.Date(now))
+        val folder = app?.createDirectory(context.getString(R.string.capsule_folder, stamp)) ?: throw IOException("Cartella non creata")
+        val pictures = folder.createDirectory(CAPSULE_PHOTOS) ?: throw IOException("Cartella non creata")
+        val written = photos.mapIndexedNotNull { index, photo ->
+            val bytes = guests.store.read(photo.id) ?: return@mapIndexedNotNull null
+            val name = String.format(java.util.Locale.ROOT, "%03d.jpg", index + 1)
+            val file = pictures.createFile("image/jpeg", name) ?: throw IOException("File non creato")
+            context.contentResolver.openOutputStream(file.uri)?.use { it.write(bytes) } ?: throw IOException("File non scritto")
+            TimeCapsule.Photo("$CAPSULE_PHOTOS/${file.name ?: name}", photo.sender)
+        }
+        val opens = dateFormat.format(java.util.Date(openAt))
+        val html = TimeCapsule.html(
+            language = java.util.Locale.getDefault().toLanguageTag(),
+            title = context.getString(_state.value.settings.template.titleRes),
+            sealedText = dateFormat.format(java.util.Date(now)),
+            openText = opens,
+            openAtMillis = openAt,
+            photos = written,
+            messages = messages,
+            wishes = wishes,
+            arrivals = arrivals,
+            texts = TimeCapsule.Texts(
+                kicker = context.getString(R.string.capsule_html_kicker),
+                sealedOn = context.getString(R.string.capsule_html_sealed),
+                opensOn = context.getString(R.string.capsule_html_opens),
+                daysOne = context.getString(R.string.capsule_html_day),
+                daysOther = context.getString(R.string.capsule_html_days),
+                peek = context.getString(R.string.capsule_html_peek),
+                photos = context.getString(R.string.capsule_html_photos),
+                messages = context.getString(R.string.capsule_html_messages),
+                wishes = context.getString(R.string.capsule_html_wishes),
+                arrivals = context.getString(R.string.capsule_html_arrivals),
+            ),
+        )
+        val page = folder.createFile("text/html", context.getString(R.string.capsule_file) + ".html") ?: throw IOException("File non creato")
+        context.contentResolver.openOutputStream(page.uri)?.use { it.write(html.toByteArray(Charsets.UTF_8)) } ?: throw IOException("File non scritto")
+        return opens
     }
 
     /** Cartella della chiavetta scelta per la copia delle foto della festa. */
@@ -2158,6 +2250,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         const val TAG = "FotoFestaViewModel"
         /** Cartella creata sulla chiavetta per le copie delle foto della festa. */
         const val USB_BACKUP_FOLDER = "FotoFesta"
+        /** Cartella delle foto dentro la capsula, citata dalla pagina con un percorso relativo. */
+        const val CAPSULE_PHOTOS = "foto"
         const val INDEX_TIMEOUT_MS = 90_000L
         const val ICLOUD_REFRESH_MS = 5 * 60_000L
         /** Passaggi (meno due per ogni reazione) perché una foto sia del tutto ingiallita. */

@@ -20,6 +20,7 @@ import androidx.compose.material.icons.rounded.Celebration
 import androidx.compose.material.icons.rounded.EmojiEvents
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Flag
+import androidx.compose.material.icons.rounded.HourglassTop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -43,7 +44,7 @@ import java.util.Date
  * foto e gran finale, con il riepilogo della festa.
  */
 @Composable
-fun AwardsScreen(awards: PartyAwards, onBack: () -> Unit) {
+fun AwardsScreen(awards: PartyAwards, onBack: () -> Unit, onCapsule: (() -> Unit)? = null) {
     val summary = buildList {
         add(quantityStringResource(R.plurals.awards_photo_count, awards.photos))
         if (awards.guests > 0) add(quantityStringResource(R.plurals.awards_guest_count, awards.guests))
@@ -55,6 +56,11 @@ fun AwardsScreen(awards: PartyAwards, onBack: () -> Unit) {
         Row(Modifier.fillMaxWidth()) {
             SectionTitle(stringResource(R.string.awards_kicker), stringResource(R.string.awards_title), summary, modifier = Modifier.weight(1f))
             Spacer(Modifier.width(16.dp))
+            // Fine festa: tutto sulla chiavetta, da riaprire tra un anno.
+            if (onCapsule != null) {
+                TvButton(stringResource(R.string.capsule_button), onCapsule, icon = Icons.Rounded.HourglassTop)
+                Spacer(Modifier.width(12.dp))
+            }
             TvButton(stringResource(R.string.action_back), onBack, modifier = Modifier.initialFocus(), icon = Icons.AutoMirrored.Rounded.ArrowBack)
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(22.dp)) {

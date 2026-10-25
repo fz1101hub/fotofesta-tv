@@ -923,4 +923,25 @@
     <string name="message_disco_on">Silent Disco an: Die Gäste tippen auf der Party-Seite auf 🎧 und setzen die Kopfhörer auf.</string>
     <string name="message_disco_off">Silent Disco aus: Die Musik läuft wieder über den Fernseher.</string>
     <string name="message_disco_no_music">Wähle zuerst in den Einstellungen einen Titel oder einen Musikordner.</string>
+
+    <!-- Capsula del tempo su chiavetta -->
+    <string name="capsule_button">Zeitkapsel auf USB-Stick</string>
+    <string name="capsule_folder">Zeitkapsel %s</string>
+    <string name="capsule_file">Zeitkapsel öffnen</string>
+    <string name="capsule_html_kicker">Zeitkapsel</string>
+    <string name="capsule_html_sealed">Versiegelt am {date}</string>
+    <string name="capsule_html_opens">Sie öffnet sich am {date}.</string>
+    <string name="capsule_html_day">Noch {n} Tag</string>
+    <string name="capsule_html_days">Noch {n} Tage</string>
+    <string name="capsule_html_peek">Trotzdem reinschauen</string>
+    <string name="capsule_html_photos">Fotos</string>
+    <string name="capsule_html_messages">Widmungen</string>
+    <string name="capsule_html_wishes">Vorsätze fürs nächste Jahr</string>
+    <string name="capsule_html_arrivals">Wer dabei war</string>
+    <string name="message_capsule_writing">Die Zeitkapsel wird auf dem USB-Stick versiegelt…</string>
+    <string name="message_capsule_done">Zeitkapsel auf dem USB-Stick: Öffne „Zeitkapsel öffnen“ ab dem %s auf einem Computer.</string>
+    <string name="message_capsule_failed">Die Zeitkapsel konnte nicht geschrieben werden. Prüfe den USB-Stick.</string>
+    <string name="message_capsule_no_usb">Wähle zuerst in den Einstellungen einen Ordner auf dem USB-Stick.</string>
+    <string name="message_capsule_no_traces">Bei „Party ohne Spuren“ werden keine Fotos aufbewahrt, also keine Zeitkapsel.</string>
+    <string name="message_capsule_empty">Noch nichts für die Zeitkapsel: keine Fotos und keine Widmungen.</string>
 </resources>

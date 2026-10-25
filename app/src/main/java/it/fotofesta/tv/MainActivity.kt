@@ -438,6 +438,8 @@ class MainActivity : ComponentActivity() {
                             Destination.AWARDS -> AwardsScreen(
                                 awards = remember(state.photos) { PartyAwards.from(state.photos, viewModel.reactionCounts()) },
                                 onBack = { viewModel.navigate(Destination.GUESTS) },
+                                // La copia sulla chiavetta: su Fire TV di solito non c'è una porta USB.
+                                onCapsule = viewModel::sealCapsule.takeIf { state.usbBackupName != null && !state.settings.noTraces },
                             )
                             Destination.ANNOUNCE -> AnnounceScreen(
                                 onAnnounce = { viewModel.announce(it) },

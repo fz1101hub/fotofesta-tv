@@ -967,4 +967,25 @@
     <string name="message_disco_on">Silent disco activée : les invités touchent 🎧 sur la page de la fête et mettent leurs écouteurs.</string>
     <string name="message_disco_off">Silent disco arrêtée : la musique revient sur la TV.</string>
     <string name="message_disco_no_music">Choisissez d’abord un morceau ou un dossier de musique dans les réglages.</string>
+
+    <!-- Capsula del tempo su chiavetta -->
+    <string name="capsule_button">Capsule temporelle sur clé USB</string>
+    <string name="capsule_folder">Capsule temporelle %s</string>
+    <string name="capsule_file">Ouvrir la capsule</string>
+    <string name="capsule_html_kicker">Capsule temporelle</string>
+    <string name="capsule_html_sealed">Scellée le {date}</string>
+    <string name="capsule_html_opens">Elle s’ouvre le {date}.</string>
+    <string name="capsule_html_day">Encore {n} jour</string>
+    <string name="capsule_html_days">Encore {n} jours</string>
+    <string name="capsule_html_peek">Jeter un œil quand même</string>
+    <string name="capsule_html_photos">Photos</string>
+    <string name="capsule_html_messages">Dédicaces</string>
+    <string name="capsule_html_wishes">Vœux pour l’année prochaine</string>
+    <string name="capsule_html_arrivals">Qui était là</string>
+    <string name="message_capsule_writing">Fermeture de la capsule temporelle sur la clé USB…</string>
+    <string name="message_capsule_done">Capsule temporelle sur la clé USB : ouvrez « Ouvrir la capsule » sur un ordinateur à partir du %s.</string>
+    <string name="message_capsule_failed">Impossible d’écrire la capsule. Vérifiez la clé USB.</string>
+    <string name="message_capsule_no_usb">Choisissez d’abord un dossier de la clé USB dans les réglages.</string>
+    <string name="message_capsule_no_traces">Avec « Fête sans traces », les photos ne sont pas conservées : pas de capsule.</string>
+    <string name="message_capsule_empty">Rien à mettre dans la capsule pour l’instant : aucune photo ni dédicace.</string>
 </resources>

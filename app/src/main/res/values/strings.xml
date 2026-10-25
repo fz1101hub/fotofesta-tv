@@ -924,4 +924,25 @@
     <string name="message_disco_on">Silent disco on: guests tap 🎧 on the party page and put on their headphones.</string>
     <string name="message_disco_off">Silent disco off: the music is back on the TV.</string>
     <string name="message_disco_no_music">Choose a song or a music folder in the settings first.</string>
+
+    <!-- Capsula del tempo su chiavetta -->
+    <string name="capsule_button">Time capsule on USB</string>
+    <string name="capsule_folder">Time capsule %s</string>
+    <string name="capsule_file">Open the capsule</string>
+    <string name="capsule_html_kicker">Time capsule</string>
+    <string name="capsule_html_sealed">Sealed on {date}</string>
+    <string name="capsule_html_opens">It opens on {date}.</string>
+    <string name="capsule_html_day">{n} day to go</string>
+    <string name="capsule_html_days">{n} days to go</string>
+    <string name="capsule_html_peek">Peek anyway</string>
+    <string name="capsule_html_photos">Photos</string>
+    <string name="capsule_html_messages">Messages</string>
+    <string name="capsule_html_wishes">Wishes for next year</string>
+    <string name="capsule_html_arrivals">Who was there</string>
+    <string name="message_capsule_writing">Sealing the time capsule on the USB drive…</string>
+    <string name="message_capsule_done">Time capsule sealed on the USB drive: open “Open the capsule” on a computer from %s.</string>
+    <string name="message_capsule_failed">The time capsule couldn’t be written. Check the USB drive.</string>
+    <string name="message_capsule_no_usb">Choose a USB drive folder in the settings first.</string>
+    <string name="message_capsule_no_traces">With “Party without traces” the photos aren’t kept, so there’s no time capsule.</string>
+    <string name="message_capsule_empty">There’s nothing to put in the capsule yet: no photos or messages.</string>
 </resources>
