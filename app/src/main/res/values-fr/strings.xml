@@ -1269,4 +1269,7 @@
     <string name="settings_hot_folder_body">Le dossier USB ou réseau est revérifié toutes les 20 secondes : les nouvelles photos apparaissent aussitôt.</string>
     <string name="settings_usb_storage">Photos des invités sur la clé USB</string>
     <string name="settings_usb_storage_body">Plus de place pour les grandes fêtes : les photos des invités restent sur la clé USB au lieu de la mémoire de la TV. À la prochaine ouverture de l\'app.</string>
+
+    <!-- Ondata 12: canale TV -->
+    <string name="tv_channel_description">Les photos de la fête comme chaîne de TV.</string>
 </resources>

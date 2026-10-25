@@ -1220,4 +1220,7 @@
     <string name="settings_hot_folder_body">Der USB- oder Netzwerkordner wird alle 20 Sekunden geprüft: Neue Fotos erscheinen sofort.</string>
     <string name="settings_usb_storage">Gästefotos auf dem USB-Stick</string>
     <string name="settings_usb_storage_body">Mehr Platz für große Partys: Gästefotos bleiben auf dem USB-Stick statt im Fernsehspeicher. Ab dem nächsten Öffnen der App.</string>
+
+    <!-- Ondata 12: canale TV -->
+    <string name="tv_channel_description">Die Partyfotos als Fernsehkanal.</string>
 </resources>

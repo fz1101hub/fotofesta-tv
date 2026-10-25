@@ -1221,4 +1221,7 @@
     <string name="settings_hot_folder_body">The USB or network folder is checked every 20 seconds: new photos appear straight away.</string>
     <string name="settings_usb_storage">Guest photos on the USB drive</string>
     <string name="settings_usb_storage_body">More room for big parties: guest photos are kept on the USB drive instead of the TV memory. From the next time the app opens.</string>
+
+    <!-- Ondata 12: canale TV -->
+    <string name="tv_channel_description">The party photos as a TV channel.</string>
 </resources>

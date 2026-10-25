@@ -587,6 +587,7 @@ fun SlidePhoto(
         if (panoramas && aspect >= PANORAMA_ASPECT) {
             PanoramaPhoto(photo, aspect, playing, durationMillis, Modifier.fillMaxSize())
         }
+        if (settings.motionPhotos) MotionClip(photo, settings.fitMode, playing, Modifier.fillMaxSize())
     }
 }
 

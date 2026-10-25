@@ -120,6 +120,8 @@ class AppServices(context: Context) {
 
     private companion object {
         const val MB = 1024L * 1024
+        /** Spazio massimo per le foto degli invitati sulla chiavetta. */
+        const val USB_DISK_BYTES = 4L * 1024 * MB
 
         /** Le foto in rete e su iCloud si chiedono nella versione che basta a riempire lo schermo. */
         fun screenSize(context: Context): ScreenSize = context.resources.displayMetrics.let {
@@ -136,12 +138,24 @@ class AppServices(context: Context) {
             // Sulle TV che disegnano l'app in 4K le foto pesano circa quattro volte di più.
             val metrics = context.resources.displayMetrics
             val disk = if (maxOf(metrics.widthPixels, metrics.heightPixels) > 1920) 300 * MB else 100 * MB
+            // Feste grandi: con l'impostazione, le foto vanno sulla chiavetta (cartella privata dell'app
+            // sul supporto rimovibile, che Android cancella se si disinstalla l'app). Si decide
+            // all'avvio: cambiare cartella a festa in corso perderebbe le foto già arrivate.
+            val usb = context.getSharedPreferences("slideshow_settings", Context.MODE_PRIVATE).getBoolean("usb_storage", false)
+            val removable = if (usb) removableDirectory(context) else null
             return GuestPhotoStore(
-                directory = File(context.noBackupFilesDir, "guest_photos"),
+                directory = removable?.let { File(it, "guest_photos") } ?: File(context.noBackupFilesDir, "guest_photos"),
                 memoryBudgetBytes = memory,
-                maxDiskBytes = disk,
+                // Sulla chiavetta lo spazio è molto di più, ma sempre entro metà di quello libero.
+                maxDiskBytes = removable?.let { minOf(USB_DISK_BYTES, it.usableSpace / 2) }?.coerceAtLeast(disk) ?: disk,
             )
         }
+
+        /** Cartella dell'app su una chiavetta o un disco USB scrivibile, se c'è. */
+        private fun removableDirectory(context: Context): File? =
+            context.getExternalFilesDirs(null).drop(1).filterNotNull().firstOrNull { dir ->
+                runCatching { android.os.Environment.isExternalStorageRemovable(dir) && dir.canWrite() }.getOrDefault(false)
+            }
     }
 }
 

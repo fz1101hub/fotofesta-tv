@@ -1269,4 +1269,7 @@
     <string name="settings_hot_folder_body">La carpeta USB o de red se revisa cada 20 segundos: las fotos nuevas aparecen enseguida.</string>
     <string name="settings_usb_storage">Fotos de los invitados en la memoria USB</string>
     <string name="settings_usb_storage_body">Más espacio para fiestas grandes: las fotos de los invitados se guardan en la memoria USB en lugar de en la TV. Desde la próxima vez que se abra la app.</string>
+
+    <!-- Ondata 12: canale TV -->
+    <string name="tv_channel_description">Las fotos de la fiesta como canal de TV.</string>
 </resources>

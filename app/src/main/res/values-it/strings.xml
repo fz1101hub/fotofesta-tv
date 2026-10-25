@@ -1269,4 +1269,7 @@
     <string name="settings_hot_folder_body">La cartella della chiavetta o di rete si ricontrolla ogni 20 secondi: le foto nuove compaiono subito.</string>
     <string name="settings_usb_storage">Foto degli invitati sulla chiavetta</string>
     <string name="settings_usb_storage_body">Più spazio per le feste grandi: le foto degli invitati restano sulla chiavetta invece che nella memoria della TV. Dalla prossima apertura dell\'app.</string>
+
+    <!-- Ondata 12: canale TV -->
+    <string name="tv_channel_description">Le foto della festa come canale della TV.</string>
 </resources>

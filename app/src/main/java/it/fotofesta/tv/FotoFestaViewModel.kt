@@ -344,6 +344,13 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         syncTvServices()
         syncHardware()
         refreshParty()
+        // Cartella a caldo: la cartella della chiavetta o di rete si ricontrolla spesso.
+        viewModelScope.launch {
+            while (true) {
+                delay(HOT_FOLDER_MS)
+                if (_state.value.settings.hotFolder && usbJob?.isActive != true) runCatching { rescanHotFolder() }
+            }
+        }
         // Le luci seguono la foto sullo schermo durante lo slideshow.
         viewModelScope.launch {
             _state.map { state ->
@@ -601,6 +608,32 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         val drawable = (context.imageLoader.execute(request) as? coil.request.SuccessResult)?.drawable ?: return null
         val bitmap = (drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap ?: return null
         return java.io.ByteArrayOutputStream().also { bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, it) }.toByteArray()
+    }
+
+    /** Rilegge la cartella in uso: le foto nuove entrano nella raccolta e passano davanti. */
+    private suspend fun rescanHotFolder() {
+        val scanned = when (settingsRepository.loadLastSource()) {
+            "USB" -> {
+                val path = settingsRepository.loadUsbFolder() ?: return
+                withContext(Dispatchers.IO) {
+                    val directory = File(path)
+                    if (!directory.isDirectory) null else fileBrowser.scanPhotos(directory).map { it.toUsbPhotoItem() }
+                }
+            }
+            "SMB" -> {
+                val folder = settingsRepository.loadSmbFolder() ?: return
+                if (!knownSmbLogin(folder.location)) return
+                withContext(Dispatchers.IO) { smbShares.scanPhotos(folder.location) }
+            }
+            else -> null
+        } ?: return
+        if (scanned.isEmpty()) return
+        val known = basePhotos.mapTo(HashSet()) { it.id }
+        val added = scanned.filter { it.id !in known }
+        if (added.isEmpty() && scanned.size == basePhotos.size) return
+        basePhotos = scanned
+        freshPhotos.add(added.map { it.id })
+        applyCollection(restart = false)
     }
 
     /** Colore medio della foto sullo schermo, per le luci. */
@@ -2978,6 +3011,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         const val MAX_SONG_ROUNDS = 10
         const val SNIPPET_MS = 15_000L
         const val MAX_AUTO_PRINTS = 100
+        const val HOT_FOLDER_MS = 20_000L
         const val FTP_USER = "fotofesta"
         const val MAX_ON_THIS_DAY_SCAN = 3_000
         const val REVIEW_MIN_PHOTOS = 10

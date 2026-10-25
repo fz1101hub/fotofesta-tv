@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.PendingIntent
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -269,6 +270,12 @@ class MainActivity : ComponentActivity() {
                 DisposableEffect(lowLatency) {
                     TvFeatures.setLowLatency(window, lowLatency)
                     onDispose { if (lowLatency) TvFeatures.setLowLatency(window, false) }
+                }
+
+                // Foto Ultra HDR: la finestra chiede al televisore la luminosità piena (Android 14+).
+                val hdr = state.settings.hdrPhotos && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+                LaunchedEffect(hdr) {
+                    window.colorMode = if (hdr) ActivityInfo.COLOR_MODE_HDR else ActivityInfo.COLOR_MODE_DEFAULT
                 }
 
                 LaunchedEffect(state.message) {

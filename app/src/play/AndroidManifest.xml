@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Versione per Google Play (Android TV e Google TV). -->
+<!-- Lint controlla questo file da solo: il launcher TV (LEANBACK_LAUNCHER) è nel manifest principale. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="MissingLeanbackLauncher,MissingLeanbackSupport">
+
+    <!-- Il canale "FotoFesta" scrive solo il proprio canale nella guida TV. -->
+    <uses-permission android:name="com.android.providers.tv.permission.WRITE_EPG_DATA" />
+
+    <application>
+        <!-- La festa come canale della TV (Live Channels, guida TV). -->
+        <service
+            android:name=".tv.PartyTvInputService"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_TV_INPUT">
+            <intent-filter>
+                <action android:name="android.media.tv.TvInputService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.media.tv.input"
+                android:resource="@xml/party_tv_input" />
+        </service>
+        <activity
+            android:name=".tv.PartyTvSetupActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+    </application>
+
+</manifest>
