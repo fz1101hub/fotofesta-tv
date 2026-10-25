@@ -130,12 +130,15 @@ final class FtpSession {
         readLine()
     }
 
+    /// Chiude dopo aver mandato le risposte già in coda (l'ultimo "221" o "530").
     func close() {
         guard !closed else { return }
         closed = true
         passive?.cancel()
         dataConnection?.cancel()
-        control.cancel()
+        let control = control
+        control.send(content: nil, contentContext: .finalMessage, isComplete: true, completion: .contentProcessed { _ in control.cancel() })
+        server.queue.asyncAfter(deadline: .now() + 2) { control.cancel() }
         onClose?()
     }
 

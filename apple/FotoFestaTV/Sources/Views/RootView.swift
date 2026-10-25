@@ -60,6 +60,7 @@ struct RootView: View {
                     case .differences: DifferencesView()
                     case .quizHosts: QuizView(kind: .hosts)
                     case .quizKids: QuizView(kind: .kids)
+                    case .devices: DevicesView()
                     }
                 }
         }

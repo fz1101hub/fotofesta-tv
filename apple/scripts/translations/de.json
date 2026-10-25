@@ -797,7 +797,19 @@
     "devices.ftp": "WLAN-Kameras (FTP)",
     "devices.ftp_details": "In der Kamera: Server %@, Port %ld, Benutzer %@, Passwort %@, Passivmodus an.",
     "devices.ftp_waiting": "Er startet mit der Party.",
-    "settings.hdr": "HDR-Fotos"
+    "settings.hdr": "HDR-Fotos",
+    "settings.devices_body": "Lichter, die den Fotos folgen, Foto- und Bondrucker, WLAN-Kameras.",
+    "settings.live_photos": "Live Photos",
+    "settings.live_photos_body": "Live Photos aus der Fotomediathek spielen beim Erscheinen ihren kurzen Clip ab.",
+    "settings.hdr_body": "HDR-Fotos mit voller Helligkeit auf Bildschirmen, die das unterstützen.",
+    "devices.ftp_body": "Canon-, Nikon-, Sony- und Fujifilm-Kameras können während der Party jedes Foto senden. Nur JPEG.",
+    "devices.usb_camera": "Kamera mit USB-Kabel",
+    "devices.usb_camera_body": "Verbinde die Kamera mit dem Mac: Neue Fotos kommen in die Party.",
+    "devices.usb_camera_connected": "%@ verbunden: Neue Fotos kommen in die Party.",
+    "settings.hot_folder": "Überwachter Ordner",
+    "settings.hot_folder_body": "Neue Fotos in diesem Ordner (zum Beispiel aus der Tethering-Software) kommen innerhalb von 20 Sekunden in die Party.",
+    "settings.hot_folder_choose": "Ordner wählen",
+    "settings.hot_folder_forget": "Nicht mehr überwachen"
   },
   "infoPlist": {
     "NSLocalNetworkUsageDescription": "FotoFesta TV empfängt die Fotos, die deine Gäste vom Handy senden, und zeigt die Fotos der Medienserver (NAS, PC) in deinem Heimnetz.",

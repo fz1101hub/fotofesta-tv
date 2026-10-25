@@ -798,3 +798,15 @@
 "devices.ftp_details" = "En la cámara: servidor %@, puerto %ld, usuario %@, contraseña %@, modo pasivo activado.";
 "devices.ftp_waiting" = "Se activa cuando empieza la fiesta.";
 "settings.hdr" = "Fotos HDR";
+"settings.devices_body" = "Luces que siguen las fotos, impresoras de fotos y de tiques, cámaras Wi‑Fi.";
+"settings.live_photos" = "Live Photos";
+"settings.live_photos_body" = "Las Live Photos de la fototeca reproducen su breve vídeo al aparecer.";
+"settings.hdr_body" = "Las fotos HDR con todo su brillo, en las pantallas compatibles.";
+"devices.ftp_body" = "Las cámaras Canon, Nikon, Sony y Fujifilm pueden enviar cada foto durante la fiesta. Solo JPEG.";
+"devices.usb_camera" = "Cámara con cable USB";
+"devices.usb_camera_body" = "Conecta la cámara al Mac: las fotos nuevas entran en la fiesta.";
+"devices.usb_camera_connected" = "%@ conectada: las fotos nuevas entran en la fiesta.";
+"settings.hot_folder" = "Carpeta vigilada";
+"settings.hot_folder_body" = "Las fotos nuevas guardadas en esta carpeta (por ejemplo, por el programa de disparo) entran en la fiesta en 20 segundos.";
+"settings.hot_folder_choose" = "Elegir una carpeta";
+"settings.hot_folder_forget" = "Dejar de vigilar";

@@ -12,6 +12,7 @@ enum Route: Hashable {
     case shows, rewind, barcode, photoMosaic, credits, teletext, sky, stats
     case door, phoneWall
     case absent, artwork, soundShow, livingQR, dream, museum, chapters, onThisDay, differences, quizHosts, quizKids
+    case devices
 }
 
 /// Da dove vengono le foto della raccolta mostrata nella home.
@@ -88,6 +89,12 @@ final class AppModel {
     let guests = GuestParty()
     /// Luci, stampanti e fotocamere della festa.
     let devices = PartyDevices()
+    #if os(macOS)
+    /// Fotocamera con il cavo USB e cartella a caldo del Mac.
+    let usbCameras = USBCameras()
+    let hotFolder = HotFolder()
+    private(set) var usbCameraEnabled = UserDefaults.standard.bool(forKey: "usbCamera")
+    #endif
     @ObservationIgnored private var basePhotos: [Photo]
     @ObservationIgnored private var baseLabel: String
     @ObservationIgnored private var baseIsDemo: Bool
@@ -1212,7 +1219,23 @@ final class AppModel {
             devices.stopFTP()
         }
         if !guests.active, devices.printed > 0 { devices.resetPrintCount() }
+        #if os(macOS)
+        let party = guests
+        let add: (Data) -> Void = { data in party.addCameraPhoto(data, sender: L("devices.camera_sender")) }
+        usbCameras.onPhoto = add
+        hotFolder.onPhoto = add
+        if guests.active, usbCameraEnabled { usbCameras.start() } else if usbCameras.running { usbCameras.stop() }
+        if guests.active { hotFolder.start() } else { hotFolder.stop() }
+        #endif
     }
+
+    #if os(macOS)
+    func setUSBCamera(_ enabled: Bool) {
+        usbCameraEnabled = enabled
+        UserDefaults.standard.set(enabled, forKey: "usbCamera")
+        syncDevices()
+    }
+    #endif
 
     private static func video(for video: GuestVideoStore.Video) -> Photo {
         Photo(

@@ -797,7 +797,19 @@
     "devices.ftp": "Appareils photo Wi‑Fi (FTP)",
     "devices.ftp_details": "Dans l'appareil : serveur %@, port %ld, utilisateur %@, mot de passe %@, mode passif activé.",
     "devices.ftp_waiting": "Il démarre avec la fête.",
-    "settings.hdr": "Photos HDR"
+    "settings.hdr": "Photos HDR",
+    "settings.devices_body": "Lumières qui suivent les photos, imprimantes de photos et de tickets, appareils photo Wi‑Fi.",
+    "settings.live_photos": "Live Photos",
+    "settings.live_photos_body": "Les Live Photos de la photothèque jouent leur courte vidéo quand elles apparaissent.",
+    "settings.hdr_body": "Les photos HDR avec toute leur luminosité, sur les écrans compatibles.",
+    "devices.ftp_body": "Les appareils Canon, Nikon, Sony et Fujifilm peuvent envoyer chaque photo pendant la fête. JPEG uniquement.",
+    "devices.usb_camera": "Appareil photo avec un câble USB",
+    "devices.usb_camera_body": "Branchez l'appareil au Mac : les nouvelles photos entrent dans la fête.",
+    "devices.usb_camera_connected": "%@ connecté : les nouvelles photos entrent dans la fête.",
+    "settings.hot_folder": "Dossier surveillé",
+    "settings.hot_folder_body": "Les nouvelles photos enregistrées dans ce dossier (par exemple par le logiciel de prise de vue) entrent dans la fête en 20 secondes.",
+    "settings.hot_folder_choose": "Choisir un dossier",
+    "settings.hot_folder_forget": "Ne plus surveiller"
   },
   "infoPlist": {
     "NSLocalNetworkUsageDescription": "FotoFesta TV reçoit les photos que vos invités envoient depuis leur téléphone et affiche les photos des serveurs multimédias (NAS, PC) de votre réseau domestique.",

@@ -305,6 +305,15 @@ struct SettingsView: View {
     @ViewBuilder
     private func venueSection(_ settings: SlideshowSettings) -> some View {
         Section(L("settings.cat_venue")) {
+            NavigationLink(value: Route.devices) {
+                described(L("devices.title"), L("settings.devices_body"))
+            }
+            Toggle(isOn: binding(\.livePhotos)) {
+                described(L("settings.live_photos"), L("settings.live_photos_body"))
+            }
+            Toggle(isOn: binding(\.hdrPhotos)) {
+                described(L("settings.hdr"), L("settings.hdr_body"))
+            }
             Picker(selection: binding(\.frameStyle)) {
                 Text(L("settings.frame_none")).tag(FrameStyle.none)
                 Text(L("settings.frame_band")).tag(FrameStyle.band)

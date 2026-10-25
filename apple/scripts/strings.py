@@ -840,6 +840,19 @@ STRINGS = {
     "devices.ftp_details": ("In the camera: server %@, port %ld, user %@, password %@, passive mode on.", "Nella fotocamera: server %@, porta %ld, utente %@, password %@, modalità passiva attiva."),
     "devices.ftp_waiting": ("It starts with the party.", "Si attiva quando parte la festa."),
     "settings.hdr": ("HDR photos", "Foto HDR"),
+    # Ondata 12: testi propri di Apple
+    "settings.devices_body": ("Lights that follow the photos, photo and receipt printers, Wi‑Fi cameras.", "Luci che seguono le foto, stampanti di foto e scontrini, fotocamere Wi‑Fi."),
+    "settings.live_photos": ("Live Photos", "Live Photo"),
+    "settings.live_photos_body": ("Live Photos from the Photos library play their short clip when they appear.", "Le Live Photo della libreria Foto animano il loro breve video quando compaiono."),
+    "settings.hdr_body": ("HDR photos with their full brightness, on screens that support it.", "Le foto HDR con la loro luminosità piena, sugli schermi che la supportano."),
+    "devices.ftp_body": ("Canon, Nikon, Sony and Fujifilm cameras can send every shot during the party. JPEG only.", "Le fotocamere Canon, Nikon, Sony e Fujifilm possono mandare ogni scatto durante la festa. Solo JPEG."),
+    "devices.usb_camera": ("Camera with a USB cable", "Fotocamera con il cavo USB"),
+    "devices.usb_camera_body": ("Connect the camera to the Mac: new shots enter the party.", "Collega la fotocamera al Mac: gli scatti nuovi entrano nella festa."),
+    "devices.usb_camera_connected": ("%@ connected: new shots enter the party.", "%@ collegata: gli scatti nuovi entrano nella festa."),
+    "settings.hot_folder": ("Hot folder", "Cartella a caldo"),
+    "settings.hot_folder_body": ("New photos saved in this folder (for example by tethering software) enter the party within 20 seconds.", "Le foto nuove salvate in questa cartella (per esempio dal programma di scatto) entrano nella festa entro 20 secondi."),
+    "settings.hot_folder_choose": ("Choose a folder", "Scegli una cartella"),
+    "settings.hot_folder_forget": ("Stop watching", "Non controllare più"),
 }
 
 PLACEHOLDER = re.compile(r"%(?:ld|@|d|lld)")

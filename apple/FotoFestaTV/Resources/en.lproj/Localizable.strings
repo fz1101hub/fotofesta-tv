@@ -798,3 +798,15 @@
 "devices.ftp_details" = "In the camera: server %@, port %ld, user %@, password %@, passive mode on.";
 "devices.ftp_waiting" = "It starts with the party.";
 "settings.hdr" = "HDR photos";
+"settings.devices_body" = "Lights that follow the photos, photo and receipt printers, Wi‑Fi cameras.";
+"settings.live_photos" = "Live Photos";
+"settings.live_photos_body" = "Live Photos from the Photos library play their short clip when they appear.";
+"settings.hdr_body" = "HDR photos with their full brightness, on screens that support it.";
+"devices.ftp_body" = "Canon, Nikon, Sony and Fujifilm cameras can send every shot during the party. JPEG only.";
+"devices.usb_camera" = "Camera with a USB cable";
+"devices.usb_camera_body" = "Connect the camera to the Mac: new shots enter the party.";
+"devices.usb_camera_connected" = "%@ connected: new shots enter the party.";
+"settings.hot_folder" = "Hot folder";
+"settings.hot_folder_body" = "New photos saved in this folder (for example by tethering software) enter the party within 20 seconds.";
+"settings.hot_folder_choose" = "Choose a folder";
+"settings.hot_folder_forget" = "Stop watching";
