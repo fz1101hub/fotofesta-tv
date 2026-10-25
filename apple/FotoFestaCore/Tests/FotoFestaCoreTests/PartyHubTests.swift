@@ -50,7 +50,7 @@ final class PartyHubTests: XCTestCase {
         hub.setFeatures(PartyHub.Features(reactions: false, messages: false))
         XCTAssertEqual(hub.react(player: giulia, index: 0, name: nil), .disabled)
         XCTAssertEqual(hub.message(player: giulia, text: "Auguri!", name: nil), .disabled)
-        XCTAssertEqual(hub.featuresJSON(), #"{"reactions":false,"messages":false,"moderated":false}"#)
+        XCTAssertEqual(hub.featuresJSON(), #"{"reactions":false,"messages":false,"moderated":false,"arrivals":true,"wall":true,"songs":true,"album":true,"video":true,"delete":true}"#)
     }
 
     func testMessagesAreCleanedSignedAndLimited() {

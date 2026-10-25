@@ -177,6 +177,24 @@ struct SettingsView: View {
                         Text(L("settings.phone_messages_body")).font(.caption).foregroundStyle(.secondary)
                     }
                 }
+                Toggle(isOn: Binding(get: { guests.songsEnabled }, set: { guests.setSongsEnabled($0) })) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L("settings.song_requests"))
+                        Text(L("settings.song_requests_body")).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                Toggle(isOn: Binding(get: { guests.albumEnabled }, set: { guests.setAlbumEnabled($0) })) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L("settings.guest_album"))
+                        Text(L("settings.guest_album_body")).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                Toggle(isOn: Binding(get: { guests.videosEnabled }, set: { guests.setVideosEnabled($0) })) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L("settings.guest_videos"))
+                        Text(L("settings.guest_videos_body")).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
                 Picker(selection: Binding(get: { guests.photoLimit }, set: { guests.setPhotoLimit($0) })) {
                     ForEach(PhotoLimit.allCases, id: \.self) { limit in
                         Text(limit.label).tag(limit)

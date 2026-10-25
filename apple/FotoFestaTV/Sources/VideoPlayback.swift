@@ -287,6 +287,13 @@ final class VideoPlayback {
             let loader = StreamingVideoLoader.lan(url: url)
             self.loader = loader
             attach(AVPlayerItem(asset: loader.makeAsset()))
+        case let .guestVideo(id):
+            // Dal disco della festa: il file c'è finché la festa non finisce o l'invitato non lo toglie.
+            if let video = GuestStorage.videos.videos.first(where: { $0.id == id }) {
+                attach(AVPlayerItem(url: video.url))
+            } else {
+                failed = true
+            }
         case .bundled, .guest:
             failed = true
         }

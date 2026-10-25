@@ -10,6 +10,19 @@ public enum PartyCommand: Equatable, Sendable {
     case startDirector
     case startQuiet
     case develop
+    /// Canzone richiesta già suonata (o scartata) da chi fa la musica.
+    case songDone(String)
+    /// Preparazione della festa dalla regia: nome, colore, scaletta, invitati attesi, logo e sponsor.
+    case setBrandName(String)
+    case setAccent(String?)
+    case setSchedule(String)
+    case setGuestList(String)
+    case removeLogo
+    case removeSponsor(String)
+    case setQuiz(String)
+    case removeKid(String)
+    /// Nuovo capitolo della festa: le foto da adesso in poi gli appartengono.
+    case chapter(String)
 }
 
 /// Regia dal telefono: chi organizza apre la stessa pagina della festa, scrive il PIN mostrato sulla
@@ -171,6 +184,16 @@ public final class HostRemote: @unchecked Sendable {
         case "director": command = .startDirector
         case "quiet": command = .startQuiet
         case "develop": command = .develop
+        case "song_done": command = id.map(PartyCommand.songDone)
+        case "brand_name": command = .setBrandName(String((form["text"] ?? "").prefix(Self.maxSetupText)))
+        case "brand_accent": command = .setAccent(form["text"].flatMap { PartySetup.validColor($0) ? $0 : nil })
+        case "schedule": command = .setSchedule(String((form["text"] ?? "").prefix(Self.maxSetupText)))
+        case "guest_list": command = .setGuestList(String((form["text"] ?? "").prefix(Self.maxSetupText)))
+        case "logo_remove": command = .removeLogo
+        case "sponsor_remove": command = id.map(PartyCommand.removeSponsor)
+        case "quiz": command = .setQuiz(String((form["text"] ?? "").prefix(Self.maxSetupText)))
+        case "kid_remove": command = id.map(PartyCommand.removeKid)
+        case "chapter": command = GuestSender.clean(form["text"], maxLength: 60).map(PartyCommand.chapter)
         default: command = nil
         }
         guard let command else { return (400, #"{"error":"invalid"}"#) }
@@ -179,8 +202,12 @@ public final class HostRemote: @unchecked Sendable {
         return (200, #"{"status":"ok"}"#)
     }
 
-    /// Stato per la pagina di regia, con le dediche da approvare prese da `hub`.
-    public func statusJSON(hub: PartyHub) -> String {
+    /// Testi della preparazione della festa (scaletta, invitati, quiz): al massimo qualche pagina.
+    static let maxSetupText = 6_000
+
+    /// Stato per la pagina di regia, con le dediche da approvare prese da `hub` e la preparazione
+    /// della festa (`setup`, già in JSON).
+    public func statusJSON(hub: PartyHub, setup: String = "null") -> String {
         let current = lock.withLock { status }
         let state = HostState(
             slideshow: current.slideshow,
@@ -189,10 +216,13 @@ public final class HostRemote: @unchecked Sendable {
             photos: current.photos,
             pendingPhotos: current.pendingPhotos.prefix(Self.maxListed).map { HostState.Photo(id: $0.id, sender: $0.sender) },
             pendingMessages: hub.pendingMessages().prefix(Self.maxListed).map { HostState.Message(id: $0.id, text: $0.text, name: $0.name) },
+            songs: hub.songRequests().suffix(Self.maxListed).map { HostState.Message(id: $0.id, text: $0.text, name: $0.name) },
             director: hub.currentDirector()?.name
         )
         guard let data = try? JSONEncoder().encode(state) else { return "{}" }
-        return String(decoding: data, as: UTF8.self)
+        // La preparazione arriva già in JSON: si aggiunge in fondo all'oggetto.
+        let json = String(decoding: data, as: UTF8.self)
+        return String(json.dropLast()) + #","setup":\#(setup)}"#
     }
 
     /// Foto che la pagina di regia può chiedere: solo quelle in attesa di approvazione.
@@ -218,7 +248,25 @@ public final class HostRemote: @unchecked Sendable {
         let photos: Int
         let pendingPhotos: [Photo]
         let pendingMessages: [Message]
+        let songs: [Message]
         let director: String?
+
+        // Il regista nil resta nel JSON come null, come nella versione Android.
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(slideshow, forKey: .slideshow)
+            try container.encode(playing, forKey: .playing)
+            try container.encode(title, forKey: .title)
+            try container.encode(photos, forKey: .photos)
+            try container.encode(pendingPhotos, forKey: .pendingPhotos)
+            try container.encode(pendingMessages, forKey: .pendingMessages)
+            try container.encode(songs, forKey: .songs)
+            try container.encode(director, forKey: .director)
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case slideshow, playing, title, photos, pendingPhotos, pendingMessages, songs, director
+        }
     }
 
     private static func newPin() -> String {

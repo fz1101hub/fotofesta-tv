@@ -10,6 +10,7 @@ enum Route: Hashable {
     case slideshow, settings, games, memory, mystery, puzzle, whoTookIt, poll, lottery, googleConnect, guests, guestReview, guestWifi, awards, guestbook, announce, library, network
     case partyGames, play, tournament, bets, toast, coins
     case shows, rewind, barcode, photoMosaic, credits, teletext, sky, stats
+    case door, phoneWall
 }
 
 /// Da dove vengono le foto della raccolta mostrata nella home.
@@ -183,6 +184,12 @@ final class AppModel {
             self?.reconcileLostSelection()
         }
         guests.onChange = { [weak self] in self?.guestsChanged() }
+        guests.onArrival = { [weak self] arrival in
+            self?.showMessage(L("arrival.message", arrival.name, arrival.order))
+        }
+        guests.onSong = { [weak self] song in
+            self?.showMessage(song.name.map { L("song.message_named", $0, song.text) } ?? L("song.message", song.text))
+        }
         guestsChanged()
         // Regia dal telefono e regista di turno: i comandi arrivano dalla coda del server.
         let run: @Sendable (PartyCommand) -> Void = { [weak self] command in
@@ -801,7 +808,20 @@ final class AppModel {
         case .startDirector: startDirector()
         case .startQuiet: startQuiet()
         case .develop: develop()
+        case let .songDone(id): guests.songDone(id)
+        case let .setBrandName(name): guests.partySetup.setName(name)
+        case let .setAccent(color): guests.partySetup.setAccent(color)
+        case let .setSchedule(text): guests.partySetup.setSchedule(text)
+        case let .setGuestList(text): guests.partySetup.setGuestList(text)
+        case .removeLogo: guests.partySetup.setLogo(nil)
+        case let .removeSponsor(id): guests.partySetup.removeSponsor(id)
+        case let .setQuiz(text): guests.partySetup.setQuiz(text)
+        case let .removeKid(id): guests.partySetup.removeKid(id)
+        case let .chapter(title):
+            guests.partyHub.chapter(title)
+            showMessage(L("message.chapter", title))
         }
+        guests.refreshWallAndSetup()
     }
 
     /// Foto sullo schermo: le reazioni dei telefoni contano per lei, con "Foto che invecchiano" si
@@ -811,8 +831,9 @@ final class AppModel {
         let previous = lastShownPhoto
         lastShownPhoto = photo
         if let photo { showCounts[photo.id, default: 0] += 1 }
-        if guests.noTraces, let previous, previous.id != photo?.id, case let .guest(id) = previous.source {
-            guests.reject(id)
+        if guests.noTraces, let previous, previous.id != photo?.id {
+            if case let .guest(id) = previous.source { guests.reject(id) }
+            if case let .guestVideo(id) = previous.source { guests.removeVideo(id) }
         }
     }
 
@@ -899,8 +920,10 @@ final class AppModel {
     // MARK: - Spettacoli sullo schermo
 
     /// Titolo della festa (dal modello scelto) per sigla, TG, titoli di coda e Televideo.
-    var partyTitle: String {
-        switch settings.template {
+    var partyTitle: String { Self.partyTitle(for: settings.template) }
+
+    nonisolated static func partyTitle(for template: PartyTemplate) -> String {
+        switch template {
         case .none: L("template.title_none")
         case .birthday: L("template.title_birthday")
         case .wedding: L("template.title_wedding")
@@ -1114,11 +1137,15 @@ final class AppModel {
     private func guestsChanged() {
         let all = guests.photos
         let approved = all.filter(\.approved)
+        let clips = guests.videos
         if guests.ready, let known = knownGuestIDs {
-            freshPhotos.add(approved.filter { !known.contains($0.id) }.map { "guest:\($0.id)" })
+            freshPhotos.add(approved.filter { !known.contains($0.id) }.map { "guest:\($0.id)" } +
+                            clips.filter { !known.contains($0.id) }.map { "guestvideo:\($0.id)" })
         }
-        knownGuestIDs = guests.ready ? Set(approved.map(\.id)) : nil
-        let items = approved.map(Self.photo(for:))
+        knownGuestIDs = guests.ready ? Set(approved.map(\.id) + clips.map(\.id)) : nil
+        // Foto e video degli invitati insieme, nell'ordine di arrivo.
+        let items = (approved.map(Self.photo(for:)) + clips.map(Self.video(for:)))
+            .sorted { ($0.receivedAt ?? .distantPast) < ($1.receivedAt ?? .distantPast) }
         if items != guestPhotos || guests.active != guestPartyActive || guests.developed != guestsDeveloped {
             guestPhotos = items
             guestsDeveloped = guests.developed
@@ -1127,6 +1154,17 @@ final class AppModel {
         }
         // Approvate o scartate tutte: si torna alla schermata della festa.
         if path.last == .guestReview, all.allSatisfy(\.approved) { path.removeLast() }
+    }
+
+    private static func video(for video: GuestVideoStore.Video) -> Photo {
+        Photo(
+            id: "guestvideo:\(video.id)",
+            title: video.sender.map { L("guest.video_from", $0) } ?? L("guest.video"),
+            source: .guestVideo(id: video.id),
+            receivedAt: video.receivedAt,
+            sender: video.sender,
+            isVideo: true
+        )
     }
 
     private static func photo(for guest: GuestPhoto) -> Photo {

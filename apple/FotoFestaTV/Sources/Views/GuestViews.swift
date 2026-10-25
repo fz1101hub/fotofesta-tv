@@ -124,6 +124,12 @@ struct GuestsView: View {
                     NavigationLink(value: Route.announce) {
                         Label(L("guests.announce"), systemImage: "megaphone.fill")
                     }
+                    NavigationLink(value: Route.door) {
+                        Label(L("door.button"), systemImage: "door.left.hand.open")
+                    }
+                    NavigationLink(value: Route.phoneWall) {
+                        Label(L("phone_wall.button"), systemImage: "rectangle.split.3x1")
+                    }
                     if !guests.developed {
                         Button { model.develop() } label: {
                             Label(LP("guests.develop", guests.shotsTaken), systemImage: "camera.aperture")

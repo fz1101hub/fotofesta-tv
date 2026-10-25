@@ -334,7 +334,7 @@ struct SlideshowView: View {
     private var captionTitle: String? {
         guard let photo = model.currentPhoto else { return nil }
         switch photo.source {
-        case .guest, .bundled: return photo.title
+        case .guest, .guestVideo, .bundled: return photo.title
         case .google, .network: return PhotoCaption.title(photo.title)
         // La libreria Foto non dà un nome utile da mostrare.
         case .library: return nil

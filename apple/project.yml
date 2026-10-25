@@ -30,6 +30,11 @@ targets:
       # Pagina per autorizzare Google Foto dal telefono: anche questa condivisa con Android.
       - path: ../shared/assets/guest/google.html
         buildPhase: resources
+      # Ingresso con il QR degli arrivi e parete delle foto per un secondo schermo, come su Android.
+      - path: ../shared/assets/guest/door.html
+        buildPhase: resources
+      - path: ../shared/assets/guest/wall.html
+        buildPhase: resources
     dependencies:
       - package: FotoFestaCore
     configFiles:
@@ -83,6 +88,10 @@ targets:
       - path: ../shared/assets/guest/index.html
         buildPhase: resources
       - path: ../shared/assets/guest/google.html
+        buildPhase: resources
+      - path: ../shared/assets/guest/door.html
+        buildPhase: resources
+      - path: ../shared/assets/guest/wall.html
         buildPhase: resources
     dependencies:
       - package: FotoFestaCore

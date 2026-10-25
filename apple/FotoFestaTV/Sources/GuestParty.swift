@@ -47,6 +47,24 @@ enum GuestStorage {
             maxDiskBytes: 300 * 1024 * 1024
         )
     }()
+
+    /// Video brevi degli invitati: al massimo 1 GB (e il 10% dello spazio libero) per festa.
+    static let videos: GuestVideoStore = {
+        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        return GuestVideoStore(directory: caches.appendingPathComponent("guest_videos", isDirectory: true), maxTotalBytes: 1024 * 1024 * 1024)
+    }()
+
+    /// Preparazione della festa. Sul Mac resta in Application Support; tvOS non ha uno spazio
+    /// permanente per le app, quindi lì sta nella cache (il sistema può svuotarla).
+    static let setup: PartySetup = {
+        #if os(macOS)
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("FotoFesta", isDirectory: true)
+        #else
+        let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        #endif
+        return PartySetup(directory: base.appendingPathComponent("party_setup", isDirectory: true))
+    }()
 }
 
 /// Festa con le foto degli invitati: tiene acceso il server sulla rete di casa mentre l'app è in
@@ -133,6 +151,9 @@ final class GuestParty {
         static let noTraces = "guests.noTraces"
         static let resumeParty = "guests.resumeParty"
         static let backupCopy = "guests.backupCopy"
+        static let songs = "guests.songs"
+        static let album = "guests.album"
+        static let videos = "guests.videos"
     }
 
     /// Dediche, nomi, reazioni e scatti, per riprendere la festa dopo un'interruzione.
@@ -154,6 +175,27 @@ final class GuestParty {
     @ObservationIgnored private var playRevision = -1
     /// Regia dal telefono: PIN nuovo a ogni festa.
     let hostRemote = HostRemote()
+    /// Video brevi degli invitati, su disco per la durata della festa.
+    let videoStore = GuestStorage.videos
+    let phoneWall: PhoneWall
+    /// Nome, colore, logo, sponsor, scaletta, invitati attesi, quiz e foto da piccoli: restano tra una festa e l'altra.
+    let partySetup = GuestStorage.setup
+    /// Pagine e funzioni in più del server (ingresso, parete, album, video, muro di telefoni).
+    let pages: PartyPages
+    private(set) var songsEnabled: Bool
+    private(set) var albumEnabled: Bool
+    private(set) var videosEnabled: Bool
+    private(set) var videos: [GuestVideoStore.Video] = []
+    private(set) var songs: [PartyHub.SongRequest] = []
+    private(set) var arrivals: [PartyHub.Arrival] = []
+    private(set) var phoneWallState: PhoneWall.State?
+    private(set) var setup = PartySetup.State()
+    /// Un invitato appena arrivato dal QR dell'ingresso: la TV gli dà il benvenuto.
+    @ObservationIgnored var onArrival: ((PartyHub.Arrival) -> Void)?
+    /// Una canzone appena chiesta: chi fa la musica la vede anche sulla TV.
+    @ObservationIgnored var onSong: ((PartyHub.SongRequest) -> Void)?
+    @ObservationIgnored private var wallRevision = -1
+    @ObservationIgnored private var setupRevision = -1
     @ObservationIgnored private var messageRevision = -1
     @ObservationIgnored private var messagePolling: Task<Void, Never>?
     @ObservationIgnored private var savedState: (revision: Int, reactions: Int)?
@@ -163,7 +205,13 @@ final class GuestParty {
         let sharedHub = PartyHub()
         partyHub = sharedHub
         partyPlay = PartyPlay(hub: sharedHub)
+        let wall = PhoneWall()
+        phoneWall = wall
+        pages = PartyPages(store: GuestStorage.store, videos: GuestStorage.videos, hub: sharedHub, phoneWall: wall, setup: GuestStorage.setup)
         let defaults = UserDefaults.standard
+        songsEnabled = defaults.object(forKey: Keys.songs) as? Bool ?? true
+        albumEnabled = defaults.object(forKey: Keys.album) as? Bool ?? true
+        videosEnabled = defaults.object(forKey: Keys.videos) as? Bool ?? true
         active = defaults.bool(forKey: Keys.active)
         approval = defaults.bool(forKey: Keys.approval)
         qrInSlideshow = defaults.object(forKey: Keys.qrInSlideshow) as? Bool ?? true
@@ -192,6 +240,21 @@ final class GuestParty {
         }
         syncPartyFeatures()
         syncPartyRules()
+        sharedHub.setOnArrival { [weak self] arrival in
+            Task { @MainActor [weak self] in
+                self?.refreshMessages()
+                self?.onArrival?(arrival)
+            }
+        }
+        sharedHub.setOnSong { [weak self] song in
+            Task { @MainActor [weak self] in
+                self?.refreshMessages()
+                self?.onSong?(song)
+            }
+        }
+        GuestStorage.videos.setOnChange { [weak self] in
+            Task { @MainActor [weak self] in self?.videosChanged() }
+        }
         hostRemote.setEnabled(hostEnabled)
         hostPIN = hostRemote.currentPIN()
         // Dediche, annunci e regista arrivano dalla coda del server: si controlla una volta al secondo
@@ -201,6 +264,7 @@ final class GuestParty {
                 guard let self else { return }
                 self.refreshMessages()
                 self.refreshPlay()
+                self.refreshWallAndSetup()
                 self.saveHubIfChanged()
                 if let status = self.hostStatus?() { self.hostRemote.updateStatus(status) }
                 // Mezzo secondo: il disegno di "Disegna e indovina" deve crescere quasi dal vivo.
@@ -219,6 +283,7 @@ final class GuestParty {
         Task.detached(priority: .utility) { [weak self] in
             if wasActive {
                 store.restore(maxAge: idleLimit)
+                GuestStorage.videos.restore(maxAge: idleLimit)
                 let newest = store.photos.map(\.receivedAt.timeIntervalSince1970).max() ?? 0
                 if Date().timeIntervalSince1970 - max(startedAt, newest) > idleLimit {
                     await self?.end()
@@ -228,6 +293,7 @@ final class GuestParty {
                 }
             } else {
                 store.clear()
+                GuestStorage.videos.clear()
             }
             await self?.markReady()
         }
@@ -253,6 +319,8 @@ final class GuestParty {
         stopServing()
         // Subito, non in background: una festa ricominciata un attimo dopo non deve perdere le foto nuove.
         store.clear()
+        videoStore.clear()
+        phoneWall.stop()
         defaults.set(false, forKey: Keys.active)
         defaults.removeObject(forKey: Keys.secret)
         defaults.removeObject(forKey: Keys.startedAt)
@@ -260,6 +328,7 @@ final class GuestParty {
         problem = nil
         // Subito, senza aspettare la notifica dell'archivio: la raccolta non deve usare foto cancellate.
         photos = []
+        videos = []
         partyHub.clear()
         partyPlay.clear()
         refreshPlay()
@@ -325,6 +394,7 @@ final class GuestParty {
         defaults.set(enabled, forKey: Keys.noTraces)
         noTraces = enabled
         syncPartyRules()
+        syncPartyFeatures()
     }
 
     func setResumeParty(_ enabled: Bool) {
@@ -385,9 +455,93 @@ final class GuestParty {
         refreshMessages()
     }
 
-    /// Con l'approvazione delle foto anche le dediche aspettano il via libera.
+    func setSongsEnabled(_ enabled: Bool) {
+        defaults.set(enabled, forKey: Keys.songs)
+        songsEnabled = enabled
+        syncPartyFeatures()
+    }
+
+    func setAlbumEnabled(_ enabled: Bool) {
+        defaults.set(enabled, forKey: Keys.album)
+        albumEnabled = enabled
+        syncPartyFeatures()
+    }
+
+    func setVideosEnabled(_ enabled: Bool) {
+        defaults.set(enabled, forKey: Keys.videos)
+        videosEnabled = enabled
+        syncPartyFeatures()
+    }
+
+    /// Canzone suonata o scartata.
+    func songDone(_ id: String) {
+        partyHub.removeSong(id)
+        refreshMessages()
+    }
+
+    /// Video tolto da chi organizza.
+    func removeVideo(_ id: String) {
+        let videos = videoStore
+        Task.detached(priority: .userInitiated) { videos.remove(id) }
+    }
+
+    // MARK: - Muro di telefoni
+
+    func startPhoneWall() {
+        phoneWall.start()
+        refreshWallAndSetup()
+    }
+
+    @discardableResult
+    func showOnPhoneWall(_ id: String) -> Bool {
+        let shown = phoneWall.show(id)
+        refreshWallAndSetup()
+        return shown
+    }
+
+    func rearrangePhoneWall() {
+        phoneWall.rearrange()
+        refreshWallAndSetup()
+    }
+
+    func phoneWallFinale() {
+        phoneWall.finale()
+        refreshWallAndSetup()
+    }
+
+    func stopPhoneWall() {
+        phoneWall.stop()
+        refreshWallAndSetup()
+    }
+
+    /// Con l'approvazione delle foto anche le dediche aspettano il via libera; i video no (non c'è
+    /// un modo per approvarli), quindi con l'approvazione non si accettano.
     private func syncPartyFeatures() {
-        partyHub.setFeatures(PartyHub.Features(reactions: reactionsEnabled, messages: messagesEnabled, moderateMessages: approval))
+        // Con la festa senza tracce niente album da portare a casa e niente video.
+        partyHub.setFeatures(PartyHub.Features(reactions: reactionsEnabled, messages: messagesEnabled, moderateMessages: approval,
+                                               songs: songsEnabled, album: albumEnabled && !noTraces, videos: videosEnabled && !approval && !noTraces))
+        pages.albumEnabled.value = albumEnabled && !noTraces
+        pages.videosEnabled.value = videosEnabled && !noTraces
+        pages.approval.value = approval
+    }
+
+    /// Muro di telefoni e preparazione della festa: si rileggono solo quando sono cambiati.
+    func refreshWallAndSetup() {
+        let wall = phoneWall.currentRevision()
+        if wall != wallRevision {
+            wallRevision = wall
+            phoneWallState = phoneWall.state()
+        }
+        let revision = partySetup.currentRevision()
+        if revision != setupRevision {
+            setupRevision = revision
+            setup = partySetup.state
+        }
+    }
+
+    private func videosChanged() {
+        videos = videoStore.videos
+        onChange?()
     }
 
     /// Regole delle foto degli invitati, ripresa della festa e copia nella cartella Immagini.
@@ -424,6 +578,8 @@ final class GuestParty {
         let quietLeft = partyHub.quietTimeLeft()
         quietUntil = quietLeft > 0 ? Date().addingTimeInterval(quietLeft) : nil
         shotsTaken = partyHub.photosTaken()
+        songs = partyHub.songRequests()
+        arrivals = partyHub.allArrivals()
         let wasDeveloped = developed
         developed = partyHub.isDeveloped()
         // Il rullino appena sviluppato (o la regola cambiata) cambia le foto in mostra.
@@ -507,6 +663,7 @@ final class GuestParty {
 
     private func markReady() {
         photos = store.photos
+        videos = videoStore.videos
         ready = true
         onChange?()
         // Il server parte solo ora: una foto ricevuta durante la ripresa andrebbe persa.
@@ -555,7 +712,6 @@ final class GuestParty {
         let candidate = GuestUploadServer(
             key: secret,
             page: makePageProvider(),
-            onPhoto: makePhotoHandler(),
             onFailure: { [weak self] in
                 Task { @MainActor [weak self] in
                     if let server = failure.server { self?.serverFailed(server) }
@@ -565,7 +721,9 @@ final class GuestParty {
             hub: partyHub,
             host: hostRemote,
             hostPhoto: { [store] id in store.read(id) },
-            play: partyPlay
+            play: partyPlay,
+            onUpload: makePhotoHandler(),
+            extras: pages
         )
         failure.server = candidate
         do {
@@ -630,37 +788,38 @@ final class GuestParty {
             let height = Int((Double(screen.height) * 1.1).rounded())
             let config = "{\"maxWidth\":\(width),\"maxHeight\":\(height),\"fit\":\"\(fit)\",\"quality\":0.88," +
                 "\"maxBytes\":\(GuestUploadServer.maxUploadBytes),\"maxPixels\":\(GuestImageFormat.maxImagePixels),\"maxSide\":\(GuestImageFormat.maxImageSide)," +
+                "\"maxVideoBytes\":\(GuestUploadServer.maxVideoBytes),\"videoSeconds\":\(GuestUploadServer.videoSeconds)," +
                 "\"approval\":\(flag.value)}"
             return template.replacingOccurrences(of: "__FOTOFESTA_CONFIG__", with: config)
         }
     }
 
     /// Chiamato dalla coda del server per ogni foto ricevuta.
-    private func makePhotoHandler() -> @Sendable (Data, String?, String?) -> GuestUploadServer.UploadResult {
+    private func makePhotoHandler() -> @Sendable (Data, String?, String?) -> GuestUploadServer.Upload {
         let store = self.store
         let flag = approvalFlag
         let hub = partyHub
         let play = partyPlay
         let backup = backupFlag
         return { data, sender, player in
-            guard GuestImageFormat.isDisplayable(data) else { return .unsupported }
+            guard GuestImageFormat.isDisplayable(data) else { return .init(.unsupported) }
             // Limite di foto a testa (una a testa, rullino) e tre minuti senza telefoni.
             switch hub.takePhoto(player: player) {
-            case .quiet: return .quiet
-            case .limit, .noPlayer: return .limit
+            case .quiet: return .init(.quiet)
+            case .limit, .noPlayer: return .init(.limit)
             case .allowed: break
             }
             switch store.add(data, sender: sender, approved: !flag.value) {
             case let .added(photo):
                 play.photoArrived(player: player, photoID: photo.id)
                 if backup.value { Self.backup(data, sender: sender) }
-                return photo.approved ? .shown : .pending
+                return .init(photo.approved ? .shown : .pending, photoID: photo.id)
             case .full:
                 hub.returnPhoto(player: player)
-                return .full
+                return .init(.full)
             case .tooManyPending:
                 hub.returnPhoto(player: player)
-                return .tooManyPending
+                return .init(.tooManyPending)
             }
         }
     }

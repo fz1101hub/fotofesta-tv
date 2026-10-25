@@ -1,3 +1,4 @@
+import AVFoundation
 import FotoFestaCore
 import ImageIO
 import SwiftUI
@@ -48,6 +49,13 @@ actor ImageLoader {
             guard let data = GuestStorage.store.read(id),
                   let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
             decoded = Self.thumbnail(source, maxPixelSize: maxPixelSize)
+        case let .guestVideo(id):
+            // Un fotogramma del video, per le miniature (lo slideshow lo riproduce con AVPlayer).
+            guard let video = GuestStorage.videos.videos.first(where: { $0.id == id }) else { return nil }
+            let generator = AVAssetImageGenerator(asset: AVURLAsset(url: video.url))
+            generator.appliesPreferredTrackTransform = true
+            generator.maximumSize = CGSize(width: maxPixelSize, height: maxPixelSize)
+            decoded = try? await generator.image(at: .zero).image
         case let .network(address):
             // Server multimediale della rete di casa: solo indirizzi locali, in chiaro come vuole DLNA.
             guard let url = URL(string: address), LANAddress.isLocal(url),

@@ -41,7 +41,22 @@ public final class GuestUploadServer: @unchecked Sendable {
         case quiet
     }
 
+    /// Esito di un invio con l'identificativo della foto o del video salvato (per la ricevuta).
+    public struct Upload: Equatable, Sendable {
+        public let result: UploadResult
+        public let photoID: String?
+
+        public init(_ result: UploadResult, photoID: String? = nil) {
+            self.result = result
+            self.photoID = photoID
+        }
+    }
+
     public static let maxUploadBytes = 12 * 1024 * 1024
+    /// Video brevi degli invitati: al massimo 60 MB, uno alla volta.
+    public static let maxVideoBytes = 60 * 1024 * 1024
+    /// Durata massima dei video, controllata dalla pagina.
+    public static let videoSeconds = 30
     static let maxHeaderBytes = 16 * 1024
     static let maxConnections = 16
     static let maxConnectionsPerClient = 3
@@ -55,6 +70,10 @@ public final class GuestUploadServer: @unchecked Sendable {
     private let page: @Sendable () -> String
     /// Foto ricevuta, con il nome di chi la manda e l'identificativo del suo telefono.
     private let onPhoto: @Sendable (Data, String?, String?) -> UploadResult
+    /// Come `onPhoto`, ma con l'identificativo della foto salvata: il telefono riceve la ricevuta.
+    private let onUpload: (@Sendable (Data, String?, String?) -> Upload)?
+    /// Pagine dell'ingresso e della parete, album, video, muro di telefoni, preparazione della festa.
+    private let extras: PartyExtras?
     /// Chiamato sulla coda del server: non deve chiamare `start()` o `stop()` direttamente.
     private let onFailure: @Sendable () -> Void
     /// Gioco con i telefoni: domanda in corso (GET /game) e risposte (POST /game/answer).
@@ -83,6 +102,8 @@ public final class GuestUploadServer: @unchecked Sendable {
     private var recentUploads: [String: [Date]] = [:]
     private var recentActions: [String: [Date]] = [:]
     private var inFlightBytes = 0
+    /// Un video alla volta: è grande e resta in memoria finché non arriva tutto.
+    private var videoInFlight = false
     /// Invii già ricevuti, per non salvare due volte una foto se il telefono ripete l'invio.
     private var handledUploads: [String: GuestHTTPResponse] = [:]
     private var handledOrder: [String] = []
@@ -94,13 +115,15 @@ public final class GuestUploadServer: @unchecked Sendable {
         bodyDeadline: TimeInterval = 120,
         maxUploadsPerMinute: Int = 60,
         page: @escaping @Sendable () -> String,
-        onPhoto: @escaping @Sendable (Data, String?, String?) -> UploadResult,
+        onPhoto: @escaping @Sendable (Data, String?, String?) -> UploadResult = { _, _, _ in .unsupported },
         onFailure: @escaping @Sendable () -> Void = {},
         game: PhoneGame? = nil,
         hub: PartyHub? = nil,
         host: HostRemote? = nil,
         hostPhoto: @escaping @Sendable (String) -> Data? = { _ in nil },
-        play: PartyPlay? = nil
+        play: PartyPlay? = nil,
+        onUpload: (@Sendable (Data, String?, String?) -> Upload)? = nil,
+        extras: PartyExtras? = nil
     ) {
         self.key = key
         self.maxUploadBytes = maxUploadBytes
@@ -115,6 +138,8 @@ public final class GuestUploadServer: @unchecked Sendable {
         self.host = host
         self.hostPhoto = hostPhoto
         self.play = play
+        self.onUpload = onUpload
+        self.extras = extras
     }
 
     /// Avvia il server, preferibilmente sulla porta `preferredPort` (così il QR resta uguale tra un
@@ -233,6 +258,40 @@ public final class GuestUploadServer: @unchecked Sendable {
         if request.path == "/party/host/login" || (request.path == "/party/host" && request.method == "POST") {
             return (try answerLength(request, limit: Self.maxActionBytes), nil)
         }
+        if request.path == "/photos/delete" {
+            let length = try answerLength(request, limit: Self.maxActionBytes)
+            guard allow(&recentActions, client: client, limit: Self.maxActionsPerMinute) else {
+                throw GuestHTTPError(status: 429, code: "rate", retryAfter: 5)
+            }
+            return (length, nil)
+        }
+        if request.path == "/party/host/upload" {
+            guard request.method == "POST" else { throw GuestHTTPError(status: 405, code: "method") }
+            guard keyMatches(request.headers["x-fotofesta-key"]) else { throw GuestHTTPError(status: 401, code: "key") }
+            guard let host, host.isHost(request.headers["x-fotofesta-host"]) else { throw GuestHTTPError(status: 401, code: "host") }
+            guard let text = request.headers["content-length"], let length = Int(text.trimmingCharacters(in: .whitespaces)) else {
+                throw GuestHTTPError(status: 411, code: "length")
+            }
+            guard length > 0 else { throw GuestHTTPError(status: 400, code: "empty") }
+            guard length <= Self.maxHostImageBytes else { throw GuestHTTPError(status: 413, code: "too_large") }
+            return (length, nil)
+        }
+        if request.path == "/videos" {
+            guard request.method == "POST" else { throw GuestHTTPError(status: 405, code: "method") }
+            guard keyMatches(request.headers["x-fotofesta-key"]) else { throw GuestHTTPError(status: 401, code: "key") }
+            guard extras != nil else { throw GuestHTTPError(status: 404, code: "not_found") }
+            if request.headers["transfer-encoding"] != nil { throw GuestHTTPError(status: 411, code: "length") }
+            guard let text = request.headers["content-length"], let length = Int(text.trimmingCharacters(in: .whitespaces)) else {
+                throw GuestHTTPError(status: 411, code: "length")
+            }
+            guard length > 0 else { throw GuestHTTPError(status: 400, code: "empty") }
+            guard length <= Self.maxVideoBytes else { throw GuestHTTPError(status: 413, code: "too_large") }
+            if let id = Self.uploadID(request), let cached = handledUploads[id] { return (length, cached) }
+            guard allowUpload(client) else { throw GuestHTTPError(status: 429, code: "rate", retryAfter: 10) }
+            guard !videoInFlight else { throw GuestHTTPError(status: 503, code: "busy", retryAfter: 10) }
+            videoInFlight = true
+            return (length, nil)
+        }
         if request.path == "/party/action" {
             let length = try answerLength(request, limit: Self.maxActionBytes)
             // Il limite per telefono di PartyHub si aggira cambiando identificativo: qui conta l'indirizzo.
@@ -262,10 +321,16 @@ public final class GuestUploadServer: @unchecked Sendable {
         inFlightBytes = max(inFlightBytes - length, 0)
     }
 
+    /// Il posto per il video riservato da `prepare` si libera (video arrivato o connessione chiusa).
+    func releaseVideo() {
+        videoInFlight = false
+    }
+
     /// Risposta a una richiesta completa. `body` contiene il corpo già letto per intero; i byte
     /// riservati da `prepare` vengono liberati. Chiamato sulla coda del server.
     func respond(to request: GuestHTTPRequest, body: Data, client: String = "") -> GuestHTTPResponse {
         if request.path == "/photos" { releaseReserved(body.count) }
+        if request.path == "/videos" { releaseVideo() }
         do {
             try checkHost(request)
             switch request.path {
@@ -273,6 +338,88 @@ public final class GuestUploadServer: @unchecked Sendable {
                 guard request.method == "GET" || request.method == "HEAD" else { throw GuestHTTPError(status: 405, code: "method") }
                 guard keyMatches(request.query["k"]) else { return .html(403, Self.expiredPage) }
                 return .html(200, page(), head: request.method == "HEAD")
+            case "/videos":
+                let response = try receiveVideo(request, body: body)
+                if let id = Self.uploadID(request) { remember(id, response) }
+                return response
+            case "/photos/delete":
+                // Chi ha mandato una foto la può togliere, con la ricevuta avuta all'invio.
+                let form = try Self.parseForm(String(decoding: body, as: UTF8.self))
+                guard let id = form["id"], (8...64).contains(id.count),
+                      id.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-" || $0 == "_") }) else {
+                    throw GuestHTTPError(status: 400, code: "invalid")
+                }
+                guard GuestReceipt.matches(key: key, id: id, receipt: form["receipt"]) else { throw GuestHTTPError(status: 403, code: "receipt") }
+                guard extras?.deleteByGuest(id) == true else { throw GuestHTTPError(status: 404, code: "not_found") }
+                return .json(200, #"{"status":"deleted"}"#)
+            case "/party/album.zip":
+                // Le foto approvate della festa, da portare a casa: un archivio ZIP scritto al momento.
+                guard request.method == "GET" || request.method == "HEAD" else { throw GuestHTTPError(status: 405, code: "method") }
+                guard keyMatches(request.query["k"]) else { throw GuestHTTPError(status: 401, code: "key") }
+                guard let entries = extras?.album() else { throw GuestHTTPError(status: 404, code: "not_found") }
+                guard !entries.isEmpty else { throw GuestHTTPError(status: 404, code: "empty") }
+                let file = FileManager.default.temporaryDirectory.appendingPathComponent("FotoFesta-\(UUID().uuidString).zip")
+                guard (try? ZipStream.write(entries, to: file)) != nil,
+                      let size = (try? file.resourceValues(forKeys: [.fileSizeKey]))?.fileSize else {
+                    try? FileManager.default.removeItem(at: file)
+                    throw GuestHTTPError(status: 507, code: "full")
+                }
+                return GuestHTTPResponse(status: 200, contentType: "application/zip", body: Data(),
+                                         extraHeaders: [("Content-Disposition", #"attachment; filename="FotoFesta.zip""#)],
+                                         head: request.method == "HEAD", file: file, fileLength: size)
+            case "/door", "/wall":
+                guard request.method == "GET" || request.method == "HEAD" else { throw GuestHTTPError(status: 405, code: "method") }
+                guard let extras else { throw GuestHTTPError(status: 404, code: "not_found") }
+                guard keyMatches(request.query["k"]) else { return .html(403, Self.expiredPage) }
+                return .html(200, request.path == "/door" ? extras.doorPage() : extras.wallPage(),
+                             head: request.method == "HEAD", policy: Self.mediaPagePolicy)
+            case "/wall/state":
+                // Per <img>, che non manda intestazioni: la chiave è nell'indirizzo, come nella pagina.
+                guard request.method == "GET" else { throw GuestHTTPError(status: 405, code: "method") }
+                guard let extras else { throw GuestHTTPError(status: 404, code: "not_found") }
+                guard keyMatches(request.query["k"]) else { throw GuestHTTPError(status: 401, code: "key") }
+                return .json(200, extras.wallState())
+            case "/wall/photo":
+                guard request.method == "GET" else { throw GuestHTTPError(status: 405, code: "method") }
+                guard let extras else { throw GuestHTTPError(status: 404, code: "not_found") }
+                guard keyMatches(request.query["k"]) else { throw GuestHTTPError(status: 401, code: "key") }
+                guard let data = extras.wallPhoto(request.query["id"] ?? "") else { throw GuestHTTPError(status: 404, code: "not_found") }
+                var response = GuestHTTPResponse(status: 200, contentType: Self.imageType(data), body: data)
+                response.extraHeaders.append(("Cache-Control", "private, max-age=3600"))
+                return response
+            case "/party/qr.svg":
+                guard request.method == "GET" else { throw GuestHTTPError(status: 405, code: "method") }
+                guard keyMatches(request.query["k"]) else { throw GuestHTTPError(status: 401, code: "key") }
+                let page = "http://\(expectedHost)/?k=\(key)"
+                let target: String
+                switch request.query["for"] {
+                case "door": target = page + "&arrivo=1"
+                case "wall": target = "http://\(expectedHost)/wall?k=\(key)"
+                default: target = page
+                }
+                guard let svg = QRSVG.encode(target) else { throw GuestHTTPError(status: 404, code: "not_found") }
+                return GuestHTTPResponse(status: 200, contentType: "image/svg+xml", body: Data(svg.utf8))
+            case "/party/logo":
+                guard request.method == "GET" else { throw GuestHTTPError(status: 405, code: "method") }
+                guard keyMatches(request.query["k"]) else { throw GuestHTTPError(status: 401, code: "key") }
+                guard let data = extras?.logo() else { throw GuestHTTPError(status: 404, code: "not_found") }
+                var response = GuestHTTPResponse(status: 200, contentType: Self.imageType(data), body: data)
+                response.extraHeaders.append(("Cache-Control", "private, max-age=60"))
+                return response
+            case "/party/host/upload":
+                // Logo, sponsor e foto da piccoli scelti dalla regia sul telefono, già ridotti dalla pagina.
+                let kind = request.query["kind"] ?? ""
+                guard ["logo", "sponsor", "kid"].contains(kind) else { throw GuestHTTPError(status: 400, code: "invalid") }
+                guard GuestImageFormat.sniff(body) != nil else { throw GuestHTTPError(status: 415, code: "unsupported") }
+                let name = request.query["name"].flatMap { $0.removingPercentEncoding }
+                guard extras?.hostUpload(kind: kind, data: body, name: name) == true else { throw GuestHTTPError(status: 507, code: "full") }
+                return .json(200, #"{"status":"ok"}"#)
+            case "/party/host/sponsor":
+                guard request.method == "GET" else { throw GuestHTTPError(status: 405, code: "method") }
+                guard keyMatches(request.headers["x-fotofesta-key"]) else { throw GuestHTTPError(status: 401, code: "key") }
+                guard let host, host.isHost(request.headers["x-fotofesta-host"]) else { throw GuestHTTPError(status: 401, code: "host") }
+                guard let data = extras?.sponsor(request.query["id"] ?? "") else { throw GuestHTTPError(status: 404, code: "not_found") }
+                return GuestHTTPResponse(status: 200, contentType: Self.imageType(data), body: data)
             case "/game":
                 guard request.method == "GET" else { throw GuestHTTPError(status: 405, code: "method") }
                 guard keyMatches(request.headers["x-fotofesta-key"]) else { throw GuestHTTPError(status: 401, code: "key") }
@@ -287,7 +434,9 @@ public final class GuestUploadServer: @unchecked Sendable {
                 let party = hub?.partyJSON(player: player) ?? #"{"announcement":null,"director":null}"#
                 let hostOn = host?.currentPIN() != nil
                 let playJSON = play?.phoneJSON(player: player) ?? "null"
-                return .json(200, #"{"features":\#(features),"game":\#(gameJSON(game?.current(), player: player)),"party":\#(party),"host":\#(hostOn),"play":\#(playJSON)}"#)
+                let wall = extras?.phoneWallJSON(player: player) ?? "null"
+                let setup = extras?.setupJSON() ?? "null"
+                return .json(200, #"{"features":\#(features),"game":\#(gameJSON(game?.current(), player: player)),"party":\#(party),"host":\#(hostOn),"play":\#(playJSON),"disco":null,"phoneWall":\#(wall),"setup":\#(setup)}"#)
             case "/party/host/login":
                 guard keyMatches(request.headers["x-fotofesta-key"]) else { throw GuestHTTPError(status: 401, code: "key") }
                 guard let host else { throw GuestHTTPError(status: 404, code: "not_found") }
@@ -306,7 +455,7 @@ public final class GuestUploadServer: @unchecked Sendable {
                 switch request.method {
                 case "GET":
                     guard host.isHost(token) else { throw GuestHTTPError(status: 401, code: "host") }
-                    return .json(200, host.statusJSON(hub: hub ?? PartyHub()))
+                    return .json(200, host.statusJSON(hub: hub ?? PartyHub(), setup: extras?.setupHostJSON() ?? "null"))
                 case "POST":
                     let result = host.handle(token: token, form: try Self.parseForm(String(decoding: body, as: UTF8.self)))
                     return .json(result.status, result.json)
@@ -331,7 +480,9 @@ public final class GuestUploadServer: @unchecked Sendable {
                 guard let hub else { throw GuestHTTPError(status: 404, code: "not_found") }
                 let form = try Self.parseForm(String(decoding: body, as: UTF8.self))
                 let result: (status: Int, json: String)
-                if form["type"] != "play" {
+                if form["type"] == "wall" {
+                    result = hub.quietTimeLeft() > 0 ? (423, #"{"error":"quiet"}"#) : (extras?.phoneWallAction(form) ?? (404, #"{"error":"not_found"}"#))
+                } else if form["type"] != "play" {
                     result = hub.handle(form)
                 } else if let play {
                     // Nei tre minuti senza telefoni aspettano anche i giochi.
@@ -441,9 +592,23 @@ public final class GuestUploadServer: @unchecked Sendable {
         guard GuestImageFormat.sniff(body) != nil else { throw GuestHTTPError(status: 415, code: "unsupported") }
         let sender = request.headers["x-fotofesta-sender"].flatMap { $0.removingPercentEncoding }.flatMap(GuestSender.clean)
         let player = request.headers["x-fotofesta-player"].flatMap { PhoneGame.isValidPlayer($0) ? $0 : nil }
-        switch onPhoto(body, sender, player) {
-        case .shown: return .json(200, #"{"status":"shown"}"#)
-        case .pending: return .json(200, #"{"status":"pending"}"#)
+        return try uploadResponse(onUpload?(body, sender, player) ?? Upload(onPhoto(body, sender, player)))
+    }
+
+    /// Video breve di un invitato: arriva intero, poi va su disco.
+    private func receiveVideo(_ request: GuestHTTPRequest, body: Data) throws -> GuestHTTPResponse {
+        guard let extras else { throw GuestHTTPError(status: 404, code: "not_found") }
+        let sender = request.headers["x-fotofesta-sender"].flatMap { $0.removingPercentEncoding }.flatMap(GuestSender.clean)
+        let player = request.headers["x-fotofesta-player"].flatMap { PhoneGame.isValidPlayer($0) ? $0 : nil }
+        return try uploadResponse(extras.receiveVideo(body, sender: sender, player: player))
+    }
+
+    /// Risposta a un invio, con la ricevuta per toglierlo.
+    private func uploadResponse(_ upload: Upload) throws -> GuestHTTPResponse {
+        let receipt = upload.photoID.map { #","id":\#(PartyHub.json($0)),"receipt":"\#(GuestReceipt.make(key: key, id: $0))""# } ?? ""
+        switch upload.result {
+        case .shown: return .json(200, #"{"status":"shown"\#(receipt)}"#)
+        case .pending: return .json(200, #"{"status":"pending"\#(receipt)}"#)
         case .full: throw GuestHTTPError(status: 507, code: "full")
         case .tooManyPending: throw GuestHTTPError(status: 507, code: "pending_full")
         case .unsupported: throw GuestHTTPError(status: 415, code: "unsupported")
@@ -575,7 +740,22 @@ public final class GuestUploadServer: @unchecked Sendable {
     }
 
     static let pagePolicy = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; " +
-        "img-src blob: data:; connect-src 'self'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'"
+        "img-src blob: data:; media-src 'self'; connect-src 'self'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'"
+
+    /// Ingresso e parete: le immagini (QR, foto) arrivano dal server con la chiave nell'indirizzo.
+    static let mediaPagePolicy = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; " +
+        "img-src 'self' blob: data:; connect-src 'self'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'"
+
+    /// Logo e sponsor: al massimo 2 MB, già ridotti dalla pagina della regia.
+    static let maxHostImageBytes = 2 * 1024 * 1024
+
+    static func imageType(_ data: Data) -> String {
+        switch GuestImageFormat.sniff(data) {
+        case .png: "image/png"
+        case .webp: "image/webp"
+        default: "image/jpeg"
+        }
+    }
 
     static let expiredPage = """
     <!doctype html><html><head><meta charset="utf-8">
@@ -606,6 +786,9 @@ struct GuestHTTPResponse {
     let body: Data
     var extraHeaders: [(String, String)] = []
     var head = false
+    /// Corpo grande su un file temporaneo (l'album), mandato a pezzi e poi cancellato.
+    var file: URL?
+    var fileLength = 0
 
     static func json(_ status: Int, _ body: String, retryAfter: Int? = nil) -> GuestHTTPResponse {
         GuestHTTPResponse(
@@ -620,20 +803,21 @@ struct GuestHTTPResponse {
         json(error.status, #"{"error":"\#(error.code)"}"#, retryAfter: error.retryAfter)
     }
 
-    static func html(_ status: Int, _ body: String, head: Bool = false) -> GuestHTTPResponse {
+    static func html(_ status: Int, _ body: String, head: Bool = false, policy: String = GuestUploadServer.pagePolicy) -> GuestHTTPResponse {
         GuestHTTPResponse(
             status: status,
             contentType: "text/html; charset=utf-8",
             body: Data(body.utf8),
-            extraHeaders: [("Content-Security-Policy", GuestUploadServer.pagePolicy)],
+            extraHeaders: [("Content-Security-Policy", policy)],
             head: head
         )
     }
 
+    /// Intestazioni e, se il corpo è in memoria, il corpo. Con `file` il corpo si manda a pezzi dopo.
     var serialized: Data {
         var text = "HTTP/1.1 \(status) \(Self.reason(status))\r\n"
         text += "Content-Type: \(contentType)\r\n"
-        text += "Content-Length: \(body.count)\r\n"
+        text += "Content-Length: \(file == nil ? body.count : fileLength)\r\n"
         text += "Connection: close\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\n"
         for (name, value) in extraHeaders { text += "\(name): \(value)\r\n" }
         text += "\r\n"
@@ -672,6 +856,7 @@ final class GuestConnection {
     private static let drainLimit = 256 * 1024
     private static let drainTime: TimeInterval = 1
     private static let writeTime: TimeInterval = 10
+    private static let chunkSize = 256 * 1024
 
     private let connection: NWConnection
     private weak var server: GuestUploadServer?
@@ -683,6 +868,11 @@ final class GuestConnection {
     private var bodyStart: Data.Index = 0
     private var expectedBody = 0
     private var reserved = 0
+    /// Posto per un video riservato da `prepare`, da liberare se la connessione si chiude prima.
+    private var videoReserved = false
+    /// Album in invio: il file temporaneo si legge a pezzi e alla fine si cancella.
+    private var streaming: FileHandle?
+    private var streamingFile: URL?
     private var deadline: DispatchWorkItem?
     private var queue: DispatchQueue?
     private var draining = false
@@ -767,6 +957,7 @@ final class GuestConnection {
                 }
                 expectedBody = prepared.bodyLength
                 reserved = parsed.path == "/photos" ? prepared.bodyLength : 0
+                videoReserved = parsed.path == "/videos"
                 request = parsed
                 bodyStart = end.bodyStart
                 if expectedBody > 0 { setDeadline(bodyDeadline) }
@@ -787,6 +978,8 @@ final class GuestConnection {
             let body = expectedBody > 0 ? buffer.subdata(in: bodyStart..<(bodyStart + expectedBody)) : Data()
             buffer = Data()
             reserved = 0
+            // Da qui il posto del video lo libera `respond`.
+            videoReserved = false
             send(server.respond(to: request, body: body, client: client), early: false)
         } else if peerClosed {
             finish()
@@ -799,6 +992,21 @@ final class GuestConnection {
     /// subito farebbe arrivare un reset al posto della risposta, quindi si scarta il resto per un po'.
     private func send(_ response: GuestHTTPResponse, early: Bool) {
         setDeadline(Self.writeTime)
+        if let file = response.file {
+            streamingFile = file
+            guard !response.head, let handle = try? FileHandle(forReadingFrom: file) else {
+                connection.send(content: response.serialized, contentContext: .finalMessage, isComplete: true, completion: .contentProcessed { [weak self] _ in
+                    self?.finish()
+                })
+                return
+            }
+            streaming = handle
+            connection.send(content: response.serialized, completion: .contentProcessed { [weak self] error in
+                guard let self, !self.finished else { return }
+                if error != nil { self.finish() } else { self.sendNextChunk() }
+            })
+            return
+        }
         connection.send(content: response.serialized, contentContext: .finalMessage, isComplete: true, completion: .contentProcessed { [weak self] _ in
             guard let self, !self.finished else { return }
             if early {
@@ -808,6 +1016,27 @@ final class GuestConnection {
             } else {
                 self.finish()
             }
+        })
+    }
+
+    /// Pezzo successivo del file in invio; alla fine la connessione si chiude.
+    private func sendNextChunk() {
+        guard let handle = streaming else {
+            finish()
+            return
+        }
+        let chunk = (try? handle.read(upToCount: Self.chunkSize)) ?? nil
+        guard let chunk, !chunk.isEmpty else {
+            connection.send(content: nil, contentContext: .finalMessage, isComplete: true, completion: .contentProcessed { [weak self] _ in
+                self?.finish()
+            })
+            return
+        }
+        // Ogni pezzo rinnova il tempo: un album grande su una rete lenta ha bisogno di minuti.
+        setDeadline(Self.writeTime)
+        connection.send(content: chunk, completion: .contentProcessed { [weak self] error in
+            guard let self, !self.finished else { return }
+            if error != nil { self.finish() } else { self.sendNextChunk() }
         })
     }
 
@@ -825,6 +1054,16 @@ final class GuestConnection {
         if reserved > 0 {
             server?.releaseReserved(reserved)
             reserved = 0
+        }
+        if videoReserved {
+            server?.releaseVideo()
+            videoReserved = false
+        }
+        try? streaming?.close()
+        streaming = nil
+        if let streamingFile {
+            try? FileManager.default.removeItem(at: streamingFile)
+            self.streamingFile = nil
         }
         connection.cancel()
         onClose?()

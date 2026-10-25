@@ -47,6 +47,8 @@ struct RootView: View {
                     case .teletext: TeletextView()
                     case .sky: SkyView()
                     case .stats: StatsView()
+                    case .door: DoorView()
+                    case .phoneWall: PhoneWallView()
                     }
                 }
         }
@@ -94,6 +96,7 @@ struct RootView: View {
         case .guestReview, .memory, .mystery, .puzzle, .whoTookIt, .awards, .poll, .lottery, .guestbook, .announce: return true
         case .partyGames, .play, .tournament, .bets, .toast, .coins: return true
         case .shows, .rewind, .barcode, .photoMosaic, .credits, .teletext, .sky, .stats: return true
+        case .door, .phoneWall: return true
         case .googleConnect:
             if case .working = model.googleState { return true }
             return false

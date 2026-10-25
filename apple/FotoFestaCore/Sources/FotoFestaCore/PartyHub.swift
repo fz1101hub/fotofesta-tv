@@ -12,12 +12,44 @@ public final class PartyHub: @unchecked Sendable {
         public var reactions: Bool
         public var messages: Bool
         public var moderateMessages: Bool
+        /// Richieste di canzoni per chi fa la musica.
+        public var songs: Bool
+        /// Foto e video approvati da portare a casa in un archivio.
+        public var album: Bool
+        /// Video brevi dagli invitati.
+        public var videos: Bool
 
-        public init(reactions: Bool = true, messages: Bool = true, moderateMessages: Bool = false) {
+        public init(reactions: Bool = true, messages: Bool = true, moderateMessages: Bool = false,
+                    songs: Bool = true, album: Bool = true, videos: Bool = true) {
             self.reactions = reactions
             self.messages = messages
             self.moderateMessages = moderateMessages
+            self.songs = songs
+            self.album = album
+            self.videos = videos
         }
+    }
+
+    /// Canzone chiesta da un invitato.
+    public struct SongRequest: Equatable, Sendable, Identifiable {
+        public let id: String
+        public let text: String
+        public let name: String?
+        public let date: Date
+    }
+
+    /// Invitato che ha inquadrato il QR dell'ingresso: `order` è la sua posizione d'arrivo, da 1.
+    public struct Arrival: Equatable, Sendable {
+        public let player: String
+        public let name: String
+        public let date: Date
+        public let order: Int
+    }
+
+    /// Inizio di un capitolo della festa, segnato dalla regia.
+    public struct ChapterMark: Equatable, Sendable {
+        public let title: String
+        public let date: Date
     }
 
     /// Reazioni possibili, nello stesso ordine dei pulsanti della pagina.
@@ -113,6 +145,11 @@ public final class PartyHub: @unchecked Sendable {
     public static let messageBurst = 3
     public static let messageWindow: TimeInterval = 60
     static let maxTrackedPlayers = 1_000
+    public static let maxSongs = 200
+    public static let maxSongLength = 80
+    static let songBurst = 3
+    static let songWindow: TimeInterval = 5 * 60
+    public static let maxChapters = 30
 
     private let now: @Sendable () -> Date
     private let lock = NSLock()
@@ -138,6 +175,12 @@ public final class PartyHub: @unchecked Sendable {
     private var photosByPlayer: [String: Int] = [:]
     private var developed = false
     private var quietUntil = Date.distantPast
+    private var songs: [SongRequest] = []
+    private var songTimes: [String: [Date]] = [:]
+    private var arrivals: [Arrival] = []
+    private var chapterMarks: [ChapterMark] = []
+    private var arrivalHandler: (@Sendable (Arrival) -> Void)?
+    private var songHandler: (@Sendable (SongRequest) -> Void)?
 
     public init(now: @escaping @Sendable () -> Date = { Date() }) {
         self.now = now
@@ -250,6 +293,79 @@ public final class PartyHub: @unchecked Sendable {
     }
 
     public func nameOf(_ player: String) -> String? { lock.withLock { names[player] } }
+
+    /// Un invitato appena arrivato (QR dell'ingresso), dalla coda del server: la TV gli dà il benvenuto.
+    public func setOnArrival(_ handler: (@Sendable (Arrival) -> Void)?) {
+        lock.withLock { arrivalHandler = handler }
+    }
+
+    /// Una canzone appena chiesta, dalla coda del server.
+    public func setOnSong(_ handler: (@Sendable (SongRequest) -> Void)?) {
+        lock.withLock { songHandler = handler }
+    }
+
+    /// Arrivo di un invitato dal QR dell'ingresso. Il benvenuto parte una volta sola per telefono;
+    /// un secondo arrivo aggiorna solo il nome.
+    public func arrive(player: String, name: String?) -> Result {
+        guard PhoneGame.isValidPlayer(player), let name else { return .invalid }
+        let (result, arrival, handler): (Result, Arrival?, (@Sendable (Arrival) -> Void)?) = lock.withLock {
+            _ = remember(player: player, name: name)
+            if let index = arrivals.firstIndex(where: { $0.player == player }) {
+                let known = arrivals[index]
+                arrivals[index] = Arrival(player: player, name: name, date: known.date, order: known.order)
+                revision += 1
+                return (.ok, nil, nil)
+            }
+            guard arrivals.count < Self.maxTrackedPlayers else { return (.full, nil, nil) }
+            let arrival = Arrival(player: player, name: name, date: now(), order: arrivals.count + 1)
+            arrivals.append(arrival)
+            revision += 1
+            return (.ok, arrival, arrivalHandler)
+        }
+        if let arrival { handler?(arrival) }
+        return result
+    }
+
+    /// Arrivi in ordine, dal primo all'ultimo.
+    public func allArrivals() -> [Arrival] { lock.withLock { arrivals } }
+
+    /// Richiesta di una canzone: titolo o artista, al massimo `maxSongLength` caratteri.
+    public func songRequest(player: String, text: String?, name: String?) -> Result {
+        let (result, request, handler): (Result, SongRequest?, (@Sendable (SongRequest) -> Void)?) = lock.withLock {
+            guard features.songs else { return (.disabled, nil, nil) }
+            guard let cleaned = GuestSender.clean(text, maxLength: Self.maxSongLength), PhoneGame.isValidPlayer(player) else { return (.invalid, nil, nil) }
+            guard songs.count < Self.maxSongs else { return (.full, nil, nil) }
+            guard allow(&songTimes, player: player, burst: Self.songBurst, window: Self.songWindow) else { return (.rateLimited, nil, nil) }
+            let request = SongRequest(id: UUID().uuidString, text: cleaned, name: remember(player: player, name: name), date: now())
+            songs.append(request)
+            revision += 1
+            return (.ok, request, songHandler)
+        }
+        if let request { handler?(request) }
+        return result
+    }
+
+    /// Canzoni chieste, dalla più vecchia.
+    public func songRequests() -> [SongRequest] { lock.withLock { songs } }
+
+    /// Canzone suonata o scartata da chi fa la musica.
+    public func removeSong(_ id: String) {
+        lock.withLock {
+            songs.removeAll { $0.id == id }
+            revision += 1
+        }
+    }
+
+    /// Nuovo capitolo, dalla regia: al massimo `maxChapters`.
+    public func chapter(_ title: String) {
+        lock.withLock {
+            guard chapterMarks.count < Self.maxChapters else { return }
+            chapterMarks.append(ChapterMark(title: title, date: now()))
+            revision += 1
+        }
+    }
+
+    public func chapters() -> [ChapterMark] { lock.withLock { chapterMarks } }
 
     /// Comandi del regista di turno (avanti, indietro, pausa), dalla coda del server.
     public func setOnDirectorCommand(_ handler: (@Sendable (PartyCommand) -> Void)?) {
@@ -381,7 +497,9 @@ public final class PartyHub: @unchecked Sendable {
                 names: nameOrder.compactMap { player in names[player].map { Snapshot.Name(player: player, name: $0) } },
                 reactions: reactionCounts,
                 photos: photosByPlayer,
-                developed: developed
+                developed: developed,
+                arrivals: arrivals.map { Snapshot.ArrivalItem(player: $0.player, name: $0.name, at: $0.date.timeIntervalSince1970) },
+                chapters: chapterMarks.map { Snapshot.Chapter(title: $0.title, at: $0.date.timeIntervalSince1970) }
             )
         }
         return (try? JSONEncoder().encode(state)) ?? Data()
@@ -406,6 +524,14 @@ public final class PartyHub: @unchecked Sendable {
             reactionCounts = state.reactions.mapValues { max($0, 0) }
             photosByPlayer = state.photos.filter { PhoneGame.isValidPlayer($0.key) }.mapValues { max($0, 0) }
             developed = state.developed
+            arrivals = []
+            for item in (state.arrivals ?? []).prefix(Self.maxTrackedPlayers) where PhoneGame.isValidPlayer(item.player) {
+                guard let name = GuestSender.clean(item.name), !arrivals.contains(where: { $0.player == item.player }) else { continue }
+                arrivals.append(Arrival(player: item.player, name: name, date: Date(timeIntervalSince1970: item.at), order: arrivals.count + 1))
+            }
+            chapterMarks = (state.chapters ?? []).prefix(Self.maxChapters).compactMap { item in
+                GuestSender.clean(item.title, maxLength: 60).map { ChapterMark(title: $0, date: Date(timeIntervalSince1970: item.at)) }
+            }
             revision += 1
         }
         return true
@@ -425,11 +551,25 @@ public final class PartyHub: @unchecked Sendable {
             let name: String
         }
 
+        struct ArrivalItem: Codable {
+            let player: String
+            let name: String
+            let at: TimeInterval
+        }
+
+        struct Chapter: Codable {
+            let title: String
+            let at: TimeInterval
+        }
+
         let messages: [Message]
         let names: [Name]
         let reactions: [String: Int]
         let photos: [String: Int]
         let developed: Bool
+        // Facoltativi: i salvataggi delle versioni precedenti non li hanno.
+        var arrivals: [ArrivalItem]?
+        var chapters: [Chapter]?
     }
 
     /// Annuncio e regista di turno per la pagina del telefono `player`, in JSON.
@@ -484,6 +624,10 @@ public final class PartyHub: @unchecked Sendable {
             messages = []
             names = [:]
             nameOrder = []
+            songs = []
+            songTimes = [:]
+            arrivals = []
+            chapterMarks = []
             revision += 1
         }
     }
@@ -491,7 +635,8 @@ public final class PartyHub: @unchecked Sendable {
     /// Cosa può fare la pagina dei telefoni, in JSON.
     public func featuresJSON() -> String {
         lock.withLock {
-            #"{"reactions":\#(features.reactions),"messages":\#(features.messages),"moderated":\#(features.moderateMessages)}"#
+            #"{"reactions":\#(features.reactions),"messages":\#(features.messages),"moderated":\#(features.moderateMessages),"# +
+                #""arrivals":true,"wall":true,"songs":\#(features.songs),"album":\#(features.album),"video":\#(features.videos),"delete":true}"#
         }
     }
 
@@ -500,13 +645,16 @@ public final class PartyHub: @unchecked Sendable {
         let player = form["player"] ?? ""
         let name = GuestSender.clean(form["name"])
         let result: Result
-        if quietTimeLeft() > 0 && form["type"] != "director" {
+        // Il regista e chi arriva alla porta passano anche nei tre minuti senza telefoni.
+        if quietTimeLeft() > 0 && form["type"] != "director" && form["type"] != "arrive" {
             result = .quiet
         } else {
             switch form["type"] {
             case "react": result = react(player: player, index: form["reaction"].flatMap { Int($0) } ?? -1, name: name)
             case "message": result = message(player: player, text: form["text"], name: name)
             case "director": result = direct(player: player, command: form["command"])
+            case "arrive": result = arrive(player: player, name: name)
+            case "song": result = songRequest(player: player, text: form["text"], name: name)
             default: result = .invalid
             }
         }
