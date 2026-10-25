@@ -988,4 +988,18 @@
     <string name="message_capsule_no_usb">Choisissez d’abord un dossier de la clé USB dans les réglages.</string>
     <string name="message_capsule_no_traces">Avec « Fête sans traces », les photos ne sont pas conservées : pas de capsule.</string>
     <string name="message_capsule_empty">Rien à mettre dans la capsule pour l’instant : aucune photo ni dédicace.</string>
+
+    <!-- Festa ovunque -->
+    <string name="anywhere_button">Fête partout</string>
+    <string name="anywhere_kicker">Fête partout</string>
+    <string name="anywhere_title">À la plage, au camping, au jardin</string>
+    <string name="anywhere_subtitle">Sans le Wi‑Fi de la maison : la TV crée son propre réseau pour les téléphones et économise l’énergie pour un projecteur.</string>
+    <string name="anywhere_kit">Ce qu’il faut</string>
+    <string name="anywhere_kit_stick">Cette Fire TV Stick ou ce boîtier Android TV, avec sa télécommande</string>
+    <string name="anywhere_kit_power">Une batterie externe d’au moins 2 A (mieux 3 A) et le câble USB de la clé</string>
+    <string name="anywhere_kit_projector">Un mini projecteur ou un écran portable HDMI, et un mur blanc ou un drap</string>
+    <string name="anywhere_kit_music">Pour la musique : une enceinte Bluetooth, ou la silent disco dans les écouteurs des invités</string>
+    <string name="anywhere_hotspot_body">Les téléphones se connectent à la TV avec le QR. Toutes les Fire TV et Android TV ne savent pas le créer.</string>
+    <string name="anywhere_light_body">Moins de travail pour la clé : elle chauffe moins et la batterie dure plus longtemps.</string>
+    <string name="anywhere_go">C’est parti !</string>
 </resources>

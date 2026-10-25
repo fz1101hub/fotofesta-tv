@@ -101,6 +101,7 @@ import it.fotofesta.tv.ui.TextPrimary
 import it.fotofesta.tv.ui.WhoTookItScreen
 import it.fotofesta.tv.ui.PhonePlay
 import it.fotofesta.tv.ui.BuzzerScreen
+import it.fotofesta.tv.ui.AnywhereScreen
 import it.fotofesta.tv.ui.DoorScreen
 import it.fotofesta.tv.ui.ExtraScreen
 import it.fotofesta.tv.guests.ExtraScreenClient
@@ -221,7 +222,7 @@ class MainActivity : ComponentActivity() {
                     Destination.TOAST, Destination.COINS -> true
                     Destination.SHOWS, Destination.REWIND, Destination.BARCODE, Destination.PHOTO_MOSAIC, Destination.CREDITS,
                     Destination.TELETEXT, Destination.SKY, Destination.STATS -> true
-                    Destination.BUZZER, Destination.CAMERA, Destination.DOOR, Destination.EXTRA_SCREEN -> true
+                    Destination.BUZZER, Destination.CAMERA, Destination.DOOR, Destination.EXTRA_SCREEN, Destination.ANYWHERE -> true
                     // Il QR per incollare il link dell'album deve restare visibile.
                     Destination.ICLOUD_LINK -> true
                     else -> false
@@ -432,6 +433,21 @@ class MainActivity : ComponentActivity() {
                                 onHotspot = ::toggleHotspot,
                                 onDoor = { viewModel.navigate(Destination.DOOR) },
                                 onExtraScreen = { viewModel.navigate(Destination.EXTRA_SCREEN) },
+                                onAnywhere = { viewModel.navigate(Destination.ANYWHERE) },
+                            )
+                            Destination.ANYWHERE -> AnywhereScreen(
+                                hotspot = state.guests.hotspot,
+                                projector = state.settings.projectorMode,
+                                light = state.settings.lightMode,
+                                onHotspot = ::toggleHotspot,
+                                onProjector = { viewModel.updateSettings(state.settings.copy(projectorMode = !state.settings.projectorMode)) },
+                                onLight = { viewModel.updateSettings(state.settings.copy(lightMode = !state.settings.lightMode)) },
+                                onGo = {
+                                    val needsHotspot = !state.guests.hotspot
+                                    viewModel.startPartyAnywhere()
+                                    if (needsHotspot) toggleHotspot()
+                                },
+                                onBack = viewModel::back,
                             )
                             Destination.EXTRA_SCREEN -> ExtraScreen(remember { ExtraScreenClient(appServices.lanHttp) }, onBack = viewModel::back)
                             Destination.DOOR -> DoorScreen(state.guests.url, state.party.arrivals, onBack = viewModel::back)

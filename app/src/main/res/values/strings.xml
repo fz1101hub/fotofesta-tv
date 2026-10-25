@@ -945,4 +945,18 @@
     <string name="message_capsule_no_usb">Choose a USB drive folder in the settings first.</string>
     <string name="message_capsule_no_traces">With “Party without traces” the photos aren’t kept, so there’s no time capsule.</string>
     <string name="message_capsule_empty">There’s nothing to put in the capsule yet: no photos or messages.</string>
+
+    <!-- Festa ovunque -->
+    <string name="anywhere_button">Party anywhere</string>
+    <string name="anywhere_kicker">Party anywhere</string>
+    <string name="anywhere_title">On the beach, camping, in the garden</string>
+    <string name="anywhere_subtitle">No home Wi‑Fi needed: the TV creates its own network for the phones and saves power for a projector.</string>
+    <string name="anywhere_kit">What you need</string>
+    <string name="anywhere_kit_stick">This Fire TV Stick or Android TV box, with its remote</string>
+    <string name="anywhere_kit_power">A power bank with at least 2 A (better 3 A) and the USB cable of the stick</string>
+    <string name="anywhere_kit_projector">A mini projector or a portable monitor with HDMI, and a white wall or a sheet</string>
+    <string name="anywhere_kit_music">For music: a Bluetooth speaker, or the silent disco in the guests’ headphones</string>
+    <string name="anywhere_hotspot_body">Phones connect to the TV with the QR. Not every Fire TV or Android TV can create one.</string>
+    <string name="anywhere_light_body">Less work for the stick: it stays cooler and the power bank lasts longer.</string>
+    <string name="anywhere_go">Let’s go!</string>
 </resources>

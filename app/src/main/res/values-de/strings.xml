@@ -944,4 +944,18 @@
     <string name="message_capsule_no_usb">Wähle zuerst in den Einstellungen einen Ordner auf dem USB-Stick.</string>
     <string name="message_capsule_no_traces">Bei „Party ohne Spuren“ werden keine Fotos aufbewahrt, also keine Zeitkapsel.</string>
     <string name="message_capsule_empty">Noch nichts für die Zeitkapsel: keine Fotos und keine Widmungen.</string>
+
+    <!-- Festa ovunque -->
+    <string name="anywhere_button">Party überall</string>
+    <string name="anywhere_kicker">Party überall</string>
+    <string name="anywhere_title">Am Strand, beim Camping, im Garten</string>
+    <string name="anywhere_subtitle">Ohne WLAN zu Hause: Der Fernseher erstellt ein eigenes Netz für die Handys und spart Strom für einen Beamer.</string>
+    <string name="anywhere_kit">Was du brauchst</string>
+    <string name="anywhere_kit_stick">Dieser Fire TV Stick oder diese Android‑TV‑Box, mit Fernbedienung</string>
+    <string name="anywhere_kit_power">Eine Powerbank mit mindestens 2 A (besser 3 A) und das USB‑Kabel des Sticks</string>
+    <string name="anywhere_kit_projector">Ein Mini‑Beamer oder ein tragbarer Monitor mit HDMI und eine weiße Wand oder ein Laken</string>
+    <string name="anywhere_kit_music">Für Musik: ein Bluetooth‑Lautsprecher oder die Silent Disco in den Kopfhörern der Gäste</string>
+    <string name="anywhere_hotspot_body">Die Handys verbinden sich per QR mit dem Fernseher. Nicht jeder Fire TV oder Android TV kann ein Netz erstellen.</string>
+    <string name="anywhere_light_body">Weniger Arbeit für den Stick: Er bleibt kühler und die Powerbank hält länger.</string>
+    <string name="anywhere_go">Los geht’s!</string>
 </resources>

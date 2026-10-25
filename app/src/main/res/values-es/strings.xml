@@ -988,4 +988,18 @@
     <string name="message_capsule_no_usb">Elige primero una carpeta de la memoria USB en los ajustes.</string>
     <string name="message_capsule_no_traces">Con «Fiesta sin huellas» las fotos no se guardan: no hay cápsula.</string>
     <string name="message_capsule_empty">Todavía no hay nada que guardar en la cápsula: ni fotos ni dedicatorias.</string>
+
+    <!-- Festa ovunque -->
+    <string name="anywhere_button">Fiesta en cualquier lugar</string>
+    <string name="anywhere_kicker">Fiesta en cualquier lugar</string>
+    <string name="anywhere_title">En la playa, de acampada, en el jardín</string>
+    <string name="anywhere_subtitle">Sin la Wi‑Fi de casa: la TV crea su propia red para los móviles y ahorra energía para un proyector.</string>
+    <string name="anywhere_kit">Qué necesitas</string>
+    <string name="anywhere_kit_stick">Este Fire TV Stick o box Android TV, con su mando</string>
+    <string name="anywhere_kit_power">Una batería externa de al menos 2 A (mejor 3 A) y el cable USB del dispositivo</string>
+    <string name="anywhere_kit_projector">Un miniproyector o un monitor portátil con HDMI, y una pared blanca o una sábana</string>
+    <string name="anywhere_kit_music">Para la música: un altavoz Bluetooth, o la silent disco en los auriculares de los invitados</string>
+    <string name="anywhere_hotspot_body">Los móviles se conectan a la TV con el QR. No todas las Fire TV y Android TV pueden crearla.</string>
+    <string name="anywhere_light_body">Menos trabajo para el dispositivo: se calienta menos y la batería dura más.</string>
+    <string name="anywhere_go">¡En marcha!</string>
 </resources>

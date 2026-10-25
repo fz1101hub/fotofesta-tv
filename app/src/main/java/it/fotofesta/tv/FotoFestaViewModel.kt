@@ -887,7 +887,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             Destination.TELETEXT, Destination.SKY, Destination.STATS -> navigate(Destination.SHOWS)
             Destination.GOOGLE_CONNECT -> cancelGoogleConnect()
             Destination.SETTINGS, Destination.GAMES, Destination.GUESTS -> navigate(Destination.HOME)
-            Destination.EXTRA_SCREEN -> navigate(Destination.GUESTS)
+            Destination.EXTRA_SCREEN, Destination.ANYWHERE -> navigate(Destination.GUESTS)
             Destination.GUEST_REVIEW, Destination.AWARDS, Destination.GUESTBOOK, Destination.ANNOUNCE, Destination.DOOR -> navigate(Destination.GUESTS)
             Destination.GUEST_WIFI -> navigate(wifiReturnTo)
             Destination.FILE_BROWSER -> if (_state.value.browser.directory != null) browserUp() else closeBrowser()
@@ -1925,6 +1925,14 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     fun showPickerUnavailable() = showMessage(context.getString(R.string.error_picker_unavailable))
 
     fun startGuestParty() = guests.start()
+
+    /** Festa ovunque: proiettore e modalità leggera, poi la festa (la rete della TV la accende l'attività). */
+    fun startPartyAnywhere() {
+        val settings = _state.value.settings
+        if (!settings.projectorMode || !settings.lightMode) updateSettings(settings.copy(projectorMode = true, lightMode = true))
+        if (!_state.value.guests.active) startGuestParty()
+        navigate(Destination.GUESTS)
+    }
 
     fun endGuestParty() {
         quietJob?.cancel()

@@ -988,4 +988,18 @@
     <string name="message_capsule_no_usb">Scegli prima una cartella della chiavetta nelle impostazioni.</string>
     <string name="message_capsule_no_traces">Con «Festa senza tracce» le foto non si conservano: niente capsula.</string>
     <string name="message_capsule_empty">Non c’è ancora niente da mettere nella capsula: nessuna foto o dedica.</string>
+
+    <!-- Festa ovunque -->
+    <string name="anywhere_button">Festa ovunque</string>
+    <string name="anywhere_kicker">Festa ovunque</string>
+    <string name="anywhere_title">In spiaggia, in campeggio, in giardino</string>
+    <string name="anywhere_subtitle">Senza la Wi‑Fi di casa: la TV crea una rete sua per i telefoni e risparmia energia per un proiettore.</string>
+    <string name="anywhere_kit">Cosa serve</string>
+    <string name="anywhere_kit_stick">Questa Fire TV Stick o box Android TV, con il telecomando</string>
+    <string name="anywhere_kit_power">Un powerbank da almeno 2 A (meglio 3 A) e il cavo USB della chiavetta</string>
+    <string name="anywhere_kit_projector">Un mini proiettore o un monitor portatile con HDMI, e un muro bianco o un lenzuolo</string>
+    <string name="anywhere_kit_music">Per la musica: una cassa Bluetooth, oppure la silent disco nelle cuffie degli invitati</string>
+    <string name="anywhere_hotspot_body">I telefoni si collegano alla TV con il QR. Non tutte le Fire TV e Android TV riescono a crearla.</string>
+    <string name="anywhere_light_body">Meno lavoro per la chiavetta: scalda meno e il powerbank dura di più.</string>
+    <string name="anywhere_go">Si parte!</string>
 </resources>

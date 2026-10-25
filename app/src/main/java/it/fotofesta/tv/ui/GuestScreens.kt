@@ -24,6 +24,7 @@ import androidx.compose.material.icons.rounded.DoorFront
 import androidx.compose.material.icons.rounded.WifiTethering
 import androidx.compose.material.icons.rounded.Campaign
 import androidx.compose.material.icons.rounded.PhotoCamera
+import androidx.compose.material.icons.rounded.Luggage
 import androidx.compose.material.icons.rounded.Science
 import androidx.compose.material.icons.rounded.EmojiEvents
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -96,11 +97,13 @@ fun GuestsScreen(
     onDoor: () -> Unit = {},
     /** Questa TV come schermo aggiuntivo della festa di un'altra TV. */
     onExtraScreen: () -> Unit = {},
+    /** Festa ovunque: senza la Wi‑Fi di casa, con proiettore e powerbank. */
+    onAnywhere: () -> Unit = {},
 ) {
     if (guests.active) {
         PartyInProgress(guests, recent, onEnd, onPlay, onReview, onAwards, messageCount, pendingMessageCount, onGuestbook, hostPin, onAnnounce, undevelopedShots, onDevelop, onHotspot, onDoor)
     } else {
-        PartyIntro(guests, onStart, onApproval, onWifi, onRehearsal, onHotspot, onExtraScreen)
+        PartyIntro(guests, onStart, onApproval, onWifi, onRehearsal, onHotspot, onExtraScreen, onAnywhere)
     }
 }
 
@@ -113,6 +116,7 @@ private fun PartyIntro(
     onRehearsal: () -> Unit,
     onHotspot: () -> Unit,
     onExtraScreen: () -> Unit,
+    onAnywhere: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize().background(Background).padding(horizontal = 48.dp, vertical = 27.dp)) {
         BrandMark()
@@ -135,6 +139,8 @@ private fun PartyIntro(
                     TvButton(stringResource(R.string.guests_rehearsal), onRehearsal, icon = Icons.Rounded.Science)
                 }
                 Text(stringResource(R.string.guests_same_network), style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                // Senza la Wi‑Fi di casa (spiaggia, campeggio): rete della TV, proiettore e modalità leggera.
+                TvButton(stringResource(R.string.anywhere_button), onAnywhere, icon = Icons.Rounded.Luggage, ghost = true)
             }
             Column(Modifier.width(380.dp).padding(top = 34.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SettingsItem(
