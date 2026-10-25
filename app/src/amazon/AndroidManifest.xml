@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Versione per l'Amazon Appstore (Fire TV con Fire OS 7 e 8). -->
+<!-- Lint controlla questo file da solo: il launcher TV (LEANBACK_LAUNCHER) è nel manifest principale. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="MissingLeanbackLauncher,MissingLeanbackSupport">
 
     <!-- L'Amazon Appstore filtra i dispositivi in base alle funzioni richieste: leanback non obbligatorio,
          come chiede Amazon per le app Fire TV. -->
