@@ -14,6 +14,8 @@ import AppKit
 /// quelle degli invitati arrivano dall'archivio della festa, quelle della libreria Foto da PhotoKit.
 actor ImageLoader {
     static let shared = ImageLoader()
+    /// Foto HDR con la luminosità piena: le impostazioni lo accendono, la decodifica lo legge.
+    nonisolated(unsafe) static var hdr = false
 
     private let cache = NSCache<NSString, PlatformImage>()
     private let network: URLSession = {
@@ -29,7 +31,8 @@ actor ImageLoader {
     }
 
     func image(for photo: Photo, maxPixelSize: Int) async -> PlatformImage? {
-        let key = "\(photo.id)#\(maxPixelSize)" as NSString
+        let hdr = Self.hdr
+        let key = "\(photo.id)#\(maxPixelSize)\(hdr ? "#hdr" : "")" as NSString
         if let cached = cache.object(forKey: key) { return cached }
         let decoded: CGImage?
         switch photo.source {
@@ -60,6 +63,11 @@ actor ImageLoader {
             // Server multimediale della rete di casa: solo indirizzi locali, in chiaro come vuole DLNA.
             guard let url = URL(string: address), LANAddress.isLocal(url),
                   let data = await networkData(url),
+                  let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+            decoded = Self.thumbnail(source, maxPixelSize: maxPixelSize)
+        case let .library(localIdentifier) where hdr && Self.canDecodeHDR:
+            // In HDR servono i byte originali (con la mappa del guadagno), non l'immagine già ridotta.
+            guard let data = await PhotoLibrary.imageData(localIdentifier: localIdentifier),
                   let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
             decoded = Self.thumbnail(source, maxPixelSize: maxPixelSize)
         case let .library(localIdentifier):
@@ -121,13 +129,23 @@ actor ImageLoader {
         return (data, (response as? HTTPURLResponse)?.statusCode ?? 0)
     }
 
+    /// La decodifica in HDR c'è da tvOS 18 e macOS 15.
+    private static var canDecodeHDR: Bool {
+        if #available(tvOS 18.0, macOS 15.0, *) { return true }
+        return false
+    }
+
     private static func thumbnail(_ source: CGImageSource, maxPixelSize: Int) -> CGImage? {
-        let options: [CFString: Any] = [
+        var options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceCreateThumbnailWithTransform: true,
             kCGImageSourceShouldCacheImmediately: true,
             kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
         ]
+        // Le foto HDR (con mappa del guadagno o in HEIF a 10 bit) si decodificano a gamma estesa.
+        if hdr, #available(tvOS 18.0, macOS 15.0, *) {
+            options[kCGImageSourceDecodeRequest] = kCGImageSourceDecodeToHDR
+        }
         return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
     }
 }
@@ -153,6 +171,7 @@ struct PhotoImage: View {
                 Image(platformImage: image)
                     .resizable()
                     .aspectRatio(contentMode: fitMode == .crop ? .fill : .fit)
+                    .allowedDynamicRange(ImageLoader.hdr ? .high : .standard)
                     .accessibilityLabel(Text(accessibilityLabel ?? photo.title))
             } else if !placeholder {
                 Color.clear

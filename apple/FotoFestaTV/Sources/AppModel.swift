@@ -86,6 +86,8 @@ final class AppModel {
     private let google = GoogleServices.shared
     /// Festa con le foto degli invitati.
     let guests = GuestParty()
+    /// Luci, stampanti e fotocamere della festa.
+    let devices = PartyDevices()
     @ObservationIgnored private var basePhotos: [Photo]
     @ObservationIgnored private var baseLabel: String
     @ObservationIgnored private var baseIsDemo: Bool
@@ -153,6 +155,7 @@ final class AppModel {
 
     init() {
         settings = Self.storedSettings()
+        ImageLoader.hdr = settings.hdrPhotos
         var initialPhotos = Self.demoPhotos
         var initialLabel = L("source.demo")
         var initialMessage: String?
@@ -196,6 +199,7 @@ final class AppModel {
         guests.onChange = { [weak self] in self?.guestsChanged() }
         guests.onArrival = { [weak self] arrival in
             self?.showMessage(L("arrival.message", arrival.name, arrival.order))
+            if self?.settings.partyLights == true { self?.devices.flash() }
         }
         guests.onSong = { [weak self] song in
             self?.showMessage(song.name.map { L("song.message_named", $0, song.text) } ?? L("song.message", song.text))
@@ -231,9 +235,11 @@ final class AppModel {
         change(&settings)
         guard settings != old else { return }
         if let data = try? JSONEncoder().encode(settings) { defaults.set(data, forKey: Self.settingsKey) }
+        ImageLoader.hdr = settings.hdrPhotos
         if old.shuffle != settings.shuffle { order.reset(count: photos.count, shuffle: settings.shuffle, current: currentIndex) }
         if old.sleepTimerMinutes != settings.sleepTimerMinutes { syncSleepTimer(restart: true) }
         if old.videos != settings.videos { applyCollection(restart: false) }
+        if old.ftpServer != settings.ftpServer { syncDevices() }
     }
 
     func showMessage(_ text: String) {
@@ -847,6 +853,12 @@ final class AppModel {
         let previous = lastShownPhoto
         lastShownPhoto = photo
         if let photo { showCounts[photo.id, default: 0] += 1 }
+        // Le luci della festa prendono il colore della foto sullo schermo.
+        if settings.partyLights, !devices.config.lights.isEmpty, let photo, !photo.isVideo {
+            Task { [devices] in
+                if let result = await pixels(of: photo, width: 8, height: 8) { devices.showPhotoColor(PartyShows.average(rgba: result.rgba)) }
+            }
+        }
         if guests.noTraces, let previous, previous.id != photo?.id {
             if case let .guest(id) = previous.source { guests.reject(id) }
             if case let .guestVideo(id) = previous.source { guests.removeVideo(id) }
@@ -1155,6 +1167,7 @@ final class AppModel {
         let approved = all.filter(\.approved)
         let clips = guests.videos
         if guests.ready, let known = knownGuestIDs {
+            autoPrint(approved.filter { !known.contains($0.id) })
             freshPhotos.add(approved.filter { !known.contains($0.id) }.map { "guest:\($0.id)" } +
                             clips.filter { !known.contains($0.id) }.map { "guestvideo:\($0.id)" })
         }
@@ -1170,6 +1183,35 @@ final class AppModel {
         }
         // Approvate o scartate tutte: si torna alla schermata della festa.
         if path.last == .guestReview, all.allSatisfy(\.approved) { path.removeLast() }
+        syncDevices()
+    }
+
+    /// Stampa e scontrino automatici per le foto nuove degli invitati (fino al limite della festa).
+    private func autoPrint(_ fresh: [GuestPhoto]) {
+        guard settings.autoPrint || settings.autoReceipt, !fresh.isEmpty else { return }
+        let title = guests.setup.brand.name.isEmpty ? partyTitle : guests.setup.brand.name
+        for guest in fresh {
+            let photo = Self.photo(for: guest)
+            Task { [devices, settings] in
+                if settings.autoPrint { _ = await devices.print(photo, automatic: true) }
+                if settings.autoReceipt { _ = await devices.receipt(photo, title: title, automatic: true) }
+            }
+        }
+    }
+
+    /// Server FTP per le fotocamere Wi‑Fi: acceso durante la festa, se scelto.
+    func syncDevices() {
+        let wanted = guests.active && settings.ftpServer
+        if wanted, !devices.ftpActive {
+            let party = guests
+            devices.startFTP { _, data in
+                guard GuestImageFormat.sniff(data) == .jpeg else { return }
+                party.addCameraPhoto(data, sender: L("devices.camera_sender"))
+            }
+        } else if !wanted, devices.ftpActive {
+            devices.stopFTP()
+        }
+        if !guests.active, devices.printed > 0 { devices.resetPrintCount() }
     }
 
     private static func video(for video: GuestVideoStore.Video) -> Photo {

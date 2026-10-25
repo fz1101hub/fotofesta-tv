@@ -1,8 +1,10 @@
 import FotoFestaCore
 import Foundation
+import ImageIO
 import Network
 import Observation
 import Security
+import UniformTypeIdentifiers
 #if canImport(UIKit)
 import UIKit
 #else
@@ -426,6 +428,26 @@ final class GuestParty {
     func stopQuiet() {
         partyHub.stopQuiet()
         refreshMessages()
+    }
+
+    /// Scatto di una fotocamera (Wi‑Fi o USB): ridotto alla misura dello schermo prima di entrare
+    /// nella festa, perché un file da 24 megapixel riempirebbe l'archivio in RAM.
+    nonisolated func addCameraPhoto(_ data: Data, sender: String) {
+        let store = GuestStorage.store
+        let approval = approvalFlag
+        Task.detached(priority: .utility) {
+            guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+                  let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+                      kCGImageSourceCreateThumbnailFromImageAlways: true,
+                      kCGImageSourceCreateThumbnailWithTransform: true,
+                      kCGImageSourceThumbnailMaxPixelSize: 3840,
+                  ] as CFDictionary) else { return }
+            let output = NSMutableData()
+            guard let destination = CGImageDestinationCreateWithData(output as CFMutableData, UTType.jpeg.identifier as CFString, 1, nil) else { return }
+            CGImageDestinationAddImage(destination, image, [kCGImageDestinationLossyCompressionQuality: 0.88] as CFDictionary)
+            guard CGImageDestinationFinalize(destination) else { return }
+            _ = store.add(output as Data, sender: sender, approved: !approval.value)
+        }
     }
 
     /// Foto di un telefono simulato durante la prova generale.

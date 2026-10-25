@@ -50,6 +50,11 @@ public final class PartyHub: @unchecked Sendable {
     public struct ChapterMark: Equatable, Sendable {
         public let title: String
         public let date: Date
+
+        public init(title: String, date: Date) {
+            self.title = title
+            self.date = date
+        }
     }
 
     /// Reazioni possibili, nello stesso ordine dei pulsanti della pagina.

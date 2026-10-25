@@ -30,136 +30,7 @@ struct SlideshowView: View {
     var body: some View {
         // "Riduci movimento" vale sia dalle impostazioni dell'app sia da quelle di sistema.
         let settings = effectiveSettings
-        Button {
-            model.togglePlayback()
-            showInfo()
-        } label: {
-            ZStack {
-                Color.black
-                // I video si guardano a schermo intero anche con il mosaico.
-                if let photo = model.currentPhoto, settings.layout == .mosaic, model.photos.count > 1, !photo.isVideo {
-                    MosaicSlideView(
-                        photo: photo,
-                        side: Mosaic.side(of: model.photos, currentIndex: model.currentIndex, recentIDs: recentIDs),
-                        settings: settings,
-                        playing: model.isPlaying
-                    )
-                } else if let photo = model.currentPhoto, settings.layout == .stack, !photo.isVideo {
-                    StackSlideView(
-                        photo: photo,
-                        previous: recentIDs.compactMap { id in model.photos.first { $0.id == id && !$0.isVideo } },
-                        filter: settings.filter
-                    )
-                } else if let photo = model.currentPhoto {
-                    slide(photo, settings: settings)
-                        .id(photo.id)
-                        .transition(transition(for: settings))
-                } else if model.guests.active {
-                    WaitingForGuestsView(guests: model.guests)
-                } else {
-                    Text(L("slideshow.empty")).font(.title2)
-                }
-            }
-            .ignoresSafeArea()
-            .animation(settings.reducedMotion ? nil : .easeInOut(duration: 0.8), value: model.currentPhoto?.id)
-        }
-        .buttonStyle(FullScreenButtonStyle())
-        // Sul Mac: frecce, spazio ed Esc dalla tastiera appena si apre lo slideshow.
-        .keyboardFocusOnMac()
-        .ignoresSafeArea()
-        .overlay(alignment: .bottom) {
-            if model.currentPhoto != nil { captionArea(settings: settings) }
-        }
-        .overlay(alignment: .topTrailing) {
-            if settings.showClock {
-                ClockText()
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 10)
-                    .background(.regularMaterial, in: Capsule())
-                    .padding(.horizontal, 90)
-                    .padding(.top, 60)
-            }
-        }
-        // La TV che si annoia senza foto nuove dagli invitati.
-        .overlay(alignment: .bottomTrailing) {
-            if settings.boredScreen, model.guests.active, model.currentPhoto != nil {
-                BoredOverlay(lastPhoto: model.guests.photos.map(\.receivedAt).max())
-                    .padding(.trailing, 90)
-                    .padding(.bottom, 330)
-            }
-        }
-        // Il prossimo momento della scaletta preparata dalla regia.
-        .overlay(alignment: .bottomTrailing) {
-            if !model.guests.setup.schedule.isEmpty, model.currentPhoto != nil {
-                ScheduleBadge(schedule: model.guests.setup.schedule)
-                    .padding(.trailing, 90)
-                    .padding(.bottom, 220)
-            }
-        }
-        .overlay {
-            if settings.countdown { CountdownOverlay(settings: settings) }
-        }
-        // QR piccolo per gli invitati, che possono mandare foto in ogni momento.
-        .overlay(alignment: .topLeading) {
-            if model.guests.active, model.guests.qrInSlideshow, model.currentPhoto != nil {
-                SlideshowGuestQR(guests: model.guests)
-                    .padding(.horizontal, 90)
-                    .padding(.top, 60)
-            }
-        }
-        // Reazioni e dediche dei telefoni durante la festa.
-        .overlay {
-            if model.guests.active {
-                if model.guests.messagesEnabled { MessageBanner(messages: model.guests.messages) }
-                if model.guests.reactionsEnabled { ReactionsOverlay(hub: model.guests.partyHub) }
-                AnnouncementOverlay(announcement: model.guests.announcement)
-                if let until = model.guests.quietUntil { QuietOverlay(until: until) }
-            }
-        }
-        .overlay(alignment: .top) {
-            if model.guests.active, let photo = model.currentPhoto, let tag = model.photoTag(photo) {
-                GameTagBadge(text: tag).padding(.top, 40)
-            }
-        }
-        .overlay(alignment: .bottomLeading) {
-            if let url = model.treasureURL {
-                TreasureOverlay(url: url, finders: model.guests.treasureFinders)
-                    .padding(.leading, 90)
-                    .padding(.bottom, 60)
-            }
-        }
-        .overlay(alignment: .bottomTrailing) {
-            if model.guests.active, !model.guests.developed {
-                DisposableBadge(shots: model.guests.shotsTaken)
-                    .padding(.trailing, 90)
-                    .padding(.bottom, 150)
-            }
-        }
-        .overlay(alignment: .top) {
-            if model.guests.active, let director = model.guests.director {
-                DirectorBadge(director: director).padding(.top, 60)
-            }
-        }
-        .overlay {
-            if settings.transition == .zapping, !settings.reducedMotion, model.currentPhoto != nil {
-                ZappingOverlay(key: model.currentPhoto?.id, channel: model.currentIndex + 1)
-            }
-            if settings.confetti { ConfettiOverlay(trigger: confetti) }
-            if settings.newsMode, let photo = model.currentPhoto {
-                NewsOverlay(title: model.partyTitle, headline: model.photoTag(photo) ?? photo.sender.map { L("guest.photo_from", $0) }, ticker: newsTicker)
-            }
-            if settings.openingTitles {
-                OpeningTitles(title: model.partyTitle, subtitle: openedAt.formatted(date: .complete, time: .omitted))
-            }
-            // Cornice con nome e logo dell'evento, e gli sponsor ogni tante foto.
-            EventFrameOverlay(style: settings.frameStyle, brand: model.guests.setup.brand) { model.guests.partySetup.logo() }
-            SponsorOverlay(tick: photoChanges, every: settings.sponsorEvery, sponsors: model.guests.setup.sponsors) {
-                model.guests.partySetup.sponsor($0)
-            }
-            if settings.rivalParty, model.currentPhoto != nil { RivalPartyOverlay(tick: photoChanges) }
-        }
-        .modifier(ScreenMargin(percent: settings.screenMargin))
-        .background(Color.black.ignoresSafeArea())
+        effectLayers(partyLayers(screen(settings), settings: settings), settings: settings)
         // Coriandoli: una foto degli invitati appena arrivata.
         .onChange(of: model.currentPhoto?.id) { _, _ in
             guard model.settings.confetti, let photo = model.currentPhoto, case .guest = photo.source,
@@ -243,6 +114,150 @@ struct SlideshowView: View {
                 _ = await ImageLoader.shared.image(for: upcoming, maxPixelSize: 3840)
             }
         }
+    }
+
+    /// La foto (o il mosaico) con didascalia, orologio, scaletta e conto alla rovescia.
+    private func screen(_ settings: SlideshowSettings) -> some View {
+        Button {
+            model.togglePlayback()
+            showInfo()
+        } label: {
+            ZStack {
+                Color.black
+                // I video si guardano a schermo intero anche con il mosaico.
+                if let photo = model.currentPhoto, settings.layout == .mosaic, model.photos.count > 1, !photo.isVideo {
+                    MosaicSlideView(
+                        photo: photo,
+                        side: Mosaic.side(of: model.photos, currentIndex: model.currentIndex, recentIDs: recentIDs),
+                        settings: settings,
+                        playing: model.isPlaying
+                    )
+                } else if let photo = model.currentPhoto, settings.layout == .stack, !photo.isVideo {
+                    StackSlideView(
+                        photo: photo,
+                        previous: recentIDs.compactMap { id in model.photos.first { $0.id == id && !$0.isVideo } },
+                        filter: settings.filter
+                    )
+                } else if let photo = model.currentPhoto {
+                    slide(photo, settings: settings)
+                        .id(photo.id)
+                        .transition(transition(for: settings))
+                } else if model.guests.active {
+                    WaitingForGuestsView(guests: model.guests)
+                } else {
+                    Text(L("slideshow.empty")).font(.title2)
+                }
+            }
+            .ignoresSafeArea()
+            .animation(settings.reducedMotion ? nil : .easeInOut(duration: 0.8), value: model.currentPhoto?.id)
+        }
+        .buttonStyle(FullScreenButtonStyle())
+        // Sul Mac: frecce, spazio ed Esc dalla tastiera appena si apre lo slideshow.
+        .keyboardFocusOnMac()
+        .ignoresSafeArea()
+        .overlay(alignment: .bottom) {
+            if model.currentPhoto != nil { captionArea(settings: settings) }
+        }
+        .overlay(alignment: .topTrailing) {
+            if settings.showClock {
+                ClockText()
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 10)
+                    .background(.regularMaterial, in: Capsule())
+                    .padding(.horizontal, 90)
+                    .padding(.top, 60)
+            }
+        }
+        // La TV che si annoia senza foto nuove dagli invitati.
+        .overlay(alignment: .bottomTrailing) {
+            if settings.boredScreen, model.guests.active, model.currentPhoto != nil {
+                BoredOverlay(lastPhoto: model.guests.photos.map(\.receivedAt).max())
+                    .padding(.trailing, 90)
+                    .padding(.bottom, 330)
+            }
+        }
+        // Il prossimo momento della scaletta preparata dalla regia.
+        .overlay(alignment: .bottomTrailing) {
+            if !model.guests.setup.schedule.isEmpty, model.currentPhoto != nil {
+                ScheduleBadge(schedule: model.guests.setup.schedule)
+                    .padding(.trailing, 90)
+                    .padding(.bottom, 220)
+            }
+        }
+        .overlay {
+            if settings.countdown { CountdownOverlay(settings: settings) }
+        }
+    }
+
+    /// Livelli della festa sopra la foto: QR, reazioni, giochi, effetti, cornice e sponsor.
+    private func partyLayers(_ content: some View, settings: SlideshowSettings) -> some View {
+        content
+        // QR piccolo per gli invitati, che possono mandare foto in ogni momento.
+        .overlay(alignment: .topLeading) {
+            if model.guests.active, model.guests.qrInSlideshow, model.currentPhoto != nil {
+                SlideshowGuestQR(guests: model.guests)
+                    .padding(.horizontal, 90)
+                    .padding(.top, 60)
+            }
+        }
+        // Reazioni e dediche dei telefoni durante la festa.
+        .overlay {
+            if model.guests.active {
+                if model.guests.messagesEnabled { MessageBanner(messages: model.guests.messages) }
+                if model.guests.reactionsEnabled { ReactionsOverlay(hub: model.guests.partyHub) }
+                AnnouncementOverlay(announcement: model.guests.announcement)
+                if let until = model.guests.quietUntil { QuietOverlay(until: until) }
+            }
+        }
+        .overlay(alignment: .top) {
+            if model.guests.active, let photo = model.currentPhoto, let tag = model.photoTag(photo) {
+                GameTagBadge(text: tag).padding(.top, 40)
+            }
+        }
+        .overlay(alignment: .bottomLeading) {
+            if let url = model.treasureURL {
+                TreasureOverlay(url: url, finders: model.guests.treasureFinders)
+                    .padding(.leading, 90)
+                    .padding(.bottom, 60)
+            }
+        }
+        .overlay(alignment: .bottomTrailing) {
+            if model.guests.active, !model.guests.developed {
+                DisposableBadge(shots: model.guests.shotsTaken)
+                    .padding(.trailing, 90)
+                    .padding(.bottom, 150)
+            }
+        }
+        .overlay(alignment: .top) {
+            if model.guests.active, let director = model.guests.director {
+                DirectorBadge(director: director).padding(.top, 60)
+            }
+        }
+    }
+
+    /// Effetti dello slideshow (zapping, coriandoli, TG, sigla), cornice, sponsor e margini.
+    private func effectLayers(_ content: some View, settings: SlideshowSettings) -> some View {
+        content
+        .overlay {
+            if settings.transition == .zapping, !settings.reducedMotion, model.currentPhoto != nil {
+                ZappingOverlay(key: model.currentPhoto?.id, channel: model.currentIndex + 1)
+            }
+            if settings.confetti { ConfettiOverlay(trigger: confetti) }
+            if settings.newsMode, let photo = model.currentPhoto {
+                NewsOverlay(title: model.partyTitle, headline: model.photoTag(photo) ?? photo.sender.map { L("guest.photo_from", $0) }, ticker: newsTicker)
+            }
+            if settings.openingTitles {
+                OpeningTitles(title: model.partyTitle, subtitle: openedAt.formatted(date: .complete, time: .omitted))
+            }
+            // Cornice con nome e logo dell'evento, e gli sponsor ogni tante foto.
+            EventFrameOverlay(style: settings.frameStyle, brand: model.guests.setup.brand) { model.guests.partySetup.logo() }
+            SponsorOverlay(tick: photoChanges, every: settings.sponsorEvery, sponsors: model.guests.setup.sponsors) {
+                model.guests.partySetup.sponsor($0)
+            }
+            if settings.rivalParty, model.currentPhoto != nil { RivalPartyOverlay(tick: photoChanges) }
+        }
+        .modifier(ScreenMargin(percent: settings.screenMargin))
+        .background(Color.black.ignoresSafeArea())
     }
 
     /// Notizie che scorrono nel TG della festa: le ultime dediche e qualche numero.
@@ -394,7 +409,15 @@ private struct SlideView: View {
         ZStack {
             if settings.fitMode == .blur { BlurredBackdrop(photo: photo) }
             MovingPhoto(photo: photo, settings: settings, playing: playing)
+            if settings.livePhotos, photo.isLibraryPhoto { LivePhotoOverlay(photo: photo) }
         }
+    }
+}
+
+private extension Photo {
+    var isLibraryPhoto: Bool {
+        if case .library = source { return true }
+        return false
     }
 }
 

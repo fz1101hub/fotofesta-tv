@@ -500,35 +500,45 @@ private struct DifferenceMarks: View {
     let revealed: Bool
 
     var body: some View {
-        Canvas { context, size in
-            let minSide = min(size.width, size.height)
-            for diff in differences {
-                let center = CGPoint(x: diff.x * size.width, y: diff.y * size.height)
-                let radius = diff.radius * minSide
-                let color = Color(hex: diff.color)
-                func circle(_ r: CGFloat) -> Path { Path(ellipseIn: CGRect(x: center.x - r, y: center.y - r, width: r * 2, height: r * 2)) }
-                switch diff.kind {
-                case .dot:
-                    context.fill(circle(radius * 0.55), with: .color(color))
-                case .star:
-                    var path = Path()
-                    for k in 0..<5 {
-                        let angle = (Double(k) * 72 - 90) * .pi / 180
-                        path.move(to: center)
-                        path.addLine(to: CGPoint(x: center.x + cos(angle) * radius, y: center.y + sin(angle) * radius))
-                    }
-                    context.stroke(path, with: .color(color), lineWidth: radius / 4)
-                case .mirror:
-                    context.fill(Path(CGRect(x: center.x - radius, y: center.y - radius / 2, width: radius * 2, height: radius)), with: .color(color.opacity(0.55)))
-                case .tint:
-                    context.fill(circle(radius), with: .color(color.opacity(0.45)))
-                case .hide:
-                    context.fill(circle(radius * 0.7), with: .color(.black.opacity(0.7)))
-                }
-                if revealed { context.stroke(circle(radius * 1.5), with: .color(.white), lineWidth: 6) }
-            }
+        Canvas { context, size in draw(in: &context, size: size) }
+            .allowsHitTesting(false)
+    }
+
+    private func circle(_ center: CGPoint, _ r: CGFloat) -> Path {
+        Path(ellipseIn: CGRect(x: center.x - r, y: center.y - r, width: r * 2, height: r * 2))
+    }
+
+    private func star(_ center: CGPoint, _ radius: CGFloat) -> Path {
+        var path = Path()
+        for k in 0..<5 {
+            let angle = (Double(k) * 72 - 90) * .pi / 180
+            path.move(to: center)
+            path.addLine(to: CGPoint(x: center.x + CGFloat(cos(angle)) * radius, y: center.y + CGFloat(sin(angle)) * radius))
         }
-        .allowsHitTesting(false)
+        return path
+    }
+
+    private func draw(in context: inout GraphicsContext, size: CGSize) {
+        let minSide = min(size.width, size.height)
+        for diff in differences {
+            let center = CGPoint(x: CGFloat(diff.x) * size.width, y: CGFloat(diff.y) * size.height)
+            let radius = CGFloat(diff.radius) * minSide
+            let color = Color(hex: diff.color)
+            switch diff.kind {
+            case .dot:
+                context.fill(circle(center, radius * 0.55), with: .color(color))
+            case .star:
+                context.stroke(star(center, radius), with: .color(color), lineWidth: radius / 4)
+            case .mirror:
+                let rect = CGRect(x: center.x - radius, y: center.y - radius / 2, width: radius * 2, height: radius)
+                context.fill(Path(rect), with: .color(color.opacity(0.55)))
+            case .tint:
+                context.fill(circle(center, radius), with: .color(color.opacity(0.45)))
+            case .hide:
+                context.fill(circle(center, radius * 0.7), with: .color(.black.opacity(0.7)))
+            }
+            if revealed { context.stroke(circle(center, radius * 1.5), with: .color(.white), lineWidth: 6) }
+        }
     }
 }
 

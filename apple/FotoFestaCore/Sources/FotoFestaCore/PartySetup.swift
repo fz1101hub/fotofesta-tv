@@ -35,6 +35,8 @@ public final class PartySetup: @unchecked Sendable {
         /// Quiz sui festeggiati, una domanda per riga ("Domanda? | giusta | sbagliata").
         public var quiz = ""
         public var kids: [Kid] = []
+
+        public init() {}
     }
 
     public static let maxImageBytes = 2 * 1024 * 1024

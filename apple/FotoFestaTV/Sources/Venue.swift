@@ -155,6 +155,7 @@ extension AppModel {
     }
 }
 
+#if os(macOS)
 /// File di configurazione da salvare con il pannello del Mac.
 struct ConfigDocument: FileDocument {
     static var readableContentTypes: [UTType] { [.json] }
@@ -172,3 +173,4 @@ struct ConfigDocument: FileDocument {
         FileWrapper(regularFileWithContents: data)
     }
 }
+#endif

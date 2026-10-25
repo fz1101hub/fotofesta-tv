@@ -2,7 +2,7 @@ import FotoFestaCore
 import SwiftUI
 
 /// Colore dell'evento scelto dalla regia ("#RRGGBB"); senza scelta, l'evidenziazione dell'app.
-func accentColor(_ hex: String?) -> Color {
+func eventAccentColor(_ hex: String?) -> Color {
     guard let hex, PartySetup.validColor(hex), let value = UInt32(hex.dropFirst(), radix: 16) else { return Theme.highlight }
     return Color(red: Double((value >> 16) & 0xFF) / 255, green: Double((value >> 8) & 0xFF) / 255, blue: Double(value & 0xFF) / 255)
 }
@@ -31,7 +31,7 @@ struct EventFrameOverlay: View {
     let loadLogo: () -> Data?
 
     var body: some View {
-        let accent = accentColor(brand.accent)
+        let accent = eventAccentColor(brand.accent)
         switch style {
         case .none:
             EmptyView()

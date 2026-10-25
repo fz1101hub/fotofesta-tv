@@ -8,9 +8,11 @@ struct SettingsView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @FocusState private var policyFocused: Bool
+    #if os(macOS)
     @State private var exporting = false
     @State private var exportDocument = ConfigDocument(data: Data())
     @State private var importing = false
+    #endif
 
     var body: some View {
         HStack(spacing: 0) {
