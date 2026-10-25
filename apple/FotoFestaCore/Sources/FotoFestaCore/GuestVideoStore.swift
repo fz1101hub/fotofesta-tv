@@ -165,7 +165,13 @@ public final class GuestVideoStore: @unchecked Sendable {
     private static func availableSpace(_ directory: URL) -> Int64 {
         var probe = directory
         while !FileManager.default.fileExists(atPath: probe.path), probe.pathComponents.count > 1 { probe.deleteLastPathComponent() }
-        let values = try? probe.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
-        return values?.volumeAvailableCapacityForImportantUsage ?? 0
+        #if os(tvOS) || os(watchOS)
+        // Su tvOS la capacità "per uso importante" non esiste.
+        return Int64((try? probe.resourceValues(forKeys: [.volumeAvailableCapacityKey]))?.volumeAvailableCapacity ?? 0)
+        #else
+        let values = try? probe.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey, .volumeAvailableCapacityKey])
+        if let important = values?.volumeAvailableCapacityForImportantUsage { return important }
+        return Int64(values?.volumeAvailableCapacity ?? 0)
+        #endif
     }
 }
