@@ -28,12 +28,7 @@ final class USBCameras: NSObject {
     func start() {
         guard !running else { return }
         running = true
-        browser.requestContentsAuthorization { [weak self] _ in
-            Task { @MainActor [weak self] in
-                guard let self, self.running else { return }
-                self.browser.start()
-            }
-        }
+        browser.start()
     }
 
     func stop() {
