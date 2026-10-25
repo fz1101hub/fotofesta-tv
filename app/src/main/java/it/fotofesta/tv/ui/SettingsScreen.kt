@@ -44,6 +44,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import it.fotofesta.tv.R
+import it.fotofesta.tv.tv.TvFeatures
 import it.fotofesta.tv.model.AppState
 import it.fotofesta.tv.model.FitMode
 import it.fotofesta.tv.model.PartyTemplate
@@ -100,6 +101,10 @@ fun SettingsScreen(
     onRemoveUsbBackup: () -> Unit = {},
 ) {
     val selected = state.settingsCategory
+    val context = LocalContext.current
+    // Fire TV non lascia scegliere salvaschermi di altre app né mostra i canali nella schermata Home.
+    val fireTv = remember { TvFeatures.isFireTv(context) }
+    val categories = remember(fireTv) { if (fireTv) CATEGORIES.filter { it.value != SettingsCategory.SCREENSAVER } else CATEGORIES }
     val firstItem = remember { FocusRequester() }
     val categoryFocus = remember { CATEGORIES.associate { it.value to FocusRequester() } }
     val pickerFocus = remember { Picker.entries.associateWith { FocusRequester() } }
@@ -152,7 +157,7 @@ fun SettingsScreen(
             Spacer(Modifier.height(20.dp))
             Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.headlineMedium, color = TextPrimary)
             Spacer(Modifier.height(12.dp))
-            CATEGORIES.forEach { category ->
+            categories.forEach { category ->
                 CategoryItem(
                     stringResource(category.label),
                     category.icon,
@@ -524,13 +529,15 @@ fun SettingsScreen(
                                 subtitle = stringResource(R.string.settings_auto_start_body),
                                 checked = settings.autoStart,
                             )
-                            SettingsItem(
-                                stringResource(R.string.settings_home_channel),
-                                { onChange(settings.copy(homeChannel = !settings.homeChannel)) },
-                                toCategory,
-                                subtitle = stringResource(R.string.settings_home_channel_body),
-                                checked = settings.homeChannel,
-                            )
+                            if (!fireTv) {
+                                SettingsItem(
+                                    stringResource(R.string.settings_home_channel),
+                                    { onChange(settings.copy(homeChannel = !settings.homeChannel)) },
+                                    toCategory,
+                                    subtitle = stringResource(R.string.settings_home_channel_body),
+                                    checked = settings.homeChannel,
+                                )
+                            }
                             SettingsItem(
                                 stringResource(R.string.settings_dlna),
                                 { onChange(settings.copy(dlnaReceiver = !settings.dlnaReceiver)) },
@@ -545,6 +552,15 @@ fun SettingsScreen(
                                 subtitle = stringResource(R.string.settings_usb_backup_body),
                                 value = state.usbBackupName ?: stringResource(R.string.settings_wifi_none),
                             )
+                            if (fireTv) {
+                                // Solo da leggere: le frasi di Alexa arrivano alla sessione multimediale dell'app.
+                                SettingsItem(
+                                    stringResource(R.string.settings_alexa),
+                                    {},
+                                    toCategory,
+                                    subtitle = stringResource(R.string.settings_alexa_body),
+                                )
+                            }
                             if (state.usbBackupName != null) {
                                 SettingsItem(
                                     stringResource(R.string.settings_usb_backup_remove),

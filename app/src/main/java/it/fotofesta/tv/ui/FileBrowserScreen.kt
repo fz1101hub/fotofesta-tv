@@ -37,6 +37,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import it.fotofesta.tv.tv.TvFeatures
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -68,6 +70,8 @@ fun FileBrowserScreen(
     icloudAlbum: String? = null,
 ) {
     val photos = state.kind == BrowserKind.PHOTOS
+    val context = LocalContext.current
+    val fireTv = remember { TvFeatures.isFireTv(context) }
     val focusKey = state.directory ?: "roots"
     // Cartella senza elementi da scegliere: il fuoco va ai pulsanti sopra l'elenco.
     val listEmpty = state.directory != null && !state.loading && state.folders.isEmpty() && (photos || state.files.isEmpty())
@@ -156,7 +160,8 @@ fun FileBrowserScreen(
                     )
                 }
                 if (photos && state.roots.none { it.removable }) {
-                    item(key = "no-usb") { EmptyText(stringResource(R.string.browser_no_usb)) }
+                    // I Fire TV Stick hanno solo la presa di alimentazione: serve un adattatore OTG.
+                    item(key = "no-usb") { EmptyText(stringResource(if (fireTv) R.string.browser_no_usb_fire else R.string.browser_no_usb)) }
                 }
                 if (state.systemPickerAvailable) {
                     item(key = "system-picker") {

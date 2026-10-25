@@ -1,8 +1,9 @@
-# Pubblicare FotoFesta TV su Google Play e App Store
+# Pubblicare FotoFesta TV su Google Play, Amazon Appstore e App Store
 
 Guida operativa, nell'ordine in cui conviene procedere. Le due app condividono il client OAuth Google, l'informativa privacy e la logica, ma si pubblicano separatamente:
 
-- **Android TV / Google TV**: cartella `app/`, store Google Play.
+- **Android TV / Google TV**: cartella `app/`, versione `play`, store Google Play.
+- **Fire TV (Fire OS 7 e 8)**: stessa cartella `app/`, versione `amazon`, Amazon Appstore.
 - **Apple TV**: cartella `apple/`, store App Store.
 
 ## 0. Prima di tutto (vale per entrambi gli store)
@@ -57,8 +58,8 @@ Le due app funzionano anche senza Google Foto, con le foto demo, le foto degli i
 ### Generare l'AAB firmato
 
 Hai due modi:
-- **In locale**: `./scripts/build.sh`. Produce `dist/FotoFesta-TV-release.aab` ed esegue test e lint.
-- **Con GitHub Actions**: avvia **Actions › Android release › Run workflow** e scarica l'artefatto `FotoFesta-TV-release`, che contiene AAB e `mapping.txt`. Anche un tag `v*`, ad esempio `v1.3.0`, avvia il workflow, ma produce solo l'artefatto e non carica nulla su Play.
+- **In locale**: `./scripts/build.sh`. Produce `dist/FotoFesta-TV-release.aab` (Google Play) e `dist/FotoFesta-TV-FireTV-release.apk` (Amazon Appstore) ed esegue test e lint.
+- **Con GitHub Actions**: avvia **Actions › Android release › Run workflow** e scarica l'artefatto `FotoFesta-TV-release`, che contiene l'AAB per Google Play, l'APK per l'Amazon Appstore e i `mapping.txt`. Anche un tag `v*`, ad esempio `v1.3.0`, avvia il workflow, ma produce solo l'artefatto e non carica nulla su Play.
 
 La versione 1.4.0 compila e supera test e Lint nella CI (`.github/workflows/android.yml`); la build di release firmata va comunque provata su una TV prima di caricarla.
 
@@ -104,6 +105,39 @@ Questi passaggi funzionano solo dopo il primo caricamento manuale.
    3. avvia **Android release** con **Carica su Google Play** attivo.
 
    L'AAB arriva come bozza nel test interno; da lì si promuove con `bundle exec fastlane android promote_production` o dalla console.
+
+## 1b. Amazon Appstore (Fire TV)
+
+La versione `amazon` è la stessa app con poche differenze, decise in parte nella build e in parte riconoscendo il Fire TV (`amazon.hardware.fire_tv`):
+
+- **Nella build**: niente libreria degli aggiornamenti di Google Play (sul Fire TV gli aggiornamenti li installa l'Appstore); `android.software.leanback` non obbligatorio, come chiede Amazon per filtrare i dispositivi.
+- **Sul Fire TV**, anche con l'APK della versione `play` installato a mano: la sezione Salvaschermo non compare (Fire OS non lascia scegliere salvaschermi di altre app) e nemmeno il canale nella schermata Home; nelle impostazioni “TV” c'è la voce “Comandi vocali con Alexa”; senza disco USB il browser spiega che sul Fire TV Stick serve un adattatore OTG.
+- **Telecomando Amazon**: il tasto Menu (≡) nello slideshow mostra i comandi e, premuto di nuovo, apre le impostazioni; avanti e indietro veloce cambiano foto. Alexa (“Alexa, pausa”, “Alexa, avanti”) arriva alla sessione multimediale dell'app, che risponde anche ad avanti e indietro veloce.
+
+I modelli con **Vega OS** (per esempio il Fire TV Stick 4K Select) non eseguono app Android e restano esclusi. Sono esclusi anche i modelli con Fire OS 6 o precedenti (Android 7.1), perché l'app richiede Android 8.
+
+### Pubblicare
+
+1. Crea un account gratuito su [developer.amazon.com](https://developer.amazon.com/) e, in **Apps & Services › Add New App › Android**, una nuova app con lo stesso nome. Il package `it.fotofesta.tv` può essere lo stesso di Google Play.
+2. **Target your app**: lascia solo i dispositivi Fire TV con Fire OS 7 e 8 (non i tablet Fire).
+3. **Carica l'APK** `app-amazon-release.apk` dell'artefatto `FotoFesta-TV-release` (firmato con la stessa chiave di upload). Alla domanda su DRM rispondi **No**. Amazon può rifirmare l'app con una sua chiave: conferma l'opzione proposta dalla console.
+4. **Scheda**: titolo, descrizioni e novità si copiano da `fastlane/metadata/android/<lingua>/` (stesse cinque lingue). Le schermate 1920×1080 sono in `fastlane/metadata/android/<lingua>/images/tvScreenshots/`. Amazon chiede anche un'icona 512×512 (`icon.png`), un'icona piccola 114×114 e uno sfondo 1920×1080 per Fire TV: si ricavano dalla grafica della scheda di Google Play.
+5. **Contenuti e privacy**: questionario sui contenuti con le stesse risposte di Google Play (nessun contenuto per adulti, foto e dediche degli invitati restano sulla TV), URL dell'informativa privacy (`site/privacy/`), nessun annuncio, nessun acquisto in app.
+6. **Note per i revisori**: le stesse di Google Play. Aggiungi che la festa si prova con un telefono sulla stessa rete del Fire TV e che Google Foto richiede un account Google di test.
+
+L'Amazon Appstore non ha un'azione di fastlane: i caricamenti si fanno dalla console (o con l'App Submission API di Amazon, non configurata qui).
+
+### Prove sul Fire TV
+
+| Verifica | Fire TV |
+| --- | --- |
+| Fire TV Stick 4K o 4K Max (Fire OS 7 o 8), meglio anche un Fire TV Cube | ☐ |
+| Telecomando Amazon: frecce, OK, Indietro, Menu, play/pausa, avanti e indietro veloce | ☐ |
+| Alexa: “apri FotoFesta TV”, “pausa”, “riprendi”, “avanti”, “indietro” | ☐ |
+| Video HEVC e AV1, musica di sottofondo | ☐ |
+| Disco USB con adattatore OTG (Stick) e porta USB (Cube) | ☐ |
+| Cartelle DLNA e SMB, festa con i telefoni, collegamento Google Foto | ☐ |
+| Rete Wi‑Fi della TV (hotspot) e avvio con la TV: dipendono dal modello | ☐ |
 
 ## 2. App Store (Apple TV)
 

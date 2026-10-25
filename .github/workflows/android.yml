@@ -42,12 +42,13 @@ jobs:
           PHOTOS_CLIENT_ID: ${{ secrets.PHOTOS_CLIENT_ID }}
           PHOTOS_CLIENT_SECRET: ${{ secrets.PHOTOS_CLIENT_SECRET }}
           PHOTOS_REDIRECT_URI: ${{ vars.PHOTOS_REDIRECT_URI }}
-        run: ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug
+        # Due versioni: Google Play (Android TV, Google TV) e Amazon Appstore (Fire TV).
+        run: ./gradlew --no-daemon testPlayDebugUnitTest lintPlayDebug lintAmazonDebug assemblePlayDebug assembleAmazonDebug
 
       # La release passa da R8, che toglie e rinomina il codice: deve compilare anche lei, con le
       # regole per le librerie SMB. Senza chiave di firma l'APK resta non firmato e non si pubblica.
       - name: Build release con R8
-        run: ./gradlew --no-daemon assembleRelease
+        run: ./gradlew --no-daemon assemblePlayRelease assembleAmazonRelease
 
       - name: Report test e lint
         if: always()
@@ -56,15 +57,21 @@ jobs:
           name: reports
           path: |
             app/build/reports/tests/
-            app/build/reports/lint-results-debug.html
-            app/build/outputs/mapping/release/missing_rules.txt
+            app/build/reports/lint-results-*.html
+            app/build/outputs/mapping/*/missing_rules.txt
           if-no-files-found: ignore
 
       - name: APK debug
         uses: actions/upload-artifact@v4
         with:
           name: FotoFesta-TV-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/play/debug/app-play-debug.apk
+
+      - name: APK debug per Fire TV
+        uses: actions/upload-artifact@v4
+        with:
+          name: FotoFesta-TV-FireTV-debug
+          path: app/build/outputs/apk/amazon/debug/app-amazon-debug.apk
 
       # Schermate dall'emulatore, solo su richiesta: avvio a mano o "[screenshots]" nel messaggio
       # dell'ultimo commit (vedi il job screenshots).
@@ -103,7 +110,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: FotoFesta-TV-debug
-          path: app/build/outputs/apk/debug
+          path: app/build/outputs/apk/play/debug
 
       - name: KVM per l'emulatore
         run: |

@@ -16,7 +16,7 @@ case "$LANGUAGE" in
   it) LOCALE=it-IT ;; fr) LOCALE=fr-FR ;; es) LOCALE=es-ES ;; de) LOCALE=de-DE ;; *) LOCALE=en-US ;;
 esac
 PACKAGE=it.fotofesta.tv
-APK=app/build/outputs/apk/debug/app-debug.apk
+APK=app/build/outputs/apk/play/debug/app-play-debug.apk
 OUT="build/screenshots/$LANGUAGE-$SET"
 # Il computer che ospita l'emulatore, visto dall'emulatore, e l'accesso al Samba di prova.
 HOST=10.0.2.2

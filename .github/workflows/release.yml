@@ -65,7 +65,7 @@ jobs:
             fi
           fi
 
-      - name: Test, lint e AAB firmato
+      - name: Test, lint, AAB firmato per Google Play e APK firmato per l'Amazon Appstore
         env:
           RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
@@ -73,20 +73,24 @@ jobs:
           PHOTOS_CLIENT_ID: ${{ secrets.PHOTOS_CLIENT_ID }}
           PHOTOS_CLIENT_SECRET: ${{ secrets.PHOTOS_CLIENT_SECRET }}
           PHOTOS_REDIRECT_URI: ${{ vars.PHOTOS_REDIRECT_URI }}
-        run: ./gradlew --no-daemon testReleaseUnitTest lintRelease bundleRelease
+        run: ./gradlew --no-daemon testPlayReleaseUnitTest lintPlayRelease lintAmazonRelease bundlePlayRelease assembleAmazonRelease
 
       # jarsigner -verify termina con 0 anche su un file non firmato: si controlla il testo.
       - name: Verifica firma
         run: |
-          jarsigner -verify app/build/outputs/bundle/release/app-release.aab | tee "$RUNNER_TEMP/verify.txt"
+          jarsigner -verify app/build/outputs/bundle/playRelease/app-play-release.aab | tee "$RUNNER_TEMP/verify.txt"
           grep -q "jar verified." "$RUNNER_TEMP/verify.txt"
+          # L'APK per Fire TV (firma v2): lo verifica apksigner degli strumenti dell'SDK.
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --print-certs app/build/outputs/apk/amazon/release/app-amazon-release.apk
 
       - uses: actions/upload-artifact@v4
         with:
           name: FotoFesta-TV-release
           path: |
-            app/build/outputs/bundle/release/app-release.aab
-            app/build/outputs/mapping/release/mapping.txt
+            app/build/outputs/bundle/playRelease/app-play-release.aab
+            app/build/outputs/apk/amazon/release/app-amazon-release.apk
+            app/build/outputs/mapping/*/mapping.txt
 
       - uses: ruby/setup-ruby@v1
         if: ${{ inputs.upload }}

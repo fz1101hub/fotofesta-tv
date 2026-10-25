@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Versione per l'Amazon Appstore (Fire TV con Fire OS 7 e 8). -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- L'Amazon Appstore filtra i dispositivi in base alle funzioni richieste: leanback non obbligatorio,
+         come chiede Amazon per le app Fire TV. -->
+    <uses-feature
+        android:name="android.software.leanback"
+        android:required="false"
+        tools:replace="android:required" />
+
+</manifest>

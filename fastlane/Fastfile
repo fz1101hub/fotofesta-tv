@@ -1,10 +1,10 @@
 # Pubblicazione su Google Play con fastlane (https://docs.fastlane.tools/actions/upload_to_play_store/).
 # Prerequisiti: app già creata in Play Console e primo AAB caricato a mano, account di servizio
-# con accesso all'app, AAB firmato in app/build/outputs/bundle/release/ (./gradlew bundleRelease).
+# con accesso all'app, AAB firmato in app/build/outputs/bundle/playRelease/ (./gradlew bundlePlayRelease).
 
 default_platform(:android)
 
-AAB = "app/build/outputs/bundle/release/app-release.aab"
+AAB = "app/build/outputs/bundle/playRelease/app-play-release.aab"
 MAPPING = "app/build/outputs/mapping/release/mapping.txt"
 
 platform :android do

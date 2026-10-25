@@ -39,6 +39,19 @@ android {
         buildConfigField("String", "PHOTOS_REDIRECT_URI", quotedProperty("PHOTOS_REDIRECT_URI"))
     }
 
+    // Due versioni dallo stesso codice: Google Play (Android TV e Google TV) e Amazon Appstore (Fire TV
+    // con Fire OS). Cambiano solo gli aggiornamenti dallo store e qualche voce del manifest.
+    flavorDimensions += "store"
+    productFlavors {
+        create("play") {
+            dimension = "store"
+            isDefault = true
+        }
+        create("amazon") {
+            dimension = "store"
+        }
+    }
+
     buildFeatures {
         compose = true
         buildConfig = true
@@ -139,9 +152,9 @@ dependencies {
     // Cartelle condivise (SMB 2/3) di PC e NAS, ed elenco delle condivisioni (DCE/RPC).
     implementation("com.hierynomus:smbj:0.14.0")
     implementation("com.rapid7.client:dcerpc:0.12.13")
-    // Canale di FotoFesta nella schermata Home della TV e aggiornamenti dal Play Store.
+    // Canale di FotoFesta nella schermata Home della TV; aggiornamenti solo nella versione per Google Play.
     implementation("androidx.tvprovider:tvprovider:1.0.0")
-    implementation("com.google.android.play:app-update-ktx:2.1.0")
+    "playImplementation"("com.google.android.play:app-update-ktx:2.1.0")
     // Play Core porta Fragment 1.1: serve almeno la 1.3 per i launcher dei risultati (permessi, selettori).
     implementation("androidx.fragment:fragment-ktx:1.8.5")
 

@@ -858,4 +858,9 @@
         <item quantity="one">%d Punkt</item>
         <item quantity="other">%d Punkte</item>
     </plurals>
+
+    <!-- Fire TV -->
+    <string name="browser_no_usb_fire">Kein USB-Speicher verbunden. Am Fire TV Stick mit einem OTG-Adapter (Micro‑USB oder USB‑C, mit Stromversorgung) anschließen; der Fire TV Cube hat einen USB-Anschluss.</string>
+    <string name="settings_alexa">Sprachbefehle mit Alexa</string>
+    <string name="settings_alexa_body">Während der Diashow: „Alexa, Pause“, „Alexa, weiter abspielen“, „Alexa, nächstes“, „Alexa, vorheriges“. Zum Öffnen: „Alexa, öffne FotoFesta TV“.</string>
 </resources>

@@ -225,8 +225,15 @@ fun SlideshowScreen(
                         screenFocused.also { if (it && event.nativeKeyEvent.repeatCount == 0) onToggle() }
                     KeyEvent.KEYCODE_DPAD_LEFT -> screenFocused.also { if (it) onPrevious() }
                     KeyEvent.KEYCODE_DPAD_RIGHT -> screenFocused.also { if (it) onNext() }
-                    KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_MENU ->
+                    KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN ->
                         screenFocused.also { if (it) showControls(focusBar = true) }
+                    // Tasto Menu (≡, telecomandi Fire TV): la prima volta mostra i comandi, la seconda le impostazioni.
+                    KeyEvent.KEYCODE_MENU -> {
+                        if (event.nativeKeyEvent.repeatCount == 0) {
+                            if (screenFocused) showControls(focusBar = true) else onSettings()
+                        }
+                        true
+                    }
                     else -> false
                 }
             }

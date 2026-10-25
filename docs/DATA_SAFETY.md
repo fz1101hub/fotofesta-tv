@@ -54,6 +54,14 @@ Il permesso si chiede solo all'apertura del browser delle cartelle; se viene neg
 - Copia sulla chiavetta: cartella scelta dall'utente con il selettore di documenti (permesso persistente sull'URI), nessun permesso aggiuntivo.
 - Aggiornamenti dal Play Store: libreria Play In-App Updates, nessun dato raccolto dall'app.
 
+## Amazon Appstore – Privacy e contenuti (Fire TV)
+
+La versione per Fire TV raccoglie gli stessi dati della versione per Google Play, cioè nessuno: niente pubblicità, analisi o SDK che inviano dati, nessun account FotoFesta. Nel questionario di Amazon:
+- **Raccolta di dati personali**: No. Le foto e i nomi degli invitati restano sulla TV e si cancellano a fine festa; Google Foto è un collegamento facoltativo dell'utente con il suo account Google.
+- **Pubblicità e acquisti in app**: No.
+- **Informativa privacy**: lo stesso URL di Google Play (`site/privacy/`), che cita anche Fire TV.
+- La versione `amazon` non contiene la libreria Play In-App Updates.
+
 ## App Store – Privacy dell'app (etichetta nutrizionale)
 
 | Domanda di App Store Connect | Risposta |

@@ -1,6 +1,6 @@
 # FotoFesta TV
 
-**FotoFesta TV** è un’app Android nativa per Android TV e Google TV che mostra foto e video in slideshow da una cartella USB, da un server multimediale della rete di casa (NAS, router, PC con DLNA), dalle cartelle condivise di PC, Mac e NAS (SMB), da un album condiviso di iCloud con il link pubblico, da una selezione sicura in Google Foto oppure dai telefoni degli invitati. Gli ospiti inquadrano un QR sulla TV e mandano le foto attraverso la rete di casa, senza installare nulla. Include durata regolabile, tre transizioni, mosaico, conto alla rovescia, adattamento immagine, ordine casuale, musica locale (un brano o una cartella), controlli D-pad, premi di fine festa e quattro giochi con le fotografie attive, a cui gli invitati possono rispondere dal telefono.
+**FotoFesta TV** è un’app Android nativa per Android TV, Google TV e Fire TV che mostra foto e video in slideshow da una cartella USB, da un server multimediale della rete di casa (NAS, router, PC con DLNA), dalle cartelle condivise di PC, Mac e NAS (SMB), da un album condiviso di iCloud con il link pubblico, da una selezione sicura in Google Foto oppure dai telefoni degli invitati. Gli ospiti inquadrano un QR sulla TV e mandano le foto attraverso la rete di casa, senza installare nulla. Include durata regolabile, tre transizioni, mosaico, conto alla rovescia, adattamento immagine, ordine casuale, musica locale (un brano o una cartella), controlli D-pad, premi di fine festa e quattro giochi con le fotografie attive, a cui gli invitati possono rispondere dal telefono.
 
 Il repository contiene anche la versione per **Apple TV** (cartella [`apple/`](apple/README.md)), scritta in Swift e SwiftUI, con le stesse funzioni tranne USB, musica e salvaschermo, che tvOS non consente, e le cartelle condivise SMB; in più legge gli album della libreria Foto della Apple TV (Foto di iCloud e album condivisi). Dagli stessi sorgenti nasce anche l'app per **Mac** (macOS 14+), per usare un Mac collegato al televisore o al proiettore come schermo della festa.
 
@@ -45,6 +45,7 @@ Il repository contiene anche la versione per **Apple TV** (cartella [`apple/`](a
 | Android TV | Vecchio telefono come telecamera e applausometro (app “IP Webcam”, solo rete locale), con lo scatto che entra nella festa | Pronta |
 | Android TV | Pulsanti quiz: gamepad, tastiere e telecomandi come pulsanti delle squadre | Pronta |
 | Android TV | Canale nella schermata Home, avvio con la TV, modalità leggera (accesa da sola con poca memoria), modalità proiettore, modalità gioco della TV (ALLM) durante i giochi, aggiornamenti dal Play Store solo a TV libera | Pronta |
+| Fire TV | Versione per l’Amazon Appstore (Fire OS 7 e 8): senza la libreria degli aggiornamenti di Google Play; sul Fire TV niente salvaschermo e canale Home (non disponibili), comandi vocali di Alexa, tasto Menu nello slideshow, aiuto per il disco USB con adattatore OTG | Pronta nel codice; da provare su un Fire TV |
 | Privacy | Nessuna pubblicità, analisi o SDK che inviano dati; token AES-GCM in Android Keystore ([DATA_SAFETY.md](docs/DATA_SAFETY.md)) | Pronta |
 | Lingue | Italiano, inglese, francese, spagnolo e tedesco, anche nella pagina per i telefoni degli invitati, che segue la lingua del telefono; inglese per le altre lingue | Pronta |
 | Google Play | Banner Leanback 320×180 nell’app; per la scheda icona 512×512, grafica 1024×500 e banner TV 1280×720; AAB firmato | Pronta |
@@ -71,7 +72,7 @@ Il progetto implementa il primo approccio perché è l’unico che soddisfa cont
 adb install -r dist/FotoFesta-TV-debug.apk
 ```
 
-In alternativa l’APK di prova si scarica dalla pagina dell’esecuzione di **Android CI** in GitHub Actions (artefatto `FotoFesta-TV-debug`).
+In alternativa l’APK di prova si scarica dalla pagina dell’esecuzione di **Android CI** in GitHub Actions: artefatto `FotoFesta-TV-debug` per Android TV e Google TV, `FotoFesta-TV-FireTV-debug` per Fire TV (sul Fire TV: Impostazioni › My Fire TV › Opzioni sviluppatore › Debug ADB e App da origini sconosciute, poi `adb connect <indirizzo>`).
 
 L’APK debug è firmato con una chiave di sviluppo fissa e pubblica (`app/debug.keystore`, password `android`), così ogni nuova build di prova si installa sopra la precedente e conserva le impostazioni. Le build di prova scaricate prima della 1.3.0 avevano una chiave diversa a ogni esecuzione: la prima volta va disinstallata la vecchia. Per una distribuzione reale usare l’Android App Bundle e una chiave di release, preferibilmente tramite Play App Signing.
 

@@ -859,4 +859,9 @@
         <item quantity="one">%d point</item>
         <item quantity="other">%d points</item>
     </plurals>
+
+    <!-- Fire TV -->
+    <string name="browser_no_usb_fire">No USB drive connected. On a Fire TV Stick, connect the drive with an OTG adapter (micro‑USB or USB‑C, with power); the Fire TV Cube has a USB port.</string>
+    <string name="settings_alexa">Voice commands with Alexa</string>
+    <string name="settings_alexa_body">During the slideshow: “Alexa, pause”, “Alexa, resume”, “Alexa, next”, “Alexa, previous”. To open the app: “Alexa, open FotoFesta TV”.</string>
 </resources>

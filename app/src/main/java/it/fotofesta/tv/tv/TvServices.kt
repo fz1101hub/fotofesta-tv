@@ -32,6 +32,13 @@ import java.net.NetworkInterface
 
 /** Piccole funzioni proprie delle TV Android: memoria, bassa latenza, avvio automatico. */
 object TvFeatures {
+    /**
+     * Fire TV di Amazon (Fire OS): niente salvaschermi di terze parti né canali nella schermata Home,
+     * aggiornamenti gestiti dall'Amazon Appstore, comandi vocali di Alexa sulla sessione multimediale.
+     */
+    fun isFireTv(context: Context): Boolean =
+        context.packageManager.hasSystemFeature(FIRE_TV_FEATURE) || Build.MODEL.orEmpty().startsWith("AFT")
+
     /** TV con poca memoria (le chiavette più economiche): si consiglia la modalità leggera. */
     fun isLowRam(context: Context): Boolean {
         val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager ?: return false
@@ -47,6 +54,7 @@ object TvFeatures {
     }
 
     private const val LOW_MEMORY_CLASS_MB = 128
+    private const val FIRE_TV_FEATURE = "amazon.hardware.fire_tv"
 }
 
 /**

@@ -104,12 +104,7 @@ import it.fotofesta.tv.ui.BuzzerScreen
 import it.fotofesta.tv.ui.CameraScreen
 import it.fotofesta.tv.ui.projectorBoost
 import it.fotofesta.tv.tv.TvFeatures
-import com.google.android.play.core.appupdate.AppUpdateManagerFactory
-import com.google.android.play.core.appupdate.AppUpdateOptions
-import com.google.android.play.core.install.InstallStateUpdatedListener
-import com.google.android.play.core.install.model.AppUpdateType
-import com.google.android.play.core.install.model.InstallStatus
-import com.google.android.play.core.install.model.UpdateAvailability
+import it.fotofesta.tv.store.StoreUpdates
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -119,19 +114,8 @@ class MainActivity : ComponentActivity() {
     private val viewModel: FotoFestaViewModel by viewModels()
     private lateinit var mediaSession: MediaSessionCompat
 
-    // Aggiornamenti dal Play Store: si scaricano in background e si installano solo a TV libera
-    // (home, festa non in corso), mai durante uno slideshow o un gioco.
-    private val updates by lazy { AppUpdateManagerFactory.create(this) }
-    private val updateFlow = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { }
-    private var updateChecked = false
-    private var updateDownloaded = false
-    private var idle = false
-    private val installListener = InstallStateUpdatedListener { install ->
-        if (install.installStatus() == InstallStatus.DOWNLOADED) {
-            updateDownloaded = true
-            installUpdateIfIdle()
-        }
-    }
+    // Aggiornamenti dallo store (Play Store; sull'Amazon Appstore li gestisce Fire OS).
+    private val storeUpdates = StoreUpdates(this)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -148,15 +132,9 @@ class MainActivity : ComponentActivity() {
             viewModel.state
                 .map { it.destination == Destination.HOME && !it.guests.active }
                 .distinctUntilChanged()
-                .collect { free ->
-                    idle = free
-                    if (free) {
-                        checkForUpdate()
-                        installUpdateIfIdle()
-                    }
-                }
+                .collect { free -> storeUpdates.setIdle(free) }
         }
-        runCatching { updates.registerListener(installListener) }
+        storeUpdates.start()
 
         setContent {
             FotoFestaTheme {
@@ -558,28 +536,6 @@ class MainActivity : ComponentActivity() {
         // Android 12 chiede le due insieme; l'hotspot vuole la posizione precisa.
         else listOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
 
-    /** Una volta per avvio, e solo nelle versioni installate dal Play Store. */
-    private fun checkForUpdate() {
-        if (updateChecked || BuildConfig.DEBUG) return
-        updateChecked = true
-        runCatching {
-            updates.appUpdateInfo.addOnSuccessListener { info ->
-                when {
-                    info.installStatus() == InstallStatus.DOWNLOADED -> {
-                        updateDownloaded = true
-                        installUpdateIfIdle()
-                    }
-                    info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE && info.isUpdateTypeAllowed(AppUpdateType.FLEXIBLE) ->
-                        runCatching { updates.startUpdateFlowForResult(info, updateFlow, AppUpdateOptions.newBuilder(AppUpdateType.FLEXIBLE).build()) }
-                }
-            }
-        }
-    }
-
-    private fun installUpdateIfIdle() {
-        if (updateDownloaded && idle) runCatching { updates.completeUpdate() }
-    }
-
     /** Gioco con i telefoni: solo durante la festa, quando la pagina degli invitati è raggiungibile. */
     @Composable
     private fun phonePlay(state: AppState): PhonePlay? {
@@ -651,6 +607,9 @@ class MainActivity : ComponentActivity() {
                 override fun onPause() = viewModel.pause()
                 override fun onSkipToNext() = viewModel.next()
                 override fun onSkipToPrevious() = viewModel.previous()
+                // Alexa e alcuni telecomandi traducono "avanti" e "indietro" in avanti e indietro veloce.
+                override fun onFastForward() = viewModel.next()
+                override fun onRewind() = viewModel.previous()
                 override fun onStop() = viewModel.pause()
             })
             setSessionActivity(
@@ -667,7 +626,8 @@ class MainActivity : ComponentActivity() {
     private fun updateMediaSession(playing: Boolean, title: String?) {
         val actions = PlaybackStateCompat.ACTION_PLAY or PlaybackStateCompat.ACTION_PAUSE or
             PlaybackStateCompat.ACTION_PLAY_PAUSE or PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
-            PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or PlaybackStateCompat.ACTION_STOP
+            PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or PlaybackStateCompat.ACTION_STOP or
+            PlaybackStateCompat.ACTION_FAST_FORWARD or PlaybackStateCompat.ACTION_REWIND
         mediaSession.setMetadata(
             MediaMetadataCompat.Builder()
                 .putString(MediaMetadataCompat.METADATA_KEY_TITLE, title ?: getString(R.string.app_name))
@@ -703,7 +663,7 @@ class MainActivity : ComponentActivity() {
     }.getOrNull()
 
     override fun onDestroy() {
-        runCatching { updates.unregisterListener(installListener) }
+        storeUpdates.stop()
         mediaSession.release()
         super.onDestroy()
     }
