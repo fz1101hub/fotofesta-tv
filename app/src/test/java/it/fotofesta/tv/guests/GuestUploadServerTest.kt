@@ -394,20 +394,21 @@ class GuestUploadServerTest {
 
     @Test
     fun `stop closes the port`() {
-        // Una porta effimera appena liberata può finire subito a una connessione in uscita di un
-        // altro test, e allora non si potrebbe occupare di nuovo anche con il server fermo: si usa
-        // una porta sotto l'intervallo effimero (32768–60999 su Linux), che nessun client riceve.
         server.stop()
         val fixed = freeLowPort()
         assertEquals(fixed, server.start(loopback, preferredPort = fixed))
         server.stop()
         assertFalse(server.isRunning)
-        // La porta si può occupare di nuovo solo se nessuno è più in ascolto. Una connessione di
-        // prova non basterebbe: la connessione a sé stessi riesce anche senza server.
-        ServerSocket().use { socket ->
-            socket.reuseAddress = true
-            socket.bind(InetSocketAddress(loopback, fixed))
+        // Senza nessuno in ascolto la connessione viene rifiutata. Ri-occupare la porta non è una
+        // prova affidabile (sui runner della CI può finire a una connessione in uscita di un altro
+        // test), e una connessione a sé stessi riesce solo se il sistema sceglie per caso la stessa
+        // porta come porta locale: tre tentativi bastano a escluderlo.
+        val refused = (1..3).any {
+            runCatching {
+                Socket().use { socket -> socket.connect(InetSocketAddress(loopback, fixed), 1_000) }
+            }.exceptionOrNull() is java.net.ConnectException
         }
+        assertTrue(refused)
     }
 
     /** Porta libera tra 20000 e 29999, fuori dall'intervallo delle porte effimere. */
