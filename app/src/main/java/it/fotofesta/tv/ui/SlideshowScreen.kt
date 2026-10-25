@@ -132,6 +132,8 @@ fun SlideshowScreen(
     onVideoAudible: (String, Boolean) -> Unit,
     /** Reazioni appena arrivate dai telefoni, da animare durante la festa. */
     reactions: Flow<PartyHub.ReactionEvent> = emptyFlow(),
+    /** Invitati appena arrivati dal QR dell'ingresso. */
+    arrivals: Flow<PartyHub.Arrival> = emptyFlow(),
     /** "Foto che invecchiano": quanto è ingiallita ogni foto (0–1). */
     photoAge: (PhotoItem) -> Float = { 0f },
     /** Perché la foto è nata in un gioco ("Missione: un brindisi"), se c'è. */
@@ -340,6 +342,7 @@ fun SlideshowScreen(
             AnnouncementOverlay(state.party.announcement)
             state.photos.getOrNull(state.currentIndex)?.let(photoTag)?.let { GameTagBadge(it) }
             state.play.treasureUrl?.let { TreasureOverlay(it) }
+            ArrivalOverlay(arrivals)
         }
 
         if (state.settings.countdown) CountdownOverlay(state.settings)

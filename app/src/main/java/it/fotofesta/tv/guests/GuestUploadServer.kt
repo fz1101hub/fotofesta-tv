@@ -48,6 +48,8 @@ class GuestUploadServer(
     private val hostPhoto: (String) -> ByteArray? = { null },
     /** Giochi con i telefoni oltre ai quiz: disegni, frasi, missioni, caccia al QR, luci. */
     private val play: PartyPlay? = null,
+    /** QR dell'ingresso e parete delle foto per un secondo schermo. */
+    private val extras: PartyExtras? = null,
     private val maxUploadBytes: Int = MAX_UPLOAD_BYTES,
     private val readTimeoutMillis: Int = READ_TIMEOUT_MS,
     private val headerDeadlineMillis: Long = HEADER_DEADLINE_MS,
@@ -288,15 +290,63 @@ class GuestUploadServer(
                 if (!remote.isHost(request.headers["x-fotofesta-host"])) throw HttpError(401, "host")
                 val id = request.query["id"].orEmpty()
                 val bytes = id.takeIf(remote::canShow)?.let(hostPhoto) ?: throw HttpError(404, "not_found")
-                val type = when (ImageFormat.sniff(bytes)) {
-                    ImageFormat.PNG -> "image/png"
-                    ImageFormat.WEBP -> "image/webp"
-                    else -> "image/jpeg"
+                Response(200, imageType(bytes), bytes)
+            }
+            // Schermo aggiuntivo (un'altra TV della casa): con il PIN della regia riceve la chiave
+            // della festa e mostra la parete delle foto. Stessi limiti di tentativi della regia.
+            "/screen/login" -> {
+                if (request.method != "POST") throw HttpError(405, "method")
+                val remote = hostRemote ?: throw HttpError(404, "not_found")
+                val form = readSmallForm(request, body, startedAt, MAX_ANSWER_BYTES)
+                when (remote.login(form["pin"], clientAddress.hostAddress.orEmpty())) {
+                    is HostRemote.Login.Accepted -> Response.json(200, """{"key":${jsonString(key)}}""")
+                    HostRemote.Login.Wrong -> throw HttpError(403, "pin")
+                    HostRemote.Login.RateLimited -> throw HttpError(429, "rate", listOf("Retry-After" to "60"))
+                    HostRemote.Login.Locked -> throw HttpError(423, "locked", listOf("Retry-After" to "300"))
+                    HostRemote.Login.Disabled -> throw HttpError(404, "not_found")
                 }
-                Response(200, type, bytes)
+            }
+            "/door", "/wall" -> {
+                if (request.method != "GET" && request.method != "HEAD") throw HttpError(405, "method")
+                val pages = extras ?: throw HttpError(404, "not_found")
+                if (!keyMatches(request.query["k"])) Response.html(403, EXPIRED_PAGE)
+                else Response.html(200, if (request.path == "/door") pages.doorPage() else pages.wallPage(), request.method == "HEAD", MEDIA_PAGE_POLICY)
+            }
+            // Per <img>, che non manda intestazioni: la chiave è nell'indirizzo, come nella pagina.
+            "/wall/state" -> {
+                if (request.method != "GET") throw HttpError(405, "method")
+                val pages = extras ?: throw HttpError(404, "not_found")
+                if (!keyMatches(request.query["k"])) throw HttpError(401, "key")
+                Response.json(200, pages.wallState())
+            }
+            "/wall/photo" -> {
+                if (request.method != "GET") throw HttpError(405, "method")
+                val pages = extras ?: throw HttpError(404, "not_found")
+                if (!keyMatches(request.query["k"])) throw HttpError(401, "key")
+                val bytes = pages.wallPhoto(request.query["id"].orEmpty()) ?: throw HttpError(404, "not_found")
+                Response(200, imageType(bytes), bytes, listOf("Cache-Control" to "private, max-age=3600"))
+            }
+            "/party/qr.svg" -> {
+                if (request.method != "GET") throw HttpError(405, "method")
+                if (!keyMatches(request.query["k"])) throw HttpError(401, "key")
+                val target = when (request.query["for"]) {
+                    "door" -> guestUrl() + "&arrivo=1"
+                    "wall" -> "http://$expectedHost/wall?k=$key"
+                    else -> guestUrl()
+                }
+                Response(200, "image/svg+xml", QrSvg.encode(target).toByteArray(Charsets.UTF_8))
             }
             else -> Response.json(404, """{"error":"not_found"}""")
         }
+    }
+
+    /** Indirizzo della pagina della festa, lo stesso del QR sulla TV. */
+    private fun guestUrl(): String = "http://$expectedHost/?k=$key"
+
+    private fun imageType(bytes: ByteArray): String = when (ImageFormat.sniff(bytes)) {
+        ImageFormat.PNG -> "image/png"
+        ImageFormat.WEBP -> "image/webp"
+        else -> "image/jpeg"
     }
 
     private fun receivePhoto(request: Request, body: InputStream, clientAddress: InetAddress, startedAt: Long): Response {
@@ -457,11 +507,11 @@ class GuestUploadServer(
             fun json(status: Int, body: String, headers: List<Pair<String, String>> = emptyList()) =
                 Response(status, "application/json; charset=utf-8", body.toByteArray(Charsets.UTF_8), headers)
 
-            fun html(status: Int, body: String, head: Boolean = false) = Response(
+            fun html(status: Int, body: String, head: Boolean = false, policy: String = PAGE_POLICY) = Response(
                 status,
                 "text/html; charset=utf-8",
                 body.toByteArray(Charsets.UTF_8),
-                listOf("Content-Security-Policy" to PAGE_POLICY),
+                listOf("Content-Security-Policy" to policy),
                 head,
             )
         }
@@ -473,7 +523,7 @@ class GuestUploadServer(
             append("Content-Type: ").append(response.contentType).append("\r\n")
             append("Content-Length: ").append(response.body.size).append("\r\n")
             append("Connection: close\r\n")
-            append("Cache-Control: no-store\r\n")
+            if (response.extraHeaders.none { it.first.equals("Cache-Control", ignoreCase = true) }) append("Cache-Control: no-store\r\n")
             append("X-Content-Type-Options: nosniff\r\n")
             append("Referrer-Policy: no-referrer\r\n")
             response.extraHeaders.forEach { (name, value) -> append(name).append(": ").append(value).append("\r\n") }
@@ -503,6 +553,11 @@ class GuestUploadServer(
 
         private const val PAGE_POLICY = "default-src 'none'; script-src 'unsafe-inline'; " +
             "style-src 'unsafe-inline'; img-src blob: data:; connect-src 'self'; " +
+            "form-action 'none'; base-uri 'none'; frame-ancestors 'none'"
+
+        /** Parete e ingresso mostrano immagini e QR serviti dalla TV stessa. */
+        private const val MEDIA_PAGE_POLICY = "default-src 'none'; script-src 'unsafe-inline'; " +
+            "style-src 'unsafe-inline'; img-src 'self' blob: data:; connect-src 'self'; " +
             "form-action 'none'; base-uri 'none'; frame-ancestors 'none'"
 
         private const val EXPIRED_PAGE = """<!doctype html><html><head><meta charset="utf-8">

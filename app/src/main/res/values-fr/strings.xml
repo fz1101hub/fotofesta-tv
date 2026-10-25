@@ -921,4 +921,41 @@
     <string name="settings_alexa_dj_body">Dites « Alexa, mets de la musique de fête » : Amazon Music ou Spotify continuent pendant que les photos défilent. Laissez la musique de fond de l’app désactivée, sinon elle prend le relais.</string>
     <string name="settings_alexa_routine">Routine « Alexa, c’est la fête ! »</string>
     <string name="settings_alexa_routine_body">Dans l’app Alexa : Routines › + › Quand vous dites « c’est la fête » › Ajouter une action › Personnalisée : « ouvre FotoFesta TV ». Ajoutez aussi les lumières et la musique si vous voulez.</string>
+
+    <!-- Ondata 8: arrivi e parete -->
+    <string name="arrival_title">%s est là !</string>
+    <string name="arrival_order">N° %d à arriver</string>
+    <string name="arrival_message">🎉 %1$s est là ! (n° %2$d)</string>
+    <string name="door_button">Entrée et mur de photos</string>
+    <string name="door_kicker">Fête</string>
+    <string name="door_title">Entrée et mur de photos</string>
+    <string name="door_subtitle">Placez le QR de l’entrée près de la porte : chaque arrivant touche « Me voilà ! » et la TV l’accueille en fanfare.</string>
+    <string name="door_entrance">Entrée</string>
+    <string name="door_entrance_body">Photographiez-le avec le téléphone, ou imprimez-le depuis la régie sur le téléphone (QR de l’entrée).</string>
+    <string name="door_wall">Mur de photos</string>
+    <string name="door_wall_body">Ouvrez-le sur un Echo Show, une tablette ou un ordinateur du même Wi‑Fi : %s</string>
+    <plurals name="door_arrived">
+        <item quantity="one">%d invité arrivé</item>
+        <item quantity="many">%d invités arrivés</item>
+        <item quantity="other">%d invités arrivés</item>
+    </plurals>
+
+    <!-- Ondata 8: schermi aggiuntivi -->
+    <string name="guests_extra_screen">Écran supplémentaire pour une autre pièce</string>
+    <string name="guests_extra_screen_body">Ce téléviseur affiche les photos de la fête lancée sur un autre téléviseur de la maison, avec le PIN de la régie.</string>
+    <string name="extra_kicker">Écran supplémentaire</string>
+    <string name="extra_title">Rejoindre la fête d’un autre téléviseur</string>
+    <string name="extra_subtitle">Lancez la fête sur le téléviseur principal, puis choisissez-le ici et saisissez le PIN de la régie qu’il affiche.</string>
+    <string name="extra_found">Fêtes sur ce réseau</string>
+    <string name="extra_searching">Recherche… La fête doit être lancée sur l’autre téléviseur, sur le même Wi‑Fi.</string>
+    <string name="extra_address">Ou l’adresse du téléviseur principal</string>
+    <string name="extra_use_address">Utiliser l’adresse</string>
+    <string name="extra_pin">PIN de la régie</string>
+    <string name="extra_pin_hint">Vous le trouverez sur le téléviseur principal, dans l’écran de la fête.</string>
+    <string name="extra_connect">Connecter</string>
+    <string name="extra_other">Choisir un autre téléviseur</string>
+    <string name="extra_wrong_pin">PIN incorrect : vérifiez celui du téléviseur principal.</string>
+    <string name="extra_unavailable">Le téléviseur principal n’accepte pas d’écrans supplémentaires : activez la régie depuis le téléphone dans ses réglages, ou patientez quelques minutes après trop de tentatives.</string>
+    <string name="extra_not_found">Le téléviseur principal ne répond pas : la fête est-elle lancée, sur le même Wi‑Fi ?</string>
+    <string name="extra_wall_empty">Les photos des invités apparaîtront ici.</string>
 </resources>

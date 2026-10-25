@@ -54,6 +54,8 @@ import it.fotofesta.tv.model.FitMode
 import it.fotofesta.tv.model.PhotoFilter
 import it.fotofesta.tv.model.PhotoItem
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import it.fotofesta.tv.guests.PartyHub
 import kotlin.math.abs
 import kotlin.random.Random
 
@@ -323,3 +325,51 @@ private const val CONFETTI_MS = 3_200
 private const val CONFETTI_PIECES = 90
 private const val OPENING_MS = 3_500L
 private const val STACK_DEPTH = 3
+
+/**
+ * Benvenuto a chi arriva dal QR dell'ingresso: il nome in grande per qualche secondo, con i
+ * coriandoli. Più arrivi insieme si mostrano uno dopo l'altro.
+ */
+@Composable
+fun BoxScope.ArrivalOverlay(arrivals: Flow<PartyHub.Arrival>) {
+    var current by remember { mutableStateOf<PartyHub.Arrival?>(null) }
+    var bursts by remember { mutableIntStateOf(0) }
+    LaunchedEffect(arrivals) {
+        arrivals.collect { arrival ->
+            current = arrival
+            bursts++
+            delay(ARRIVAL_MS)
+            current = null
+            delay(ARRIVAL_GAP_MS)
+        }
+    }
+    val arrival = current ?: return
+    ConfettiOverlay(bursts)
+    Column(
+        Modifier.align(Alignment.Center)
+            .background(
+                androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFFF7A57), Color(0xFFFF4F9A), Color(0xFF8B6CFF))),
+                RoundedCornerShape(28.dp),
+            )
+            .padding(horizontal = 56.dp, vertical = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text("🎉", fontSize = 64.sp)
+        Text(
+            stringResource(R.string.arrival_title, arrival.name),
+            style = MaterialTheme.typography.displayMedium,
+            color = Color(0xFF1A0B06),
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            stringResource(R.string.arrival_order, arrival.order),
+            style = MaterialTheme.typography.titleLarge,
+            color = Color(0xFF1A0B06).copy(alpha = .75f),
+        )
+    }
+}
+
+private const val ARRIVAL_MS = 5_000L
+private const val ARRIVAL_GAP_MS = 400L

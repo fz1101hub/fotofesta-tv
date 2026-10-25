@@ -12,6 +12,7 @@ import it.fotofesta.tv.data.KeystoreStrings
 import it.fotofesta.tv.data.SettingsRepository
 import it.fotofesta.tv.model.FitMode
 import it.fotofesta.tv.model.GuestProblem
+import it.fotofesta.tv.network.PartyBeacon
 import it.fotofesta.tv.tv.DlnaRenderer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -97,6 +98,8 @@ class GuestParty(
     private var dlnaEnabled = false
     private var dlnaAddress: InetAddress? = null
     @Volatile var dlnaFactory: (() -> DlnaRenderer)? = null
+    /** Annuncio della festa per gli schermi aggiuntivi delle altre stanze. */
+    private val beacon = PartyBeacon(context)
     /** Ogni foto salvata, dai thread del server: serve alla copia di sicurezza nella galleria. */
     @Volatile var onPhotoSaved: ((bytes: ByteArray, sender: String?) -> Unit)? = null
     private var hubSave: ScheduledFuture<*>? = null
@@ -104,6 +107,44 @@ class GuestParty(
 
     private val template by lazy {
         context.assets.open("guest/index.html").use { it.readBytes().toString(Charsets.UTF_8) }
+    }
+
+    /** Ingresso e parete delle foto: solo foto approvate degli invitati, mai la raccolta della TV. */
+    private val pages = object : PartyExtras {
+        private val door by lazy { asset("guest/door.html") }
+        private val wall by lazy { asset("guest/wall.html") }
+
+        override fun doorPage(): String = door
+
+        override fun wallPage(): String = wall
+
+        override fun wallState(): String {
+            val approved = store.photos.value.filter { it.approved }.sortedByDescending { it.receivedAtMillis }
+            val title = runCatching { context.getString(SettingsRepository(context).load().template.titleRes) }.getOrDefault("")
+            return buildString {
+                append("""{"title":""").append(GuestUploadServer.jsonString(title))
+                append(""","count":""").append(approved.size)
+                append(""","photos":[""")
+                approved.take(WALL_PHOTOS).forEachIndexed { index, photo ->
+                    if (index > 0) append(',')
+                    append("""{"id":""").append(GuestUploadServer.jsonString(photo.id))
+                    append(""","sender":""").append(photo.sender?.let { GuestUploadServer.jsonString(it) } ?: "null").append('}')
+                }
+                append("""],"messages":[""")
+                hub?.messages()?.takeLast(WALL_MESSAGES)?.forEachIndexed { index, message ->
+                    if (index > 0) append(',')
+                    append("""{"text":""").append(GuestUploadServer.jsonString(message.text))
+                    append(""","name":""").append(message.name?.let { GuestUploadServer.jsonString(it) } ?: "null").append('}')
+                }
+                append("""],"announcement":""").append(hub?.announcement()?.text?.let { GuestUploadServer.jsonString(it) } ?: "null")
+                append('}')
+            }
+        }
+
+        override fun wallPhoto(id: String): ByteArray? =
+            id.takeIf { wanted -> store.photos.value.any { it.id == wanted && it.approved } }?.let(store::read)
+
+        private fun asset(path: String) = context.assets.open(path).use { it.readBytes().toString(Charsets.UTF_8) }
     }
 
     /** All'avvio del processo: riprende la festa interrotta da poco, altrimenti cancella le foto rimaste. */
@@ -270,6 +311,7 @@ class GuestParty(
             hostRemote = host,
             hostPhoto = store::read,
             play = play,
+            extras = pages,
         )
         try {
             val port = candidate.start(address, PREFERRED_PORT)
@@ -278,6 +320,7 @@ class GuestParty(
             val url = "http://${GuestUploadServer.hostHeader(address, port)}/?k=$secret"
             _state.update { it.copy(url = url, problem = null) }
             syncDlna()
+            beacon.advertise(deviceName(), port)
         } catch (failure: IOException) {
             Log.w(TAG, "Server per le foto degli invitati non avviato", failure)
             _state.update { it.copy(url = null, problem = GuestProblem.SERVER_FAILED) }
@@ -309,6 +352,7 @@ class GuestParty(
     }
 
     private fun stopServer() {
+        beacon.stop()
         server?.stop()
         server = null
         serverAddress = null
@@ -437,6 +481,11 @@ class GuestParty(
         return WifiNetwork(ssid, password.orEmpty())
     }
 
+    /** Nome della TV per gli schermi aggiuntivi: quello scelto nelle impostazioni di Android, o il modello. */
+    private fun deviceName(): String =
+        runCatching { android.provider.Settings.Global.getString(context.contentResolver, "device_name") }.getOrNull()
+            ?.takeIf { it.isNotBlank() } ?: android.os.Build.MODEL.orEmpty().ifBlank { "FotoFesta TV" }
+
     private fun newSecret(): String {
         val bytes = ByteArray(16)
         SecureRandom().nextBytes(bytes)
@@ -464,5 +513,8 @@ class GuestParty(
         const val KEY_WIFI_PASSWORD = "wifi_password"
         const val HUB_FILE = "party_activities.json"
         const val HUB_SAVE_DELAY_SECONDS = 2L
+        /** La parete mostra le ultime 40 foto e 6 dediche. */
+        const val WALL_PHOTOS = 40
+        const val WALL_MESSAGES = 6
     }
 }

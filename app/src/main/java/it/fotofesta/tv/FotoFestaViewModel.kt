@@ -33,6 +33,7 @@ import it.fotofesta.tv.guests.WifiNetwork
 import it.fotofesta.tv.guests.guestPhotoId
 import it.fotofesta.tv.guests.toPhotoItem
 import it.fotofesta.tv.media.BackgroundMusicPlayer
+import it.fotofesta.tv.media.Fanfare
 import it.fotofesta.tv.model.AppState
 import it.fotofesta.tv.model.BrowserEntry
 import it.fotofesta.tv.model.BrowserKind
@@ -146,6 +147,9 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     private val _reactions = MutableSharedFlow<PartyHub.ReactionEvent>(extraBufferCapacity = 32, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     /** Reazioni appena arrivate dai telefoni, da animare sopra lo slideshow. */
     val reactions = _reactions.asSharedFlow()
+    private val _arrivals = MutableSharedFlow<PartyHub.Arrival>(extraBufferCapacity = 16, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    /** Invitati appena arrivati dal QR dell'ingresso: lo slideshow dà il benvenuto con la fanfara. */
+    val arrivals = _arrivals.asSharedFlow()
     private val playbackOrder = PlaybackOrder()
     /** Rete Wi‑Fi creata dalla TV per la festa, dove non c'è una rete di casa. */
     private val hotspot = TvHotspot(context)
@@ -253,6 +257,14 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         }
         partyHub.onChange = ::refreshParty
         partyPlay.onChange = ::refreshPlay
+        partyHub.onArrival = { arrival ->
+            _arrivals.tryEmit(arrival)
+            Fanfare.play()
+            // Fuori dallo slideshow il benvenuto è un messaggio in basso.
+            if (_state.value.destination != Destination.SLIDESHOW) {
+                showMessage(context.getString(R.string.arrival_message, arrival.name, arrival.order))
+            }
+        }
         partyHub.onReaction = {
             _reactions.tryEmit(it)
             guests.saveHubSoon()
@@ -310,6 +322,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             undeveloped = !developed,
             shotsTaken = partyHub.photosTaken(),
             rehearsal = rehearsalJob?.isActive == true,
+            arrivals = partyHub.arrivals().map { it.name },
         )
         val wasUndeveloped = _state.value.party.undeveloped
         _state.update { it.copy(party = party) }
@@ -782,7 +795,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             Destination.TELETEXT, Destination.SKY, Destination.STATS -> navigate(Destination.SHOWS)
             Destination.GOOGLE_CONNECT -> cancelGoogleConnect()
             Destination.SETTINGS, Destination.GAMES, Destination.GUESTS -> navigate(Destination.HOME)
-            Destination.GUEST_REVIEW, Destination.AWARDS, Destination.GUESTBOOK, Destination.ANNOUNCE -> navigate(Destination.GUESTS)
+            Destination.EXTRA_SCREEN -> navigate(Destination.GUESTS)
+            Destination.GUEST_REVIEW, Destination.AWARDS, Destination.GUESTBOOK, Destination.ANNOUNCE, Destination.DOOR -> navigate(Destination.GUESTS)
             Destination.GUEST_WIFI -> navigate(wifiReturnTo)
             Destination.FILE_BROWSER -> if (_state.value.browser.directory != null) browserUp() else closeBrowser()
             Destination.ICLOUD_LINK -> closeICloudLink()
@@ -2098,6 +2112,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         partyHub.onChange = null
         partyPlay.onChange = null
         partyHub.onReaction = null
+        partyHub.onArrival = null
         partyHub.onDirectorCommand = null
         hostRemote.onCommand = null
         super.onCleared()

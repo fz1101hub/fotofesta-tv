@@ -879,4 +879,40 @@
     <string name="settings_alexa_dj_body">Say “Alexa, play party music”: Amazon Music or Spotify keep playing while the photos go by. Leave the app’s background music off, otherwise it takes over.</string>
     <string name="settings_alexa_routine">“Alexa, party time!” routine</string>
     <string name="settings_alexa_routine_body">In the Alexa app: Routines › + › When you say “party time” › Add action › Customised: “open FotoFesta TV”. If you like, add the lights and the music too.</string>
+
+    <!-- Ondata 8: arrivi e parete -->
+    <string name="arrival_title">%s is here!</string>
+    <string name="arrival_order">Guest no. %d to arrive</string>
+    <string name="arrival_message">🎉 %1$s is here! (no. %2$d)</string>
+    <string name="door_button">Entrance and photo wall</string>
+    <string name="door_kicker">Party</string>
+    <string name="door_title">Entrance and photo wall</string>
+    <string name="door_subtitle">Put the entrance QR by the door: whoever arrives taps “I’m here!” and the TV welcomes them with a fanfare.</string>
+    <string name="door_entrance">Entrance</string>
+    <string name="door_entrance_body">Photograph it with the phone, or print it from the host page on the phone (Entrance QR).</string>
+    <string name="door_wall">Photo wall</string>
+    <string name="door_wall_body">Open it on an Echo Show, tablet or computer on the same Wi‑Fi: %s</string>
+    <plurals name="door_arrived">
+        <item quantity="one">%d guest arrived</item>
+        <item quantity="other">%d guests arrived</item>
+    </plurals>
+
+    <!-- Ondata 8: schermi aggiuntivi -->
+    <string name="guests_extra_screen">Extra screen for another room</string>
+    <string name="guests_extra_screen_body">This TV shows the photos of a party running on another TV in the house, with the host PIN.</string>
+    <string name="extra_kicker">Extra screen</string>
+    <string name="extra_title">Join the party of another TV</string>
+    <string name="extra_subtitle">Start the party on the main TV, then choose it here and type the host PIN it shows.</string>
+    <string name="extra_found">Parties on this network</string>
+    <string name="extra_searching">Searching… The party must be running on the other TV, on the same Wi‑Fi.</string>
+    <string name="extra_address">Or the address of the main TV</string>
+    <string name="extra_use_address">Use address</string>
+    <string name="extra_pin">Host PIN</string>
+    <string name="extra_pin_hint">You find it on the main TV, in the party screen.</string>
+    <string name="extra_connect">Connect</string>
+    <string name="extra_other">Choose another TV</string>
+    <string name="extra_wrong_pin">Wrong PIN: check the one on the main TV.</string>
+    <string name="extra_unavailable">The main TV doesn’t accept extra screens: turn on the host remote in its settings, or wait a few minutes after too many attempts.</string>
+    <string name="extra_not_found">The main TV is not responding: is the party running, on the same Wi‑Fi?</string>
+    <string name="extra_wall_empty">Guest photos will appear here.</string>
 </resources>

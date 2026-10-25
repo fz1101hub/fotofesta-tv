@@ -921,4 +921,41 @@
     <string name="settings_alexa_dj_body">Di «Alexa, pon música de fiesta»: Amazon Music o Spotify siguen sonando mientras pasan las fotos. Deja apagada la música de fondo de la app, si no la sustituye.</string>
     <string name="settings_alexa_routine">Rutina «Alexa, ¡fiesta!»</string>
     <string name="settings_alexa_routine_body">En la app Alexa: Rutinas › + › Cuando digas «fiesta» › Añadir acción › Personalizada: «abre FotoFesta TV». Si quieres, añade también las luces y la música.</string>
+
+    <!-- Ondata 8: arrivi e parete -->
+    <string name="arrival_title">¡%s está aquí!</string>
+    <string name="arrival_order">N.º %d en llegar</string>
+    <string name="arrival_message">🎉 ¡%1$s está aquí! (n.º %2$d)</string>
+    <string name="door_button">Entrada y muro de fotos</string>
+    <string name="door_kicker">Fiesta</string>
+    <string name="door_title">Entrada y muro de fotos</string>
+    <string name="door_subtitle">Pon el QR de la entrada junto a la puerta: quien llega toca «¡Aquí estoy!» y la TV le da la bienvenida con una fanfarria.</string>
+    <string name="door_entrance">Entrada</string>
+    <string name="door_entrance_body">Fotografíalo con el teléfono o imprímelo desde la dirección en el teléfono (QR de la entrada).</string>
+    <string name="door_wall">Muro de fotos</string>
+    <string name="door_wall_body">Ábrelo en un Echo Show, una tablet o un ordenador en la misma Wi‑Fi: %s</string>
+    <plurals name="door_arrived">
+        <item quantity="one">%d invitado llegado</item>
+        <item quantity="many">%d invitados llegados</item>
+        <item quantity="other">%d invitados llegados</item>
+    </plurals>
+
+    <!-- Ondata 8: schermi aggiuntivi -->
+    <string name="guests_extra_screen">Pantalla adicional para otra habitación</string>
+    <string name="guests_extra_screen_body">Esta TV muestra las fotos de la fiesta iniciada en otra TV de la casa, con el PIN de la dirección.</string>
+    <string name="extra_kicker">Pantalla adicional</string>
+    <string name="extra_title">Únete a la fiesta de otra TV</string>
+    <string name="extra_subtitle">Inicia la fiesta en la TV principal, luego elígela aquí y escribe el PIN de la dirección que muestra.</string>
+    <string name="extra_found">Fiestas en esta red</string>
+    <string name="extra_searching">Buscando… La fiesta debe estar iniciada en la otra TV, en la misma Wi‑Fi.</string>
+    <string name="extra_address">O la dirección de la TV principal</string>
+    <string name="extra_use_address">Usar la dirección</string>
+    <string name="extra_pin">PIN de la dirección</string>
+    <string name="extra_pin_hint">Lo encontrarás en la TV principal, en la pantalla de la fiesta.</string>
+    <string name="extra_connect">Conectar</string>
+    <string name="extra_other">Elegir otra TV</string>
+    <string name="extra_wrong_pin">PIN incorrecto: comprueba el de la TV principal.</string>
+    <string name="extra_unavailable">La TV principal no acepta pantallas adicionales: activa la dirección desde el teléfono en sus ajustes, o espera unos minutos tras demasiados intentos.</string>
+    <string name="extra_not_found">La TV principal no responde: ¿la fiesta está iniciada, en la misma Wi‑Fi?</string>
+    <string name="extra_wall_empty">Aquí aparecerán las fotos de los invitados.</string>
 </resources>

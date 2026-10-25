@@ -101,6 +101,9 @@ import it.fotofesta.tv.ui.TextPrimary
 import it.fotofesta.tv.ui.WhoTookItScreen
 import it.fotofesta.tv.ui.PhonePlay
 import it.fotofesta.tv.ui.BuzzerScreen
+import it.fotofesta.tv.ui.DoorScreen
+import it.fotofesta.tv.ui.ExtraScreen
+import it.fotofesta.tv.guests.ExtraScreenClient
 import it.fotofesta.tv.ui.CameraScreen
 import it.fotofesta.tv.ui.projectorBoost
 import it.fotofesta.tv.tv.TvFeatures
@@ -218,7 +221,7 @@ class MainActivity : ComponentActivity() {
                     Destination.TOAST, Destination.COINS -> true
                     Destination.SHOWS, Destination.REWIND, Destination.BARCODE, Destination.PHOTO_MOSAIC, Destination.CREDITS,
                     Destination.TELETEXT, Destination.SKY, Destination.STATS -> true
-                    Destination.BUZZER, Destination.CAMERA -> true
+                    Destination.BUZZER, Destination.CAMERA, Destination.DOOR, Destination.EXTRA_SCREEN -> true
                     // Il QR per incollare il link dell'album deve restare visibile.
                     Destination.ICLOUD_LINK -> true
                     else -> false
@@ -284,6 +287,7 @@ class MainActivity : ComponentActivity() {
                                 onSettings = { viewModel.pause(); viewModel.navigate(Destination.SETTINGS) },
                                 onVideoAudible = viewModel::setVideoAudible,
                                 reactions = viewModel.reactions,
+                                arrivals = viewModel.arrivals,
                                 photoAge = viewModel::photoAge,
                                 photoTag = viewModel::photoTag,
                             ) } }
@@ -424,7 +428,11 @@ class MainActivity : ComponentActivity() {
                                 onDevelop = viewModel::develop,
                                 onRehearsal = viewModel::startRehearsal,
                                 onHotspot = ::toggleHotspot,
+                                onDoor = { viewModel.navigate(Destination.DOOR) },
+                                onExtraScreen = { viewModel.navigate(Destination.EXTRA_SCREEN) },
                             )
+                            Destination.EXTRA_SCREEN -> ExtraScreen(remember { ExtraScreenClient(appServices.lanHttp) }, onBack = viewModel::back)
+                            Destination.DOOR -> DoorScreen(state.guests.url, state.party.arrivals, onBack = viewModel::back)
                             Destination.AWARDS -> AwardsScreen(
                                 awards = remember(state.photos) { PartyAwards.from(state.photos, viewModel.reactionCounts()) },
                                 onBack = { viewModel.navigate(Destination.GUESTS) },

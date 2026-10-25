@@ -38,6 +38,9 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
     /** Invitato che dirige lo slideshow dal suo telefono fino a [untilMillis]. */
     data class Director(val player: String, val name: String, val untilMillis: Long)
 
+    /** Invitato che ha inquadrato il QR dell'ingresso: [order] è la sua posizione d'arrivo, da 1. */
+    data class Arrival(val player: String, val name: String, val atMillis: Long, val order: Int)
+
     enum class Result { OK, PENDING, RATE_LIMITED, DISABLED, INVALID, FULL, QUIET }
 
     /**
@@ -67,6 +70,8 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
     private val photosByPlayer = HashMap<String, Int>()
     private var developed = false
     private var quietUntil = 0L
+    /** Arrivi dal QR dell'ingresso, in ordine. */
+    private val arrivals = LinkedHashMap<String, Arrival>()
 
     /** Comandi del regista di turno (avanti, indietro, pausa), da qualunque thread. */
     @Volatile var onDirectorCommand: ((PartyCommand) -> Unit)? = null
@@ -76,6 +81,36 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
 
     /** Ogni reazione accettata, da qualunque thread: la TV la anima sopra lo slideshow. */
     @Volatile var onReaction: ((ReactionEvent) -> Unit)? = null
+
+    /** Un invitato appena arrivato (QR dell'ingresso), da qualunque thread: la TV gli dà il benvenuto. */
+    @Volatile var onArrival: ((Arrival) -> Unit)? = null
+
+    /**
+     * Arrivo di un invitato dal QR dell'ingresso. Il benvenuto parte una volta sola per telefono;
+     * un secondo arrivo aggiorna solo il nome.
+     */
+    fun arrive(player: String, name: String?): Result {
+        if (!PhoneGame.validPlayer(player) || name == null) return Result.INVALID
+        val arrival = synchronized(this) {
+            remember(player, name)
+            val known = arrivals[player]
+            when {
+                known != null -> {
+                    arrivals[player] = known.copy(name = name)
+                    null
+                }
+                arrivals.size >= MAX_TRACKED_PLAYERS -> return Result.FULL
+                else -> Arrival(player, name, nowMillis(), arrivals.size + 1).also { arrivals[player] = it }
+            }
+        }
+        arrival?.let { onArrival?.invoke(it) }
+        onChange?.invoke()
+        return Result.OK
+    }
+
+    /** Arrivi in ordine, dal primo all'ultimo. */
+    @Synchronized
+    fun arrivals(): List<Arrival> = arrivals.values.toList()
 
     fun setFeatures(value: Features) {
         synchronized(this) {
@@ -302,6 +337,9 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
         json.put("reactions", JSONObject().apply { reactionCounts.forEach { (photo, count) -> put(photo, count) } })
         json.put("photos", JSONObject().apply { photosByPlayer.forEach { (player, count) -> put(player, count) } })
         json.put("developed", developed)
+        json.put("arrivals", JSONArray().apply {
+            arrivals.values.forEach { put(JSONObject().put("player", it.player).put("name", it.name).put("at", it.atMillis)) }
+        })
         return json.toString()
     }
 
@@ -331,6 +369,15 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
                 photosByPlayer.clear()
                 json.optJSONObject("photos")?.let { all -> all.keys().forEach { key -> photosByPlayer[key] = all.optInt(key).coerceAtLeast(0) } }
                 developed = json.optBoolean("developed")
+                arrivals.clear()
+                json.optJSONArray("arrivals")?.let { all ->
+                    for (index in 0 until minOf(all.length(), MAX_TRACKED_PLAYERS)) {
+                        val item = all.optJSONObject(index) ?: continue
+                        val player = item.optString("player").takeIf(PhoneGame::validPlayer) ?: continue
+                        val name = GuestSender.clean(item.optString("name")) ?: continue
+                        arrivals[player] = Arrival(player, name, item.optLong("at"), arrivals.size + 1)
+                    }
+                }
             }
         }.isSuccess
         if (restored) onChange?.invoke()
@@ -352,6 +399,7 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
             messageTimes.clear()
             messages.clear()
             names.clear()
+            arrivals.clear()
         }
         onChange?.invoke()
     }
@@ -359,7 +407,7 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
     /** Cosa può fare la pagina dei telefoni, in JSON. */
     @Synchronized
     fun featuresJson(): String =
-        """{"reactions":${features.reactions},"messages":${features.messages},"moderated":${features.moderateMessages}}"""
+        """{"reactions":${features.reactions},"messages":${features.messages},"moderated":${features.moderateMessages},"arrivals":true,"wall":true}"""
 
     /** Annuncio e regista di turno per la pagina del telefono [player], in JSON. */
     fun partyJson(player: String?): String {
@@ -392,12 +440,14 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
         val player = form["player"].orEmpty()
         val name = GuestSender.clean(form["name"])
         val result = when {
-            quietLeftMillis() > 0 && form["type"] != "director" -> Result.QUIET
+            // Il regista e chi arriva alla porta passano anche nei tre minuti senza telefoni.
+            quietLeftMillis() > 0 && form["type"] != "director" && form["type"] != "arrive" -> Result.QUIET
             else -> null
         } ?: when (form["type"]) {
             "react" -> react(player, form["reaction"]?.toIntOrNull() ?: -1, name)
             "message" -> message(player, form["text"], name)
             "director" -> direct(player, form["command"])
+            "arrive" -> arrive(player, name)
             else -> Result.INVALID
         }
         return when (result) {

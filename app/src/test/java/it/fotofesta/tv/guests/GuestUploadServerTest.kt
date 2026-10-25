@@ -34,6 +34,13 @@ class GuestUploadServerTest {
     private val host = HostRemote()
     private val pendingBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte(), 9, 9)
 
+    private val extras = object : PartyExtras {
+        override fun doorPage() = "<html>ingresso</html>"
+        override fun wallPage() = "<html>parete</html>"
+        override fun wallState() = """{"photos":[{"id":"foto-1","sender":null}]}"""
+        override fun wallPhoto(id: String) = if (id == "foto-1") jpeg else null
+    }
+
     @Before
     fun setUp() = startServer()
 
@@ -55,6 +62,7 @@ class GuestUploadServerTest {
             hub = hub,
             hostRemote = host,
             hostPhoto = { id -> if (id == "attesa-1") pendingBytes else null },
+            extras = extras,
             maxUploadBytes = 1_000,
             readTimeoutMillis = 2_000,
             headerDeadlineMillis = headerDeadlineMillis,
@@ -447,5 +455,53 @@ class GuestUploadServerTest {
 
     private companion object {
         const val KEY = "test-key_123"
+    }
+
+    @Test
+    fun `wall and entrance pages need the key`() {
+        assertEquals(403, get("/wall?k=sbagliata").status)
+        val wall = get("/wall?k=$KEY")
+        assertEquals(200, wall.status)
+        assertEquals("<html>parete</html>", wall.body)
+        assertTrue(wall.headers["content-security-policy"]!!.contains("img-src 'self'"))
+        assertEquals("<html>ingresso</html>", get("/door?k=$KEY").body)
+        assertEquals(401, get("/wall/state").status)
+        assertTrue(get("/wall/state?k=$KEY").body.contains("foto-1"))
+        val photo = get("/wall/photo?k=$KEY&id=foto-1")
+        assertEquals(200, photo.status)
+        assertEquals("image/jpeg", photo.headers["content-type"])
+        assertEquals("private, max-age=3600", photo.headers["cache-control"])
+        assertEquals(404, get("/wall/photo?k=$KEY&id=altra").status)
+    }
+
+    @Test
+    fun `qr codes point to the party, the entrance and the wall`() {
+        assertEquals(401, get("/party/qr.svg").status)
+        val qr = get("/party/qr.svg?k=$KEY&for=door")
+        assertEquals(200, qr.status)
+        assertEquals("image/svg+xml", qr.headers["content-type"])
+        assertTrue(qr.body.startsWith("<svg"))
+        // QR diversi per indirizzi diversi.
+        val party = get("/party/qr.svg?k=$KEY").body
+        val wall = get("/party/qr.svg?k=$KEY&for=wall").body
+        assertTrue(party != qr.body && party != wall && wall != qr.body)
+        assertEquals(QrSvg.encode("http://127.0.0.1:$port/?k=$KEY&arrivo=1"), qr.body)
+        assertEquals(QrSvg.encode("http://127.0.0.1:$port/wall?k=$KEY"), wall)
+    }
+
+    @Test
+    fun `extra screens get the key only with the host pin`() {
+        host.setEnabled(true)
+        val pin = host.pin()!!
+        fun login(value: String) = send(
+            ("POST /screen/login HTTP/1.1\r\nHost: 127.0.0.1:$port\r\nContent-Type: application/x-www-form-urlencoded\r\n" +
+                "Content-Length: ${"pin=$value".length}\r\n\r\npin=$value").toByteArray(),
+        )
+        assertEquals(403, login("000000".takeIf { it != pin } ?: "111111").status)
+        val accepted = login(pin)
+        assertEquals(200, accepted.status)
+        assertEquals("""{"key":"$KEY"}""", accepted.body)
+        host.setEnabled(false)
+        assertEquals(404, login(pin).status)
     }
 }

@@ -20,11 +20,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.DoorFront
 import androidx.compose.material.icons.rounded.WifiTethering
 import androidx.compose.material.icons.rounded.Campaign
 import androidx.compose.material.icons.rounded.PhotoCamera
 import androidx.compose.material.icons.rounded.Science
 import androidx.compose.material.icons.rounded.EmojiEvents
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
@@ -90,11 +92,15 @@ fun GuestsScreen(
     onRehearsal: () -> Unit = {},
     /** Rete Wi‑Fi creata dalla TV, dove non c'è una rete di casa. */
     onHotspot: () -> Unit = {},
+    /** Ingresso e parete delle foto (QR per la porta e per un secondo schermo). */
+    onDoor: () -> Unit = {},
+    /** Questa TV come schermo aggiuntivo della festa di un'altra TV. */
+    onExtraScreen: () -> Unit = {},
 ) {
     if (guests.active) {
-        PartyInProgress(guests, recent, onEnd, onPlay, onReview, onAwards, messageCount, pendingMessageCount, onGuestbook, hostPin, onAnnounce, undevelopedShots, onDevelop, onHotspot)
+        PartyInProgress(guests, recent, onEnd, onPlay, onReview, onAwards, messageCount, pendingMessageCount, onGuestbook, hostPin, onAnnounce, undevelopedShots, onDevelop, onHotspot, onDoor)
     } else {
-        PartyIntro(guests, onStart, onApproval, onWifi, onRehearsal, onHotspot)
+        PartyIntro(guests, onStart, onApproval, onWifi, onRehearsal, onHotspot, onExtraScreen)
     }
 }
 
@@ -106,6 +112,7 @@ private fun PartyIntro(
     onWifi: () -> Unit,
     onRehearsal: () -> Unit,
     onHotspot: () -> Unit,
+    onExtraScreen: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize().background(Background).padding(horizontal = 48.dp, vertical = 27.dp)) {
         BrandMark()
@@ -148,6 +155,11 @@ private fun PartyIntro(
                     subtitle = stringResource(R.string.guests_hotspot_body),
                     checked = guests.hotspot,
                 )
+                SettingsItem(
+                    stringResource(R.string.guests_extra_screen),
+                    onExtraScreen,
+                    subtitle = stringResource(R.string.guests_extra_screen_body),
+                )
                 Text(
                     stringResource(R.string.guests_intro),
                     modifier = Modifier.padding(top = 8.dp),
@@ -187,6 +199,7 @@ private fun PartyInProgress(
     undevelopedShots: Int?,
     onDevelop: () -> Unit,
     onHotspot: () -> Unit,
+    onDoor: () -> Unit,
 ) {
     Row(Modifier.fillMaxSize().background(Background)) {
         Column(
@@ -244,6 +257,7 @@ private fun PartyInProgress(
                         )
                     }
                     TvButton(stringResource(R.string.guests_announce), onAnnounce, icon = Icons.Rounded.Campaign)
+                    if (guests.url != null) TvButton(stringResource(R.string.door_button), onDoor, icon = Icons.Rounded.DoorFront)
                     if (undevelopedShots != null) {
                         TvButton(quantityStringResource(R.plurals.guests_develop, undevelopedShots), onDevelop, icon = Icons.Rounded.PhotoCamera)
                     }
@@ -534,3 +548,44 @@ fun GuestWifiScreen(
         }
     }
 }
+
+/**
+ * Ingresso e parete delle foto: il QR da mettere alla porta (chi arriva tocca "Eccomi!" e la TV gli
+ * dà il benvenuto) e quello della parete per un secondo schermo (Echo Show, tablet, PC).
+ */
+@Composable
+fun DoorScreen(guestUrl: String?, arrivals: List<String>, onBack: () -> Unit) {
+    Column(Modifier.fillMaxSize().background(Background).padding(horizontal = 48.dp, vertical = 27.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            SectionTitle(stringResource(R.string.door_kicker), stringResource(R.string.door_title), stringResource(R.string.door_subtitle), modifier = Modifier.weight(1f))
+            Spacer(Modifier.width(16.dp))
+            TvButton(stringResource(R.string.action_back), onBack, modifier = Modifier.initialFocus(), icon = Icons.AutoMirrored.Rounded.ArrowBack)
+        }
+        if (guestUrl == null) {
+            Text(stringResource(R.string.guests_waiting_network), style = MaterialTheme.typography.bodyLarge, color = TextSecondary)
+            return@Column
+        }
+        val wallUrl = guestUrl.replace("/?k=", "/wall?k=")
+        Row(horizontalArrangement = Arrangement.spacedBy(40.dp)) {
+            DoorCard(guestUrl + "&arrivo=1", stringResource(R.string.door_entrance), stringResource(R.string.door_entrance_body))
+            DoorCard(wallUrl, stringResource(R.string.door_wall), stringResource(R.string.door_wall_body, wallUrl))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Kicker(quantityStringResource(R.plurals.door_arrived, arrivals.size))
+                arrivals.takeLast(DOOR_NAMES).asReversed().forEach { name ->
+                    Text(name, style = MaterialTheme.typography.titleMedium, color = TextPrimary, maxLines = 1)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DoorCard(url: String, title: String, body: String) {
+    Column(Modifier.width(300.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        QrCode(url, title, Modifier.clip(RoundedCornerShape(16.dp)), size = 220.dp, padding = 14.dp)
+        Text(title, style = MaterialTheme.typography.titleLarge, color = TextPrimary)
+        Text(body, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+    }
+}
+
+private const val DOOR_NAMES = 8

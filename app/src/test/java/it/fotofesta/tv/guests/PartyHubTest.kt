@@ -49,7 +49,7 @@ class PartyHubTest {
         hub.setFeatures(PartyHub.Features(reactions = false, messages = false))
         assertEquals(PartyHub.Result.DISABLED, hub.react(giulia, 0, null))
         assertEquals(PartyHub.Result.DISABLED, hub.message(giulia, "Auguri!", null))
-        assertEquals("""{"reactions":false,"messages":false,"moderated":false}""", hub.featuresJson())
+        assertEquals("""{"reactions":false,"messages":false,"moderated":false,"arrivals":true,"wall":true}""", hub.featuresJson())
     }
 
     @Test
@@ -113,5 +113,31 @@ class PartyHubTest {
         assertTrue(hub.participants().isEmpty())
         assertEquals(0, hub.reactionCount("foto"))
         assertTrue(hub.reactionCounts().isEmpty())
+    }
+
+    @Test
+    fun `arrivals greet each phone once, in order, and survive a restart`() {
+        val hub = hub()
+        val greeted = mutableListOf<PartyHub.Arrival>()
+        hub.onArrival = { greeted += it }
+        assertEquals(PartyHub.Result.INVALID, hub.arrive(giulia, null))
+        assertEquals(PartyHub.Result.INVALID, hub.arrive("corto", "Giulia"))
+        assertEquals(200 to """{"status":"ok"}""", hub.handle(mapOf("type" to "arrive", "player" to giulia, "name" to "Giulia")))
+        now += 60_000
+        assertEquals(PartyHub.Result.OK, hub.arrive(marco, "Marco"))
+        // Di nuovo dal QR: nessun secondo benvenuto, ma il nome si aggiorna.
+        assertEquals(PartyHub.Result.OK, hub.arrive(giulia, "Giulia B."))
+        assertEquals(listOf("Giulia", "Marco"), greeted.map { it.name })
+        assertEquals(listOf(1, 2), greeted.map { it.order })
+        assertEquals(listOf("Giulia B.", "Marco"), hub.arrivals().map { it.name })
+        // Anche nei tre minuti senza telefoni si può arrivare.
+        hub.startQuiet()
+        assertEquals(200, hub.handle(mapOf("type" to "arrive", "player" to "player-sara", "name" to "Sara")).first)
+        val restored = hub()
+        restored.restore(hub.snapshot())
+        assertEquals(listOf("Giulia B.", "Marco", "Sara"), restored.arrivals().map { it.name })
+        assertEquals(listOf(1, 2, 3), restored.arrivals().map { it.order })
+        hub.clear()
+        assertTrue(hub.arrivals().isEmpty())
     }
 }

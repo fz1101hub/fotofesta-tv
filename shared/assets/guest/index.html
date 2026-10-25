@@ -120,6 +120,16 @@
       radial-gradient(circle at 66% 18%, #fff 0 2px, transparent 3px); }
   .announce p { position: relative; font: 800 1.35rem/1.25 var(--display); margin: .35rem 0 0; }
 
+  /* Arrivo dal QR dell'ingresso */
+  .arrive input[type=text] { margin-top: .8rem; background: rgba(255,255,255,.9); color: var(--on-accent); }
+  .arrive input[type=text]::placeholder { color: rgba(26,11,6,.55); }
+  .arrive input[type=text]:focus { border-color: var(--on-accent); background: #fff; }
+  .arrive-go { position: relative; margin-top: 10px; width: 100%; min-height: 54px; border: 0; border-radius: var(--button-radius); background: var(--on-accent); color: #fff; font: 800 1.1rem/1.2 var(--display); cursor: pointer; }
+  .arrive-go:disabled { opacity: .6; }
+  #arriveStatus { position: relative; margin: .6rem 0 0; font-weight: 700; }
+  #arriveStatus:empty { display: none; }
+  .links a { display: block; text-align: center; text-decoration: none; }
+
   /* Telecomando (regista e regia) */
   .remote { display: grid; grid-template-columns: 1fr 1.3fr 1fr; gap: 8px; margin-top: .7rem; }
   .remote button, .wide { min-height: 54px; font: 700 1rem/1.2 var(--display); padding: 14px 8px; border-radius: var(--radius-s); border: 0; background: var(--raised); color: var(--fg); cursor: pointer; transition: transform .1s; }
@@ -176,6 +186,15 @@
     <div class="announce-kicker" id="announceKicker"></div>
     <p id="announceText"></p>
   </div>
+
+  <!-- Arrivo dal QR dell'ingresso: la TV dà il benvenuto a chi tocca "Eccomi!". -->
+  <section id="arrive" class="announce arrive" hidden>
+    <div class="announce-kicker" id="arriveKicker"></div>
+    <p id="arriveTitle"></p>
+    <input type="text" id="arriveName" maxlength="40" autocomplete="nickname" enterkeyhint="go">
+    <button type="button" class="arrive-go" id="arriveGo"></button>
+    <p id="arriveStatus" aria-live="polite"></p>
+  </section>
 
   <!-- Tre minuti senza telefoni: la TV non accetta foto, reazioni e dediche. -->
   <div id="quiet" class="announce" hidden role="status">
@@ -282,6 +301,10 @@
       </div>
       <p class="box-title" id="hostPendingTitle" style="margin-top:1rem"></p>
       <div class="pending" id="hostPending"></div>
+      <div class="links" id="hostLinks" hidden>
+        <a class="wide" id="hostDoor" target="_blank" rel="noreferrer"></a>
+        <a class="wide" id="hostWall" target="_blank" rel="noreferrer"></a>
+      </div>
       <button type="button" class="wide" id="hostApproveAll" hidden></button>
       <button type="button" class="wide" id="hostDirector"></button>
       <button type="button" class="wide" id="hostQuiet"></button>
@@ -453,6 +476,14 @@ const IT = {
   guestName: "Invitato",
   gameRight: (points) => "Giusto! Hai " + points + (points === 1 ? " punto." : " punti."),
   gameWrong: (points) => "Peccato! Hai " + points + (points === 1 ? " punto." : " punti."),
+  arriveKicker: "Benvenuti!",
+  arriveTitle: "Scrivi il tuo nome e tocca «Eccomi!»: la TV ti darà il benvenuto.",
+  arriveName: "Il tuo nome",
+  arriveGo: "Eccomi! 🎉",
+  arriveNeedName: "Scrivi prima il tuo nome.",
+  arriveDone: "Fatto! Guarda la TV 🎉",
+  hostDoor: "QR dell’ingresso (da stampare)",
+  hostWall: "Parete delle foto per un altro schermo",
 };
 const EN = {
   announceKicker: "Announcement",
@@ -597,6 +628,14 @@ const EN = {
   guestName: "Guest",
   gameRight: (points) => "Right! You have " + points + (points === 1 ? " point." : " points."),
   gameWrong: (points) => "Not this time! You have " + points + (points === 1 ? " point." : " points."),
+  arriveKicker: "Welcome!",
+  arriveTitle: "Write your name and tap “I’m here!”: the TV will welcome you.",
+  arriveName: "Your name",
+  arriveGo: "I’m here! 🎉",
+  arriveNeedName: "Write your name first.",
+  arriveDone: "Done! Look at the TV 🎉",
+  hostDoor: "Entrance QR (to print)",
+  hostWall: "Photo wall for another screen",
 };
 const FR = {
   announceKicker: "Annonce",
@@ -741,6 +780,14 @@ const FR = {
   guestName: "Invité",
   gameRight: (points) => "Bravo ! Vous avez " + points + (points <= 1 ? " point." : " points."),
   gameWrong: (points) => "Dommage ! Vous avez " + points + (points <= 1 ? " point." : " points."),
+  arriveKicker: "Bienvenue !",
+  arriveTitle: "Écrivez votre prénom et touchez « Me voilà ! » : la TV vous souhaitera la bienvenue.",
+  arriveName: "Votre prénom",
+  arriveGo: "Me voilà ! 🎉",
+  arriveNeedName: "Écrivez d’abord votre prénom.",
+  arriveDone: "C’est fait ! Regardez la TV 🎉",
+  hostDoor: "QR de l’entrée (à imprimer)",
+  hostWall: "Mur de photos pour un autre écran",
 };
 const ES = {
   announceKicker: "Anuncio",
@@ -885,6 +932,14 @@ const ES = {
   guestName: "Invitado",
   gameRight: (points) => "¡Correcto! Tienes " + points + (points === 1 ? " punto." : " puntos."),
   gameWrong: (points) => "¡Esta vez no! Tienes " + points + (points === 1 ? " punto." : " puntos."),
+  arriveKicker: "¡Bienvenidos!",
+  arriveTitle: "Escribe tu nombre y toca «¡Aquí estoy!»: la TV te dará la bienvenida.",
+  arriveName: "Tu nombre",
+  arriveGo: "¡Aquí estoy! 🎉",
+  arriveNeedName: "Escribe primero tu nombre.",
+  arriveDone: "¡Hecho! Mira la TV 🎉",
+  hostDoor: "QR de la entrada (para imprimir)",
+  hostWall: "Muro de fotos para otra pantalla",
 };
 const DE = {
   announceKicker: "Durchsage",
@@ -1029,6 +1084,14 @@ const DE = {
   guestName: "Gast",
   gameRight: (points) => "Richtig! Du hast " + points + (points === 1 ? " Punkt." : " Punkte."),
   gameWrong: (points) => "Leider nicht! Du hast " + points + (points === 1 ? " Punkt." : " Punkte."),
+  arriveKicker: "Willkommen!",
+  arriveTitle: "Schreib deinen Namen und tippe auf „Ich bin da!“: Der Fernseher begrüßt dich.",
+  arriveName: "Dein Name",
+  arriveGo: "Ich bin da! 🎉",
+  arriveNeedName: "Schreib zuerst deinen Namen.",
+  arriveDone: "Erledigt! Schau auf den Fernseher 🎉",
+  hostDoor: "QR für den Eingang (zum Ausdrucken)",
+  hostWall: "Fotowand für einen anderen Bildschirm",
 };
 const TEXTS = { it: IT, en: EN, fr: FR, es: ES, de: DE };
 // Prima lingua del telefono che la pagina conosce, altrimenti inglese.
@@ -1115,6 +1178,10 @@ async function pollGame() {
 function showFeatures(features) {
   $("react").hidden = !features.reactions;
   $("message").hidden = !features.messages;
+  arrivalsOn = !!features.arrivals;
+  showArrive();
+  // Ingresso e parete delle foto: solo le TV che li servono (Android TV e Fire TV).
+  $("hostLinks").hidden = !features.wall;
 }
 
 function showQuiet() {
@@ -2089,6 +2156,51 @@ function upload(job) {
     request.send(job.prepared.blob);
   });
 }
+
+// Arrivo dal QR dell'ingresso ("...&arrivo=1"): nome, "Eccomi!" e la TV dà il benvenuto.
+const ARRIVING = new URLSearchParams(location.search).get("arrivo") === "1";
+const ARRIVED_KEY = "fotofesta.arrived." + KEY.slice(0, 12);
+let arrivalsOn = false;
+let arrived = false;
+try { arrived = localStorage.getItem(ARRIVED_KEY) === "1"; } catch (e) {}
+$("arriveKicker").textContent = T.arriveKicker;
+$("arriveTitle").textContent = T.arriveTitle;
+$("arriveName").placeholder = T.arriveName;
+$("arriveGo").textContent = T.arriveGo;
+$("arriveName").value = senderInput.value;
+$("hostDoor").textContent = T.hostDoor;
+$("hostDoor").href = "/door?k=" + encodeURIComponent(KEY);
+$("hostWall").textContent = T.hostWall;
+$("hostWall").href = "/wall?k=" + encodeURIComponent(KEY);
+function showArrive() {
+  $("arrive").hidden = !(ARRIVING && arrivalsOn);
+  $("arriveGo").disabled = arrived;
+  if (arrived) $("arriveStatus").textContent = T.arriveDone;
+}
+$("arriveName").addEventListener("input", () => {
+  senderInput.value = $("arriveName").value;
+  try { localStorage.setItem("fotofesta.sender", senderInput.value.trim()); } catch (e) {}
+});
+async function arrive() {
+  const name = $("arriveName").value.trim();
+  if (!name) { $("arriveStatus").textContent = T.arriveNeedName; $("arriveName").focus(); return; }
+  senderInput.value = name;
+  $("arriveGo").disabled = true;
+  let text = T.offline;
+  try {
+    const response = await sendAction({ type: "arrive" });
+    if (response.ok) {
+      arrived = true;
+      try { localStorage.setItem(ARRIVED_KEY, "1"); } catch (e) {}
+      text = T.arriveDone;
+      celebrate();
+    }
+  } catch (e) {}
+  $("arriveStatus").textContent = text;
+  $("arriveGo").disabled = arrived;
+}
+$("arriveGo").addEventListener("click", arrive);
+$("arriveName").addEventListener("keydown", (event) => { if (event.key === "Enter") arrive(); });
 
 // Coriandoli per un momento di festa: foto arrivata sulla TV, parola indovinata.
 function celebrate() {

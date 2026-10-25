@@ -878,4 +878,40 @@
     <string name="settings_alexa_dj_body">Sag „Alexa, spiele Partymusik“: Amazon Music oder Spotify laufen weiter, während die Fotos wechseln. Lass die Hintergrundmusik der App aus, sonst übernimmt sie.</string>
     <string name="settings_alexa_routine">Routine „Alexa, Party!“</string>
     <string name="settings_alexa_routine_body">In der Alexa-App: Routinen › + › Wenn du „Party“ sagst › Aktion hinzufügen › Benutzerdefiniert: „öffne FotoFesta TV“. Wenn du willst, auch Licht und Musik dazunehmen.</string>
+
+    <!-- Ondata 8: arrivi e parete -->
+    <string name="arrival_title">%s ist da!</string>
+    <string name="arrival_order">Nr. %d, der ankommt</string>
+    <string name="arrival_message">🎉 %1$s ist da! (Nr. %2$d)</string>
+    <string name="door_button">Eingang und Fotowand</string>
+    <string name="door_kicker">Party</string>
+    <string name="door_title">Eingang und Fotowand</string>
+    <string name="door_subtitle">Leg den Eingangs-QR an die Tür: Wer ankommt, tippt auf „Ich bin da!“ und der Fernseher begrüßt ihn mit einer Fanfare.</string>
+    <string name="door_entrance">Eingang</string>
+    <string name="door_entrance_body">Fotografiere ihn mit dem Telefon oder drucke ihn über die Regie auf dem Telefon aus (QR für den Eingang).</string>
+    <string name="door_wall">Fotowand</string>
+    <string name="door_wall_body">Öffne sie auf einem Echo Show, Tablet oder Computer im selben WLAN: %s</string>
+    <plurals name="door_arrived">
+        <item quantity="one">%d Gast angekommen</item>
+        <item quantity="other">%d Gäste angekommen</item>
+    </plurals>
+
+    <!-- Ondata 8: schermi aggiuntivi -->
+    <string name="guests_extra_screen">Zusätzlicher Bildschirm für einen anderen Raum</string>
+    <string name="guests_extra_screen_body">Dieser Fernseher zeigt die Fotos der Party, die auf einem anderen Fernseher im Haus läuft, mit der Regie-PIN.</string>
+    <string name="extra_kicker">Zusätzlicher Bildschirm</string>
+    <string name="extra_title">Mit der Party eines anderen Fernsehers verbinden</string>
+    <string name="extra_subtitle">Starte die Party auf dem Hauptfernseher, wähle ihn hier aus und gib die angezeigte Regie-PIN ein.</string>
+    <string name="extra_found">Partys in diesem Netz</string>
+    <string name="extra_searching">Suche läuft… Die Party muss auf dem anderen Fernseher im selben WLAN laufen.</string>
+    <string name="extra_address">Oder die Adresse des Hauptfernsehers</string>
+    <string name="extra_use_address">Adresse verwenden</string>
+    <string name="extra_pin">Regie-PIN</string>
+    <string name="extra_pin_hint">Du findest sie auf dem Hauptfernseher im Party-Bildschirm.</string>
+    <string name="extra_connect">Verbinden</string>
+    <string name="extra_other">Anderen Fernseher wählen</string>
+    <string name="extra_wrong_pin">Falsche PIN: Prüfe die auf dem Hauptfernseher.</string>
+    <string name="extra_unavailable">Der Hauptfernseher nimmt keine zusätzlichen Bildschirme an: Schalte dort die Regie per Telefon ein oder warte nach zu vielen Versuchen ein paar Minuten.</string>
+    <string name="extra_not_found">Der Hauptfernseher antwortet nicht: Läuft die Party im selben WLAN?</string>
+    <string name="extra_wall_empty">Hier erscheinen die Fotos der Gäste.</string>
 </resources>

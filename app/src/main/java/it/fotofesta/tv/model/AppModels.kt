@@ -8,7 +8,7 @@ import it.fotofesta.tv.guests.PartyHub
 enum class Destination { HOME, SETTINGS, SLIDESHOW, GAMES, MEMORY, MYSTERY, PUZZLE, WHO_TOOK_IT, POLL, LOTTERY, GOOGLE_CONNECT, GUESTS, GUEST_REVIEW, AWARDS, GUESTBOOK, ANNOUNCE, GUEST_WIFI, FILE_BROWSER, ICLOUD_LINK, SMB_LOGIN,
     PARTY_GAMES, PLAY, TOURNAMENT, BETS, TOAST, COINS,
     SHOWS, REWIND, BARCODE, PHOTO_MOSAIC, CREDITS, TELETEXT, SKY, STATS,
-    BUZZER, CAMERA }
+    BUZZER, CAMERA, DOOR, EXTRA_SCREEN }
 
 enum class TransitionType(@StringRes val labelRes: Int) {
     FADE(R.string.transition_fade),
@@ -232,6 +232,8 @@ data class PartyUiState(
     val shotsTaken: Int = 0,
     /** Prova generale in corso, con telefoni simulati. */
     val rehearsal: Boolean = false,
+    /** Nomi di chi è arrivato dal QR dell'ingresso, in ordine. */
+    val arrivals: List<String> = emptyList(),
 )
 
 /** Giochi con i telefoni: gioco in corso, caccia al QR, luci e monete. */
