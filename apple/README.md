@@ -33,6 +33,24 @@ Le **cartelle di rete** funzionano come su Android ([CONFIGURATION.md](../docs/C
 
 AirPlay non è un modo per mandare foto alla festa: lo gestisce tvOS sopra l'app, e le app non possono riceverlo. Le foto trasmesse coprono lo slideshow e non entrano nella raccolta. La schermata della festa suggerisce di limitare l'accesso ad AirPlay alle persone di casa (Impostazioni › AirPlay e HomeKit).
 
+## Funzioni della festa allineate ad Android (ondate 8–12)
+
+Le funzioni nate su Android TV e Fire TV ci sono anche su Apple TV e Mac, con lo stesso server della festa (Network.framework) e la stessa pagina per i telefoni (`shared/assets/guest/`):
+
+| Ondata | Funzioni su Apple TV e Mac | Differenze |
+| --- | --- | --- |
+| 8–9 (invitati) | Arrivi con il QR dell'ingresso e la parete delle foto (`/door`, `/wall`), muro di telefoni, richieste di canzoni, ricevuta per cancellare la propria foto, album della festa in ZIP, video brevi degli invitati | Niente silent disco né musica: tvOS non riproduce file audio scelti dall'utente |
+| 10 (organizzazione) | Preparazione dalla regia (nome, colore, logo, sponsor, scaletta, invitati attesi, quiz, foto da piccoli), cornice, sponsor tra le foto, prossimo momento della scaletta annunciato all'ora giusta, margini dello schermo, annunci letti ad alta voce (AVSpeechSynthesizer), chiosco con PIN, festa sempre attiva, azzeramento notturno | Esporta e importa `fotofesta-config.json` solo sul Mac (tvOS non ha file); niente correzione trapezoidale né pulsante Bluetooth |
+| 11 (giochi ed effetti) | Chi non c'è, opera d'arte, la festa suona (carillon generato con AVAudioEngine), QR vivente, sogno, museo, capitoli, accadde oggi (libreria Foto), trova le differenze, quiz dei festeggiati, chi è da piccolo, panoramiche che scorrono, festa rivale, TV che si annoia | Niente "indovina la canzone": serve la musica |
+| 12 (hardware) | Luci Hue, WLED e Nanoleaf trovate con Bonjour, stampa AirPrint (IPP), scontrini ESC/POS, server FTP per le fotocamere Wi‑Fi, Live Photo che si animano, foto HDR (tvOS 18 / macOS 15) | Sul Mac anche fotocamera USB (Image Capture) e cartella a caldo; niente chiavetta né canale TV |
+
+In più, per Mac e Apple TV insieme:
+
+- **Comandi rapidi e Siri** (App Intents): avvia la festa, mostra le foto, foto successiva, annuncio e chiudi la festa (con il PIN del chiosco). Le frasi sono in cinque lingue (`AppShortcuts.strings`).
+- **Cabina fotografica**: quattro scatti con il conto alla rovescia e, se si vuole, una smorfia diversa per scatto; la striscia, con il colore dell'evento, entra nella festa. Sul Mac usa la fotocamera integrata o un iPhone vicino; sulla Apple TV un iPhone o un iPad collegato con Continuity Camera (tvOS 17).
+
+I protocolli (luci, IPP, ESC/POS, FTP, ZIP, ricevute, scaletta, chiosco, configurazione, giochi) stanno nel pacchetto `FotoFestaCore` con i loro test; le schermate in `FotoFestaTV/Sources`. Le chiavi delle luci restano nel Portachiavi, il PIN del chiosco solo come impronta SHA-256 con il sale.
+
 ## App per Mac
 
 Il target `FotoFestaMac` compila per macOS 14 o successivo gli stessi sorgenti SwiftUI dell'app Apple TV e lo stesso pacchetto `FotoFestaCore`: schermate, slideshow, giochi, festa con i telefoni, Google Foto, libreria Foto e cartelle di rete sono identici. Il Mac collegato a un televisore o a un proiettore (cavo HDMI o AirPlay verso una Apple TV) fa da schermo della festa.
@@ -47,9 +65,9 @@ Le differenze stanno tutte in `FotoFestaTV/Sources/Platform.swift`:
 | `UIImage`, `AVPlayerLayer` in una `UIView` | `NSImage`, `AVPlayerLayer` in una `NSView` |
 | Una scena a tutto schermo | Una sola finestra (niente due server della festa), a tutto schermo con ⌃⌘F; l'app si chiude con l'ultima finestra |
 
-I testi che citano Apple TV, telecomando o Impostazioni di tvOS hanno una versione per Mac in `scripts/translations/mac.json`, che `strings.py` trasforma in `FotoFestaMac/Resources/<lingua>.lproj/Mac.strings`; `L()` guarda prima lì. Icona e logo sono in `FotoFestaMac/Resources/Assets.xcassets`. L'app gira nella sandbox (`FotoFestaMac.entitlements`: rete in uscita, server della festa in entrata, libreria Foto) con hardened runtime. Sul Mac la ricerca dei server DLNA in multicast non richiede entitlement speciali.
+I testi che citano Apple TV, telecomando o Impostazioni di tvOS hanno una versione per Mac in `scripts/translations/mac.json`, che `strings.py` trasforma in `FotoFestaMac/Resources/<lingua>.lproj/Mac.strings`; `L()` guarda prima lì. Icona e logo sono in `FotoFestaMac/Resources/Assets.xcassets`. L'app gira nella sandbox (`FotoFestaMac.entitlements`: rete in uscita, server della festa in entrata, libreria Foto, file scelti dall'utente, fotocamera e USB per la cabina e la fotocamera collegata) con hardened runtime. Sul Mac la ricerca dei server DLNA in multicast non richiede entitlement speciali.
 
-Il bundle ID è `it.fotofesta.tv` come su Apple TV, così in App Store Connect la versione Mac si aggiunge alla stessa app ("acquisto universale"). Non ci sono ancora le cartelle locali del Mac (Finder) come sorgente: si possono aggiungere in seguito con `NSOpenPanel` e un segnalibro con ambito di sicurezza.
+Il bundle ID è `it.fotofesta.tv` come su Apple TV, così in App Store Connect la versione Mac si aggiunge alla stessa app ("acquisto universale"). Le cartelle locali del Mac non sono ancora una sorgente dello slideshow, ma una cartella scelta dall'utente (segnalibro con ambito di sicurezza) può fare da cartella a caldo: le foto nuove entrano nella festa.
 
 ## Struttura
 

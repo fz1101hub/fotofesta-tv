@@ -3,6 +3,7 @@ import Foundation
 import ImageIO
 import Network
 import Observation
+import Security
 import UniformTypeIdentifiers
 
 /// Dispositivi della festa scelti nelle impostazioni, salvati in UserDefaults.
@@ -49,11 +50,18 @@ final class PartyDevices {
         let http = URLSessionHTTPClient(session: URLSession(configuration: configuration), maxBytes: 256 * 1024, allowRedirect: { _ in false })
         lights = PartyLightsClient(http: http)
         ipp = IppClient(http: http)
-        config = UserDefaults.standard.data(forKey: Self.key).flatMap { try? JSONDecoder().decode(DeviceSettings.self, from: $0) } ?? DeviceSettings()
+        var stored = UserDefaults.standard.data(forKey: Self.key).flatMap { try? JSONDecoder().decode(DeviceSettings.self, from: $0) } ?? DeviceSettings()
+        // Le luci, con le chiavi di abbinamento, stanno nel Portachiavi.
+        stored.lights = LightsKeychain.read().flatMap { try? JSONDecoder().decode([PartyLights.Device].self, from: $0) } ?? []
+        config = stored
     }
 
     private func save() {
-        if let data = try? JSONEncoder().encode(config) { UserDefaults.standard.set(data, forKey: Self.key) }
+        var plain = config
+        plain.lights = []
+        if let data = try? JSONEncoder().encode(plain) { UserDefaults.standard.set(data, forKey: Self.key) }
+        let lights = try? JSONEncoder().encode(config.lights)
+        LightsKeychain.write(config.lights.isEmpty ? nil : lights)
     }
 
     // MARK: Ricerca nella rete
@@ -283,5 +291,34 @@ final class PartyDevices {
         ftp?.stop()
         ftp = nil
         ftpPort = nil
+    }
+}
+
+/// Luci abbinate con le loro chiavi, nel Portachiavi e solo su questo dispositivo.
+private enum LightsKeychain {
+    private static let query: [String: Any] = [
+        kSecClass as String: kSecClassGenericPassword,
+        kSecAttrService as String: "it.fotofesta.tv.devices",
+        kSecAttrAccount as String: "partyLights",
+    ]
+
+    static func read() -> Data? {
+        var request = query
+        request[kSecReturnData as String] = true
+        request[kSecMatchLimit as String] = kSecMatchLimitOne
+        var result: AnyObject?
+        guard SecItemCopyMatching(request as CFDictionary, &result) == errSecSuccess else { return nil }
+        return result as? Data
+    }
+
+    static func write(_ value: Data?) {
+        SecItemDelete(query as CFDictionary)
+        guard let value else { return }
+        var item = query
+        item[kSecValueData as String] = value
+        #if os(tvOS)
+        item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        #endif
+        SecItemAdd(item as CFDictionary, nil)
     }
 }
