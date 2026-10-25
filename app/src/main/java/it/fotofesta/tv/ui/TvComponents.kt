@@ -43,6 +43,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.offset
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
@@ -259,6 +261,27 @@ fun Badge(text: String, modifier: Modifier = Modifier) {
 }
 
 /** Voce di un elenco di impostazioni: titolo, descrizione e a destra il valore o un interruttore. */
+/**
+ * Margini (percentuale per lato) e correzione trapezio per TV e proiettori: il contenuto si
+ * stringe e, con [keystone], si inclina un poco all'indietro o in avanti.
+ */
+fun Modifier.screenAdjust(marginPercent: Int, keystone: Int): Modifier {
+    if (marginPercent == 0 && keystone == 0) return this
+    return this
+        .layout { measurable, constraints ->
+            val dx = (constraints.maxWidth * marginPercent / 100f).toInt()
+            val dy = (constraints.maxHeight * marginPercent / 100f).toInt()
+            val placeable = measurable.measure(constraints.offset(-2 * dx, -2 * dy))
+            layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(dx, dy) }
+        }
+        .graphicsLayer {
+            rotationX = keystone * KEYSTONE_DEGREES
+            cameraDistance = 24f * density
+        }
+}
+
+private const val KEYSTONE_DEGREES = 1.6f
+
 @Composable
 fun SettingsItem(
     title: String,

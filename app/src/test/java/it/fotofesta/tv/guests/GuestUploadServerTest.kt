@@ -26,6 +26,7 @@ class GuestUploadServerTest {
     private var photoId: String? = null
     private val deleted = mutableListOf<String>()
     private var videoBytes: ByteArray? = null
+    private var joinCode: String? = null
     private lateinit var server: GuestUploadServer
     private var port = 0
 
@@ -72,6 +73,7 @@ class GuestUploadServerTest {
                 GuestUploadServer.Upload(result, photoId)
             },
             onDeletePhoto = { id -> deleted.add(id) },
+            joinCode = { joinCode },
             onVideo = { input, length, _, _ ->
                 videoBytes = input.readNBytes(length.toInt())
                 GuestUploadServer.Upload(GuestUploadServer.UploadResult.SHOWN, "b1b2c3d4e5f60718")
@@ -528,6 +530,22 @@ class GuestUploadServerTest {
         assertTrue(deleted.isEmpty())
         assertEquals(200, postForm("/photos/delete", "id=a1b2c3d4e5f60718&receipt=$receipt").status)
         assertEquals(listOf("a1b2c3d4e5f60718"), deleted)
+    }
+
+    @Test
+    fun `festa local with the four digit code`() {
+        assertEquals(403, get("/").status)
+        joinCode = "4821"
+        assertEquals(421, get("/", host = "altro.local:$port").status)
+        val page = get("/", host = "festa.local:$port")
+        assertEquals(200, page.status)
+        assertTrue(page.body.contains("/join"))
+        assertEquals(403, postForm("/join", "code=1111", key = null).status)
+        val joined = postForm("/join", "code=4821", key = null)
+        assertEquals(200, joined.status)
+        assertEquals(KEY, JSONObject(joined.body).getString("key"))
+        repeat(5) { postForm("/join", "code=0000", key = null) }
+        assertEquals(429, postForm("/join", "code=4821", key = null).status)
     }
 
     @Test

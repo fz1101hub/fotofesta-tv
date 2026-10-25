@@ -84,6 +84,7 @@ import coil.size.Precision
 import coil.size.Scale
 import it.fotofesta.tv.R
 import it.fotofesta.tv.guests.PartyHub
+import it.fotofesta.tv.guests.PartySetup
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import it.fotofesta.tv.model.AppState
@@ -148,6 +149,10 @@ fun SlideshowScreen(
     photoTag: (PhotoItem) -> String? = { null },
     /** Slideshow a ritmo: millisecondi al prossimo battito (ogni N battiti) dopo un minimo; null senza ritmo. */
     nextBeatIn: (minMs: Long, every: Int) -> Long? = { _, _ -> null },
+    /** Nome, logo, scaletta e sponsor della festa, preparati dalla regia. */
+    setup: PartySetup.State = PartySetup.State(),
+    loadLogo: () -> ByteArray? = { null },
+    loadSponsor: (String) -> ByteArray? = { null },
 ) {
     val photo = state.photos.getOrNull(state.currentIndex)
     val screenFocus = remember { FocusRequester() }
@@ -253,6 +258,14 @@ fun SlideshowScreen(
                     KeyEvent.KEYCODE_MEDIA_PAUSE -> { if (state.isPlaying) onToggle(); true }
                     KeyEvent.KEYCODE_MEDIA_PREVIOUS, KeyEvent.KEYCODE_MEDIA_REWIND -> { onPrevious(); true }
                     KeyEvent.KEYCODE_MEDIA_NEXT, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> { onNext(); true }
+                    // Pulsante Bluetooth da tavolo (gli scatti a distanza mandano "fotocamera" o "volume su").
+                    KeyEvent.KEYCODE_CAMERA, KeyEvent.KEYCODE_VOLUME_UP -> if (state.settings.tableButton) {
+                        if (event.nativeKeyEvent.repeatCount == 0) {
+                            onNext()
+                            confetti++
+                        }
+                        true
+                    } else false
                     // Le frecce agiscono sullo slideshow solo quando il focus non è sui pulsanti.
                     KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER ->
                         screenFocused.also { if (it && event.nativeKeyEvent.repeatCount == 0) onToggle() }
@@ -354,6 +367,10 @@ fun SlideshowScreen(
             )
         }
 
+        val logo = rememberPartyImage(setup.brand.hasLogo to setup.brand.logoStamp) { if (setup.brand.hasLogo) loadLogo() else null }
+        if (photo != null) EventFrame(state.settings.frameStyle, setup.brand, logo)
+        ScheduleBadge(setup.schedule, Modifier.align(Alignment.TopEnd).padding(end = 48.dp, top = if (state.settings.showClock) 84.dp else 27.dp))
+
         if (photo != null && state.guests.active && state.guests.qrInSlideshow) {
             SlideshowGuestQr(state.guests, Modifier.align(Alignment.TopStart).padding(horizontal = 48.dp, vertical = 27.dp))
         }
@@ -396,6 +413,7 @@ fun SlideshowScreen(
             NewsOverlay(partyTitle, photoTag(photo) ?: photo.sender?.let { stringResource(R.string.guest_photo_from, it) }, ticker)
         }
         if (state.settings.openingTitles) OpeningTitles(partyTitle, rememberTodayText())
+        SponsorOverlay(state.slideTick, state.settings.sponsorEvery, setup.sponsors, loadSponsor)
 
         Column(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(start = 48.dp, end = 48.dp, bottom = 32.dp),

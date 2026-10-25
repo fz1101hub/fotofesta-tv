@@ -155,6 +155,7 @@ dependencies {
     // Canale di FotoFesta nella schermata Home della TV; aggiornamenti solo nella versione per Google Play.
     implementation("androidx.tvprovider:tvprovider:1.0.0")
     "playImplementation"("com.google.android.play:app-update-ktx:2.1.0")
+    "playImplementation"("com.google.android.play:review-ktx:2.0.1")
     // Play Core porta Fragment 1.1: serve almeno la 1.3 per i launcher dei risultati (permessi, selettori).
     implementation("androidx.fragment:fragment-ktx:1.8.5")
 

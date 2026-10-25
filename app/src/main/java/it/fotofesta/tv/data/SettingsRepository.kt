@@ -5,6 +5,7 @@ import android.content.Context
 import it.fotofesta.tv.model.Countdown
 import it.fotofesta.tv.model.CountdownEvent
 import it.fotofesta.tv.model.FitMode
+import it.fotofesta.tv.model.FrameStyle
 import it.fotofesta.tv.model.PhotoFilter
 import it.fotofesta.tv.model.PhotoLimit
 import it.fotofesta.tv.model.PartyTemplate
@@ -27,6 +28,64 @@ class SettingsRepository(context: Context) {
     private val prefs = context.getSharedPreferences("slideshow_settings", Context.MODE_PRIVATE)
     private val sources = context.getSharedPreferences("device_sources", Context.MODE_PRIVATE)
     private val lowRam by lazy { TvFeatures.isLowRam(context) }
+
+    /** Si può chiedere una recensione: mai chiesta, o non negli ultimi [everyMillis]. */
+    fun reviewDue(everyMillis: Long): Boolean = System.currentTimeMillis() - sources.getLong("review_asked", 0L) > everyMillis
+
+    fun markReviewAsked() = sources.edit().putLong("review_asked", System.currentTimeMillis()).apply()
+
+    /** PIN del chiosco: si salva solo un'impronta con il sale, mai il PIN. */
+    fun savePin(pin: String?) {
+        if (pin == null) {
+            sources.edit().remove("kiosk_pin").remove("kiosk_salt").apply()
+            return
+        }
+        val salt = ByteArray(16).also(java.security.SecureRandom()::nextBytes)
+        val saltText = java.util.Base64.getEncoder().encodeToString(salt)
+        sources.edit().putString("kiosk_salt", saltText).putString("kiosk_pin", pinHash(pin, saltText)).apply()
+    }
+
+    fun hasPin(): Boolean = sources.contains("kiosk_pin")
+
+    fun pinMatches(pin: String): Boolean {
+        val salt = sources.getString("kiosk_salt", null) ?: return false
+        val expected = sources.getString("kiosk_pin", null) ?: return false
+        return java.security.MessageDigest.isEqual(expected.toByteArray(), pinHash(pin, salt).toByteArray())
+    }
+
+    private fun pinHash(pin: String, salt: String): String {
+        val digest = java.security.MessageDigest.getInstance("SHA-256").digest((salt + ":" + pin).toByteArray(Charsets.UTF_8))
+        return java.util.Base64.getEncoder().encodeToString(digest)
+    }
+
+    /** Impostazioni dello slideshow e della festa, per un'altra TV o una chiavetta pronta all'uso. */
+    fun exportSettings(): org.json.JSONObject = org.json.JSONObject().apply {
+        prefs.all.forEach { (key, value) ->
+            when (value) {
+                is Boolean -> put(key, org.json.JSONObject().put("b", value))
+                is Int -> put(key, org.json.JSONObject().put("i", value))
+                is Long -> put(key, org.json.JSONObject().put("l", value))
+                is Float -> put(key, org.json.JSONObject().put("f", value.toDouble()))
+                is String -> put(key, org.json.JSONObject().put("s", value))
+            }
+        }
+    }
+
+    /** Il contrario di [exportSettings]; i valori di tipo sconosciuto si saltano. */
+    fun importSettings(json: org.json.JSONObject) {
+        val editor = prefs.edit()
+        json.keys().forEach { key ->
+            val entry = json.optJSONObject(key) ?: return@forEach
+            when {
+                entry.has("b") -> editor.putBoolean(key, entry.optBoolean("b"))
+                entry.has("i") -> editor.putInt(key, entry.optInt("i"))
+                entry.has("l") -> editor.putLong(key, entry.optLong("l"))
+                entry.has("f") -> editor.putFloat(key, entry.optDouble("f").toFloat())
+                entry.has("s") -> editor.putString(key, entry.optString("s"))
+            }
+        }
+        editor.apply()
+    }
 
     /** Brano o cartella di brani ([folder]) scelti per la musica di sottofondo. */
     data class SavedMusic(val uri: String, val name: String, val folder: Boolean = false)
@@ -52,6 +111,15 @@ class SettingsRepository(context: Context) {
         guestAlbum = prefs.getBoolean("guest_album", true),
         fixedAddress = prefs.getBoolean("fixed_address", false),
         guestVideos = prefs.getBoolean("guest_videos", true),
+        frameStyle = enumValueOrDefault(prefs.getString("frame_style", null), FrameStyle.NONE),
+        sponsorEvery = prefs.getInt("sponsor_every", 0).takeIf { it in SPONSOR_OPTIONS } ?: 0,
+        screenMargin = prefs.getInt("screen_margin", 0).takeIf { it in MARGIN_OPTIONS } ?: 0,
+        keystone = prefs.getInt("keystone", 0).coerceIn(-4, 4),
+        tableButton = prefs.getBoolean("table_button", false),
+        speakAnnouncements = prefs.getBoolean("speak_announcements", false),
+        kiosk = prefs.getBoolean("kiosk", false),
+        alwaysParty = prefs.getBoolean("always_party", false),
+        nightlyReset = prefs.getInt("nightly_reset", -1).takeIf { it in RESET_OPTIONS } ?: -1,
         kenBurns = prefs.getBoolean("ken_burns", false),
         sleepTimerMinutes = prefs.getInt("sleep_timer", 0),
         countdown = prefs.getBoolean("countdown", false),
@@ -96,6 +164,15 @@ class SettingsRepository(context: Context) {
             .putBoolean("guest_album", value.guestAlbum)
             .putBoolean("fixed_address", value.fixedAddress)
             .putBoolean("guest_videos", value.guestVideos)
+            .putString("frame_style", value.frameStyle.name)
+            .putInt("sponsor_every", value.sponsorEvery)
+            .putInt("screen_margin", value.screenMargin)
+            .putInt("keystone", value.keystone)
+            .putBoolean("table_button", value.tableButton)
+            .putBoolean("speak_announcements", value.speakAnnouncements)
+            .putBoolean("kiosk", value.kiosk)
+            .putBoolean("always_party", value.alwaysParty)
+            .putInt("nightly_reset", value.nightlyReset)
             .putBoolean("ken_burns", value.kenBurns)
             .putInt("sleep_timer", value.sleepTimerMinutes)
             .putBoolean("countdown", value.countdown)
@@ -254,3 +331,15 @@ class SettingsRepository(context: Context) {
     private inline fun <reified T : Enum<T>> enumValueOrDefault(value: String?, default: T): T =
         value?.let { runCatching { enumValueOf<T>(it) }.getOrNull() } ?: default
 }
+
+/** Ogni quante foto uno sponsor: mai, 5, 10 o 20. */
+val SPONSOR_OPTIONS = listOf(0, 5, 10, 20)
+
+/** Margini dello schermo in percentuale. */
+val MARGIN_OPTIONS = listOf(0, 2, 4, 6)
+
+/** Ora dell'azzeramento notturno: mai, o dalle 3 alle 6. */
+val RESET_OPTIONS = listOf(-1, 3, 4, 5, 6)
+
+/** Correzione trapezio, nell'ordine in cui la scorre l'impostazione. */
+val KEYSTONE_OPTIONS = listOf(0, 1, 2, 3, 4, -4, -3, -2, -1)

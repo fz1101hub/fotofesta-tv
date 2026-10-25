@@ -53,6 +53,9 @@ import it.fotofesta.tv.model.PartyShows
 import it.fotofesta.tv.model.PartyUiState
 import it.fotofesta.tv.model.PlayUiState
 import it.fotofesta.tv.model.PhotoLimit
+import it.fotofesta.tv.model.PinPurpose
+import it.fotofesta.tv.model.CheckStatus
+import it.fotofesta.tv.model.NetworkCheck
 import it.fotofesta.tv.model.PlaybackOrder
 import it.fotofesta.tv.model.PrizeDraw
 import it.fotofesta.tv.model.SettingsCategory
@@ -150,6 +153,24 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     /** Giochi con i telefoni oltre ai quiz. */
     private val partyPlay = services.partyPlay
     private val phoneWall = services.phoneWall
+    private val partySetup = services.partySetup
+    /** Nome, logo, scaletta e sponsor della festa, per la cornice e lo slideshow. */
+    val setup = partySetup.state
+    // Chiosco, scaletta, azzeramento notturno e annunci letti: prima di init, che li usa subito.
+    private val _reviewRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+    /** Dopo una festa riuscita: l'attività chiede una recensione allo store. */
+    val reviewRequests = _reviewRequests.asSharedFlow()
+    private var unlockedUntil = 0L
+    private val _exitRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+    /** Il chiosco ha confermato l'uscita dall'app con il PIN. */
+    val exitRequests = _exitRequests.asSharedFlow()
+    private val announcedSlots = mutableSetOf<String>()
+    private var lastResetDay = -1
+    private var autoPartyChecked = false
+    private var lastSpokenSerial = -1L
+    private var tts: android.speech.tts.TextToSpeech? = null
     /** Regia dal telefono: i comandi arrivano dai thread del server e si eseguono qui. */
     private val hostRemote = services.hostRemote
     private val _reactions = MutableSharedFlow<PartyHub.ReactionEvent>(extraBufferCapacity = 32, onBufferOverflow = BufferOverflow.DROP_OLDEST)
@@ -265,6 +286,12 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             }.collect { change -> onGuestsChanged(change.party, change.photos, change.ready, change.videos) }
         }
         partyHub.onChange = ::refreshParty
+        viewModelScope.launch {
+            while (true) {
+                tickClock()
+                delay(20_000)
+            }
+        }
         partyPlay.onChange = ::refreshPlay
         phoneWall.onChange = { _state.update { it.copy(phoneWall = phoneWall.state()) } }
         partyHub.onArrival = { arrival ->
@@ -344,6 +371,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         )
         val wasUndeveloped = _state.value.party.undeveloped
         _state.update { it.copy(party = party) }
+        party.announcement?.let { viewModelScope.launch { speakAnnouncement(it) } }
         guests.saveHubSoon()
         // Il rullino appena sviluppato (o la regola cambiata) cambia le foto in mostra.
         if (wasUndeveloped != !developed) viewModelScope.launch { applyCollection(restart = false) }
@@ -500,6 +528,70 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         val page = folder.createFile("text/html", context.getString(R.string.capsule_file) + ".html") ?: throw IOException("File non creato")
         context.contentResolver.openOutputStream(page.uri)?.use { it.write(html.toByteArray(Charsets.UTF_8)) } ?: throw IOException("File non scritto")
         return opens
+    }
+
+    /**
+     * Impostazioni, preparazione della festa (nome, logo, scaletta, sponsor, invitati attesi) e
+     * Wi‑Fi degli invitati in FotoFesta/fotofesta-config.json sulla chiavetta: per preparare
+     * un'altra TV o una chiavetta da prestare.
+     */
+    fun exportSetup() {
+        val tree = settingsRepository.loadUsbBackup()?.first?.let(Uri::parse)
+        if (tree == null) {
+            showMessage(context.getString(R.string.message_capsule_no_usb))
+            return
+        }
+        viewModelScope.launch {
+            val ok = withContext(Dispatchers.IO) {
+                runCatching {
+                    val json = org.json.JSONObject().apply {
+                        put("fotofesta", 1)
+                        put("settings", settingsRepository.exportSettings())
+                        put("setup", org.json.JSONObject(partySetup.exportJson()))
+                        guests.wifiForExport()?.let { put("wifi", org.json.JSONObject().put("ssid", it.ssid).put("password", it.password)) }
+                    }
+                    val root = DocumentFile.fromTreeUri(context, tree) ?: throw IOException("Chiavetta non trovata")
+                    val app = root.findFile(USB_BACKUP_FOLDER)?.takeIf { it.isDirectory } ?: root.createDirectory(USB_BACKUP_FOLDER)
+                    app?.findFile(CONFIG_FILE)?.delete()
+                    val file = app?.createFile("application/json", CONFIG_FILE) ?: throw IOException("File non creato")
+                    context.contentResolver.openOutputStream(file.uri)?.use { it.write(json.toString(2).toByteArray()) } ?: throw IOException("File non scritto")
+                }.isSuccess
+            }
+            showMessage(context.getString(if (ok) R.string.message_export_done else R.string.message_export_failed))
+        }
+    }
+
+    /** Il contrario di [exportSetup], dallo stesso file della chiavetta. */
+    fun importSetup() {
+        val tree = settingsRepository.loadUsbBackup()?.first?.let(Uri::parse)
+        if (tree == null) {
+            showMessage(context.getString(R.string.message_capsule_no_usb))
+            return
+        }
+        viewModelScope.launch {
+            val json = withContext(Dispatchers.IO) {
+                runCatching {
+                    val root = DocumentFile.fromTreeUri(context, tree) ?: throw IOException("Chiavetta non trovata")
+                    val file = root.findFile(USB_BACKUP_FOLDER)?.findFile(CONFIG_FILE) ?: root.findFile(CONFIG_FILE) ?: throw IOException("File non trovato")
+                    val text = context.contentResolver.openInputStream(file.uri)?.use { it.readBytes().toString(Charsets.UTF_8) } ?: throw IOException("File non letto")
+                    org.json.JSONObject(text).takeIf { it.optInt("fotofesta") == 1 } ?: throw IOException("File non valido")
+                }.getOrNull()
+            }
+            if (json == null) {
+                showMessage(context.getString(R.string.message_import_failed))
+                return@launch
+            }
+            json.optJSONObject("settings")?.let(settingsRepository::importSettings)
+            json.optJSONObject("setup")?.let { withContext(Dispatchers.IO) { partySetup.importJson(it.toString()) } }
+            json.optJSONObject("wifi")?.let { wifi ->
+                val ssid = wifi.optString("ssid").trim()
+                val password = wifi.optString("password")
+                if (WifiNetwork.validate(ssid, password) == null) guests.saveWifi(WifiNetwork(ssid, password))
+            }
+            // Le impostazioni importate valgono subito, come se le avessi scelte una per una.
+            updateSettings(settingsRepository.load())
+            showMessage(context.getString(R.string.message_import_done))
+        }
     }
 
     /** Cartella della chiavetta scelta per la copia delle foto della festa. */
@@ -691,6 +783,12 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             PartyCommand.StartQuiet -> startQuiet()
             PartyCommand.Develop -> develop()
             is PartyCommand.SongDone -> partyHub.removeSong(command.id)
+            is PartyCommand.SetBrandName -> partySetup.setName(command.name)
+            is PartyCommand.SetAccent -> partySetup.setAccent(command.color)
+            is PartyCommand.SetSchedule -> partySetup.setSchedule(command.text)
+            is PartyCommand.SetGuestList -> partySetup.setGuestList(command.text)
+            PartyCommand.RemoveLogo -> partySetup.setLogo(null)
+            is PartyCommand.RemoveSponsor -> partySetup.removeSponsor(command.id)
         }
     }
 
@@ -814,6 +912,85 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun phoneWallFinale() = phoneWall.finale()
 
+    fun partyLogo(): ByteArray? = partySetup.logo()
+
+    fun partySponsor(id: String): ByteArray? = partySetup.sponsor(id)
+
+    // -----------------------------------------------------------------------------------------
+    // Prova della rete della festa
+    // -----------------------------------------------------------------------------------------
+
+    private var networkCheckJob: Job? = null
+    private var networkCheckFrom = 0L
+
+    /** Apre la prova della rete: avvia la festa se serve e controlla tutto quello che si può dalla TV. */
+    fun openNetworkCheck() {
+        if (!_state.value.guests.active) startGuestParty()
+        navigate(Destination.NETWORK_CHECK)
+        runNetworkCheck()
+    }
+
+    fun runNetworkCheck() {
+        networkCheckJob?.cancel()
+        networkCheckFrom = guests.lastGuestContact()
+        _state.update { it.copy(networkCheck = NetworkCheck()) }
+        networkCheckJob = viewModelScope.launch {
+            // Il server della festa si avvia in un attimo: si aspetta il suo indirizzo.
+            var url: String? = null
+            repeat(20) {
+                url = _state.value.guests.url
+                if (url != null) return@repeat
+                delay(300)
+            }
+            val address = url?.let { Uri.parse(it) }
+            val hotspot = _state.value.guests.hotspot
+            val networkKind = context.getString(
+                when {
+                    hotspot -> R.string.check_network_hotspot
+                    TvFeatures.isEthernet(context) -> R.string.check_network_cable
+                    else -> R.string.check_network_wifi
+                },
+            )
+            _state.update {
+                it.copy(networkCheck = it.networkCheck.copy(
+                    network = if (address != null) CheckStatus.OK else CheckStatus.FAIL,
+                    networkDetail = address?.let { a -> "$networkKind · ${a.host}" },
+                ))
+            }
+            val (server, internet) = withContext(Dispatchers.IO) {
+                val serverOk = address?.let { a -> canConnect(a.host.orEmpty(), a.port) } ?: false
+                val internetOk = canConnect("connectivitycheck.gstatic.com", 443)
+                serverOk to internetOk
+            }
+            val signal = TvFeatures.wifiSignal(context)
+            _state.update {
+                it.copy(networkCheck = it.networkCheck.copy(
+                    server = if (server) CheckStatus.OK else CheckStatus.FAIL,
+                    // Internet non serve alla festa: senza, Google Foto e iCloud non funzionano.
+                    internet = if (internet) CheckStatus.OK else CheckStatus.WARN,
+                    signal = when {
+                        signal == null -> CheckStatus.OK
+                        signal.rssi < WEAK_SIGNAL_DBM || signal.frequencyMhz < 3_000 -> CheckStatus.WARN
+                        else -> CheckStatus.OK
+                    },
+                    signalDetail = signal?.let { s -> context.getString(R.string.check_signal_detail, s.rssi, if (s.frequencyMhz < 3_000) "2,4 GHz" else "5 GHz") },
+                ))
+            }
+            // Un telefono vero che apre la pagina della festa dimostra che la rete non isola i dispositivi.
+            while (true) {
+                if (guests.lastGuestContact() > networkCheckFrom) {
+                    _state.update { it.copy(networkCheck = it.networkCheck.copy(phone = CheckStatus.OK)) }
+                    break
+                }
+                delay(1_500)
+            }
+        }
+    }
+
+    private fun canConnect(host: String, port: Int): Boolean = runCatching {
+        java.net.Socket().use { socket -> socket.connect(java.net.InetSocketAddress(host, port), 2_500) }
+    }.isSuccess
+
     /** Arrivi dal QR dell'ingresso, con l'ora: per primo e ultimo ad arrivare. */
     fun partyArrivals(): List<PartyHub.Arrival> = partyHub.arrivals()
 
@@ -910,7 +1087,107 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     )
 
     fun navigate(destination: Destination) {
+        // Chiosco: le impostazioni chiedono il PIN (valido qualche minuto).
+        if (destination == Destination.SETTINGS && kioskLocked()) {
+            _state.update { it.copy(pinRequest = PinPurpose.SETTINGS) }
+            return
+        }
         _state.update { it.copy(destination = destination, message = null) }
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // Chiosco con il PIN, locale fisso (festa sempre attiva, azzeramento notturno), scaletta
+    // -----------------------------------------------------------------------------------------
+
+
+    private fun kioskLocked(): Boolean =
+        _state.value.settings.kiosk && settingsRepository.hasPin() && System.currentTimeMillis() > unlockedUntil
+
+    /** Indietro dalla home con il chiosco acceso: prima il PIN. */
+    fun requestExit(): Boolean {
+        if (!kioskLocked()) return false
+        _state.update { it.copy(pinRequest = PinPurpose.EXIT) }
+        return true
+    }
+
+    /** Fine della festa: con il chiosco chiede il PIN. */
+    fun requestEndParty() {
+        if (kioskLocked()) _state.update { it.copy(pinRequest = PinPurpose.END_PARTY) } else endGuestParty()
+    }
+
+    /** Accende (scegliendo il PIN) o spegne (con il PIN) il chiosco. */
+    fun toggleKiosk() {
+        val purpose = if (_state.value.settings.kiosk && settingsRepository.hasPin()) PinPurpose.DISABLE else PinPurpose.SET
+        _state.update { it.copy(pinRequest = purpose) }
+    }
+
+    fun cancelPin() = _state.update { it.copy(pinRequest = null) }
+
+    /** PIN scritto: false se è sbagliato (il dialogo resta aperto). */
+    fun submitPin(pin: String): Boolean {
+        val purpose = _state.value.pinRequest ?: return false
+        if (purpose == PinPurpose.SET) {
+            if (pin.length != PIN_LENGTH) return false
+            settingsRepository.savePin(pin)
+            unlockedUntil = System.currentTimeMillis() + UNLOCK_MS
+            _state.update { it.copy(pinRequest = null) }
+            updateSettings(_state.value.settings.copy(kiosk = true))
+            showMessage(context.getString(R.string.message_kiosk_on))
+            return true
+        }
+        if (!settingsRepository.pinMatches(pin)) return false
+        unlockedUntil = System.currentTimeMillis() + UNLOCK_MS
+        _state.update { it.copy(pinRequest = null) }
+        when (purpose) {
+            PinPurpose.DISABLE -> {
+                settingsRepository.savePin(null)
+                updateSettings(_state.value.settings.copy(kiosk = false))
+                showMessage(context.getString(R.string.message_kiosk_off))
+            }
+            PinPurpose.SETTINGS -> navigate(Destination.SETTINGS)
+            PinPurpose.END_PARTY -> endGuestParty()
+            PinPurpose.EXIT -> _exitRequests.tryEmit(Unit)
+            PinPurpose.SET -> Unit
+        }
+        return true
+    }
+
+
+    /** Ogni venti secondi: momenti della scaletta da annunciare e azzeramento notturno. */
+    private fun tickClock() {
+        val calendar = java.util.Calendar.getInstance()
+        val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
+        val minute = hour * 60 + calendar.get(java.util.Calendar.MINUTE)
+        val day = calendar.get(java.util.Calendar.YEAR) * 1000 + calendar.get(java.util.Calendar.DAY_OF_YEAR)
+        if (_state.value.guests.active) {
+            partySetup.state.value.schedule.filter { it.minuteOfDay == minute }.forEach { slot ->
+                if (announcedSlots.add("$day-$minute-${slot.title}")) partyHub.announce(slot.title)
+            }
+        }
+        val reset = _state.value.settings.nightlyReset
+        if (reset >= 0 && minute == reset * 60 && lastResetDay != day) {
+            lastResetDay = day
+            if (_state.value.guests.active) {
+                endGuestParty()
+                if (_state.value.settings.alwaysParty) viewModelScope.launch {
+                    delay(3_000)
+                    startGuestParty()
+                }
+            }
+        }
+    }
+
+    /** Annuncio nuovo della regia: letto ad alta voce se l'impostazione lo chiede. */
+    private fun speakAnnouncement(announcement: PartyHub.Announcement?) {
+        if (announcement == null || announcement.serial == lastSpokenSerial) return
+        lastSpokenSerial = announcement.serial
+        if (!_state.value.settings.speakAnnouncements) return
+        val engine = tts ?: android.speech.tts.TextToSpeech(context) { status ->
+            if (status == android.speech.tts.TextToSpeech.SUCCESS) {
+                tts?.speak(announcement.text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "announce")
+            }
+        }.also { tts = it; return }
+        engine.speak(announcement.text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "announce")
     }
 
     /** Azione del tasto Indietro, coerente con i pulsanti "Indietro" delle singole schermate. */
@@ -938,6 +1215,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             Destination.GOOGLE_CONNECT -> cancelGoogleConnect()
             Destination.SETTINGS, Destination.GAMES, Destination.GUESTS -> navigate(Destination.HOME)
             Destination.EXTRA_SCREEN, Destination.ANYWHERE -> navigate(Destination.GUESTS)
+            Destination.NETWORK_CHECK -> navigate(Destination.GUESTS)
             Destination.PHONE_WALL -> {
                 phoneWall.stop()
                 navigate(Destination.GAMES)
@@ -1992,6 +2270,11 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun endGuestParty() {
+        // Una festa con tante foto è il momento giusto per chiedere una recensione (ogni 90 giorni al massimo).
+        if (_state.value.guests.shown >= REVIEW_MIN_PHOTOS && settingsRepository.reviewDue(REVIEW_EVERY_MS)) {
+            settingsRepository.markReviewAsked()
+            _reviewRequests.tryEmit(Unit)
+        }
         quietJob?.cancel()
         stopHotspot()
         usbBackupWarned = false
@@ -2086,6 +2369,11 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             freshPhotos.add(approved.filter { it.id !in known }.map { "guest:${it.id}" })
         }
         knownGuestIds = if (ready) approvedIds else null
+        // Locale fisso: la festa parte da sola all'apertura dell'app.
+        if (ready && !autoPartyChecked) {
+            autoPartyChecked = true
+            if (_state.value.settings.alwaysParty && !party.active) startGuestParty()
+        }
 
         // I video brevi degli invitati entrano nella raccolta come le foto, in ordine di arrivo.
         val items = (approved.map { it.toPhotoItem(context) } + videos.map { it.toPhotoItem(context) })
@@ -2105,6 +2393,8 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                     hotspot = party.hotspot != null,
                     shown = items.size,
                     pending = photos.filterNot { photo -> photo.approved }.map { photo -> photo.toPhotoItem(context) },
+                    localUrl = party.localUrl,
+                    joinCode = party.joinCode,
                 ),
             )
         }
@@ -2343,6 +2633,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         partyHub.onReaction = null
         partyHub.onArrival = null
         partyHub.onSong = null
+        tts?.shutdown()
         partyHub.onDirectorCommand = null
         hostRemote.onCommand = null
         super.onCleared()
@@ -2352,9 +2643,17 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         const val TAG = "FotoFestaViewModel"
         /** Cartella creata sulla chiavetta per le copie delle foto della festa. */
         const val USB_BACKUP_FOLDER = "FotoFesta"
+        const val CONFIG_FILE = "fotofesta-config.json"
         /** Cartella delle foto dentro la capsula, citata dalla pagina con un percorso relativo. */
         const val CAPSULE_PHOTOS = "foto"
         const val INDEX_TIMEOUT_MS = 90_000L
+        const val PIN_LENGTH = 4
+        const val REVIEW_MIN_PHOTOS = 10
+        const val REVIEW_EVERY_MS = 90L * 24 * 60 * 60_000
+        /** Sotto questo segnale (dBm) i telefoni lontani dalla TV mandano le foto a fatica. */
+        const val WEAK_SIGNAL_DBM = -70
+        /** Dopo il PIN giusto il chiosco resta aperto qualche minuto. */
+        const val UNLOCK_MS = 5 * 60_000L
         const val ICLOUD_REFRESH_MS = 5 * 60_000L
         /** Passaggi (meno due per ogni reazione) perché una foto sia del tutto ingiallita. */
         const val AGING_STEPS = 8

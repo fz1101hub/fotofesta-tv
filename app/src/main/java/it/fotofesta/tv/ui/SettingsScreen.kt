@@ -48,6 +48,11 @@ import it.fotofesta.tv.store.StoreHome
 import it.fotofesta.tv.tv.TvFeatures
 import it.fotofesta.tv.model.AppState
 import it.fotofesta.tv.model.FitMode
+import it.fotofesta.tv.model.FrameStyle
+import it.fotofesta.tv.data.KEYSTONE_OPTIONS
+import it.fotofesta.tv.data.MARGIN_OPTIONS
+import it.fotofesta.tv.data.RESET_OPTIONS
+import it.fotofesta.tv.data.SPONSOR_OPTIONS
 import it.fotofesta.tv.model.PartyTemplate
 import it.fotofesta.tv.model.PhotoFilter
 import it.fotofesta.tv.model.PhotoLimit
@@ -100,6 +105,13 @@ fun SettingsScreen(
     onRemoveWifi: () -> Unit,
     onPickUsbBackup: () -> Unit = {},
     onRemoveUsbBackup: () -> Unit = {},
+    /** Chiosco: accendere chiede di scegliere il PIN, spegnere di scriverlo. */
+    onKiosk: () -> Unit = {},
+    /** Prova della rete della festa, con un telefono. */
+    onNetworkCheck: () -> Unit = {},
+    /** Impostazioni e preparazione della festa su un file della chiavetta, e ritorno. */
+    onExport: () -> Unit = {},
+    onImport: () -> Unit = {},
 ) {
     val selected = state.settingsCategory
     val context = LocalContext.current
@@ -471,6 +483,39 @@ fun SettingsScreen(
                                 checked = state.settings.guestVideos,
                             )
                             SettingsItem(
+                                stringResource(R.string.settings_frame),
+                                {
+                                    val styles = FrameStyle.entries
+                                    onChange(state.settings.copy(frameStyle = styles[(styles.indexOf(state.settings.frameStyle) + 1) % styles.size]))
+                                },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_frame_body),
+                                value = stringResource(
+                                    when (state.settings.frameStyle) {
+                                        FrameStyle.NONE -> R.string.settings_frame_none
+                                        FrameStyle.BAND -> R.string.settings_frame_band
+                                        FrameStyle.BORDER -> R.string.settings_frame_border
+                                    }
+                                ),
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_sponsors),
+                                {
+                                    val next = SPONSOR_OPTIONS[(SPONSOR_OPTIONS.indexOf(state.settings.sponsorEvery) + 1) % SPONSOR_OPTIONS.size]
+                                    onChange(state.settings.copy(sponsorEvery = next))
+                                },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_sponsors_body),
+                                value = if (state.settings.sponsorEvery == 0) stringResource(R.string.settings_off)
+                                else quantityStringResource(R.plurals.settings_sponsors_every, state.settings.sponsorEvery),
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_network_check),
+                                onNetworkCheck,
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_network_check_body),
+                            )
+                            SettingsItem(
                                 stringResource(R.string.settings_fixed_address),
                                 { onChange(state.settings.copy(fixedAddress = !state.settings.fixedAddress)) },
                                 toCategory,
@@ -557,6 +602,67 @@ fun SettingsScreen(
                                 toCategory,
                                 subtitle = stringResource(R.string.settings_projector_body),
                                 checked = settings.projectorMode,
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_margin),
+                                { onChange(settings.copy(screenMargin = MARGIN_OPTIONS[(MARGIN_OPTIONS.indexOf(settings.screenMargin) + 1) % MARGIN_OPTIONS.size])) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_margin_body),
+                                value = if (settings.screenMargin == 0) stringResource(R.string.settings_off) else "${settings.screenMargin}%",
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_keystone),
+                                { onChange(settings.copy(keystone = KEYSTONE_OPTIONS[(KEYSTONE_OPTIONS.indexOf(settings.keystone) + 1) % KEYSTONE_OPTIONS.size])) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_keystone_body),
+                                value = if (settings.keystone == 0) stringResource(R.string.settings_off) else "%+d".format(settings.keystone),
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_table_button),
+                                { onChange(settings.copy(tableButton = !settings.tableButton)) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_table_button_body),
+                                checked = settings.tableButton,
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_speak),
+                                { onChange(settings.copy(speakAnnouncements = !settings.speakAnnouncements)) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_speak_body),
+                                checked = settings.speakAnnouncements,
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_kiosk),
+                                onKiosk,
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_kiosk_body),
+                                checked = settings.kiosk,
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_always_party),
+                                { onChange(settings.copy(alwaysParty = !settings.alwaysParty)) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_always_party_body),
+                                checked = settings.alwaysParty,
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_nightly_reset),
+                                { onChange(settings.copy(nightlyReset = RESET_OPTIONS[(RESET_OPTIONS.indexOf(settings.nightlyReset) + 1) % RESET_OPTIONS.size])) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_nightly_reset_body),
+                                value = if (settings.nightlyReset < 0) stringResource(R.string.settings_off) else "%02d:00".format(settings.nightlyReset),
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_export),
+                                onExport,
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_export_body),
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_import),
+                                onImport,
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_import_body),
                             )
                             SettingsItem(
                                 stringResource(R.string.settings_auto_start),

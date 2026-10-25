@@ -29,6 +29,19 @@ interface PartyExtras {
     /** Brano [id] della silent disco, solo se è quello che sta suonando. */
     fun discoTrack(id: String): DiscoTrack? = null
 
+    /** Nome, colore, logo e scaletta della festa per la pagina dei telefoni, in JSON. */
+    fun setupJson(): String = "null"
+
+    /** Tutta la preparazione della festa per la regia, in JSON. */
+    fun setupHostJson(): String = "null"
+
+    fun logo(): ByteArray? = null
+
+    fun sponsor(id: String): ByteArray? = null
+
+    /** Logo o sponsor mandato dalla regia: false se non va bene. */
+    fun hostUpload(kind: String, bytes: ByteArray): Boolean = false
+
     /** Foto approvate da portare a casa in un archivio; null se chi organizza non lo permette. */
     fun album(): List<ZipStream.Entry>? = null
 

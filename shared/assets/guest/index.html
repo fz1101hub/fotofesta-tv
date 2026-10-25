@@ -166,6 +166,25 @@
   #invite canvas { display: block; width: 100%; height: auto; margin-top: .6rem; border-radius: var(--radius-s); }
   #invite input, #invite textarea { margin-top: 8px; }
 
+  /* Evento: nome e logo scelti dalla regia, scaletta della serata */
+  #event { display: flex; align-items: center; gap: 12px; margin-top: .9rem; }
+  #event img { height: 44px; max-width: 120px; object-fit: contain; border-radius: 8px; }
+  #eventName { font: 800 1.05rem/1.2 var(--display); color: var(--accent); }
+  .schedule { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .schedule li { display: flex; gap: 12px; background: var(--raised); padding: 10px 12px; }
+  .schedule li b { font-family: var(--display); color: var(--accent); min-width: 3.2em; }
+  .schedule li.past { opacity: .5; }
+  .swatches { display: flex; flex-wrap: wrap; gap: 10px; margin: 8px 0; }
+  .swatches button { width: 40px; height: 40px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; }
+  .swatches button.on { border-color: var(--fg); }
+  .thumbs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .thumbs .t { position: relative; }
+  .thumbs img { width: 84px; height: 56px; object-fit: contain; background: #fff; border-radius: 8px; }
+  .thumbs button { position: absolute; top: -8px; right: -8px; width: 28px; height: 28px; border-radius: 50%; border: 0; background: var(--err); color: #000; font-weight: 800; cursor: pointer; }
+  .upload { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; margin-top: 8px; border-radius: 12px; background: var(--raised); font-weight: 700; cursor: pointer; }
+  .upload input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  #setupBox textarea { min-height: 110px; }
+
   /* Testo più grande e contrasto alto */
   html.large { font-size: 118%; }
   @media (prefers-contrast: more) {
@@ -238,6 +257,7 @@
 <body>
 <main>
   <div class="brand"><span>FotoFesta</span><svg viewBox="0 0 64 18" aria-hidden="true"><rect x="2" y="7" width="7" height="3" rx="1.5" fill="#ffc145" transform="rotate(-25 5 8)"/><circle cx="17" cy="5" r="2.2" fill="#ff4f9a"/><rect x="24" y="10" width="7" height="3" rx="1.5" fill="#4cd787" transform="rotate(30 27 11)"/><circle cx="37" cy="12" r="2" fill="#8b6cff"/><rect x="43" y="3" width="7" height="3" rx="1.5" fill="#ff7a57" transform="rotate(15 46 4)"/><circle cx="57" cy="9" r="2.2" fill="#3da9fc"/></svg></div>
+  <div id="event" hidden><img id="eventLogo" alt="" hidden><span id="eventName"></span></div>
   <h1 id="title"></h1>
   <p class="muted" id="intro"></p>
 
@@ -358,6 +378,12 @@
     <div class="reactions" id="reactButtons"></div>
   </section>
 
+  <!-- Scaletta della serata, scritta dalla regia. -->
+  <section id="schedule" class="box" hidden>
+    <p class="box-title" id="scheduleTitle"></p>
+    <ul class="schedule" id="scheduleList"></ul>
+  </section>
+
   <!-- Richieste di canzoni: arrivano a chi fa la musica, nella regia. -->
   <section id="songs" class="box" hidden>
     <label class="box-title" for="songText" id="songLabel"></label>
@@ -432,6 +458,26 @@
           <span></span>
           <button type="button" data-host="next" id="speechNext"></button>
         </div>
+      </details>
+      <details id="setupBox" style="margin-top:12px">
+        <summary id="setupTitle"></summary>
+        <label class="field" for="setupName" id="setupNameLabel"></label>
+        <div class="row"><input type="text" id="setupName" maxlength="60"><button type="button" id="setupNameSave"></button></div>
+        <p class="muted" id="setupColorLabel" style="margin-top:12px"></p>
+        <div class="swatches" id="setupColors"></div>
+        <p class="muted" id="setupLogoLabel" style="margin-top:12px"></p>
+        <div class="thumbs" id="setupLogo"></div>
+        <label class="upload"><span id="setupLogoPick"></span><input type="file" id="setupLogoFile" accept="image/*"></label>
+        <p class="muted" id="setupSponsorLabel" style="margin-top:12px"></p>
+        <div class="thumbs" id="setupSponsors"></div>
+        <label class="upload"><span id="setupSponsorPick"></span><input type="file" id="setupSponsorFile" accept="image/*" multiple></label>
+        <label class="field" for="setupSchedule" id="setupScheduleLabel" style="margin-top:12px"></label>
+        <textarea id="setupSchedule" maxlength="2000"></textarea>
+        <button type="button" class="wide" id="setupScheduleSave"></button>
+        <label class="field" for="setupGuests" id="setupGuestsLabel" style="margin-top:12px"></label>
+        <textarea id="setupGuests" maxlength="4000"></textarea>
+        <button type="button" class="wide" id="setupGuestsSave"></button>
+        <p class="muted" id="setupStatus" aria-live="polite"></p>
       </details>
       <details id="invite" style="margin-top:12px">
         <summary id="inviteTitle"></summary>
@@ -669,6 +715,23 @@ const IT = {
   videoOff: "Ora la TV accetta solo foto.",
   videoTooLarge: "Video troppo grande: registrane uno più corto.",
   videoTooLong: "I video possono durare al massimo %d secondi.",
+  scheduleTitle: "La scaletta della serata 🕘",
+  setupTitle: "🎨 Prepara la festa",
+  setupNameLabel: "Nome dell'evento (sulla TV e sui telefoni)",
+  setupColorLabel: "Colore dell'evento",
+  setupLogoLabel: "Logo",
+  setupLogoPick: "Scegli il logo",
+  setupSponsorLabel: "Sponsor (tra le foto)",
+  setupSponsorPick: "Aggiungi immagini degli sponsor",
+  setupScheduleLabel: "Scaletta, un momento per riga",
+  setupGuestsLabel: "Invitati attesi, uno per riga (solo per te)",
+  setupSave: "Salva",
+  setupSchedulePlaceholder: "20:00 Aperitivo\n21:30 Taglio della torta\n23:00 Si balla",
+  setupGuestsPlaceholder: "Anna\nLuca\nMarco",
+  setupSaved: "Salvato ✓",
+  setupRemove: "Togli",
+  setupUploading: "Mando alla TV…",
+  setupFull: "Non c'è più posto: togli prima uno sponsor.",
 };
 const EN = {
   announceKicker: "Announcement",
@@ -881,6 +944,23 @@ const EN = {
   videoOff: "This TV only accepts photos right now.",
   videoTooLarge: "Video too large: record a shorter one.",
   videoTooLong: "Videos can last up to %d seconds.",
+  scheduleTitle: "Tonight's programme 🕘",
+  setupTitle: "🎨 Prepare the party",
+  setupNameLabel: "Event name (shown on the TV and on the phones)",
+  setupColorLabel: "Event colour",
+  setupLogoLabel: "Logo",
+  setupLogoPick: "Choose the logo",
+  setupSponsorLabel: "Sponsors (shown between the photos)",
+  setupSponsorPick: "Add sponsor images",
+  setupScheduleLabel: "Programme, one moment per line",
+  setupGuestsLabel: "Expected guests, one per line (only for you)",
+  setupSave: "Save",
+  setupSchedulePlaceholder: "20:00 Aperitif\n21:30 Cake\n23:00 Dancing",
+  setupGuestsPlaceholder: "Anna\nLuca\nMarco",
+  setupSaved: "Saved ✓",
+  setupRemove: "Remove",
+  setupUploading: "Sending to the TV…",
+  setupFull: "No more room: remove a sponsor first.",
 };
 const FR = {
   announceKicker: "Annonce",
@@ -1093,6 +1173,23 @@ const FR = {
   videoOff: "Pour l'instant la TV n'accepte que des photos.",
   videoTooLarge: "Vidéo trop lourde : enregistrez-en une plus courte.",
   videoTooLong: "Les vidéos peuvent durer au maximum %d secondes.",
+  scheduleTitle: "Le programme de la soirée 🕘",
+  setupTitle: "🎨 Préparer la fête",
+  setupNameLabel: "Nom de l'événement (sur la TV et les téléphones)",
+  setupColorLabel: "Couleur de l'événement",
+  setupLogoLabel: "Logo",
+  setupLogoPick: "Choisir le logo",
+  setupSponsorLabel: "Sponsors (entre les photos)",
+  setupSponsorPick: "Ajouter des images de sponsors",
+  setupScheduleLabel: "Programme, un moment par ligne",
+  setupGuestsLabel: "Invités attendus, un par ligne (pour vous seulement)",
+  setupSave: "Enregistrer",
+  setupSchedulePlaceholder: "20:00 Apéritif\n21:30 Gâteau\n23:00 On danse",
+  setupGuestsPlaceholder: "Anna\nLuca\nMarco",
+  setupSaved: "Enregistré ✓",
+  setupRemove: "Retirer",
+  setupUploading: "Envoi à la TV…",
+  setupFull: "Plus de place : retirez d'abord un sponsor.",
 };
 const ES = {
   announceKicker: "Anuncio",
@@ -1305,6 +1402,23 @@ const ES = {
   videoOff: "Ahora la TV solo acepta fotos.",
   videoTooLarge: "Vídeo demasiado grande: graba uno más corto.",
   videoTooLong: "Los vídeos pueden durar como máximo %d segundos.",
+  scheduleTitle: "El programa de la noche 🕘",
+  setupTitle: "🎨 Prepara la fiesta",
+  setupNameLabel: "Nombre del evento (en la TV y en los móviles)",
+  setupColorLabel: "Color del evento",
+  setupLogoLabel: "Logo",
+  setupLogoPick: "Elegir el logo",
+  setupSponsorLabel: "Patrocinadores (entre las fotos)",
+  setupSponsorPick: "Añadir imágenes de patrocinadores",
+  setupScheduleLabel: "Programa, un momento por línea",
+  setupGuestsLabel: "Invitados esperados, uno por línea (solo para ti)",
+  setupSave: "Guardar",
+  setupSchedulePlaceholder: "20:00 Aperitivo\n21:30 Tarta\n23:00 A bailar",
+  setupGuestsPlaceholder: "Anna\nLuca\nMarco",
+  setupSaved: "Guardado ✓",
+  setupRemove: "Quitar",
+  setupUploading: "Enviando a la TV…",
+  setupFull: "No queda sitio: quita primero un patrocinador.",
 };
 const DE = {
   announceKicker: "Durchsage",
@@ -1517,6 +1631,23 @@ const DE = {
   videoOff: "Der Fernseher nimmt gerade nur Fotos an.",
   videoTooLarge: "Video zu groß: Nimm ein kürzeres auf.",
   videoTooLong: "Videos dürfen höchstens %d Sekunden lang sein.",
+  scheduleTitle: "Das Programm des Abends 🕘",
+  setupTitle: "🎨 Party vorbereiten",
+  setupNameLabel: "Name der Veranstaltung (auf Fernseher und Handys)",
+  setupColorLabel: "Farbe der Veranstaltung",
+  setupLogoLabel: "Logo",
+  setupLogoPick: "Logo wählen",
+  setupSponsorLabel: "Sponsoren (zwischen den Fotos)",
+  setupSponsorPick: "Sponsorbilder hinzufügen",
+  setupScheduleLabel: "Programm, ein Moment pro Zeile",
+  setupGuestsLabel: "Erwartete Gäste, einer pro Zeile (nur für dich)",
+  setupSave: "Speichern",
+  setupSchedulePlaceholder: "20:00 Aperitif\n21:30 Torte\n23:00 Tanzen",
+  setupGuestsPlaceholder: "Anna\nLuca\nMarco",
+  setupSaved: "Gespeichert ✓",
+  setupRemove: "Entfernen",
+  setupUploading: "Wird an den Fernseher gesendet…",
+  setupFull: "Kein Platz mehr: Entferne zuerst einen Sponsor.",
 };
 const TEXTS = { it: IT, en: EN, fr: FR, es: ES, de: DE };
 // Prima lingua del telefono che la pagina conosce, altrimenti inglese.
@@ -1593,6 +1724,7 @@ async function pollGame() {
       showGame(state.game);
       showParty(state.party || {});
       showPlay(state.play || null);
+      showSetup(state.setup || null);
       showDisco(state.disco || null);
       showPhoneWall(state.phoneWall || null);
       $("host").hidden = !state.host;
@@ -2131,6 +2263,7 @@ function showHost(state) {
     list.appendChild(empty);
   }
   $("hostApproveAll").hidden = photos.length + messages.length < 2;
+  showHostSetup(state.setup || null);
   const songs = Array.isArray(state.songs) ? state.songs : [];
   $("hostSongsTitle").hidden = !songs.length;
   const songList = $("hostSongs");
@@ -3325,6 +3458,145 @@ $("inviteMake").addEventListener("click", async () => {
   context.textAlign = "left";
   canvas.hidden = false;
   await saveCanvas(canvas, "Invito.png", $("inviteSave"));
+});
+
+// ---------------------------------------------------------------------------------------------
+// Evento: nome, colore, logo e scaletta scelti dalla regia; nella regia, la sezione per prepararli.
+// ---------------------------------------------------------------------------------------------
+let setupKey = "";
+let logoVersion = 0;
+$("scheduleTitle").textContent = T.scheduleTitle;
+function showSetup(setup) {
+  const key = JSON.stringify(setup);
+  if (key === setupKey) return;
+  setupKey = key;
+  const name = setup && setup.name;
+  $("event").hidden = !(setup && (name || setup.logo));
+  $("eventName").textContent = name || "";
+  if (setup && setup.logo) {
+    $("eventLogo").src = "/party/logo?k=" + encodeURIComponent(KEY) + "&v=" + (++logoVersion);
+    $("eventLogo").hidden = false;
+  } else $("eventLogo").hidden = true;
+  if (setup && setup.accent && /^#[0-9a-f]{6}$/i.test(setup.accent)) document.documentElement.style.setProperty("--accent", setup.accent);
+  else document.documentElement.style.removeProperty("--accent");
+  const schedule = (setup && Array.isArray(setup.schedule)) ? setup.schedule : [];
+  $("schedule").hidden = !schedule.length;
+  const list = $("scheduleList");
+  list.textContent = "";
+  const now = new Date();
+  const minute = now.getHours() * 60 + now.getMinutes();
+  schedule.forEach((slot) => {
+    const li = document.createElement("li");
+    const parts = String(slot.time).split(":");
+    if (parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10) < minute) li.className = "past";
+    const time = document.createElement("b");
+    time.textContent = slot.time;
+    const title = document.createElement("span");
+    title.textContent = slot.title;
+    li.append(time, title);
+    list.appendChild(li);
+  });
+}
+
+// Regia: prepara la festa.
+const ACCENTS = ["#ff7a57", "#ff4f9a", "#8b6cff", "#3da9fc", "#4cd787", "#ffc145", "#e5484d", "#c8a26b"];
+for (const id of ["setupTitle", "setupNameLabel", "setupColorLabel", "setupLogoLabel", "setupLogoPick", "setupSponsorLabel", "setupSponsorPick", "setupScheduleLabel", "setupGuestsLabel"]) $(id).textContent = T[id];
+$("setupNameSave").textContent = T.setupSave;
+$("setupScheduleSave").textContent = T.setupSave;
+$("setupGuestsSave").textContent = T.setupSave;
+$("setupSchedule").placeholder = T.setupSchedulePlaceholder;
+$("setupGuests").placeholder = T.setupGuestsPlaceholder;
+ACCENTS.forEach((color) => {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.style.background = color;
+  button.dataset.color = color;
+  button.setAttribute("aria-label", color);
+  button.addEventListener("click", () => hostCommand({ command: "brand_accent", text: color }).then(() => setupDone()));
+  $("setupColors").appendChild(button);
+});
+let setupFilled = false;
+const sponsorThumbs = new Map();
+function setupDone() { $("setupStatus").textContent = T.setupSaved; setTimeout(() => { $("setupStatus").textContent = ""; }, 2500); }
+function showHostSetup(setup) {
+  if (!setup) return;
+  // I campi si riempiono una volta: non si cancella quello che si sta scrivendo.
+  if (!setupFilled) {
+    setupFilled = true;
+    $("setupName").value = setup.name || "";
+    $("setupSchedule").value = (setup.schedule || []).map((slot) => slot.time + " " + slot.title).join("\n");
+    $("setupGuests").value = (setup.guests || []).join("\n");
+  }
+  for (const button of $("setupColors").children) button.classList.toggle("on", button.dataset.color === setup.accent);
+  const logo = $("setupLogo");
+  logo.textContent = "";
+  if (setup.logo) {
+    const wrap = document.createElement("div");
+    wrap.className = "t";
+    const img = document.createElement("img");
+    img.src = "/party/logo?k=" + encodeURIComponent(KEY) + "&v=" + logoVersion;
+    img.alt = "";
+    const remove = document.createElement("button");
+    remove.type = "button"; remove.textContent = "✕"; remove.setAttribute("aria-label", T.setupRemove);
+    remove.addEventListener("click", () => hostCommand({ command: "logo_remove" }));
+    wrap.append(img, remove);
+    logo.appendChild(wrap);
+  }
+  const sponsors = $("setupSponsors");
+  sponsors.textContent = "";
+  (setup.sponsors || []).forEach((id) => {
+    const wrap = document.createElement("div");
+    wrap.className = "t";
+    const img = document.createElement("img");
+    img.alt = "";
+    if (sponsorThumbs.has(id)) img.src = sponsorThumbs.get(id);
+    else fetch("/party/host/sponsor?id=" + encodeURIComponent(id), { headers: { "X-FotoFesta-Key": KEY, "X-FotoFesta-Host": hostToken } })
+      .then((r) => r.ok ? r.blob() : null).then((blob) => { if (blob) { const url = URL.createObjectURL(blob); sponsorThumbs.set(id, url); img.src = url; } }).catch(() => {});
+    const remove = document.createElement("button");
+    remove.type = "button"; remove.textContent = "✕"; remove.setAttribute("aria-label", T.setupRemove);
+    remove.addEventListener("click", () => hostCommand({ command: "sponsor_remove", id }));
+    wrap.append(img, remove);
+    sponsors.appendChild(wrap);
+  });
+}
+$("setupNameSave").addEventListener("click", () => hostCommand({ command: "brand_name", text: $("setupName").value.trim() }).then(setupDone));
+$("setupScheduleSave").addEventListener("click", () => hostCommand({ command: "schedule", text: $("setupSchedule").value }).then(setupDone));
+$("setupGuestsSave").addEventListener("click", () => hostCommand({ command: "guest_list", text: $("setupGuests").value }).then(setupDone));
+
+// Logo e sponsor: ridotti sul telefono prima di mandarli (al massimo 1280 pixel per lato).
+async function shrinkImage(file, maxSide, type) {
+  const image = await loadImage(file);
+  const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+  const canvas = makeCanvas(Math.max(1, Math.round(image.naturalWidth * scale)), Math.max(1, Math.round(image.naturalHeight * scale)));
+  canvas.context.drawImage(image, 0, 0, canvas.canvas.width, canvas.canvas.height);
+  const blob = await new Promise((resolve) => canvas.canvas.toBlob(resolve, type, 0.88));
+  canvas.canvas.width = 0; canvas.canvas.height = 0;
+  return blob;
+}
+async function uploadSetupImage(file, kind) {
+  $("setupStatus").textContent = T.setupUploading;
+  try {
+    const blob = await shrinkImage(file, kind === "logo" ? 512 : 1280, kind === "logo" ? "image/png" : "image/jpeg");
+    const response = await fetch("/party/host/upload?kind=" + kind, {
+      method: "POST",
+      headers: { "X-FotoFesta-Key": KEY, "X-FotoFesta-Host": hostToken, "Content-Type": blob.type },
+      body: blob,
+    });
+    if (response.ok) { logoVersion++; setupDone(); pollHost(); return; }
+    $("setupStatus").textContent = response.status === 507 ? T.setupFull : T.offline;
+  } catch (e) {
+    $("setupStatus").textContent = T.unsupported;
+  }
+}
+$("setupLogoFile").addEventListener("change", (event) => {
+  const file = event.target.files && event.target.files[0];
+  event.target.value = "";
+  if (file) uploadSetupImage(file, "logo");
+});
+$("setupSponsorFile").addEventListener("change", async (event) => {
+  const files = Array.from(event.target.files || []);
+  event.target.value = "";
+  for (const file of files) await uploadSetupImage(file, "sponsor");
 });
 
 // Testo più grande, ricordato da questo telefono.

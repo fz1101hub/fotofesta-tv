@@ -8,7 +8,7 @@ import it.fotofesta.tv.guests.PartyHub
 enum class Destination { HOME, SETTINGS, SLIDESHOW, GAMES, MEMORY, MYSTERY, PUZZLE, WHO_TOOK_IT, POLL, LOTTERY, GOOGLE_CONNECT, GUESTS, GUEST_REVIEW, AWARDS, GUESTBOOK, ANNOUNCE, GUEST_WIFI, FILE_BROWSER, ICLOUD_LINK, SMB_LOGIN,
     PARTY_GAMES, PLAY, TOURNAMENT, BETS, TOAST, COINS,
     SHOWS, REWIND, BARCODE, PHOTO_MOSAIC, CREDITS, TELETEXT, SKY, STATS,
-    BUZZER, CAMERA, DOOR, EXTRA_SCREEN, ANYWHERE, PHONE_WALL }
+    BUZZER, CAMERA, DOOR, EXTRA_SCREEN, ANYWHERE, PHONE_WALL, NETWORK_CHECK }
 
 enum class TransitionType(@StringRes val labelRes: Int) {
     FADE(R.string.transition_fade),
@@ -114,6 +114,24 @@ data class SlideshowSettings(
     val fixedAddress: Boolean = false,
     /** Video brevi dagli invitati (non con l'approvazione delle foto né con la festa senza tracce). */
     val guestVideos: Boolean = true,
+    /** Cornice dell'evento sullo slideshow, con nome e logo scelti dalla regia. */
+    val frameStyle: FrameStyle = FrameStyle.NONE,
+    /** Uno sponsor ogni tante foto (0 = mai). */
+    val sponsorEvery: Int = 0,
+    /** Margini dello schermo in percentuale, per le TV e i proiettori che tagliano i bordi. */
+    val screenMargin: Int = 0,
+    /** Correzione trapezio per un proiettore inclinato: da -4 a 4, 0 = spenta. */
+    val keystone: Int = 0,
+    /** Pulsante Bluetooth da tavolo (o tasto fotocamera/volume su): foto successiva con i coriandoli. */
+    val tableButton: Boolean = false,
+    /** Gli annunci della regia si leggono anche ad alta voce. */
+    val speakAnnouncements: Boolean = false,
+    /** Chiosco: impostazioni, fine festa e uscita dall'app chiedono il PIN. */
+    val kiosk: Boolean = false,
+    /** Locale fisso: all'apertura dell'app la festa parte da sola. */
+    val alwaysParty: Boolean = false,
+    /** Locale fisso: ora in cui la festa si azzera ogni notte (-1 = mai). */
+    val nightlyReset: Int = -1,
     /** Zoom e spostamento lenti durante la permanenza di ogni foto (disattivati da [reducedMotion]). */
     val kenBurns: Boolean = false,
     /** Minuti di riproduzione dopo i quali lo slideshow va in pausa; 0 = disattivato. */
@@ -223,9 +241,31 @@ data class GuestsUiState(
     val shown: Int = 0,
     /** Foto in attesa di approvazione, dalla più vecchia. */
     val pending: List<PhotoItem> = emptyList(),
+    /** Indirizzo da scrivere a mano ("festa.local:8765") e codice della festa. */
+    val localUrl: String? = null,
+    val joinCode: String? = null,
 )
 
 /** Dediche arrivate dai telefoni: quelle in mostra (dalla più vecchia) e quelle da approvare. */
+/** Prova della rete della festa: cosa si controlla e come è andata. */
+data class NetworkCheck(
+    val network: CheckStatus = CheckStatus.WAITING,
+    val networkDetail: String? = null,
+    val server: CheckStatus = CheckStatus.WAITING,
+    val internet: CheckStatus = CheckStatus.WAITING,
+    val signal: CheckStatus = CheckStatus.WAITING,
+    val signalDetail: String? = null,
+    val phone: CheckStatus = CheckStatus.WAITING,
+)
+
+enum class CheckStatus { WAITING, OK, WARN, FAIL }
+
+/** Perché si chiede il PIN del chiosco. */
+enum class PinPurpose { SET, DISABLE, SETTINGS, END_PARTY, EXIT }
+
+/** Cornice dell'evento: nessuna, fascia in alto con nome e logo, bordo nei colori della festa. */
+enum class FrameStyle { NONE, BAND, BORDER }
+
 data class PartyUiState(
     val messages: List<PartyHub.Message> = emptyList(),
     val pendingMessages: List<PartyHub.Message> = emptyList(),
@@ -373,4 +413,7 @@ data class AppState(
     val silentDisco: Boolean = false,
     /** Muro di telefoni in corso: telefoni in fila e foto mandata. */
     val phoneWall: it.fotofesta.tv.guests.PhoneWall.State? = null,
+    /** PIN del chiosco da scrivere, con il motivo; null se non serve. */
+    val pinRequest: PinPurpose? = null,
+    val networkCheck: NetworkCheck = NetworkCheck(),
 )

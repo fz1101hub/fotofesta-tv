@@ -336,6 +336,16 @@ private fun SendPanel(guests: GuestsUiState) {
         textAlign = TextAlign.Center,
         modifier = Modifier.widthIn(max = 280.dp),
     )
+    // Senza fotocamera o QR: indirizzo facile da scrivere e codice della festa.
+    if (guests.localUrl != null && guests.joinCode != null) {
+        Text(
+            stringResource(R.string.guests_local_address, guests.localUrl, guests.joinCode),
+            style = MaterialTheme.typography.bodySmall,
+            color = TextSecondary,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.widthIn(max = 300.dp),
+        )
+    }
 }
 
 @Composable

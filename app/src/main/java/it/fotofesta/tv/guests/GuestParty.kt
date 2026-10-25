@@ -15,6 +15,7 @@ import it.fotofesta.tv.data.SettingsRepository
 import it.fotofesta.tv.media.BackgroundMusicPlayer
 import it.fotofesta.tv.model.FitMode
 import it.fotofesta.tv.model.GuestProblem
+import it.fotofesta.tv.network.MdnsName
 import it.fotofesta.tv.network.PartyBeacon
 import it.fotofesta.tv.tv.DlnaRenderer
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -61,6 +62,9 @@ class GuestParty(
         val wifi: WifiNetwork? = null,
         /** Rete creata dalla TV (hotspot): se c'è, il QR della Wi‑Fi mostra questa. */
         val hotspot: WifiNetwork? = null,
+        /** Indirizzo facile ("festa.local:8765") e codice di quattro cifre, per chi non inquadra il QR. */
+        val localUrl: String? = null,
+        val joinCode: String? = null,
     )
 
     // Esclusi dal backup: valgono solo per questa TV e per la festa in corso.
@@ -101,12 +105,21 @@ class GuestParty(
     private var dlnaEnabled = false
     private var dlnaAddress: InetAddress? = null
     @Volatile var dlnaFactory: (() -> DlnaRenderer)? = null
+    /** "festa.local" nella rete locale, per chi scrive l'indirizzo a mano. */
+    private val localName = MdnsName(context, GuestUploadServer.LOCAL_NAME)
+
+    /** Ultima volta che un telefono ha letto lo stato della festa (orologio del server), per la prova della rete. */
+    fun lastGuestContact(): Long = server?.lastGuestContact ?: 0L
+
     /** Annuncio della festa per gli schermi aggiuntivi delle altre stanze. */
     private val beacon = PartyBeacon(context)
     /** Ogni foto salvata, dai thread del server: serve alla copia di sicurezza nella galleria. */
     @Volatile var onPhotoSaved: ((bytes: ByteArray, sender: String?) -> Unit)? = null
     /** Silent disco accesa: il brano che sta suonando la TV (a volume zero), letto dai thread del server. */
     @Volatile var discoSource: (() -> BackgroundMusicPlayer.NowPlaying?)? = null
+    /** Nome, logo, scaletta e sponsor della festa, preparati dalla regia. */
+    @Volatile var setup: PartySetup? = null
+
     /** Video brevi degli invitati, su disco con un limite: si cancellano con le foto a fine festa. */
     val videos = GuestVideoStore(java.io.File(context.cacheDir, "guest_videos"), maxTotalBytes = MAX_VIDEO_TOTAL_BYTES)
 
@@ -222,6 +235,19 @@ class GuestParty(
             }
         }
 
+        override fun setupJson(): String = setup?.publicJson() ?: "null"
+
+        override fun setupHostJson(): String = setup?.json() ?: "null"
+
+        override fun logo(): ByteArray? = setup?.logo()
+
+        override fun sponsor(id: String): ByteArray? = setup?.sponsor(id)
+
+        override fun hostUpload(kind: String, bytes: ByteArray): Boolean {
+            val target = setup ?: return false
+            return if (kind == "logo") target.setLogo(bytes) else target.addSponsor(bytes) != null
+        }
+
         override fun phoneWallJson(player: String?): String = phoneWall?.phoneJson(player) ?: "null"
 
         override fun phoneWallAction(form: Map<String, String>): Pair<Int, String>? = phoneWall?.handle(form)
@@ -261,6 +287,7 @@ class GuestParty(
         prefs.edit()
             .putBoolean(KEY_ACTIVE, true)
             .putString(KEY_SECRET, partySecret())
+            .putString(KEY_JOIN_CODE, String.format(java.util.Locale.ROOT, "%04d", SecureRandom().nextInt(10_000)))
             .putLong(KEY_STARTED_AT, System.currentTimeMillis())
             .apply()
         host?.reset()
@@ -367,7 +394,7 @@ class GuestParty(
         hubSave?.cancel(false)
         hubSave = null
         hubFile.delete()
-        prefs.edit().putBoolean(KEY_ACTIVE, false).remove(KEY_SECRET).remove(KEY_STARTED_AT).apply()
+        prefs.edit().putBoolean(KEY_ACTIVE, false).remove(KEY_SECRET).remove(KEY_STARTED_AT).remove(KEY_JOIN_CODE).apply()
         _state.update { it.copy(active = false, url = null, problem = null) }
     }
 
@@ -396,6 +423,7 @@ class GuestParty(
             onPhoto = ::receive,
             onDeletePhoto = ::deleteByGuest,
             onVideo = ::receiveVideo,
+            joinCode = { prefs.getString(KEY_JOIN_CODE, null) },
             // Il sistema ha chiuso il server (ad esempio togliendo l'indirizzo): si riavvia a breve.
             onFailure = { scheduleRetry(FAILURE_RETRY_SECONDS) },
             game = phoneGame,
@@ -410,9 +438,12 @@ class GuestParty(
             server = candidate
             serverAddress = address
             val url = "http://${GuestUploadServer.hostHeader(address, port)}/?k=$secret"
-            _state.update { it.copy(url = url, problem = null) }
+            val joinCode = prefs.getString(KEY_JOIN_CODE, null) ?: String.format(java.util.Locale.ROOT, "%04d", SecureRandom().nextInt(10_000))
+                .also { prefs.edit().putString(KEY_JOIN_CODE, it).apply() }
+            _state.update { it.copy(url = url, problem = null, localUrl = "${GuestUploadServer.LOCAL_NAME}:$port", joinCode = joinCode) }
             syncDlna()
             beacon.advertise(deviceName(), port)
+            (address as? Inet4Address)?.let(localName::start)
         } catch (failure: IOException) {
             Log.w(TAG, "Server per le foto degli invitati non avviato", failure)
             _state.update { it.copy(url = null, problem = GuestProblem.SERVER_FAILED) }
@@ -445,6 +476,8 @@ class GuestParty(
 
     private fun stopServer() {
         beacon.stop()
+        localName.stop()
+        _state.update { it.copy(localUrl = null) }
         server?.stop()
         server = null
         serverAddress = null
@@ -602,6 +635,9 @@ class GuestParty(
         return template.replace("__FOTOFESTA_CONFIG__", config)
     }
 
+    /** Wi‑Fi degli invitati salvata, per il file di configurazione da portare su un'altra TV. */
+    fun wifiForExport(): WifiNetwork? = _state.value.wifi
+
     private fun loadWifi(): WifiNetwork? {
         val ssid = prefs.getString(KEY_WIFI_SSID, null) ?: return null
         val password = runCatching { secrets.get(KEY_WIFI_PASSWORD) }.getOrNull()
@@ -650,6 +686,7 @@ class GuestParty(
         const val KEY_ACTIVE = "active"
         const val KEY_SECRET = "secret"
         const val KEY_FIXED_SECRET = "fixed_secret"
+        const val KEY_JOIN_CODE = "join_code"
         const val MAX_VIDEO_TOTAL_BYTES = 600L * 1024 * 1024
         /** Video "brevi": la pagina rifiuta quelli più lunghi prima di mandarli. */
         const val MAX_VIDEO_SECONDS = 30

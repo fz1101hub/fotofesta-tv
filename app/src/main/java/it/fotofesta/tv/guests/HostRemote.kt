@@ -20,6 +20,13 @@ sealed interface PartyCommand {
     data object Develop : PartyCommand
     /** Canzone richiesta già suonata (o scartata) da chi fa la musica. */
     data class SongDone(val id: String) : PartyCommand
+    /** Preparazione della festa dalla regia: nome, colore, scaletta, invitati attesi, logo e sponsor. */
+    data class SetBrandName(val name: String) : PartyCommand
+    data class SetAccent(val color: String?) : PartyCommand
+    data class SetSchedule(val text: String) : PartyCommand
+    data class SetGuestList(val text: String) : PartyCommand
+    data object RemoveLogo : PartyCommand
+    data class RemoveSponsor(val id: String) : PartyCommand
 }
 
 /**
@@ -139,6 +146,12 @@ class HostRemote(
             "quiet" -> PartyCommand.StartQuiet
             "develop" -> PartyCommand.Develop
             "song_done" -> id?.let(PartyCommand::SongDone)
+            "brand_name" -> PartyCommand.SetBrandName(form["text"].orEmpty().take(MAX_SETUP_TEXT))
+            "brand_accent" -> PartyCommand.SetAccent(form["text"]?.takeIf(PartySetup::validColor))
+            "schedule" -> PartyCommand.SetSchedule(form["text"].orEmpty().take(MAX_SETUP_TEXT))
+            "guest_list" -> PartyCommand.SetGuestList(form["text"].orEmpty().take(MAX_SETUP_TEXT))
+            "logo_remove" -> PartyCommand.RemoveLogo
+            "sponsor_remove" -> id?.let(PartyCommand::RemoveSponsor)
             else -> null
         } ?: return 400 to """{"error":"invalid"}"""
         onCommand?.invoke(command)
@@ -146,7 +159,7 @@ class HostRemote(
     }
 
     /** Stato per la pagina di regia, con le dediche da approvare prese da [hub]. */
-    fun statusJson(hub: PartyHub): String {
+    fun statusJson(hub: PartyHub, setup: String = "null"): String {
         val current = synchronized(this) { status }
         val messages = hub.pendingMessages()
         val director = hub.director()
@@ -175,7 +188,8 @@ class HostRemote(
                 append(""","text":""").append(GuestUploadServer.jsonString(song.text))
                 append(""","name":""").append(song.name?.let(GuestUploadServer::jsonString) ?: "null").append('}')
             }
-            append("""],"director":""").append(director?.let { GuestUploadServer.jsonString(it.name) } ?: "null")
+            append("""],"setup":""").append(setup)
+            append(""","director":""").append(director?.let { GuestUploadServer.jsonString(it.name) } ?: "null")
             append('}')
         }
     }
@@ -203,6 +217,8 @@ class HostRemote(
         /** Telefoni che possono fare regia insieme. */
         const val MAX_TOKENS = 8
         const val MAX_LISTED = 40
+        /** Scaletta e invitati attesi: qualche decina di righe. */
+        const val MAX_SETUP_TEXT = 4_000
         private const val MAX_TRACKED_CLIENTS = 500
     }
 }

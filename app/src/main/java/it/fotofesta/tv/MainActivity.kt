@@ -102,7 +102,10 @@ import it.fotofesta.tv.ui.WhoTookItScreen
 import it.fotofesta.tv.ui.PhonePlay
 import it.fotofesta.tv.ui.BuzzerScreen
 import it.fotofesta.tv.ui.AnywhereScreen
+import it.fotofesta.tv.ui.NetworkCheckScreen
 import it.fotofesta.tv.ui.PhoneWallScreen
+import it.fotofesta.tv.ui.PinDialog
+import it.fotofesta.tv.ui.screenAdjust
 import it.fotofesta.tv.ui.DoorScreen
 import it.fotofesta.tv.ui.ExtraScreen
 import it.fotofesta.tv.guests.ExtraScreenClient
@@ -110,6 +113,7 @@ import it.fotofesta.tv.guests.guestPhotoId
 import it.fotofesta.tv.ui.CameraScreen
 import it.fotofesta.tv.ui.projectorBoost
 import it.fotofesta.tv.tv.TvFeatures
+import it.fotofesta.tv.store.StoreReview
 import it.fotofesta.tv.store.StoreUpdates
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -145,6 +149,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             FotoFestaTheme {
                 val state by viewModel.state.collectAsStateWithLifecycle()
+                val setup by viewModel.setup.collectAsStateWithLifecycle()
                 val usbPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
                     uri?.let {
                         // Prima si chiude il browser: la navigazione toglierebbe il messaggio di avanzamento.
@@ -207,6 +212,12 @@ class MainActivity : ComponentActivity() {
                 }
 
                 BackHandler(enabled = state.destination != Destination.HOME, onBack = viewModel::back)
+                // Chiosco: dalla home si esce dall'app solo con il PIN.
+                BackHandler(enabled = state.destination == Destination.HOME && state.settings.kiosk && state.pinRequest == null) {
+                    if (!viewModel.requestExit()) finish()
+                }
+                LaunchedEffect(Unit) { viewModel.exitRequests.collect { finish() } }
+                LaunchedEffect(Unit) { viewModel.reviewRequests.collect { StoreReview(this@MainActivity).request() } }
 
                 // Lo schermo resta acceso durante slideshow e giochi, ma uno slideshow in pausa
                 // (anche per la pausa automatica) lascia che la TV vada in standby. Durante il
@@ -224,7 +235,7 @@ class MainActivity : ComponentActivity() {
                     Destination.TOAST, Destination.COINS -> true
                     Destination.SHOWS, Destination.REWIND, Destination.BARCODE, Destination.PHOTO_MOSAIC, Destination.CREDITS,
                     Destination.TELETEXT, Destination.SKY, Destination.STATS -> true
-                    Destination.BUZZER, Destination.CAMERA, Destination.DOOR, Destination.EXTRA_SCREEN, Destination.ANYWHERE, Destination.PHONE_WALL -> true
+                    Destination.BUZZER, Destination.CAMERA, Destination.DOOR, Destination.EXTRA_SCREEN, Destination.ANYWHERE, Destination.PHONE_WALL, Destination.NETWORK_CHECK -> true
                     // Il QR per incollare il link dell'album deve restare visibile.
                     Destination.ICLOUD_LINK -> true
                     else -> false
@@ -251,7 +262,11 @@ class MainActivity : ComponentActivity() {
                 }
 
                 CompositionLocalProvider(LocalReducedMotion provides state.settings.reducedMotion) {
-                    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+                    Box(
+                        Modifier.fillMaxSize()
+                            .screenAdjust(state.settings.screenMargin, state.settings.keystone)
+                            .background(MaterialTheme.colorScheme.background),
+                    ) {
                         when (state.destination) {
                             Destination.HOME -> HomeScreen(
                                 state = state,
@@ -271,6 +286,10 @@ class MainActivity : ComponentActivity() {
                                 onChange = viewModel::updateSettings,
                                 onPickMusic = { openBrowser(BrowserKind.MUSIC) },
                                 onRemoveMusic = viewModel::removeMusic,
+                                onKiosk = viewModel::toggleKiosk,
+                                onNetworkCheck = viewModel::openNetworkCheck,
+                                onExport = viewModel::exportSetup,
+                                onImport = viewModel::importSetup,
                                 onDisconnectGoogle = viewModel::disconnectGoogle,
                                 onOpenScreensaverSettings = ::openScreensaverSettings,
                                 onApproval = viewModel::setGuestApproval,
@@ -294,6 +313,9 @@ class MainActivity : ComponentActivity() {
                                 photoAge = viewModel::photoAge,
                                 photoTag = viewModel::photoTag,
                                 nextBeatIn = viewModel::nextBeatIn,
+                                setup = setup,
+                                loadLogo = viewModel::partyLogo,
+                                loadSponsor = viewModel::partySponsor,
                             ) } }
                             Destination.GAMES -> GamesScreen(
                                 // I giochi usano solo le foto: i video si guardano nello slideshow.
@@ -316,6 +338,12 @@ class MainActivity : ComponentActivity() {
                                 silentDisco = state.silentDisco,
                                 onSilentDisco = viewModel::toggleSilentDisco,
                                 onPhoneWall = viewModel::startPhoneWall,
+                            )
+                            Destination.NETWORK_CHECK -> NetworkCheckScreen(
+                                check = state.networkCheck,
+                                guests = state.guests,
+                                onRetry = viewModel::runNetworkCheck,
+                                onBack = viewModel::back,
                             )
                             Destination.PHONE_WALL -> PhoneWallScreen(
                                 wall = state.phoneWall,
@@ -428,7 +456,7 @@ class MainActivity : ComponentActivity() {
                                     .sortedByDescending { it.receivedAtMillis ?: 0L }
                                     .take(4),
                                 onStart = viewModel::startGuestParty,
-                                onEnd = viewModel::endGuestParty,
+                                onEnd = viewModel::requestEndParty,
                                 onPlay = viewModel::playCurrent,
                                 onReview = { viewModel.navigate(Destination.GUEST_REVIEW) },
                                 onAwards = { viewModel.navigate(Destination.AWARDS) },
@@ -547,6 +575,12 @@ class MainActivity : ComponentActivity() {
                                     LinearProgressIndicator(Modifier.width(320.dp), color = Accent, trackColor = TextPrimary.copy(alpha = .2f))
                                 }
                             }
+                        }
+
+                        // Chiosco: PIN sopra tutto, Indietro lo chiude.
+                        state.pinRequest?.let { purpose ->
+                            BackHandler(onBack = viewModel::cancelPin)
+                            PinDialog(purpose, onSubmit = viewModel::submitPin, onCancel = viewModel::cancelPin)
                         }
                     }
                 }

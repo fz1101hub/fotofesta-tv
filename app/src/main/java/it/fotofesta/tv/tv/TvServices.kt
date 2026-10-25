@@ -53,6 +53,25 @@ object TvFeatures {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) window.setPreferMinimalPostProcessing(enabled)
     }
 
+    /** La TV è collegata alla rete con il cavo. */
+    fun isEthernet(context: Context): Boolean {
+        val manager = context.getSystemService(android.net.ConnectivityManager::class.java) ?: return false
+        val capabilities = manager.getNetworkCapabilities(manager.activeNetwork) ?: return false
+        return capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET)
+    }
+
+    data class WifiSignal(val rssi: Int, val frequencyMhz: Int)
+
+    /** Segnale e banda della Wi‑Fi a cui è collegata la TV; null con il cavo o senza Wi‑Fi. */
+    @Suppress("DEPRECATION")
+    fun wifiSignal(context: Context): WifiSignal? {
+        if (isEthernet(context)) return null
+        val manager = context.applicationContext.getSystemService(android.net.wifi.WifiManager::class.java) ?: return null
+        val info = runCatching { manager.connectionInfo }.getOrNull() ?: return null
+        if (info.networkId == -1 && info.rssi <= -127) return null
+        return WifiSignal(info.rssi, info.frequency)
+    }
+
     private const val LOW_MEMORY_CLASS_MB = 128
     private const val FIRE_TV_FEATURE = "amazon.hardware.fire_tv"
 }

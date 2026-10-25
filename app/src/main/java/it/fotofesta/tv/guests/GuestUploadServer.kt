@@ -44,6 +44,11 @@ class GuestUploadServer(
     private val onVideo: ((input: InputStream, length: Long, sender: String?, player: String?) -> Upload)? = null,
     /** Foto tolta da chi l'ha mandata, con la ricevuta avuta all'invio; false se non c'è più. */
     private val onDeletePhoto: (id: String) -> Boolean = { false },
+    /**
+     * Codice di quattro cifre mostrato sulla TV: chi apre "festa.local" senza QR lo scrive e riceve
+     * la chiave della festa. Null se non c'è.
+     */
+    private val joinCode: () -> String? = { null },
     private val onFailure: () -> Unit = {},
     /** Gioco con i telefoni: domanda in corso (GET /game) e risposte (POST /game/answer). */
     private val game: PhoneGame? = null,
@@ -75,6 +80,14 @@ class GuestUploadServer(
     @Volatile private var stopping = false
     private val openSockets: MutableSet<Socket> = Collections.synchronizedSet(mutableSetOf())
     @Volatile private var expectedHost: String = ""
+    @Volatile private var localName: String = ""
+    private val joinAttempts = mutableMapOf<InetAddress, ArrayDeque<Long>>()
+    private var joinFailures = 0
+    private var joinLockedUntil = 0L
+
+    /** Ultima volta (orologio di [nowMillis]) che un telefono ha letto lo stato della festa: per la prova della rete. */
+    @Volatile var lastGuestContact = 0L
+        private set
     private val perClient = mutableMapOf<InetAddress, Int>()
     private val recentUploads = mutableMapOf<InetAddress, ArrayDeque<Long>>()
     private val recentActions = mutableMapOf<InetAddress, ArrayDeque<Long>>()
@@ -101,6 +114,7 @@ class GuestUploadServer(
         val socket = bind(address, preferredPort)
         val port = socket.localPort
         expectedHost = hostHeader(address, port)
+        localName = "$LOCAL_NAME:$port"
         val counter = AtomicInteger()
         val pool = ThreadPoolExecutor(
             WORKERS, WORKERS, 30, TimeUnit.SECONDS, ArrayBlockingQueue(QUEUE_SIZE),
@@ -228,14 +242,37 @@ class GuestUploadServer(
     private fun route(request: Request, body: InputStream, clientAddress: InetAddress, startedAt: Long): Response {
         // Contro il DNS rebinding: solo l'indirizzo del QR; un client senza Host non è un browser.
         val host = request.headers["host"]
-        if (host == null || !host.equals(expectedHost, ignoreCase = true)) {
+        // "festa.local" è un nome della rete locale (mDNS), che un sito esterno non può ottenere.
+        if (host == null || !(host.equals(expectedHost, ignoreCase = true) || host.equals(localName, ignoreCase = true))) {
             throw HttpError(421, "host")
         }
         return when (request.path) {
             "/" -> {
                 if (request.method != "GET" && request.method != "HEAD") throw HttpError(405, "method")
-                if (!keyMatches(request.query["k"])) Response.html(403, EXPIRED_PAGE)
-                else Response.html(200, page(), head = request.method == "HEAD")
+                when {
+                    keyMatches(request.query["k"]) -> Response.html(200, page(), head = request.method == "HEAD")
+                    // Senza chiave (indirizzo scritto a mano): si chiede il codice mostrato sulla TV.
+                    request.query["k"] == null && joinCode() != null -> Response.html(200, JOIN_PAGE, head = request.method == "HEAD")
+                    else -> Response.html(403, EXPIRED_PAGE)
+                }
+            }
+            "/join" -> {
+                if (request.method != "POST") throw HttpError(405, "method")
+                val form = readSmallForm(request, body, startedAt, MAX_ANSWER_BYTES)
+                if (!allowJoin(clientAddress)) throw HttpError(429, "rate", listOf("Retry-After" to "60"))
+                val code = joinCode() ?: throw HttpError(404, "not_found")
+                val given = form["code"]?.filter(Char::isDigit).orEmpty()
+                if (!java.security.MessageDigest.isEqual(code.toByteArray(), given.toByteArray())) {
+                    synchronized(joinAttempts) {
+                        joinFailures++
+                        if (joinFailures >= MAX_JOIN_FAILURES) {
+                            joinLockedUntil = nowMillis() + JOIN_LOCK_MS
+                            joinFailures = 0
+                        }
+                    }
+                    throw HttpError(403, "code")
+                }
+                Response.json(200, """{"key":${jsonString(key)}}""")
             }
             "/photos" -> {
                 if (request.method != "POST") throw HttpError(405, "method")
@@ -282,12 +319,43 @@ class GuestUploadServer(
                 if (!keyMatches(request.headers["x-fotofesta-key"])) throw HttpError(401, "key")
                 val features = hub?.featuresJson() ?: """{"reactions":false,"messages":false,"moderated":false}"""
                 val player = request.query["player"]
+                lastGuestContact = nowMillis()
                 val party = hub?.partyJson(player) ?: """{"announcement":null,"director":null}"""
                 val hostOn = hostRemote?.pin() != null
                 val playJson = play?.phoneJson(player) ?: "null"
                 val disco = extras?.discoJson() ?: "null"
                 val wall = extras?.phoneWallJson(player) ?: "null"
-                Response.json(200, """{"features":$features,"game":${gameJson(game?.current(), player)},"party":$party,"host":$hostOn,"play":$playJson,"disco":$disco,"phoneWall":$wall}""")
+                val setup = extras?.setupJson() ?: "null"
+                Response.json(200, """{"features":$features,"game":${gameJson(game?.current(), player)},"party":$party,"host":$hostOn,"play":$playJson,"disco":$disco,"phoneWall":$wall,"setup":$setup}""")
+            }
+            "/party/logo" -> {
+                if (request.method != "GET") throw HttpError(405, "method")
+                if (!keyMatches(request.query["k"])) throw HttpError(401, "key")
+                val bytes = extras?.logo() ?: throw HttpError(404, "not_found")
+                Response(200, imageType(bytes), bytes, listOf("Cache-Control" to "private, max-age=60"))
+            }
+            // Logo e sponsor scelti dalla regia sul telefono, già ridotti dalla pagina.
+            "/party/host/upload" -> {
+                if (request.method != "POST") throw HttpError(405, "method")
+                if (!keyMatches(request.headers["x-fotofesta-key"])) throw HttpError(401, "key")
+                val remote = hostRemote ?: throw HttpError(404, "not_found")
+                if (!remote.isHost(request.headers["x-fotofesta-host"])) throw HttpError(401, "host")
+                val kind = request.query["kind"]?.takeIf { it == "logo" || it == "sponsor" } ?: throw HttpError(400, "invalid")
+                val length = request.headers["content-length"]?.trim()?.toIntOrNull() ?: throw HttpError(411, "length")
+                if (length <= 0) throw HttpError(400, "empty")
+                if (length > PartySetup.MAX_IMAGE_BYTES) throw HttpError(413, "too_large")
+                val bytes = readBody(body, length, deadline = startedAt + bodyDeadlineMillis, now = nowMillis)
+                if (ImageFormat.sniff(bytes) == null) throw HttpError(415, "unsupported")
+                if (extras?.hostUpload(kind, bytes) != true) throw HttpError(507, "full")
+                Response.json(200, """{"status":"ok"}""")
+            }
+            "/party/host/sponsor" -> {
+                if (request.method != "GET") throw HttpError(405, "method")
+                if (!keyMatches(request.headers["x-fotofesta-key"])) throw HttpError(401, "key")
+                val remote = hostRemote ?: throw HttpError(404, "not_found")
+                if (!remote.isHost(request.headers["x-fotofesta-host"])) throw HttpError(401, "host")
+                val bytes = extras?.sponsor(request.query["id"].orEmpty()) ?: throw HttpError(404, "not_found")
+                Response(200, imageType(bytes), bytes)
             }
             "/party/action" -> {
                 if (request.method != "POST") throw HttpError(405, "method")
@@ -313,7 +381,7 @@ class GuestUploadServer(
                 when (request.method) {
                     "GET" -> {
                         if (!remote.isHost(token)) throw HttpError(401, "host")
-                        Response.json(200, remote.statusJson(hub ?: PartyHub()))
+                        Response.json(200, remote.statusJson(hub ?: PartyHub(), extras?.setupHostJson() ?: "null"))
                     }
                     "POST" -> {
                         val form = readSmallForm(request, body, startedAt, MAX_ACTION_BYTES)
@@ -404,6 +472,17 @@ class GuestUploadServer(
             }
             else -> Response.json(404, """{"error":"not_found"}""")
         }
+    }
+
+    /** Al massimo [JOIN_PER_MINUTE] codici al minuto per telefono; dopo molti errori in tutto, una pausa. */
+    private fun allowJoin(address: InetAddress): Boolean = synchronized(joinAttempts) {
+        val now = nowMillis()
+        if (now < joinLockedUntil) return false
+        val times = joinAttempts.getOrPut(address) { ArrayDeque() }
+        while (times.isNotEmpty() && now - times.first() > 60_000) times.removeFirst()
+        if (times.size >= JOIN_PER_MINUTE) return false
+        times.addLast(now)
+        true
     }
 
     /** Ricevuta di una foto: firma della chiave della festa, che il telefono non conosce in anticipo. */
@@ -695,6 +774,32 @@ class GuestUploadServer(
             "form-action 'none'; base-uri 'none'; frame-ancestors 'none'"
 
         private const val RECEIPT_LENGTH = 22
+
+        /** Nome della TV nella rete locale (mDNS), per chi scrive l'indirizzo a mano. */
+        const val LOCAL_NAME = "festa.local"
+        private const val JOIN_PER_MINUTE = 5
+        private const val MAX_JOIN_FAILURES = 30
+        private const val JOIN_LOCK_MS = 5 * 60_000L
+
+        private const val JOIN_PAGE = """<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>FotoFesta</title>
+<style>body{font:18px/1.5 system-ui,sans-serif;margin:0;background:#0d0f13;color:#fff}main{max-width:420px;margin:0 auto;padding:40px 20px}
+h1{font-size:1.6rem;margin:.2em 0}input{width:100%;box-sizing:border-box;font:700 2rem/1 ui-monospace,monospace;letter-spacing:.4em;text-align:center;padding:14px;border-radius:16px;border:2px solid #343945;background:#1b1e25;color:#fff}
+button{width:100%;margin-top:14px;min-height:56px;border:0;border-radius:16px;background:linear-gradient(120deg,#ff7a57,#ff4f9a,#8b6cff);color:#1a0b06;font:800 1.1rem system-ui,sans-serif}p{color:#c8cdd6}#e{color:#ff9c85;min-height:1.5em}</style></head>
+<body><main><p style="color:#ff7a57;font-weight:800;letter-spacing:.14em">FOTOFESTA</p><h1 id="t"></h1><p id="b"></p>
+<input id="c" inputmode="numeric" maxlength="4" autocomplete="one-time-code"><button id="go"></button><p id="e"></p></main>
+<script>
+var L={it:["Scrivi il codice della festa","Lo trovi sulla TV, accanto al QR.","Entra","Codice sbagliato: riprova.","Troppi tentativi: aspetta un minuto."],
+en:["Type the party code","You'll find it on the TV, next to the QR code.","Join","Wrong code: try again.","Too many attempts: wait a minute."],
+fr:["Saisissez le code de la fête","Vous le trouverez sur la TV, à côté du QR.","Entrer","Code incorrect : réessayez.","Trop d'essais : attendez une minute."],
+es:["Escribe el código de la fiesta","Lo encontrarás en la TV, junto al QR.","Entrar","Código incorrecto: inténtalo de nuevo.","Demasiados intentos: espera un minuto."],
+de:["Gib den Party-Code ein","Du findest ihn am Fernseher neben dem QR-Code.","Los","Falscher Code: Versuch es noch einmal.","Zu viele Versuche: Warte eine Minute."]};
+var T=L[(navigator.language||"en").slice(0,2)]||L.en;document.getElementById("t").textContent=T[0];document.getElementById("b").textContent=T[1];document.getElementById("go").textContent=T[2];
+function go(){var c=document.getElementById("c").value;fetch("/join",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"code="+encodeURIComponent(c)})
+.then(function(r){if(r.ok)return r.json().then(function(j){location.replace("/?k="+encodeURIComponent(j.key))});document.getElementById("e").textContent=r.status==429?T[4]:T[3]})
+.catch(function(){document.getElementById("e").textContent=T[3]})}
+document.getElementById("go").onclick=go;document.getElementById("c").onkeydown=function(e){if(e.key==="Enter")go()};
+</script></body></html>"""
 
         /** Video brevi degli invitati: un minuto di un telefono sta comodamente sotto questo limite. */
         const val MAX_VIDEO_BYTES = 60L * 1024 * 1024
