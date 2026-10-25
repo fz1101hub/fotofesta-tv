@@ -45,6 +45,13 @@ Il repository contiene anche la versione per **Apple TV** (cartella [`apple/`](a
 | Android TV | Vecchio telefono come telecamera e applausometro (app “IP Webcam”, solo rete locale), con lo scatto che entra nella festa | Pronta |
 | Android TV | Pulsanti quiz: gamepad, tastiere e telecomandi come pulsanti delle squadre | Pronta |
 | Android TV | Canale nella schermata Home, avvio con la TV, modalità leggera (accesa da sola con poca memoria), modalità proiettore, modalità gioco della TV (ALLM) durante i giochi, aggiornamenti dal Play Store solo a TV libera | Pronta |
+| Android TV e Fire TV | Arrivi con la fanfara: il QR dell’ingresso (da stampare) fa salutare dalla TV ogni invitato che arriva | Pronta |
+| Android TV e Fire TV | Parete delle foto per un secondo schermo (Echo Show, tablet, PC) e schermi aggiuntivi: un’altra TV della casa trova la festa (DNS-SD `_fotofesta._tcp`) e la mostra con il PIN della regia | Pronta |
+| Android TV e Fire TV | Silent disco: la TV suona la musica a volume zero e i telefoni la riproducono nelle cuffie, allineati alla TV (solo il brano in corso, a pezzi da 1 MB) | Pronta; la sincronia è di qualche decimo di secondo |
+| Android TV e Fire TV | Capsula del tempo sulla chiavetta: foto approvate, dediche, propositi e arrivi in una pagina HTML che si apre tra un anno (si può sbirciare) | Pronta |
+| Android TV e Fire TV | Festa ovunque: guida al kit (chiavetta, powerbank, mini proiettore) e un pulsante che accende rete della TV, proiettore e modalità leggera | Pronta; la rete della TV dipende dal modello |
+| Android TV e Fire TV | Muro di telefoni: fino a 12 telefoni affiancati mostrano insieme una foto degli invitati | Pronta |
+| Android TV e Fire TV | Slideshow a ritmo: con la musica di sottofondo le foto cambiano a inizio battuta e pulsano sul battito (analisi dei primi 45 secondi di ogni brano sulla TV) | Pronta, spenta di default |
 | Fire TV | Versione per l’Amazon Appstore (Fire OS 7 e 8): senza la libreria degli aggiornamenti di Google Play; sul Fire TV niente salvaschermo e canale Home (non disponibili), comandi vocali di Alexa, tasto Menu nello slideshow, aiuto per il disco USB con adattatore OTG | Pronta nel codice; da provare su un Fire TV |
 | Privacy | Nessuna pubblicità, analisi o SDK che inviano dati; token AES-GCM in Android Keystore ([DATA_SAFETY.md](docs/DATA_SAFETY.md)) | Pronta |
 | Lingue | Italiano, inglese, francese, spagnolo e tedesco, anche nella pagina per i telefoni degli invitati, che segue la lingua del telefono; inglese per le altre lingue | Pronta |

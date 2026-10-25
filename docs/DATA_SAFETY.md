@@ -53,6 +53,11 @@ Il permesso si chiede solo all'apertura del browser delle cartelle; se viene neg
 - Telecamera e applausometro con un vecchio telefono: l'app legge in HTTP il flusso MJPEG e l'audio WAV dell'app “IP Webcam” solo su indirizzi della rete locale; non registra l'audio e nessun dato esce dalla rete di casa. Non servono permessi.
 - Copia sulla chiavetta: cartella scelta dall'utente con il selettore di documenti (permesso persistente sull'URI), nessun permesso aggiuntivo.
 - Aggiornamenti dal Play Store: libreria Play In-App Updates, nessun dato raccolto dall'app.
+- Schermi aggiuntivi: durante la festa la TV si annuncia sulla rete locale con DNS-SD (`_fotofesta._tcp`, solo nome del dispositivo e porta); un'altra TV vi accede solo con il PIN della regia. Nessun permesso aggiuntivo.
+- Parete delle foto e muro di telefoni: mostrano solo foto degli invitati già approvate, servite con la chiave della festa; mai la raccolta della TV (USB, Google Foto, rete).
+- Silent disco: i telefoni con la chiave della festa possono scaricare solo il brano che la TV sta suonando, indicato da un'impronta del suo indirizzo; nessun altro file è raggiungibile.
+- Capsula del tempo: file scritti solo nella cartella della chiavetta scelta dall'utente; non disponibile con “Festa senza tracce”.
+- Slideshow a ritmo: la TV decodifica in memoria i primi 45 secondi dei brani scelti per calcolarne il battito; non registra audio e non usa il microfono.
 
 ## Amazon Appstore – Privacy e contenuti (Fire TV)
 
