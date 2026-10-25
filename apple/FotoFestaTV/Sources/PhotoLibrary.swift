@@ -123,6 +123,34 @@ enum PhotoLibrary {
         return photos
     }
 
+    /// "Accadde oggi": foto scattate in questo stesso giorno negli anni passati (fino a 30 anni fa),
+    /// dalla più recente, con la data dello scatto. Vuoto senza il permesso alla libreria.
+    static func onThisDay(now: Date = Date(), limit: Int = 60) -> [(photo: Photo, taken: Date)] {
+        guard access == .authorized else { return [] }
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: now)
+        var ranges: [NSPredicate] = []
+        for years in 1...30 {
+            guard let start = calendar.date(byAdding: .year, value: -years, to: today),
+                  calendar.component(.day, from: start) == calendar.component(.day, from: today),
+                  let end = calendar.date(byAdding: .day, value: 1, to: start) else { continue }
+            ranges.append(NSPredicate(format: "creationDate >= %@ AND creationDate < %@", start as NSDate, end as NSDate))
+        }
+        guard !ranges.isEmpty else { return [] }
+        let options = PHFetchOptions()
+        options.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            NSPredicate(format: "mediaType == %d", PHAssetMediaType.image.rawValue),
+            NSCompoundPredicate(orPredicateWithSubpredicates: ranges),
+        ])
+        options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+        options.fetchLimit = limit
+        var found: [(photo: Photo, taken: Date)] = []
+        PHAsset.fetchAssets(with: options).enumerateObjects { asset, _, _ in
+            if let date = asset.creationDate { found.append((photo: Self.photo(asset), taken: date)) }
+        }
+        return found
+    }
+
     /// Data e ora dello scatto: nei giochi fanno da titolo, perché PhotoKit non dà un nome al file.
     private static let titleFormatter: DateFormatter = {
         let formatter = DateFormatter()

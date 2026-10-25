@@ -49,6 +49,17 @@ struct RootView: View {
                     case .stats: StatsView()
                     case .door: DoorView()
                     case .phoneWall: PhoneWallView()
+                    case .absent: AbsentView()
+                    case .artwork: ArtworkView()
+                    case .soundShow: SoundShowView()
+                    case .livingQR: LivingQRView()
+                    case .dream: DreamView()
+                    case .museum: MuseumView()
+                    case .chapters: ChaptersView()
+                    case .onThisDay: OnThisDayView()
+                    case .differences: DifferencesView()
+                    case .quizHosts: QuizView(kind: .hosts)
+                    case .quizKids: QuizView(kind: .kids)
                     }
                 }
         }
@@ -105,6 +116,7 @@ struct RootView: View {
         case .partyGames, .play, .tournament, .bets, .toast, .coins: return true
         case .shows, .rewind, .barcode, .photoMosaic, .credits, .teletext, .sky, .stats: return true
         case .door, .phoneWall: return true
+        case .absent, .artwork, .soundShow, .livingQR, .dream, .museum, .chapters, .onThisDay, .differences, .quizHosts, .quizKids: return true
         case .googleConnect:
             if case .working = model.googleState { return true }
             return false

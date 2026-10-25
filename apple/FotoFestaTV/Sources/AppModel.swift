@@ -11,6 +11,7 @@ enum Route: Hashable {
     case partyGames, play, tournament, bets, toast, coins
     case shows, rewind, barcode, photoMosaic, credits, teletext, sky, stats
     case door, phoneWall
+    case absent, artwork, soundShow, livingQR, dream, museum, chapters, onThisDay, differences, quizHosts, quizKids
 }
 
 /// Da dove vengono le foto della raccolta mostrata nella home.

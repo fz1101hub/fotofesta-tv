@@ -100,6 +100,24 @@ struct SettingsView: View {
                         Text(filterName(filter)).tag(filter)
                     }
                 }
+                Toggle(isOn: binding(\.panoramas)) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L("settings.panoramas"))
+                        Text(L("settings.panoramas_body")).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                Toggle(isOn: binding(\.rivalParty)) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L("settings.rival_party"))
+                        Text(L("settings.rival_party_body")).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                Toggle(isOn: binding(\.boredScreen)) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L("settings.bored"))
+                        Text(L("settings.bored_body")).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
                 Toggle(isOn: binding(\.confetti)) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(L("settings.confetti"))

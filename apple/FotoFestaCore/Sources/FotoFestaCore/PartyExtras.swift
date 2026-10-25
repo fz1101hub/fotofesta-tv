@@ -101,10 +101,11 @@ public enum QRSVG {
     }
 
     /// Moduli del QR (true = nero), riga per riga dall'alto, senza il margine bianco del generatore.
-    static func modules(_ value: String) -> [[Bool]]? {
+    /// `correction` "H" regge anche i moduli colorati del QR vivente.
+    public static func modules(_ value: String, correction: String = "M") -> [[Bool]]? {
         guard let filter = CIFilter(name: "CIQRCodeGenerator") else { return nil }
         filter.setValue(Data(value.utf8), forKey: "inputMessage")
-        filter.setValue("M", forKey: "inputCorrectionLevel")
+        filter.setValue(correction, forKey: "inputCorrectionLevel")
         guard let output = filter.outputImage,
               let image = CIContext().createCGImage(output, from: output.extent) else { return nil }
         let width = image.width

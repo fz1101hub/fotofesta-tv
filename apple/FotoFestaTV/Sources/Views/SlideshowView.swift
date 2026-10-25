@@ -80,6 +80,14 @@ struct SlideshowView: View {
                     .padding(.top, 60)
             }
         }
+        // La TV che si annoia senza foto nuove dagli invitati.
+        .overlay(alignment: .bottomTrailing) {
+            if settings.boredScreen, model.guests.active, model.currentPhoto != nil {
+                BoredOverlay(lastPhoto: model.guests.photos.map(\.receivedAt).max())
+                    .padding(.trailing, 90)
+                    .padding(.bottom, 330)
+            }
+        }
         // Il prossimo momento della scaletta preparata dalla regia.
         .overlay(alignment: .bottomTrailing) {
             if !model.guests.setup.schedule.isEmpty, model.currentPhoto != nil {
@@ -148,6 +156,7 @@ struct SlideshowView: View {
             SponsorOverlay(tick: photoChanges, every: settings.sponsorEvery, sponsors: model.guests.setup.sponsors) {
                 model.guests.partySetup.sponsor($0)
             }
+            if settings.rivalParty, model.currentPhoto != nil { RivalPartyOverlay(tick: photoChanges) }
         }
         .modifier(ScreenMargin(percent: settings.screenMargin))
         .background(Color.black.ignoresSafeArea())
@@ -264,6 +273,12 @@ struct SlideshowView: View {
             }
         } else {
             SlideView(photo: photo, settings: settings, playing: model.isPlaying)
+                .overlay {
+                    // Panoramiche che scorrono (non con "Riduci movimento").
+                    if settings.panoramas, !settings.reducedMotion {
+                        PanoramaOverlay(photo: photo, playing: model.isPlaying, seconds: settings.intervalSeconds)
+                    }
+                }
                 .photoFilter(settings.filter)
                 .aging(model.photoAge(photo))
         }

@@ -23,6 +23,14 @@ struct ShowsView: View {
             ShowTile(id: .teletext, title: L("show.teletext"), body: L("show.teletext_body"), systemImage: "tv.fill"),
             ShowTile(id: .sky, title: L("show.sky"), body: L("show.sky_body"), systemImage: "sparkles"),
             ShowTile(id: .stats, title: L("show.stats"), body: L("show.stats_body"), systemImage: "chart.bar.xaxis"),
+            ShowTile(id: .absent, title: L("show.absent"), body: L("show.absent_body"), systemImage: "person.fill.questionmark"),
+            ShowTile(id: .artwork, title: L("show.artwork"), body: L("show.artwork_body"), systemImage: "paintpalette.fill"),
+            ShowTile(id: .soundShow, title: L("show.sound"), body: L("show.sound_body"), systemImage: "music.note"),
+            ShowTile(id: .livingQR, title: L("show.living_qr"), body: L("show.living_qr_body"), systemImage: "qrcode"),
+            ShowTile(id: .dream, title: L("show.dream"), body: L("show.dream_body"), systemImage: "cloud.fill"),
+            ShowTile(id: .museum, title: L("show.museum"), body: L("show.museum_body"), systemImage: "building.columns.fill"),
+            ShowTile(id: .chapters, title: L("show.chapters"), body: L("show.chapters_body"), systemImage: "book.fill"),
+            ShowTile(id: .onThisDay, title: L("show.on_this_day"), body: L("show.on_this_day_body"), systemImage: "clock.arrow.circlepath"),
         ]
     }
 
@@ -52,7 +60,7 @@ struct ShowsView: View {
                             }
                             .cardButtonStyle()
                             // Le foto servono a tutti tranne Televideo, cielo, numeri e titoli di coda.
-                            .disabled(!enoughPhotos && [.rewind, .barcode, .photoMosaic].contains(tile.id))
+                            .disabled(!enoughPhotos && [.rewind, .barcode, .photoMosaic, .artwork, .soundShow, .dream, .museum].contains(tile.id))
                         }
                     }
                     .padding(.vertical, 30)
@@ -64,7 +72,7 @@ struct ShowsView: View {
 }
 
 /// Pixel RGBA8 della foto ridotta a `width`×`height`, per i colori medi.
-private func pixels(of photo: Photo, width: Int, height: Int) async -> (rgba: [UInt8], image: CGImage)? {
+func pixels(of photo: Photo, width: Int, height: Int) async -> (rgba: [UInt8], image: CGImage)? {
     guard let image = await ImageLoader.shared.image(for: photo, maxPixelSize: max(width, height) * 4)?.platformCGImage else { return nil }
     var data = [UInt8](repeating: 0, count: width * height * 4)
     let drawn: CGImage? = data.withUnsafeMutableBytes { buffer in
