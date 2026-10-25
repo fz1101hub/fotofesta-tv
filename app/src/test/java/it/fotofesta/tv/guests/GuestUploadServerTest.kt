@@ -17,6 +17,7 @@ import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.random.Random
 
 class GuestUploadServerTest {
     private val loopback: InetAddress = InetAddress.getByName("127.0.0.1")
@@ -364,15 +365,35 @@ class GuestUploadServerTest {
 
     @Test
     fun `stop closes the port`() {
+        // Una porta effimera appena liberata può finire subito a una connessione in uscita di un
+        // altro test, e allora non si potrebbe occupare di nuovo anche con il server fermo: si usa
+        // una porta sotto l'intervallo effimero (32768–60999 su Linux), che nessun client riceve.
+        server.stop()
+        val fixed = freeLowPort()
+        assertEquals(fixed, server.start(loopback, preferredPort = fixed))
         server.stop()
         assertFalse(server.isRunning)
         // La porta si può occupare di nuovo solo se nessuno è più in ascolto. Una connessione di
-        // prova non basterebbe: sulla porta effimera appena liberata il sistema può dare al client
-        // la stessa porta come origine, e la connessione a sé stessi riesce anche senza server.
+        // prova non basterebbe: la connessione a sé stessi riesce anche senza server.
         ServerSocket().use { socket ->
             socket.reuseAddress = true
-            socket.bind(InetSocketAddress(loopback, port))
+            socket.bind(InetSocketAddress(loopback, fixed))
         }
+    }
+
+    /** Porta libera tra 20000 e 29999, fuori dall'intervallo delle porte effimere. */
+    private fun freeLowPort(): Int {
+        repeat(50) {
+            val candidate = 20_000 + Random.nextInt(10_000)
+            val free = runCatching {
+                ServerSocket().use { socket ->
+                    socket.reuseAddress = true
+                    socket.bind(InetSocketAddress(loopback, candidate))
+                }
+            }.isSuccess
+            if (free) return candidate
+        }
+        error("Nessuna porta libera tra 20000 e 29999")
     }
 
     @Test
