@@ -58,6 +58,27 @@
     .print-only { display: none; }
   }
   @media screen { .print-only { display: block; } }
+
+  /* Cartoncini da stampare: otto per foglio A4, da ritagliare e mettere sui tavoli */
+  .cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 1.2rem; }
+  .card { border: 2px dashed var(--line); border-radius: 18px; padding: 14px; display: grid; grid-template-columns: 1fr 42%; gap: 10px; align-items: center; background: var(--card); break-inside: avoid; }
+  .card h2 { font: 800 1.05rem/1.15 var(--display); margin: 0 0 .3rem; }
+  .card p { font-size: .82rem; margin: 0; color: var(--muted); }
+  .card .mini { background: #fff; border-radius: 10px; padding: 6px; aspect-ratio: 1; }
+  .card .mini img { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+  @media screen and (max-width: 520px) { .cards { grid-template-columns: 1fr; } }
+  .nfc { margin-top: 1.4rem; padding: 16px 18px; border-radius: 18px; background: var(--card); }
+  .nfc h2 { font: 800 1.1rem/1.2 var(--display); margin: 0 0 .4rem; }
+  .url { display: block; margin: .6rem 0; padding: 10px 12px; border-radius: 12px; background: var(--raised); font: .85rem/1.35 ui-monospace, Menlo, monospace; overflow-wrap: anywhere; user-select: all; }
+  .copy { min-height: 44px; padding: 10px 18px; border: 0; border-radius: var(--button-radius); background: var(--raised); color: var(--fg); font: 700 1rem var(--display); cursor: pointer; }
+  @media print {
+    @page { size: A4; margin: 10mm; }
+    main { max-width: none; padding: 0; }
+    .screen-only, .brand, h1, .lead, .nfc { display: none !important; }
+    .cards { gap: 6mm; margin: 0; }
+    .card { height: 64mm; background: #fff; border-color: #888; color: #000; }
+    .card p { color: #333; }
+  }
 </style>
 </head>
 <body>
@@ -68,6 +89,17 @@
   <div class="qr"><img id="qr" alt=""></div>
   <p class="muted" id="hint"></p>
   <p class="muted print-only" id="printHint"></p>
+  <section id="cardsPage" hidden>
+    <button type="button" class="button screen-only" id="print"></button>
+    <div class="cards" id="cards"></div>
+    <div class="nfc">
+      <h2 id="nfcTitle"></h2>
+      <p class="muted" id="nfcBody"></p>
+      <code class="url" id="url"></code>
+      <button type="button" class="copy" id="copy"></button>
+      <p class="muted" id="fixedHint"></p>
+    </div>
+  </section>
 </main>
 <script>
 "use strict";
@@ -78,6 +110,13 @@ const TEXTS = {
   es: { title: "¡Bienvenidos a la fiesta!", lead: "Nada más llegar, escanea el QR con la cámara del teléfono y toca «¡Aquí estoy!»: la TV te dará la bienvenida.", hint: "Hace falta la Wi‑Fi de la fiesta: si no estás conectado, pregunta a quien organiza.", printHint: "Imprime esta página o déjala abierta en una tablet junto a la puerta." },
   de: { title: "Willkommen zur Party!", lead: "Scanne gleich beim Ankommen den QR-Code mit der Handykamera und tippe auf „Ich bin da!“: Der Fernseher begrüßt dich.", hint: "Du brauchst das Party-WLAN: Wenn du nicht verbunden bist, frag den Gastgeber.", printHint: "Drucke diese Seite aus oder lass sie auf einem Tablet neben der Tür geöffnet." },
 };
+const CARD_TEXTS = {
+  it: { title: "Cartoncini per i tavoli", lead: "Stampali su un foglio A4 e ritagliali: gli invitati inquadrano il QR e mandano le foto alla TV.", print: "Stampa i cartoncini", card: "Manda le tue foto alla TV!", cardBody: "Inquadra il QR con la fotocamera. Serve la Wi‑Fi della festa.", nfcTitle: "Adesivo NFC", nfcBody: "Con un'app come «NFC Tools» scrivi questo indirizzo su un adesivo NFC: chi avvicina il telefono apre la pagina della festa.", copy: "Copia l'indirizzo", copied: "Copiato!", fixedHint: "Il QR e l'adesivo valgono finché la festa è in corso. Per riusarli ogni sera accendi «Indirizzo fisso» nelle impostazioni della festa sulla TV e dai alla TV un indirizzo fisso nel router." },
+  en: { title: "Table cards", lead: "Print them on A4 paper and cut them out: guests scan the QR and send their photos to the TV.", print: "Print the cards", card: "Send your photos to the TV!", cardBody: "Scan the QR with your camera. You need the party Wi‑Fi.", nfcTitle: "NFC sticker", nfcBody: "With an app such as “NFC Tools”, write this address on an NFC sticker: tapping it with a phone opens the party page.", copy: "Copy the address", copied: "Copied!", fixedHint: "The QR and the sticker work while the party is running. To reuse them every night, turn on “Fixed address” in the TV's party settings and give the TV a fixed address in your router." },
+  fr: { title: "Cartes de table", lead: "Imprimez-les sur une feuille A4 et découpez-les : les invités scannent le QR et envoient leurs photos à la TV.", print: "Imprimer les cartes", card: "Envoyez vos photos à la TV !", cardBody: "Scannez le QR avec l'appareil photo. Il faut le Wi‑Fi de la fête.", nfcTitle: "Autocollant NFC", nfcBody: "Avec une application comme « NFC Tools », écrivez cette adresse sur un autocollant NFC : en approchant le téléphone, on ouvre la page de la fête.", copy: "Copier l'adresse", copied: "Copié !", fixedHint: "Le QR et l'autocollant fonctionnent pendant la fête. Pour les réutiliser chaque soir, activez « Adresse fixe » dans les réglages de la fête sur la TV et donnez à la TV une adresse fixe dans le routeur." },
+  es: { title: "Tarjetas para las mesas", lead: "Imprímelas en un folio A4 y recórtalas: los invitados escanean el QR y envían sus fotos a la TV.", print: "Imprimir las tarjetas", card: "¡Envía tus fotos a la TV!", cardBody: "Escanea el QR con la cámara. Hace falta la Wi‑Fi de la fiesta.", nfcTitle: "Pegatina NFC", nfcBody: "Con una app como «NFC Tools», escribe esta dirección en una pegatina NFC: al acercar el móvil se abre la página de la fiesta.", copy: "Copiar la dirección", copied: "¡Copiado!", fixedHint: "El QR y la pegatina valen mientras dura la fiesta. Para usarlos cada noche, activa «Dirección fija» en los ajustes de la fiesta de la TV y da a la TV una dirección fija en el router." },
+  de: { title: "Tischkarten", lead: "Drucke sie auf A4 und schneide sie aus: Die Gäste scannen den QR-Code und schicken ihre Fotos an den Fernseher.", print: "Karten drucken", card: "Schick deine Fotos an den Fernseher!", cardBody: "Scanne den QR-Code mit der Kamera. Du brauchst das Party-WLAN.", nfcTitle: "NFC-Aufkleber", nfcBody: "Schreib diese Adresse mit einer App wie „NFC Tools“ auf einen NFC-Aufkleber: Wer das Handy daran hält, öffnet die Party-Seite.", copy: "Adresse kopieren", copied: "Kopiert!", fixedHint: "QR-Code und Aufkleber gelten, solange die Party läuft. Um sie jeden Abend zu nutzen, schalte in den Party-Einstellungen des Fernsehers „Feste Adresse“ ein und gib dem Fernseher im Router eine feste Adresse." },
+};
 const LANG = ((navigator.languages && navigator.languages[0]) || navigator.language || "it").slice(0, 2).toLowerCase();
 const T = TEXTS[LANG] || TEXTS.en;
 const KEY = new URLSearchParams(location.search).get("k") || "";
@@ -85,6 +124,51 @@ document.documentElement.lang = TEXTS[LANG] ? LANG : "en";
 for (const id of ["title", "lead", "hint", "printHint"]) document.getElementById(id).textContent = T[id];
 document.getElementById("qr").src = "/party/qr.svg?for=door&k=" + encodeURIComponent(KEY);
 document.getElementById("qr").alt = T.title;
+
+// Cartoncini per i tavoli ("/door?k=...&cartoncini=1"): QR della pagina della festa, non dell'ingresso.
+if (new URLSearchParams(location.search).get("cartoncini") === "1") {
+  const C = CARD_TEXTS[LANG] || CARD_TEXTS.en;
+  const $ = (id) => document.getElementById(id);
+  document.title = C.title;
+  $("title").textContent = C.title;
+  $("lead").textContent = C.lead;
+  for (const id of ["qr", "hint", "printHint"]) $(id).closest(".qr, p").hidden = true;
+  $("cardsPage").hidden = false;
+  $("print").textContent = C.print;
+  $("print").addEventListener("click", () => window.print());
+  const qr = "/party/qr.svg?k=" + encodeURIComponent(KEY);
+  for (let i = 0; i < 8; i++) {
+    const card = document.createElement("div");
+    card.className = "card";
+    const text = document.createElement("div");
+    const h2 = document.createElement("h2");
+    h2.textContent = C.card;
+    const p = document.createElement("p");
+    p.textContent = C.cardBody;
+    text.append(h2, p);
+    const mini = document.createElement("div");
+    mini.className = "mini";
+    const img = document.createElement("img");
+    img.src = qr;
+    img.alt = C.card;
+    mini.appendChild(img);
+    card.append(text, mini);
+    $("cards").appendChild(card);
+  }
+  const url = location.origin + "/?k=" + encodeURIComponent(KEY);
+  for (const id of ["nfcTitle", "nfcBody", "copy", "fixedHint"]) $(id).textContent = C[id];
+  $("url").textContent = url;
+  $("copy").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(url); $("copy").textContent = C.copied; }
+    catch (e) {
+      const range = document.createRange();
+      range.selectNodeContents($("url"));
+      const selection = getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+  });
+}
 </script>
 </body>
 </html>

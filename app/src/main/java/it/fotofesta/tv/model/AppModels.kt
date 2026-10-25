@@ -106,6 +106,14 @@ data class SlideshowSettings(
     val musicVolume: Float = 0.35f,
     /** Slideshow a ritmo: con la musica di sottofondo le foto cambiano a inizio battuta e pulsano sul battito. */
     val beatSync: Boolean = false,
+    /** Gli invitati chiedono canzoni dal telefono; chi fa la musica le vede nella regia. */
+    val songRequests: Boolean = true,
+    /** Gli invitati possono scaricare dal telefono le foto approvate della festa (ZIP). */
+    val guestAlbum: Boolean = true,
+    /** Stesso indirizzo della festa a ogni serata: cartoncini con il QR e adesivi NFC restano validi. */
+    val fixedAddress: Boolean = false,
+    /** Video brevi dagli invitati (non con l'approvazione delle foto né con la festa senza tracce). */
+    val guestVideos: Boolean = true,
     /** Zoom e spostamento lenti durante la permanenza di ogni foto (disattivati da [reducedMotion]). */
     val kenBurns: Boolean = false,
     /** Minuti di riproduzione dopo i quali lo slideshow va in pausa; 0 = disattivato. */

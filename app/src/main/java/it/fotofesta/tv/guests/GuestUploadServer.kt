@@ -36,7 +36,14 @@ class GuestUploadServer(
     private val key: String,
     private val page: () -> String,
     /** [player] è l'identificativo casuale del telefono, per il limite di foto a testa. */
-    private val onPhoto: (bytes: ByteArray, sender: String?, player: String?) -> UploadResult,
+    private val onPhoto: (bytes: ByteArray, sender: String?, player: String?) -> Upload,
+    /**
+     * Video breve di un invitato: [input] dà esattamente [length] byte, da copiare su disco senza
+     * tenerli in RAM. Null se la TV non accetta video.
+     */
+    private val onVideo: ((input: InputStream, length: Long, sender: String?, player: String?) -> Upload)? = null,
+    /** Foto tolta da chi l'ha mandata, con la ricevuta avuta all'invio; false se non c'è più. */
+    private val onDeletePhoto: (id: String) -> Boolean = { false },
     private val onFailure: () -> Unit = {},
     /** Gioco con i telefoni: domanda in corso (GET /game) e risposte (POST /game/answer). */
     private val game: PhoneGame? = null,
@@ -59,6 +66,9 @@ class GuestUploadServer(
 ) {
     enum class UploadResult { SHOWN, PENDING, FULL, TOO_MANY_PENDING, UNSUPPORTED, LIMIT, QUIET }
 
+    /** Esito di un invio, con l'identificativo della foto salvata (per la ricevuta di chi l'ha mandata). */
+    data class Upload(val result: UploadResult, val photoId: String? = null)
+
     private var serverSocket: ServerSocket? = null
     private var executor: ThreadPoolExecutor? = null
     @Volatile private var acceptThread: Thread? = null
@@ -69,6 +79,7 @@ class GuestUploadServer(
     private val recentUploads = mutableMapOf<InetAddress, ArrayDeque<Long>>()
     private val recentActions = mutableMapOf<InetAddress, ArrayDeque<Long>>()
     private val inFlight = Semaphore(MAX_IN_FLIGHT_BYTES)
+    private val videoSlots = Semaphore(MAX_VIDEO_UPLOADS)
     // Invii già ricevuti, per non salvare due volte una foto se il telefono ripete l'invio.
     private val handledUploads = object : LinkedHashMap<String, Response>(64, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Response>?) = size > 200
@@ -230,6 +241,33 @@ class GuestUploadServer(
                 if (request.method != "POST") throw HttpError(405, "method")
                 receivePhoto(request, body, clientAddress, startedAt)
             }
+            "/videos" -> {
+                if (request.method != "POST") throw HttpError(405, "method")
+                receiveVideo(request, body, clientAddress)
+            }
+            // Chi ha mandato una foto la può togliere, con la ricevuta avuta all'invio.
+            "/photos/delete" -> {
+                if (request.method != "POST") throw HttpError(405, "method")
+                if (!keyMatches(request.headers["x-fotofesta-key"])) throw HttpError(401, "key")
+                if (!allowAction(clientAddress)) throw HttpError(429, "rate", listOf("Retry-After" to "5"))
+                val form = readSmallForm(request, body, startedAt, MAX_ACTION_BYTES)
+                val id = form["id"]?.takeIf { it.length in 8..64 && it.all(::isIdChar) } ?: throw HttpError(400, "invalid")
+                if (!receiptMatches(id, form["receipt"])) throw HttpError(403, "receipt")
+                if (!onDeletePhoto(id)) throw HttpError(404, "not_found")
+                Response.json(200, """{"status":"deleted"}""")
+            }
+            // Le foto approvate della festa, da portare a casa: un archivio ZIP scritto al momento.
+            "/party/album.zip" -> {
+                if (request.method != "GET" && request.method != "HEAD") throw HttpError(405, "method")
+                if (!keyMatches(request.query["k"])) throw HttpError(401, "key")
+                val entries = extras?.album() ?: throw HttpError(404, "not_found")
+                if (entries.isEmpty()) throw HttpError(404, "empty")
+                Response.stream(
+                    200, "application/zip", ZipStream.length(entries),
+                    listOf("Content-Disposition" to "attachment; filename=\"FotoFesta.zip\""),
+                    request.method == "HEAD",
+                ) { output -> ZipStream.write(entries, output) }
+            }
             "/game" -> {
                 if (request.method != "GET") throw HttpError(405, "method")
                 if (!keyMatches(request.headers["x-fotofesta-key"])) throw HttpError(401, "key")
@@ -368,6 +406,17 @@ class GuestUploadServer(
         }
     }
 
+    /** Ricevuta di una foto: firma della chiave della festa, che il telefono non conosce in anticipo. */
+    private fun receiptFor(id: String): String {
+        val mac = javax.crypto.Mac.getInstance("HmacSHA256")
+        mac.init(javax.crypto.spec.SecretKeySpec(key.toByteArray(Charsets.UTF_8), "HmacSHA256"))
+        val digest = mac.doFinal("photo:$id".toByteArray(Charsets.UTF_8))
+        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(digest).take(RECEIPT_LENGTH)
+    }
+
+    private fun receiptMatches(id: String, receipt: String?): Boolean =
+        receipt != null && java.security.MessageDigest.isEqual(receiptFor(id).toByteArray(), receipt.toByteArray())
+
     /** Indirizzo della pagina della festa, lo stesso del QR sulla TV. */
     private fun guestUrl(): String = "http://$expectedHost/?k=$key"
 
@@ -395,9 +444,12 @@ class GuestUploadServer(
             if (ImageFormat.sniff(bytes) == null) throw HttpError(415, "unsupported")
             val sender = request.headers["x-fotofesta-sender"]?.let(::decodeSender)
             val player = request.headers["x-fotofesta-player"]?.takeIf(PhoneGame::validPlayer)
-            when (onPhoto(bytes, sender, player)) {
-                UploadResult.SHOWN -> Response.json(200, """{"status":"shown"}""")
-                UploadResult.PENDING -> Response.json(200, """{"status":"pending"}""")
+            val upload = onPhoto(bytes, sender, player)
+            // Ricevuta per togliere la foto: solo chi l'ha mandata la riceve.
+            val receipt = upload.photoId?.let { id -> ""","id":${jsonString(id)},"receipt":"${receiptFor(id)}"""" }.orEmpty()
+            when (upload.result) {
+                UploadResult.SHOWN -> Response.json(200, """{"status":"shown"$receipt}""")
+                UploadResult.PENDING -> Response.json(200, """{"status":"pending"$receipt}""")
                 UploadResult.FULL -> throw HttpError(507, "full")
                 UploadResult.TOO_MANY_PENDING -> throw HttpError(507, "pending_full")
                 UploadResult.UNSUPPORTED -> throw HttpError(415, "unsupported")
@@ -406,6 +458,48 @@ class GuestUploadServer(
             }
         } finally {
             inFlight.release(size)
+        }
+        uploadId?.let { id -> synchronized(handledUploads) { handledUploads[id] = response } }
+        return response
+    }
+
+    /**
+     * Video breve: va su disco a pezzi, senza passare dalla RAM e senza contare nel tetto dei byte
+     * in arrivo; al massimo [MAX_VIDEO_UPLOADS] alla volta, con più tempo di una foto.
+     */
+    private fun receiveVideo(request: Request, body: InputStream, clientAddress: InetAddress): Response {
+        if (!keyMatches(request.headers["x-fotofesta-key"])) throw HttpError(401, "key")
+        val handler = onVideo ?: throw HttpError(404, "not_found")
+        if (request.headers.containsKey("transfer-encoding")) throw HttpError(411, "length")
+        val length = request.headers["content-length"]?.trim()?.toLongOrNull() ?: throw HttpError(411, "length")
+        if (length <= 0) throw HttpError(400, "empty")
+        if (length > MAX_VIDEO_BYTES) throw HttpError(413, "too_large")
+        val uploadId = request.headers["x-fotofesta-upload"]?.takeIf { it.length in 8..64 && it.all(::isIdChar) }
+        uploadId?.let { id -> synchronized(handledUploads) { handledUploads[id] }?.let { return it } }
+        if (!allowUpload(clientAddress)) throw HttpError(429, "rate", listOf("Retry-After" to "10"))
+        if (!videoSlots.tryAcquire()) throw HttpError(503, "busy", listOf("Retry-After" to "10"))
+        val response = try {
+            val sender = request.headers["x-fotofesta-sender"]?.let(::decodeSender)
+            val player = request.headers["x-fotofesta-player"]?.takeIf(PhoneGame::validPlayer)
+            val deadline = nowMillis() + VIDEO_DEADLINE_MS
+            // Il tempo totale vale anche qui: una connessione lentissima non tiene il posto per sempre.
+            val limited = object : InputStream() {
+                override fun read(): Int = if (nowMillis() > deadline) throw IOException("deadline") else body.read()
+                override fun read(buffer: ByteArray, offset: Int, count: Int): Int =
+                    if (nowMillis() > deadline) throw IOException("deadline") else body.read(buffer, offset, count)
+            }
+            val upload = handler(limited, length, sender, player)
+            val receipt = upload.photoId?.let { id -> ""","id":${jsonString(id)},"receipt":"${receiptFor(id)}"""" }.orEmpty()
+            when (upload.result) {
+                UploadResult.SHOWN -> Response.json(200, """{"status":"shown"$receipt}""")
+                UploadResult.PENDING -> Response.json(200, """{"status":"pending"$receipt}""")
+                UploadResult.FULL, UploadResult.TOO_MANY_PENDING -> throw HttpError(507, "full")
+                UploadResult.UNSUPPORTED -> throw HttpError(415, "unsupported")
+                UploadResult.LIMIT -> throw HttpError(403, "limit")
+                UploadResult.QUIET -> throw HttpError(423, "quiet")
+            }
+        } finally {
+            videoSlots.release()
         }
         uploadId?.let { id -> synchronized(handledUploads) { handledUploads[id] = response } }
         return response
@@ -599,6 +693,13 @@ class GuestUploadServer(
         private const val MEDIA_PAGE_POLICY = "default-src 'none'; script-src 'unsafe-inline'; " +
             "style-src 'unsafe-inline'; img-src 'self' blob: data:; connect-src 'self'; " +
             "form-action 'none'; base-uri 'none'; frame-ancestors 'none'"
+
+        private const val RECEIPT_LENGTH = 22
+
+        /** Video brevi degli invitati: un minuto di un telefono sta comodamente sotto questo limite. */
+        const val MAX_VIDEO_BYTES = 60L * 1024 * 1024
+        private const val MAX_VIDEO_UPLOADS = 2
+        private const val VIDEO_DEADLINE_MS = 240_000L
 
         /** Pezzi di brano per la silent disco: abbastanza per qualche secondo, mai un thread bloccato a lungo. */
         private const val DISCO_CHUNK = 1024L * 1024

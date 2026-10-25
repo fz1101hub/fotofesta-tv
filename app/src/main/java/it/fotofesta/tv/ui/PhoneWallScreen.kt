@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Celebration
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.MaterialTheme
@@ -45,6 +46,7 @@ fun PhoneWallScreen(
     onShow: () -> Unit,
     onRearrange: () -> Unit,
     onBack: () -> Unit,
+    onFinale: () -> Unit = {},
 ) {
     val count = wall?.players?.size ?: 0
     val showing = wall?.phase == PhoneWall.Phase.SHOWING
@@ -73,6 +75,7 @@ fun PhoneWallScreen(
                     icon = Icons.Rounded.Image,
                     enabled = count > 0,
                 )
+                if (showing) TvButton(stringResource(R.string.phone_wall_finale), onFinale, icon = Icons.Rounded.Celebration)
                 if (showing) TvButton(stringResource(R.string.phone_wall_rearrange), onRearrange, icon = Icons.Rounded.Refresh, ghost = true)
                 Text(stringResource(R.string.phone_wall_tip), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
             }

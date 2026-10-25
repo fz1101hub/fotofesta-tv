@@ -23,6 +23,9 @@ class GuestUploadServerTest {
     private val loopback: InetAddress = InetAddress.getByName("127.0.0.1")
     private val received = CopyOnWriteArrayList<Pair<ByteArray, String?>>()
     private var result = GuestUploadServer.UploadResult.SHOWN
+    private var photoId: String? = null
+    private val deleted = mutableListOf<String>()
+    private var videoBytes: ByteArray? = null
     private lateinit var server: GuestUploadServer
     private var port = 0
 
@@ -40,6 +43,10 @@ class GuestUploadServerTest {
         override fun wallState() = """{"photos":[{"id":"foto-1","sender":null}]}"""
         override fun wallPhoto(id: String) = if (id == "foto-1") jpeg else null
         override fun discoJson() = """{"on":true,"track":"brano-1","position":1500,"playing":true}"""
+        override fun album() = listOf(
+            ZipStream.Entry("FotoFesta-001.jpg", jpeg.size.toLong(), ZipStream.crcOf(jpeg)) { jpeg.inputStream() },
+            ZipStream.Entry("FotoFesta-002.jpg", pendingBytes.size.toLong(), ZipStream.crcOf(pendingBytes)) { pendingBytes.inputStream() },
+        )
         override fun phoneWallJson(player: String?) = phoneWall.phoneJson(player)
         override fun phoneWallAction(form: Map<String, String>) = phoneWall.handle(form)
         override fun discoTrack(id: String) =
@@ -62,7 +69,12 @@ class GuestUploadServerTest {
             page = { "<html>pagina</html>" },
             onPhoto = { bytes, sender, _ ->
                 received += bytes to sender
-                result
+                GuestUploadServer.Upload(result, photoId)
+            },
+            onDeletePhoto = { id -> deleted.add(id) },
+            onVideo = { input, length, _, _ ->
+                videoBytes = input.readNBytes(length.toInt())
+                GuestUploadServer.Upload(GuestUploadServer.UploadResult.SHOWN, "b1b2c3d4e5f60718")
             },
             onFailure = { failures++ },
             game = game,
@@ -492,6 +504,72 @@ class GuestUploadServerTest {
             val lines = String(raw, 0, split, Charsets.ISO_8859_1).split("\r\n")
             val headers = lines.drop(1).associate { it.substringBefore(':').lowercase() to it.substringAfter(':').trim() }
             return Reply(lines.first().split(' ')[1].toInt(), headers, "") to raw.copyOfRange(split + 4, raw.size)
+        }
+    }
+
+    private fun postForm(path: String, form: String, key: String? = KEY): Reply {
+        val body = form.toByteArray()
+        val keyHeader = if (key != null) "X-FotoFesta-Key: $key\r\n" else ""
+        val head = "POST $path HTTP/1.1\r\nHost: 127.0.0.1:$port\r\n" +
+            "Content-Type: application/x-www-form-urlencoded\r\nContent-Length: ${body.size}\r\n$keyHeader\r\n"
+        return send(head.toByteArray() + body)
+    }
+
+    @Test
+    fun `only the sender can delete a photo, with the receipt`() {
+        photoId = "a1b2c3d4e5f60718"
+        val reply = JSONObject(post(jpeg).body)
+        assertEquals("a1b2c3d4e5f60718", reply.getString("id"))
+        val receipt = reply.getString("receipt")
+        assertEquals(22, receipt.length)
+        assertEquals(403, postForm("/photos/delete", "id=a1b2c3d4e5f60718&receipt=AAAAAAAAAAAAAAAAAAAAAA").status)
+        assertEquals(403, postForm("/photos/delete", "id=ffffffffffffffff&receipt=$receipt").status)
+        assertEquals(401, postForm("/photos/delete", "id=a1b2c3d4e5f60718&receipt=$receipt", key = null).status)
+        assertTrue(deleted.isEmpty())
+        assertEquals(200, postForm("/photos/delete", "id=a1b2c3d4e5f60718&receipt=$receipt").status)
+        assertEquals(listOf("a1b2c3d4e5f60718"), deleted)
+    }
+
+    @Test
+    fun `short videos are streamed to the handler with a receipt`() {
+        val video = ByteArray(3_000) { 7 }.also { "ftypmp42".toByteArray().copyInto(it, 4) }
+        val head = "POST /videos HTTP/1.1\r\nHost: 127.0.0.1:$port\r\nContent-Type: video/mp4\r\n" +
+            "Content-Length: ${video.size}\r\nX-FotoFesta-Key: $KEY\r\n\r\n"
+        // Più grande del limite delle foto (1 000 byte in questo test): i video hanno il loro.
+        val reply = send(head.toByteArray() + video)
+        assertEquals(200, reply.status)
+        assertEquals("b1b2c3d4e5f60718", JSONObject(reply.body).getString("id"))
+        assertTrue(videoBytes!!.contentEquals(video))
+        val noKey = "POST /videos HTTP/1.1\r\nHost: 127.0.0.1:$port\r\nContent-Length: 10\r\n\r\n0123456789"
+        assertEquals(401, send(noKey.toByteArray()).status)
+        val huge = "POST /videos HTTP/1.1\r\nHost: 127.0.0.1:$port\r\nContent-Length: ${GuestUploadServer.MAX_VIDEO_BYTES + 1}\r\nX-FotoFesta-Key: $KEY\r\n\r\n"
+        assertEquals(413, send(huge.toByteArray()).status)
+    }
+
+    @Test
+    fun `guests download the approved photos as a zip`() {
+        assertEquals(401, get("/party/album.zip").status)
+        Socket().use { socket ->
+            socket.connect(InetSocketAddress(loopback, port), 2_000)
+            socket.soTimeout = 5_000
+            socket.getOutputStream().write("GET /party/album.zip?k=$KEY HTTP/1.1\r\nHost: 127.0.0.1:$port\r\n\r\n".toByteArray())
+            val raw = socket.getInputStream().readBytes()
+            val split = (0 until raw.size - 3).first { raw[it] == 13.toByte() && raw[it + 1] == 10.toByte() && raw[it + 2] == 13.toByte() && raw[it + 3] == 10.toByte() }
+            val head = String(raw, 0, split, Charsets.ISO_8859_1)
+            assertTrue(head.startsWith("HTTP/1.1 200"))
+            assertTrue(head.contains("Content-Type: application/zip"))
+            val zip = raw.copyOfRange(split + 4, raw.size)
+            assertTrue(head.contains("Content-Length: ${zip.size}"))
+            val names = mutableListOf<String>()
+            java.util.zip.ZipInputStream(zip.inputStream()).use { input ->
+                while (true) {
+                    val entry = input.nextEntry ?: break
+                    names += entry.name
+                    val bytes = input.readBytes()
+                    assertTrue(bytes.contentEquals(if (entry.name.endsWith("001.jpg")) jpeg else pendingBytes))
+                }
+            }
+            assertEquals(listOf("FotoFesta-001.jpg", "FotoFesta-002.jpg"), names)
         }
     }
 

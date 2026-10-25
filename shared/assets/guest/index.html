@@ -145,6 +145,41 @@
   .playing .bars i:nth-child(4) { animation-delay: -.15s; }
   @keyframes bar { from { height: 20%; } to { height: 100%; } }
 
+  /* Togli la tua foto, porta a casa, ricordo, firma, canzoni */
+  li .remove { display: none; flex: none; min-height: 40px; padding: 0 12px; border: 0; border-radius: 12px; background: var(--raised); color: var(--muted); font: 700 .86rem/1 var(--display); cursor: pointer; }
+  body.can-delete li .remove { display: block; }
+  li.gone { opacity: .55; }
+  li.gone .thumb { filter: grayscale(1); }
+  .take-actions { display: grid; gap: 8px; }
+  .take-actions a, .take-actions button { display: flex; align-items: center; justify-content: center; min-height: 52px; border-radius: var(--button-radius); border: 0; font: 800 1rem/1.2 var(--display); text-decoration: none; cursor: pointer; }
+  .take-actions a { background: var(--accent); color: var(--on-accent); }
+  .take-actions button { background: var(--raised); color: var(--fg); }
+  #signBox { margin: .9rem 0 0; }
+  #signBox summary { cursor: pointer; font-weight: 700; color: var(--muted); padding: 6px 0; }
+  #signPad { display: block; width: 100%; height: 150px; margin-top: .5rem; border-radius: var(--radius-s); background: rgba(255,255,255,.92); touch-action: none; }
+  .check { display: flex; align-items: center; gap: 10px; margin-top: .6rem; font-weight: 600; }
+  .check input { width: 22px; height: 22px; accent-color: var(--accent); }
+  .song-list { display: grid; gap: 6px; margin-top: .5rem; }
+  .song-list .item { display: flex; align-items: center; gap: 10px; background: var(--raised); border-radius: var(--radius-s); padding: 8px 10px; }
+  .song-list .text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .song-list button { flex: none; min-height: 40px; padding: 0 14px; border: 0; border-radius: 12px; background: var(--mint); color: #08210f; font: 800 .9rem/1 var(--display); cursor: pointer; }
+  #invite canvas { display: block; width: 100%; height: auto; margin-top: .6rem; border-radius: var(--radius-s); }
+  #invite input, #invite textarea { margin-top: 8px; }
+
+  /* Testo più grande e contrasto alto */
+  html.large { font-size: 118%; }
+  @media (prefers-contrast: more) {
+    :root { --muted: #e6e9ef; --faint: #c8cdd6; }
+    .box, li { border: 1px solid rgba(255,255,255,.35); }
+  }
+  :focus-visible { outline: 3px solid var(--fg); outline-offset: 2px; }
+
+  /* Cabina per un tablet: solo il grande pulsante per scattare */
+  body.booth main > *:not(#pick):not(#boothStatus):not(.brand):not(h1):not(#list) { display: none !important; }
+  body.booth #pick { min-height: 46vh; font-size: 1.6rem; }
+  body.booth #list li:nth-child(n+2) { display: none; }
+  #boothStatus { margin-top: 1rem; font: 800 1.3rem/1.3 var(--display); text-align: center; min-height: 1.4em; }
+
   /* Muro di telefoni: a tutto schermo il numero del telefono, poi il suo pezzo di foto */
   .wallcard { background: linear-gradient(120deg, var(--accent) 0%, var(--gold) 100%); }
   #phoneWallScreen { position: fixed; inset: 0; z-index: 60; background: #000; display: grid; place-items: center; touch-action: none; }
@@ -193,7 +228,7 @@
   .linkish { background: none; border: 0; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; font: inherit; padding: 6px 0; cursor: pointer; }
 
   /* Coriandoli quando una foto arriva sulla TV o la risposta è giusta */
-  #confetti { position: fixed; inset: 0; z-index: 60; pointer-events: none; width: 100%; height: 100%; }
+  #confetti { position: fixed; inset: 0; z-index: 70; pointer-events: none; width: 100%; height: 100%; }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
     #confetti { display: none; }
@@ -300,6 +335,13 @@
 
   <label class="field" for="sender" id="senderLabel"></label>
   <input type="text" id="sender" maxlength="40" autocomplete="nickname" enterkeyhint="done">
+  <!-- Firma sulle foto: disegnata una volta, aggiunta in basso a destra di ogni foto. -->
+  <details id="signBox">
+    <summary id="signTitle"></summary>
+    <canvas id="signPad" width="600" height="180"></canvas>
+    <label class="check"><input type="checkbox" id="signOn"> <span id="signOnLabel"></span></label>
+    <button type="button" class="linkish" id="signClear"></button>
+  </details>
 
   <p class="shots" id="shots" hidden></p>
   <label class="pick" id="pick"><span class="pick-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.6l1.4-2h5l1.4 2h1.6A2.5 2.5 0 0 1 20 8.5v8A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span><span id="pickText"></span><input type="file" id="files" accept="image/*" multiple></label>
@@ -308,11 +350,31 @@
   <div id="banner" role="alert"><span id="bannerText"></span><button type="button" id="retry" hidden></button></div>
   <div id="summary" aria-live="polite"></div>
   <ul id="list"></ul>
+  <p id="boothStatus" hidden aria-live="polite"></p>
 
   <!-- Reazioni alla foto sulla TV e dediche: compaiono se la TV le ha attivate. -->
   <section id="react" class="box" hidden>
     <p class="box-title" id="reactTitle"></p>
     <div class="reactions" id="reactButtons"></div>
+  </section>
+
+  <!-- Richieste di canzoni: arrivano a chi fa la musica, nella regia. -->
+  <section id="songs" class="box" hidden>
+    <label class="box-title" for="songText" id="songLabel"></label>
+    <input type="text" id="songText" maxlength="80" enterkeyhint="send">
+    <button type="button" class="send" id="songSend"></button>
+    <p class="muted" id="songStatus" aria-live="polite"></p>
+  </section>
+
+  <!-- Le foto della festa da portare a casa e il ricordo di questo telefono. -->
+  <section id="takeHome" class="box" hidden>
+    <p class="box-title" id="takeTitle"></p>
+    <p class="muted" id="takeBody"></p>
+    <div class="take-actions">
+      <a id="albumLink" download="FotoFesta.zip"></a>
+      <button type="button" id="memoryMake"></button>
+    </div>
+    <p class="muted" id="takeStatus" aria-live="polite"></p>
   </section>
 
   <section id="message" class="box" hidden>
@@ -352,7 +414,11 @@
       <div class="links" id="hostLinks" hidden>
         <a class="wide" id="hostDoor" target="_blank" rel="noreferrer"></a>
         <a class="wide" id="hostWall" target="_blank" rel="noreferrer"></a>
+        <a class="wide" id="hostCards" target="_blank" rel="noreferrer"></a>
+        <a class="wide" id="hostBooth" target="_blank" rel="noreferrer"></a>
       </div>
+      <p class="box-title" id="hostSongsTitle" style="margin-top:1rem" hidden></p>
+      <div class="song-list" id="hostSongs"></div>
       <button type="button" class="wide" id="hostApproveAll" hidden></button>
       <button type="button" class="wide" id="hostDirector"></button>
       <button type="button" class="wide" id="hostQuiet"></button>
@@ -367,6 +433,16 @@
           <button type="button" data-host="next" id="speechNext"></button>
         </div>
       </details>
+      <details id="invite" style="margin-top:12px">
+        <summary id="inviteTitle"></summary>
+        <p class="muted" id="inviteHint"></p>
+        <input type="text" id="inviteWhen" maxlength="60">
+        <input type="text" id="inviteWhere" maxlength="60">
+        <textarea id="inviteText" maxlength="160"></textarea>
+        <button type="button" class="send" id="inviteMake"></button>
+        <canvas id="inviteCanvas" width="1080" height="1350" hidden></canvas>
+        <a class="wide" id="inviteSave" download="Invito.png" hidden></a>
+      </details>
       <button type="button" class="linkish" id="hostLogout"></button>
     </div>
   </section>
@@ -374,6 +450,7 @@
   <div class="note">
     <p class="muted" id="approvalNote" hidden></p>
     <p class="muted" id="privacy"></p>
+    <button type="button" class="linkish" id="textSize"></button>
   </div>
 </main>
 <script>
@@ -548,6 +625,50 @@ const IT = {
   phoneWallLate: "Il muro è già partito: entri al prossimo giro.",
   phoneWallFull: "Il muro è al completo.",
   phoneWallLeave: "Esci dal muro",
+  removePhoto: "Togli",
+  removeConfirm: "Togliere?",
+  removed: "Tolta dalla TV",
+  sentEarlier: "Foto mandata prima",
+  takeTitle: "Porta a casa la festa 🏠",
+  takeBody: "Scarica tutte le foto della festa mostrate sulla TV, oppure crea un ricordo con le foto che hai mandato.",
+  memoryBody: "Crea un'immagine ricordo con le foto che hai mandato.",
+  albumDownload: "⬇️ Scarica tutte le foto (.zip)",
+  memoryMake: "✨ Il mio ricordo della festa",
+  memoryWorking: "Preparo il tuo ricordo…",
+  memoryKicker: "Il mio ricordo della festa",
+  memoryDefaultTitle: "Che festa!",
+  memoryCount: "%d foto mandate alla TV",
+  memoryDone: "Salvato! Lo trovi nei download.",
+  memoryFailed: "Questo telefono non è riuscito a creare l'immagine.",
+  songLabel: "Chiedi una canzone 🎵",
+  songPlaceholder: "Titolo o artista",
+  songSend: "Manda la richiesta",
+  songSent: "Richiesta mandata a chi fa la musica!",
+  songRate: "Ne hai già chieste un po': aspetta qualche minuto.",
+  songOff: "Le richieste di canzoni sono chiuse.",
+  songDone: "✓ Fatta",
+  signTitle: "✍️ Firma le tue foto",
+  signOn: "Aggiungi la mia firma alle foto che mando",
+  signClear: "Cancella la firma",
+  boothPick: "📸 Tocca per scattare",
+  boothDone: "Fatto! Guarda la TV 🎉",
+  boothNext: "Prossimo ospite: tocca il pulsante!",
+  hostCards: "Cartoncini con il QR per i tavoli (da stampare)",
+  hostBooth: "Cabina fotografica per un tablet",
+  hostSongs: "Canzoni richieste",
+  inviteTitle: "💌 Crea un invito",
+  inviteHint: "Un'immagine nello stile della festa, da mandare nelle chat.",
+  inviteWhen: "Quando (es. sabato 9 marzo, ore 20)",
+  inviteWhere: "Dove",
+  inviteText: "Un messaggio per gli invitati",
+  inviteMake: "Crea l'invito",
+  inviteSave: "⬇️ Salva l'invito",
+  inviteKicker: "Sei invitato!",
+  textLarger: "Testo più grande",
+  textNormal: "Testo normale",
+  videoOff: "Ora la TV accetta solo foto.",
+  videoTooLarge: "Video troppo grande: registrane uno più corto.",
+  videoTooLong: "I video possono durare al massimo %d secondi.",
 };
 const EN = {
   announceKicker: "Announcement",
@@ -716,6 +837,50 @@ const EN = {
   phoneWallLate: "The wall has already started: you can join the next round.",
   phoneWallFull: "The wall is full.",
   phoneWallLeave: "Leave the wall",
+  removePhoto: "Remove",
+  removeConfirm: "Remove?",
+  removed: "Removed from the TV",
+  sentEarlier: "Photo sent earlier",
+  takeTitle: "Take the party home 🏠",
+  takeBody: "Download all the party photos shown on the TV, or make a keepsake with the photos you sent.",
+  memoryBody: "Make a keepsake picture with the photos you sent.",
+  albumDownload: "⬇️ Download all the photos (.zip)",
+  memoryMake: "✨ My party keepsake",
+  memoryWorking: "Preparing your keepsake…",
+  memoryKicker: "My party keepsake",
+  memoryDefaultTitle: "What a party!",
+  memoryCount: "%d photos sent to the TV",
+  memoryDone: "Saved! Find it in your downloads.",
+  memoryFailed: "This phone couldn't create the picture.",
+  songLabel: "Request a song 🎵",
+  songPlaceholder: "Title or artist",
+  songSend: "Send the request",
+  songSent: "Request sent to whoever is doing the music!",
+  songRate: "You've asked for a few already: wait a few minutes.",
+  songOff: "Song requests are closed.",
+  songDone: "✓ Played",
+  signTitle: "✍️ Sign your photos",
+  signOn: "Add my signature to the photos I send",
+  signClear: "Clear the signature",
+  boothPick: "📸 Tap to take a photo",
+  boothDone: "Done! Look at the TV 🎉",
+  boothNext: "Next guest: tap the button!",
+  hostCards: "Table cards with the QR (to print)",
+  hostBooth: "Photo booth for a tablet",
+  hostSongs: "Requested songs",
+  inviteTitle: "💌 Make an invitation",
+  inviteHint: "A picture in the party style, to send in your chats.",
+  inviteWhen: "When (e.g. Saturday 9 March, 8 pm)",
+  inviteWhere: "Where",
+  inviteText: "A message for your guests",
+  inviteMake: "Create the invitation",
+  inviteSave: "⬇️ Save the invitation",
+  inviteKicker: "You're invited!",
+  textLarger: "Larger text",
+  textNormal: "Normal text",
+  videoOff: "This TV only accepts photos right now.",
+  videoTooLarge: "Video too large: record a shorter one.",
+  videoTooLong: "Videos can last up to %d seconds.",
 };
 const FR = {
   announceKicker: "Annonce",
@@ -884,6 +1049,50 @@ const FR = {
   phoneWallLate: "Le mur a déjà commencé : vous pourrez rejoindre le prochain tour.",
   phoneWallFull: "Le mur est complet.",
   phoneWallLeave: "Quitter le mur",
+  removePhoto: "Retirer",
+  removeConfirm: "Retirer ?",
+  removed: "Retirée de la TV",
+  sentEarlier: "Photo envoyée plus tôt",
+  takeTitle: "Emportez la fête 🏠",
+  takeBody: "Téléchargez toutes les photos de la fête montrées sur la TV, ou créez un souvenir avec vos photos.",
+  memoryBody: "Créez une image souvenir avec les photos que vous avez envoyées.",
+  albumDownload: "⬇️ Télécharger toutes les photos (.zip)",
+  memoryMake: "✨ Mon souvenir de la fête",
+  memoryWorking: "Préparation de votre souvenir…",
+  memoryKicker: "Mon souvenir de la fête",
+  memoryDefaultTitle: "Quelle fête !",
+  memoryCount: "%d photos envoyées à la TV",
+  memoryDone: "Enregistré ! Vous le trouverez dans vos téléchargements.",
+  memoryFailed: "Ce téléphone n'a pas pu créer l'image.",
+  songLabel: "Demandez une chanson 🎵",
+  songPlaceholder: "Titre ou artiste",
+  songSend: "Envoyer la demande",
+  songSent: "Demande envoyée à la personne qui gère la musique !",
+  songRate: "Vous en avez déjà demandé quelques-unes : attendez quelques minutes.",
+  songOff: "Les demandes de chansons sont fermées.",
+  songDone: "✓ Jouée",
+  signTitle: "✍️ Signez vos photos",
+  signOn: "Ajouter ma signature aux photos que j'envoie",
+  signClear: "Effacer la signature",
+  boothPick: "📸 Touchez pour prendre une photo",
+  boothDone: "C'est fait ! Regardez la TV 🎉",
+  boothNext: "Invité suivant : touchez le bouton !",
+  hostCards: "Cartes de table avec le QR (à imprimer)",
+  hostBooth: "Photomaton pour une tablette",
+  hostSongs: "Chansons demandées",
+  inviteTitle: "💌 Créer une invitation",
+  inviteHint: "Une image dans le style de la fête, à envoyer dans vos discussions.",
+  inviteWhen: "Quand (ex. samedi 9 mars, 20 h)",
+  inviteWhere: "Où",
+  inviteText: "Un message pour vos invités",
+  inviteMake: "Créer l'invitation",
+  inviteSave: "⬇️ Enregistrer l'invitation",
+  inviteKicker: "Vous êtes invité !",
+  textLarger: "Texte plus grand",
+  textNormal: "Texte normal",
+  videoOff: "Pour l'instant la TV n'accepte que des photos.",
+  videoTooLarge: "Vidéo trop lourde : enregistrez-en une plus courte.",
+  videoTooLong: "Les vidéos peuvent durer au maximum %d secondes.",
 };
 const ES = {
   announceKicker: "Anuncio",
@@ -1052,6 +1261,50 @@ const ES = {
   phoneWallLate: "El muro ya ha empezado: podrás unirte en la próxima ronda.",
   phoneWallFull: "El muro está completo.",
   phoneWallLeave: "Salir del muro",
+  removePhoto: "Quitar",
+  removeConfirm: "¿Quitar?",
+  removed: "Quitada de la TV",
+  sentEarlier: "Foto enviada antes",
+  takeTitle: "Llévate la fiesta a casa 🏠",
+  takeBody: "Descarga todas las fotos de la fiesta que salieron en la TV, o crea un recuerdo con las fotos que enviaste.",
+  memoryBody: "Crea una imagen de recuerdo con las fotos que enviaste.",
+  albumDownload: "⬇️ Descargar todas las fotos (.zip)",
+  memoryMake: "✨ Mi recuerdo de la fiesta",
+  memoryWorking: "Preparando tu recuerdo…",
+  memoryKicker: "Mi recuerdo de la fiesta",
+  memoryDefaultTitle: "¡Qué fiesta!",
+  memoryCount: "%d fotos enviadas a la TV",
+  memoryDone: "¡Guardado! Lo encontrarás en tus descargas.",
+  memoryFailed: "Este móvil no ha podido crear la imagen.",
+  songLabel: "Pide una canción 🎵",
+  songPlaceholder: "Título o artista",
+  songSend: "Enviar la petición",
+  songSent: "¡Petición enviada a quien pone la música!",
+  songRate: "Ya has pedido unas cuantas: espera unos minutos.",
+  songOff: "Las peticiones de canciones están cerradas.",
+  songDone: "✓ Puesta",
+  signTitle: "✍️ Firma tus fotos",
+  signOn: "Añadir mi firma a las fotos que envío",
+  signClear: "Borrar la firma",
+  boothPick: "📸 Toca para hacer una foto",
+  boothDone: "¡Hecho! Mira la TV 🎉",
+  boothNext: "Siguiente invitado: ¡toca el botón!",
+  hostCards: "Tarjetas con el QR para las mesas (para imprimir)",
+  hostBooth: "Fotomatón para una tableta",
+  hostSongs: "Canciones pedidas",
+  inviteTitle: "💌 Crear una invitación",
+  inviteHint: "Una imagen con el estilo de la fiesta, para enviar por tus chats.",
+  inviteWhen: "Cuándo (p. ej. sábado 9 de marzo, 20 h)",
+  inviteWhere: "Dónde",
+  inviteText: "Un mensaje para los invitados",
+  inviteMake: "Crear la invitación",
+  inviteSave: "⬇️ Guardar la invitación",
+  inviteKicker: "¡Estás invitado!",
+  textLarger: "Texto más grande",
+  textNormal: "Texto normal",
+  videoOff: "Ahora la TV solo acepta fotos.",
+  videoTooLarge: "Vídeo demasiado grande: graba uno más corto.",
+  videoTooLong: "Los vídeos pueden durar como máximo %d segundos.",
 };
 const DE = {
   announceKicker: "Durchsage",
@@ -1220,6 +1473,50 @@ const DE = {
   phoneWallLate: "Die Wand läuft schon: Du kannst in der nächsten Runde mitmachen.",
   phoneWallFull: "Die Wand ist voll.",
   phoneWallLeave: "Wand verlassen",
+  removePhoto: "Entfernen",
+  removeConfirm: "Entfernen?",
+  removed: "Vom Fernseher entfernt",
+  sentEarlier: "Früher gesendetes Foto",
+  takeTitle: "Nimm die Party mit nach Hause 🏠",
+  takeBody: "Lade alle Partyfotos vom Fernseher herunter oder mach ein Andenken mit deinen gesendeten Fotos.",
+  memoryBody: "Erstelle ein Erinnerungsbild mit deinen gesendeten Fotos.",
+  albumDownload: "⬇️ Alle Fotos herunterladen (.zip)",
+  memoryMake: "✨ Meine Party-Erinnerung",
+  memoryWorking: "Deine Erinnerung wird erstellt…",
+  memoryKicker: "Meine Party-Erinnerung",
+  memoryDefaultTitle: "Was für eine Party!",
+  memoryCount: "%d Fotos an den Fernseher geschickt",
+  memoryDone: "Gespeichert! Du findest es bei deinen Downloads.",
+  memoryFailed: "Dieses Handy konnte das Bild nicht erstellen.",
+  songLabel: "Wünsch dir ein Lied 🎵",
+  songPlaceholder: "Titel oder Interpret",
+  songSend: "Wunsch senden",
+  songSent: "Wunsch an die Musik-Verantwortlichen geschickt!",
+  songRate: "Du hast schon einige gewünscht: Warte ein paar Minuten.",
+  songOff: "Liedwünsche sind geschlossen.",
+  songDone: "✓ Gespielt",
+  signTitle: "✍️ Signiere deine Fotos",
+  signOn: "Meine Unterschrift auf gesendete Fotos setzen",
+  signClear: "Unterschrift löschen",
+  boothPick: "📸 Tippen zum Fotografieren",
+  boothDone: "Fertig! Schau auf den Fernseher 🎉",
+  boothNext: "Nächster Gast: Tippe auf den Knopf!",
+  hostCards: "Tischkarten mit QR-Code (zum Drucken)",
+  hostBooth: "Fotobox für ein Tablet",
+  hostSongs: "Gewünschte Lieder",
+  inviteTitle: "💌 Einladung erstellen",
+  inviteHint: "Ein Bild im Party-Stil zum Verschicken in deinen Chats.",
+  inviteWhen: "Wann (z. B. Samstag, 9. März, 20 Uhr)",
+  inviteWhere: "Wo",
+  inviteText: "Eine Nachricht an deine Gäste",
+  inviteMake: "Einladung erstellen",
+  inviteSave: "⬇️ Einladung speichern",
+  inviteKicker: "Du bist eingeladen!",
+  textLarger: "Größere Schrift",
+  textNormal: "Normale Schrift",
+  videoOff: "Der Fernseher nimmt gerade nur Fotos an.",
+  videoTooLarge: "Video zu groß: Nimm ein kürzeres auf.",
+  videoTooLong: "Videos dürfen höchstens %d Sekunden lang sein.",
 };
 const TEXTS = { it: IT, en: EN, fr: FR, es: ES, de: DE };
 // Prima lingua del telefono che la pagina conosce, altrimenti inglese.
@@ -1312,6 +1609,12 @@ function showFeatures(features) {
   showArrive();
   // Ingresso e parete delle foto: solo le TV che li servono (Android TV e Fire TV).
   $("hostLinks").hidden = !features.wall;
+  $("songs").hidden = !features.songs;
+  albumOn = !!features.album;
+  videoOn = !!features.video && !BOOTH;
+  $("files").accept = videoOn ? "image/*,video/*" : "image/*";
+  document.body.classList.toggle("can-delete", !!features.delete);
+  showTakeHome();
 }
 
 function showQuiet() {
@@ -1828,6 +2131,23 @@ function showHost(state) {
     list.appendChild(empty);
   }
   $("hostApproveAll").hidden = photos.length + messages.length < 2;
+  const songs = Array.isArray(state.songs) ? state.songs : [];
+  $("hostSongsTitle").hidden = !songs.length;
+  const songList = $("hostSongs");
+  songList.textContent = "";
+  songs.forEach((song) => {
+    const item = document.createElement("div");
+    item.className = "item";
+    const label = document.createElement("div");
+    label.className = "text";
+    label.textContent = (song.name ? song.name + ": " : "") + song.text;
+    const done = document.createElement("button");
+    done.type = "button";
+    done.textContent = T.songDone;
+    done.addEventListener("click", () => hostCommand({ command: "song_done", id: song.id }));
+    item.append(label, done);
+    songList.appendChild(item);
+  });
   // Le miniature delle foto già decise si liberano.
   const ids = new Set(photos.map((photo) => photo.id));
   for (const [id, url] of thumbs) if (!ids.has(id)) { URL.revokeObjectURL(url); thumbs.delete(id); }
@@ -2114,6 +2434,11 @@ async function run() {
 /** Prepara e invia una foto. Restituisce "done", "failed", "offline" o "expired". */
 async function processOne(job) {
   const { file, item } = job;
+  if (!job.prepared && isVideo(file)) {
+    const checked = await prepareVideo(file, item);
+    if (!checked) return "failed";
+    job.prepared = checked;
+  }
   if (!job.prepared) {
     setState(item, T.preparing);
     try {
@@ -2123,7 +2448,7 @@ async function processOne(job) {
       setState(item, heic ? T.heic : T.unsupported, "err");
       return "failed";
     }
-    if (job.prepared.blob.size > CONFIG.maxBytes) {
+    if (!job.prepared.video && job.prepared.blob.size > CONFIG.maxBytes) {
       setState(item, T.tooLarge, "err");
       return "failed";
     }
@@ -2145,6 +2470,8 @@ async function processOne(job) {
   const error = result.body && result.body.error;
   if (result.status === 200) {
     done++;
+    if (result.body && result.body.receipt) rememberSent(result.body.id, result.body.receipt, job.prepared.thumb, item);
+    if (BOOTH) boothDone();
     if (result.body && result.body.status === "pending") setState(item, T.pending, "wait");
     else if (shots && shots.disposable && !shots.developed) setState(item, T.inRoll, "ok");
     else { setState(item, T.shown, "ok"); celebrate(); }
@@ -2232,9 +2559,10 @@ async function resize(file) {
   final.context.fillStyle = "#000";
   final.context.fillRect(0, 0, targetW, targetH);
   final.context.drawImage(source, 0, 0, targetW, targetH);
+  drawSignature(final.context, targetW, targetH);
   let blob = await toJpeg(final.canvas, CONFIG.quality);
   if (blob && blob.size > CONFIG.maxBytes) blob = await toJpeg(final.canvas, 0.7);
-  const thumbScale = Math.min(1, 120 / Math.max(targetW, targetH));
+  const thumbScale = Math.min(1, 240 / Math.max(targetW, targetH));
   const small = makeCanvas(Math.max(1, Math.round(targetW * thumbScale)), Math.max(1, Math.round(targetH * thumbScale)));
   small.context.drawImage(final.canvas, 0, 0, small.canvas.width, small.canvas.height);
   const thumb = await toJpeg(small.canvas, 0.7);
@@ -2258,12 +2586,58 @@ function toJpeg(canvas, quality) {
   return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
 }
 
+function isVideo(file) {
+  return /^video\//.test(file.type || "") || /\.(mp4|mov|m4v|webm)$/i.test(file.name || "");
+}
+
+// Video brevi: si controllano durata e dimensione prima di mandarli, e il primo fotogramma fa da miniatura.
+async function prepareVideo(file, item) {
+  if (!videoOn) { setState(item, T.videoOff, "err"); return null; }
+  if (file.size > (CONFIG.maxVideoBytes || 0)) { setState(item, T.videoTooLarge, "err"); return null; }
+  setState(item, T.preparing);
+  const url = URL.createObjectURL(file);
+  try {
+    const video = document.createElement("video");
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = "metadata";
+    video.src = url;
+    await new Promise((resolve, reject) => {
+      video.onloadedmetadata = resolve;
+      video.onerror = () => reject(new Error("video"));
+      setTimeout(() => reject(new Error("timeout")), 10000);
+    });
+    if (isFinite(video.duration) && video.duration > (CONFIG.videoSeconds || 30) + 1) {
+      setState(item, T.videoTooLong.replace("%d", CONFIG.videoSeconds || 30), "err");
+      return null;
+    }
+    let thumb = null;
+    try {
+      video.currentTime = Math.min(0.5, (video.duration || 1) / 2);
+      await new Promise((resolve) => { video.onseeked = resolve; setTimeout(resolve, 3000); });
+      const scale = Math.min(1, 240 / Math.max(video.videoWidth || 1, video.videoHeight || 1));
+      const small = makeCanvas(Math.max(1, Math.round((video.videoWidth || 240) * scale)), Math.max(1, Math.round((video.videoHeight || 240) * scale)));
+      small.context.drawImage(video, 0, 0, small.canvas.width, small.canvas.height);
+      thumb = await toJpeg(small.canvas, 0.7);
+      small.canvas.width = 0; small.canvas.height = 0;
+    } catch (e) {}
+    if (thumb) item.thumb.style.backgroundImage = "url(" + URL.createObjectURL(thumb) + ")";
+    return { blob: file, thumb, video: true };
+  } catch (e) {
+    setState(item, T.unsupported, "err");
+    return null;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 function upload(job) {
   return new Promise((resolve) => {
     const request = new XMLHttpRequest();
-    request.open("POST", "/photos");
-    request.timeout = 120000;
-    request.setRequestHeader("Content-Type", "image/jpeg");
+    const video = !!job.prepared.video;
+    request.open("POST", video ? "/videos" : "/photos");
+    request.timeout = video ? 300000 : 120000;
+    request.setRequestHeader("Content-Type", video ? (job.file.type || "video/mp4") : "image/jpeg");
     request.setRequestHeader("X-FotoFesta-Key", KEY);
     // Lo stesso identificativo a ogni tentativo: la TV non salva due volte la stessa foto.
     request.setRequestHeader("X-FotoFesta-Upload", job.uploadId);
@@ -2464,7 +2838,7 @@ discoAudio.addEventListener("error", () => {
 
 // Muro di telefoni: ogni telefono disegna il suo pezzo della foto, come se tutti insieme
 // formassero un unico schermo di colonne × righe telefoni (della stessa misura di questo).
-const phoneWall = { state: null, image: null, serial: -1, closed: false, busy: false };
+const phoneWall = { state: null, image: null, serial: -1, closed: false, busy: false, finale: null };
 $("phoneWallTitle").textContent = T.phoneWallTitle;
 $("phoneWallBody").textContent = T.phoneWallBody;
 $("phoneWallJoin").textContent = T.phoneWallJoin;
@@ -2484,6 +2858,9 @@ function showPhoneWall(state) {
   const screen = $("phoneWallScreen");
   screen.hidden = !joined || phoneWall.closed;
   if (screen.hidden) return;
+  // Gran finale dalla TV: lampi di colore e coriandoli su tutti i telefoni insieme.
+  if (phoneWall.finale !== null && state.finale > phoneWall.finale) wallFinale();
+  phoneWall.finale = state.finale || 0;
   if (state.phase === "showing" && state.photo) {
     if (phoneWall.serial !== state.serial) {
       phoneWall.serial = state.serial;
@@ -2494,6 +2871,21 @@ function showPhoneWall(state) {
     phoneWall.image = null;
   }
   drawPhoneWall();
+}
+
+function wallFinale() {
+  const screen = $("phoneWallScreen");
+  const colors = ["#ff7a57", "#ff4f9a", "#8b6cff", "#ffc145", "#4cd787", "#fff"];
+  let step = 0;
+  const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (!reduced) {
+    const timer = setInterval(() => {
+      screen.style.background = colors[step % colors.length];
+      $("phoneWallCanvas").style.opacity = step % 2 ? "1" : "0.25";
+      if (++step > 12) { clearInterval(timer); screen.style.background = ""; $("phoneWallCanvas").style.opacity = "1"; }
+    }, 140);
+  }
+  celebrate();
 }
 
 async function loadWallImage(id, serial) {
@@ -2563,6 +2955,392 @@ $("phoneWallExit").addEventListener("click", () => {
   sendAction({ type: "wall", command: "leave" }).catch(() => {}).then(pollGame);
 });
 window.addEventListener("resize", () => { if (!$("phoneWallScreen").hidden) drawPhoneWall(); });
+
+// ---------------------------------------------------------------------------------------------
+// Foto mandate da questo telefono: la ricevuta della TV permette di toglierle. Restano in memoria
+// (miniatura e ricevuta, non la foto) per il ricordo della festa e per toglierle anche più tardi.
+// ---------------------------------------------------------------------------------------------
+const SENT_KEY = "fotofesta.sent." + KEY.slice(0, 12);
+// Cabina per un tablet ("...&cabina=1"): il tablet passa di mano in mano, quindi niente ricevute.
+const BOOTH = new URLSearchParams(location.search).get("cabina") === "1";
+let albumOn = false;
+let videoOn = false;
+function loadSent() {
+  try { return JSON.parse(localStorage.getItem(SENT_KEY) || "[]").filter((entry) => entry && entry.id && entry.receipt); }
+  catch (e) { return []; }
+}
+function saveSent(list) {
+  try { localStorage.setItem(SENT_KEY, JSON.stringify(list.slice(-40))); } catch (e) {}
+}
+function blobToDataUrl(blob) {
+  return new Promise((resolve) => {
+    if (!blob) return resolve(null);
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(blob);
+  });
+}
+async function rememberSent(id, receipt, thumb, item) {
+  if (BOOTH) return;
+  const entry = { id, receipt, thumb: await blobToDataUrl(thumb), at: Date.now() };
+  saveSent(loadSent().filter((old) => old.id !== id).concat(entry));
+  addRemoveButton(item, entry);
+  showTakeHome();
+}
+function addRemoveButton(item, entry) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "remove";
+  button.textContent = T.removePhoto;
+  let armed = false;
+  button.addEventListener("click", async () => {
+    if (!armed) {
+      armed = true;
+      button.textContent = T.removeConfirm;
+      setTimeout(() => { armed = false; if (button.isConnected && !item.li.classList.contains("gone")) button.textContent = T.removePhoto; }, 4000);
+      return;
+    }
+    button.disabled = true;
+    try {
+      const response = await fetch("/photos/delete", {
+        method: "POST",
+        headers: { "X-FotoFesta-Key": KEY, "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ id: entry.id, receipt: entry.receipt }).toString(),
+      });
+      if (response.ok || response.status === 404) {
+        saveSent(loadSent().filter((old) => old.id !== entry.id));
+        setState(item, T.removed, "gone");
+        button.remove();
+        showTakeHome();
+        return;
+      }
+    } catch (e) {}
+    button.disabled = false;
+    setState(item, T.offline, "err");
+  });
+  item.li.appendChild(button);
+}
+// Foto mandate prima di ricaricare la pagina: si possono ancora togliere.
+if (!BOOTH) loadSent().forEach((entry) => {
+  const item = addRow(T.sentEarlier);
+  if (entry.thumb) item.thumb.style.backgroundImage = "url(" + entry.thumb + ")";
+  setState(item, T.shown, "ok");
+  addRemoveButton(item, entry);
+});
+
+// Porta a casa: le foto approvate in un archivio ZIP, e un ricordo con le foto di questo telefono.
+$("takeTitle").textContent = T.takeTitle;
+$("albumLink").textContent = T.albumDownload;
+$("albumLink").href = "/party/album.zip?k=" + encodeURIComponent(KEY);
+$("memoryMake").textContent = T.memoryMake;
+function showTakeHome() {
+  const mine = BOOTH ? 0 : loadSent().length;
+  $("takeHome").hidden = !albumOn && !mine;
+  $("albumLink").hidden = !albumOn;
+  $("memoryMake").hidden = !mine;
+  $("takeBody").textContent = albumOn ? T.takeBody : T.memoryBody;
+}
+showTakeHome();
+
+function roundedImage(context, image, x, y, w, h, r) {
+  context.save();
+  context.beginPath();
+  context.moveTo(x + r, y);
+  context.arcTo(x + w, y, x + w, y + h, r);
+  context.arcTo(x + w, y + h, x, y + h, r);
+  context.arcTo(x, y + h, x, y, r);
+  context.arcTo(x, y, x + w, y, r);
+  context.closePath();
+  context.clip();
+  const scale = Math.max(w / image.naturalWidth, h / image.naturalHeight);
+  const dw = image.naturalWidth * scale, dh = image.naturalHeight * scale;
+  context.drawImage(image, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+  context.restore();
+}
+
+function partyBackground(context, width, height) {
+  const gradient = context.createLinearGradient(0, 0, width, height);
+  gradient.addColorStop(0, "#ff7a57");
+  gradient.addColorStop(0.55, "#ff4f9a");
+  gradient.addColorStop(1, "#8b6cff");
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, width, height);
+  const colors = ["#ffc145", "#ffffff", "#4cd787", "#0d0f13"];
+  for (let i = 0; i < 70; i++) {
+    context.fillStyle = colors[i % colors.length];
+    context.globalAlpha = 0.35;
+    context.save();
+    context.translate((i * 397) % width, (i * 613) % height);
+    context.rotate(i);
+    context.fillRect(-9, -4, 18, 8);
+    context.restore();
+  }
+  context.globalAlpha = 1;
+}
+
+function wrapText(context, text, x, y, maxWidth, lineHeight, maxLines) {
+  const words = String(text).split(/\s+/);
+  let line = "";
+  let lines = 0;
+  for (const word of words) {
+    const test = line ? line + " " + word : word;
+    if (context.measureText(test).width > maxWidth && line) {
+      context.fillText(line, x, y);
+      y += lineHeight;
+      line = word;
+      if (++lines >= maxLines - 1) break;
+    } else line = test;
+  }
+  if (line) context.fillText(line, x, y);
+  return y + lineHeight;
+}
+
+function saveCanvas(canvas, name, link) {
+  return new Promise((resolve) => canvas.toBlob((blob) => {
+    if (!blob) return resolve(false);
+    const url = URL.createObjectURL(blob);
+    if (link) {
+      link.href = url;
+      link.download = name;
+      link.hidden = false;
+    } else {
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+    resolve(true);
+  }, "image/png"));
+}
+
+// Il ricordo della festa: un'immagine con il titolo, il nome e le foto mandate da questo telefono.
+$("memoryMake").addEventListener("click", async () => {
+  const sent = loadSent();
+  $("takeStatus").textContent = T.memoryWorking;
+  let title = "";
+  try {
+    const response = await fetch("/wall/state?k=" + encodeURIComponent(KEY), { cache: "no-store" });
+    if (response.ok) title = (await response.json()).title || "";
+  } catch (e) {}
+  const canvas = document.createElement("canvas");
+  canvas.width = 1080; canvas.height = 1350;
+  const context = canvas.getContext("2d");
+  partyBackground(context, 1080, 1350);
+  context.fillStyle = "rgba(13,15,19,.82)";
+  context.fillRect(60, 60, 960, 1230);
+  context.fillStyle = "#ffc145";
+  context.font = "800 34px Figtree, system-ui, sans-serif";
+  context.fillText(T.memoryKicker.toUpperCase(), 110, 150);
+  context.fillStyle = "#ffffff";
+  context.font = "800 64px Figtree, system-ui, sans-serif";
+  let y = wrapText(context, title || T.memoryDefaultTitle, 110, 235, 860, 74, 2);
+  context.fillStyle = "#c8cdd6";
+  context.font = "500 34px system-ui, sans-serif";
+  const name = guestName();
+  context.fillText((name ? name + " · " : "") + new Date().toLocaleDateString(), 110, y + 4);
+  context.fillText(T.memoryCount.replace("%d", sent.length), 110, y + 52);
+  const images = await Promise.all(sent.slice(-6).map((entry) => new Promise((resolve) => {
+    if (!entry.thumb) return resolve(null);
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => resolve(null);
+    image.src = entry.thumb;
+  })));
+  const shown = images.filter(Boolean);
+  const top = y + 100, cell = 410, gap = 30;
+  shown.forEach((image, index) => {
+    const column = index % 2, row = Math.floor(index / 2);
+    if (top + row * (cell * 0.75 + gap) + cell * 0.75 > 1260) return;
+    roundedImage(context, image, 110 + column * (cell + gap), top + row * (cell * 0.75 + gap), cell, cell * 0.75, 24);
+  });
+  context.fillStyle = "#ff7a57";
+  context.font = "800 30px Figtree, system-ui, sans-serif";
+  context.fillText("FotoFesta", 110, 1250);
+  const ok = await saveCanvas(canvas, "FotoFesta-ricordo.png");
+  $("takeStatus").textContent = ok ? T.memoryDone : T.memoryFailed;
+  canvas.width = 0; canvas.height = 0;
+});
+
+// Richieste di canzoni.
+$("songLabel").textContent = T.songLabel;
+$("songText").placeholder = T.songPlaceholder;
+$("songSend").textContent = T.songSend;
+async function sendSong() {
+  const text = $("songText").value.trim();
+  if (!text) return;
+  $("songSend").disabled = true;
+  let status = T.offline;
+  try {
+    const response = await sendAction({ type: "song", text: Array.from(text).slice(0, 80).join("") });
+    if (response.ok) { status = T.songSent; $("songText").value = ""; }
+    else if (response.status === 429) status = T.songRate;
+    else if (response.status === 423) status = T.quietRefused;
+    else if (response.status === 403) status = T.songOff;
+  } catch (e) {}
+  $("songStatus").textContent = status;
+  $("songSend").disabled = false;
+}
+$("songSend").addEventListener("click", sendSong);
+$("songText").addEventListener("keydown", (event) => { if (event.key === "Enter") sendSong(); });
+
+// Firma: disegnata sul riquadro, salvata in questo telefono, aggiunta alle foto se spuntata.
+const SIGN_KEY = "fotofesta.signature";
+const signPad = $("signPad");
+const signContext = signPad.getContext("2d");
+let signatureImage = null;
+let signOn = false;
+$("signTitle").textContent = T.signTitle;
+$("signOnLabel").textContent = T.signOn;
+$("signClear").textContent = T.signClear;
+try {
+  signOn = localStorage.getItem(SIGN_KEY + ".on") === "1";
+  const saved = localStorage.getItem(SIGN_KEY);
+  if (saved) {
+    signatureImage = new Image();
+    signatureImage.onload = () => signContext.drawImage(signatureImage, 0, 0);
+    signatureImage.src = saved;
+  }
+} catch (e) {}
+$("signOn").checked = signOn;
+$("signOn").addEventListener("change", () => {
+  signOn = $("signOn").checked;
+  try { localStorage.setItem(SIGN_KEY + ".on", signOn ? "1" : "0"); } catch (e) {}
+});
+let signing = false, signLast = null;
+function signPoint(event) {
+  const box = signPad.getBoundingClientRect();
+  return { x: (event.clientX - box.left) * signPad.width / box.width, y: (event.clientY - box.top) * signPad.height / box.height };
+}
+signPad.addEventListener("pointerdown", (event) => {
+  signing = true;
+  signLast = signPoint(event);
+  signPad.setPointerCapture(event.pointerId);
+});
+signPad.addEventListener("pointermove", (event) => {
+  if (!signing) return;
+  const point = signPoint(event);
+  signContext.strokeStyle = "#111";
+  signContext.lineWidth = 7;
+  signContext.lineCap = "round";
+  signContext.lineJoin = "round";
+  signContext.beginPath();
+  signContext.moveTo(signLast.x, signLast.y);
+  signContext.lineTo(point.x, point.y);
+  signContext.stroke();
+  signLast = point;
+});
+function endSign() {
+  if (!signing) return;
+  signing = false;
+  const url = signPad.toDataURL("image/png");
+  signatureImage = new Image();
+  signatureImage.src = url;
+  try { localStorage.setItem(SIGN_KEY, url); } catch (e) {}
+  if (!signOn) { signOn = true; $("signOn").checked = true; try { localStorage.setItem(SIGN_KEY + ".on", "1"); } catch (e) {} }
+}
+signPad.addEventListener("pointerup", endSign);
+signPad.addEventListener("pointercancel", endSign);
+$("signClear").addEventListener("click", () => {
+  signContext.clearRect(0, 0, signPad.width, signPad.height);
+  signatureImage = null;
+  try { localStorage.removeItem(SIGN_KEY); } catch (e) {}
+});
+// La firma in bianco con un'ombra, in basso a destra: si legge su foto chiare e scure.
+function drawSignature(context, width, height) {
+  if (!signOn || !signatureImage || !signatureImage.complete || !signatureImage.naturalWidth) return;
+  const w = Math.round(Math.min(width, height) * 0.42);
+  const h = Math.round(w * signatureImage.naturalHeight / signatureImage.naturalWidth);
+  const tinted = document.createElement("canvas");
+  tinted.width = w; tinted.height = h;
+  const t = tinted.getContext("2d");
+  t.drawImage(signatureImage, 0, 0, w, h);
+  t.globalCompositeOperation = "source-in";
+  t.fillStyle = "#fff";
+  t.fillRect(0, 0, w, h);
+  context.save();
+  context.shadowColor = "rgba(0,0,0,.7)";
+  context.shadowBlur = Math.max(4, w / 60);
+  context.drawImage(tinted, width - w - width * 0.03, height - h - height * 0.03);
+  context.restore();
+  tinted.width = 0; tinted.height = 0;
+}
+
+// Cabina: un grande pulsante, la foto parte da sola, poi il prossimo ospite.
+function boothDone() {
+  $("boothStatus").textContent = T.boothDone;
+  setTimeout(() => { $("boothStatus").textContent = T.boothNext; }, 4000);
+}
+if (BOOTH) {
+  document.body.classList.add("booth");
+  $("files").multiple = false;
+  $("files").setAttribute("capture", "user");
+  $("pickText").textContent = T.boothPick;
+  $("boothStatus").hidden = false;
+  $("boothStatus").textContent = T.boothNext;
+}
+
+// Regia: cartoncini per i tavoli e cabina per un tablet.
+$("hostCards").textContent = T.hostCards;
+$("hostCards").href = "/door?k=" + encodeURIComponent(KEY) + "&cartoncini=1";
+$("hostBooth").textContent = T.hostBooth;
+$("hostBooth").href = "/?k=" + encodeURIComponent(KEY) + "&cabina=1";
+$("hostSongsTitle").textContent = T.hostSongs;
+
+// Inviti a tema: un'immagine da mandare nelle chat, con data, luogo e un messaggio.
+$("inviteTitle").textContent = T.inviteTitle;
+$("inviteHint").textContent = T.inviteHint;
+$("inviteWhen").placeholder = T.inviteWhen;
+$("inviteWhere").placeholder = T.inviteWhere;
+$("inviteText").placeholder = T.inviteText;
+$("inviteMake").textContent = T.inviteMake;
+$("inviteSave").textContent = T.inviteSave;
+$("inviteMake").addEventListener("click", async () => {
+  const canvas = $("inviteCanvas");
+  const context = canvas.getContext("2d");
+  partyBackground(context, 1080, 1350);
+  context.fillStyle = "rgba(13,15,19,.86)";
+  context.fillRect(80, 160, 920, 1030);
+  context.textAlign = "center";
+  context.fillStyle = "#ffc145";
+  context.font = "800 40px Figtree, system-ui, sans-serif";
+  context.fillText(T.inviteKicker.toUpperCase(), 540, 280);
+  context.fillStyle = "#ffffff";
+  context.font = "800 86px Figtree, system-ui, sans-serif";
+  let y = wrapText(context, (hostState && hostState.title) || T.memoryDefaultTitle, 540, 420, 820, 96, 3);
+  context.font = "700 50px Figtree, system-ui, sans-serif";
+  context.fillStyle = "#ff7a57";
+  if ($("inviteWhen").value.trim()) { context.fillText($("inviteWhen").value.trim(), 540, y + 40); y += 80; }
+  context.fillStyle = "#c8cdd6";
+  context.font = "500 42px system-ui, sans-serif";
+  if ($("inviteWhere").value.trim()) { context.fillText($("inviteWhere").value.trim(), 540, y + 40); y += 80; }
+  context.fillStyle = "#ffffff";
+  context.font = "500 40px system-ui, sans-serif";
+  if ($("inviteText").value.trim()) wrapText(context, $("inviteText").value.trim(), 540, y + 70, 800, 54, 4);
+  context.fillStyle = "#ff7a57";
+  context.font = "800 34px Figtree, system-ui, sans-serif";
+  context.fillText("📸 FotoFesta", 540, 1140);
+  context.textAlign = "left";
+  canvas.hidden = false;
+  await saveCanvas(canvas, "Invito.png", $("inviteSave"));
+});
+
+// Testo più grande, ricordato da questo telefono.
+const LARGE_KEY = "fotofesta.large";
+function applyTextSize(large) {
+  document.documentElement.classList.toggle("large", large);
+  $("textSize").textContent = large ? T.textNormal : T.textLarger;
+}
+let largeText = false;
+try { largeText = localStorage.getItem(LARGE_KEY) === "1"; } catch (e) {}
+applyTextSize(largeText);
+$("textSize").addEventListener("click", () => {
+  largeText = !largeText;
+  applyTextSize(largeText);
+  try { localStorage.setItem(LARGE_KEY, largeText ? "1" : "0"); } catch (e) {}
+});
 
 // Domanda già in corso sulla TV: si mostra subito, senza aspettare il primo giro.
 pollGame();

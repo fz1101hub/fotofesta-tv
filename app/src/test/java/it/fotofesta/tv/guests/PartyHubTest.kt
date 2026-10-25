@@ -49,7 +49,26 @@ class PartyHubTest {
         hub.setFeatures(PartyHub.Features(reactions = false, messages = false))
         assertEquals(PartyHub.Result.DISABLED, hub.react(giulia, 0, null))
         assertEquals(PartyHub.Result.DISABLED, hub.message(giulia, "Auguri!", null))
-        assertEquals("""{"reactions":false,"messages":false,"moderated":false,"arrivals":true,"wall":true}""", hub.featuresJson())
+        assertEquals("""{"reactions":false,"messages":false,"moderated":false,"arrivals":true,"wall":true,"songs":true,"album":true,"video":false,"delete":true}""", hub.featuresJson())
+    }
+
+    @Test
+    fun `song requests are kept for the music, with limits`() {
+        val hub = hub()
+        var heard: PartyHub.SongRequest? = null
+        hub.onSong = { heard = it }
+        assertEquals(PartyHub.Result.OK, hub.songRequest(giulia, "  Gloria - Umberto Tozzi ", "Giulia"))
+        assertEquals("Gloria - Umberto Tozzi", heard?.text)
+        assertEquals("Giulia", hub.songRequests().single().name)
+        assertEquals(PartyHub.Result.INVALID, hub.songRequest(giulia, "   ", null))
+        repeat(2) { hub.songRequest(giulia, "Canzone $it", null) }
+        assertEquals(PartyHub.Result.RATE_LIMITED, hub.songRequest(giulia, "Ancora una", null))
+        hub.removeSong(hub.songRequests().first().id)
+        assertEquals(2, hub.songRequests().size)
+        hub.setFeatures(PartyHub.Features(songs = false))
+        assertEquals(PartyHub.Result.DISABLED, hub.songRequest("telefono-marco", "Volare", null))
+        hub.clear()
+        assertTrue(hub.songRequests().isEmpty())
     }
 
     @Test

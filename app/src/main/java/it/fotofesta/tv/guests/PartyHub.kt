@@ -18,7 +18,16 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
         val reactions: Boolean = true,
         val messages: Boolean = true,
         val moderateMessages: Boolean = false,
+        /** Richieste di canzoni dai telefoni, per chi fa la musica. */
+        val songs: Boolean = true,
+        /** Gli invitati possono scaricare le foto approvate della festa. */
+        val album: Boolean = true,
+        /** Video brevi dagli invitati. */
+        val videos: Boolean = false,
     )
+
+    /** Canzone chiesta da un telefono, per chi fa la musica. */
+    data class SongRequest(val id: String, val text: String, val name: String?, val atMillis: Long)
 
     /** Reazioni possibili, nello stesso ordine dei pulsanti della pagina. */
     enum class Reaction(val emoji: String) {
@@ -59,6 +68,8 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
     private var serial = 0L
     private val reactionTimes = HashMap<String, ArrayDeque<Long>>()
     private val messageTimes = HashMap<String, ArrayDeque<Long>>()
+    private val songs = ArrayList<SongRequest>()
+    private val songTimes = HashMap<String, ArrayDeque<Long>>()
     private val messages = ArrayList<Message>()
     private val names = LinkedHashMap<String, String>()
     /** Reazioni per tipo (cuore, risata...), per "La festa in numeri". */
@@ -84,6 +95,9 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
 
     /** Un invitato appena arrivato (QR dell'ingresso), da qualunque thread: la TV gli dà il benvenuto. */
     @Volatile var onArrival: ((Arrival) -> Unit)? = null
+
+    /** Canzone appena chiesta, per un avviso sulla TV. */
+    @Volatile var onSong: ((SongRequest) -> Unit)? = null
 
     /**
      * Arrivo di un invitato dal QR dell'ingresso. Il benvenuto parte una volta sola per telefono;
@@ -180,6 +194,33 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
         }
         onChange?.invoke()
         return result
+    }
+
+    /** Richiesta di una canzone: titolo o artista, al massimo [MAX_SONG_LENGTH] caratteri. */
+    fun songRequest(player: String, text: String?, name: String?): Result {
+        val request = synchronized(this) {
+            val cleaned = GuestSender.clean(text, MAX_SONG_LENGTH)
+            when {
+                !features.songs -> return Result.DISABLED
+                cleaned == null || !PhoneGame.validPlayer(player) -> return Result.INVALID
+                songs.size >= MAX_SONGS -> return Result.FULL
+                !allow(songTimes, player, SONG_BURST, SONG_WINDOW_MS) -> return Result.RATE_LIMITED
+            }
+            SongRequest(UUID.randomUUID().toString(), cleaned!!, remember(player, name), nowMillis()).also { songs += it }
+        }
+        onSong?.invoke(request)
+        onChange?.invoke()
+        return Result.OK
+    }
+
+    /** Canzoni chieste, dalla più vecchia. */
+    @Synchronized
+    fun songRequests(): List<SongRequest> = songs.toList()
+
+    /** Canzone suonata o scartata da chi fa la musica. */
+    fun removeSong(id: String) {
+        synchronized(this) { songs.removeAll { it.id == id } }
+        onChange?.invoke()
     }
 
     /** Dediche approvate, dalla più vecchia: quelle da mostrare e il libro degli ospiti. */
@@ -398,6 +439,8 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
             reactionTimes.clear()
             messageTimes.clear()
             messages.clear()
+            songs.clear()
+            songTimes.clear()
             names.clear()
             arrivals.clear()
         }
@@ -407,7 +450,7 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
     /** Cosa può fare la pagina dei telefoni, in JSON. */
     @Synchronized
     fun featuresJson(): String =
-        """{"reactions":${features.reactions},"messages":${features.messages},"moderated":${features.moderateMessages},"arrivals":true,"wall":true}"""
+        """{"reactions":${features.reactions},"messages":${features.messages},"moderated":${features.moderateMessages},"arrivals":true,"wall":true,"songs":${features.songs},"album":${features.album},"video":${features.videos},"delete":true}"""
 
     /** Annuncio e regista di turno per la pagina del telefono [player], in JSON. */
     fun partyJson(player: String?): String {
@@ -448,6 +491,7 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
             "message" -> message(player, form["text"], name)
             "director" -> direct(player, form["command"])
             "arrive" -> arrive(player, name)
+            "song" -> songRequest(player, form["text"], name)
             else -> Result.INVALID
         }
         return when (result) {
@@ -514,6 +558,10 @@ class PartyHub(private val nowMillis: () -> Long = System::currentTimeMillis) {
         /** Scatti del rullino usa e getta, come le macchine di una volta. */
         const val DISPOSABLE_SHOTS = 27
         const val MAX_MESSAGES = 500
+        const val MAX_SONGS = 200
+        const val MAX_SONG_LENGTH = 80
+        const val SONG_BURST = 3
+        const val SONG_WINDOW_MS = 5 * 60_000L
         const val MAX_RECENT_REACTIONS = 64
         /** Cinque reazioni ogni tre secondi: abbastanza per divertirsi, troppo poche per intasare lo schermo. */
         const val REACTION_BURST = 5

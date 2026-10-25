@@ -16,6 +16,17 @@ fun GuestPhotoStore.Photo.toPhotoItem(context: Context): PhotoItem = PhotoItem(
     receivedAtMillis = receivedAtMillis,
 )
 
+/** Video breve di un invitato: si guarda nello slideshow come gli altri video, dal file su disco. */
+fun GuestVideoStore.Video.toPhotoItem(context: Context): PhotoItem = PhotoItem(
+    id = "guestvideo:$id",
+    title = sender?.let { context.getString(R.string.guest_video_from, it) } ?: context.getString(R.string.guest_video),
+    ref = PhotoRef.LocalFile(file.absolutePath),
+    source = SourceType.GUESTS,
+    sender = sender,
+    receivedAtMillis = receivedAtMillis,
+    video = true,
+)
+
 /** Identificativo nell'archivio della festa, se l'elemento è una foto di un invitato. */
 val PhotoItem.guestPhotoId: String?
     get() = (ref as? PhotoRef.GuestPhoto)?.id

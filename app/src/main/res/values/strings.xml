@@ -981,4 +981,22 @@
     <!-- Slideshow a ritmo -->
     <string name="settings_beat_sync">Slideshow to the beat</string>
     <string name="settings_beat_sync_body">With background music, photos change at the start of a bar and pulse on the beat. The TV listens to the first 45 seconds of each song.</string>
+
+    <!-- Ondata 9: invitati e pagina dei telefoni -->
+    <string name="guest_video">Guest video</string>
+    <string name="guest_video_from">Video from %s</string>
+    <string name="settings_song_requests">Song requests</string>
+    <string name="settings_song_requests_body">Guests ask for songs from their phone; whoever does the music sees them in the host remote and the TV shows a message.</string>
+    <string name="settings_guest_album">Photos to take home</string>
+    <string name="settings_guest_album_body">Guests can download the photos shown on the TV from their phone, in a .zip file. Not with “Party without traces”.</string>
+    <string name="settings_fixed_address">Fixed address</string>
+    <string name="settings_fixed_address_body">The party QR stays the same every night, so printed table cards and NFC stickers keep working. Give the TV a fixed IP address in your router too.</string>
+    <string name="settings_guest_videos">Short videos from guests</string>
+    <string name="settings_guest_videos_body">Videos up to 30 seconds, saved on the TV only for the party. Not with photo approval or “Party without traces”.</string>
+    <string name="song_message">🎵 Song request: %s</string>
+    <string name="song_message_named">🎵 %1$s asks for: %2$s</string>
+    <string name="phone_wall_finale">Grand finale 🎉</string>
+    <string name="awards_first_arrival">First to arrive</string>
+    <string name="awards_last_arrival">Last to arrive</string>
+    <string name="awards_arrival_detail">%1$s at %2$s</string>
 </resources>

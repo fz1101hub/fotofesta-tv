@@ -25,6 +25,7 @@ import it.fotofesta.tv.google.GooglePhotosStream
 import it.fotofesta.tv.google.HttpStatusException
 import it.fotofesta.tv.guests.GuestParty
 import it.fotofesta.tv.guests.GuestPhotoStore
+import it.fotofesta.tv.guests.GuestVideoStore
 import it.fotofesta.tv.guests.HostRemote
 import it.fotofesta.tv.guests.PartyCommand
 import it.fotofesta.tv.guests.PartyHub
@@ -259,8 +260,9 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             googleStream.gone.collect { gone -> if (gone != null) onGoogleSelectionGone(gone) }
         }
         viewModelScope.launch {
-            combine(guests.state, guests.store.photos, guests.ready) { party, photos, ready -> Triple(party, photos, ready) }
-                .collect { (party, photos, ready) -> onGuestsChanged(party, photos, ready) }
+            combine(guests.state, guests.store.photos, guests.ready, guests.videos.videos) { party, photos, ready, videos ->
+                GuestChange(party, photos, ready, videos)
+            }.collect { change -> onGuestsChanged(change.party, change.photos, change.ready, change.videos) }
         }
         partyHub.onChange = ::refreshParty
         partyPlay.onChange = ::refreshPlay
@@ -271,6 +273,14 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             // Fuori dallo slideshow il benvenuto è un messaggio in basso.
             if (_state.value.destination != Destination.SLIDESHOW) {
                 showMessage(context.getString(R.string.arrival_message, arrival.name, arrival.order))
+            }
+        }
+        partyHub.onSong = { song ->
+            viewModelScope.launch {
+                showMessage(
+                    song.name?.let { context.getString(R.string.song_message_named, it, song.text) }
+                        ?: context.getString(R.string.song_message, song.text)
+                )
             }
         }
         partyHub.onReaction = {
@@ -680,6 +690,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
             PartyCommand.StartDirector -> startDirector()
             PartyCommand.StartQuiet -> startQuiet()
             PartyCommand.Develop -> develop()
+            is PartyCommand.SongDone -> partyHub.removeSong(command.id)
         }
     }
 
@@ -801,6 +812,11 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun rearrangePhoneWall() = phoneWall.rearrange()
 
+    fun phoneWallFinale() = phoneWall.finale()
+
+    /** Arrivi dal QR dell'ingresso, con l'ora: per primo e ultimo ad arrivare. */
+    fun partyArrivals(): List<PartyHub.Arrival> = partyHub.arrivals()
+
     /** Scommessa decisa: chi ha scelto [choice] vince tre monete. Restituisce quanti hanno vinto. */
     fun settleBet(choice: Int): Int {
         val winners = phoneGame.voters(choice)
@@ -867,8 +883,14 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
                 messages = settings.phoneMessages,
                 // Con l'approvazione delle foto anche le dediche aspettano il via libera.
                 moderateMessages = _state.value.guests.approval,
+                songs = settings.songRequests,
+                videos = settings.guestVideos && !_state.value.guests.approval && !settings.noTraces,
+                album = settings.guestAlbum && !settings.noTraces,
             ),
         )
+        guests.albumEnabled = settings.guestAlbum && !settings.noTraces
+        guests.fixedAddress = settings.fixedAddress
+        guests.videosEnabled = settings.guestVideos && !settings.noTraces
     }
 
     fun approveMessage(message: PartyHub.Message) = partyHub.approveMessage(message.id)
@@ -994,7 +1016,10 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         musicPlayer.setVolume(musicVolume())
         if (previous.sleepTimerMinutes != value.sleepTimerMinutes) syncSleepTimer()
         if (previous.videos != value.videos) applyCollection(restart = false)
-        if (previous.phoneReactions != value.phoneReactions || previous.phoneMessages != value.phoneMessages) syncPartyFeatures()
+        if (previous.phoneReactions != value.phoneReactions || previous.phoneMessages != value.phoneMessages ||
+            previous.songRequests != value.songRequests || previous.guestAlbum != value.guestAlbum || previous.noTraces != value.noTraces ||
+            previous.fixedAddress != value.fixedAddress || previous.guestVideos != value.guestVideos
+        ) syncPartyFeatures()
         if (previous.photoLimit != value.photoLimit || previous.resumeParty != value.resumeParty ||
             previous.noTraces != value.noTraces || previous.backupCopy != value.backupCopy
         ) {
@@ -2041,7 +2066,19 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
      * approvate dopo la ripresa della festa) passano davanti nello slideshow; quelle riprese da una
      * festa interrotta no. Non si usa l'orologio della TV, che può cambiare all'improvviso.
      */
-    private fun onGuestsChanged(party: GuestParty.State, photos: List<GuestPhotoStore.Photo>, ready: Boolean) {
+    private data class GuestChange(
+        val party: GuestParty.State,
+        val photos: List<GuestPhotoStore.Photo>,
+        val ready: Boolean,
+        val videos: List<GuestVideoStore.Video>,
+    )
+
+    private fun onGuestsChanged(
+        party: GuestParty.State,
+        photos: List<GuestPhotoStore.Photo>,
+        ready: Boolean,
+        videos: List<GuestVideoStore.Video> = emptyList(),
+    ) {
         val approved = photos.filter { it.approved }
         val approvedIds = approved.mapTo(mutableSetOf()) { it.id }
         val known = knownGuestIds
@@ -2050,7 +2087,9 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         }
         knownGuestIds = if (ready) approvedIds else null
 
-        val items = approved.map { it.toPhotoItem(context) }
+        // I video brevi degli invitati entrano nella raccolta come le foto, in ordine di arrivo.
+        val items = (approved.map { it.toPhotoItem(context) } + videos.map { it.toPhotoItem(context) })
+            .sortedBy { it.receivedAtMillis ?: 0L }
         val approvalChanged = _state.value.guests.approval != party.approval
         _state.update {
             it.copy(
@@ -2303,6 +2342,7 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         phoneWall.onChange = null
         partyHub.onReaction = null
         partyHub.onArrival = null
+        partyHub.onSong = null
         partyHub.onDirectorCommand = null
         hostRemote.onCommand = null
         super.onCleared()

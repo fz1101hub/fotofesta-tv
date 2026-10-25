@@ -16,7 +16,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.Celebration
+import androidx.compose.material.icons.rounded.EmojiPeople
 import androidx.compose.material.icons.rounded.EmojiEvents
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Flag
@@ -34,6 +36,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import it.fotofesta.tv.R
+import it.fotofesta.tv.guests.PartyHub
 import it.fotofesta.tv.model.FitMode
 import it.fotofesta.tv.model.PartyAwards
 import it.fotofesta.tv.model.PhotoItem
@@ -44,7 +47,13 @@ import java.util.Date
  * foto e gran finale, con il riepilogo della festa.
  */
 @Composable
-fun AwardsScreen(awards: PartyAwards, onBack: () -> Unit, onCapsule: (() -> Unit)? = null) {
+fun AwardsScreen(
+    awards: PartyAwards,
+    onBack: () -> Unit,
+    onCapsule: (() -> Unit)? = null,
+    /** Arrivi dal QR dell'ingresso: primo e ultimo ad arrivare. */
+    arrivals: List<PartyHub.Arrival> = emptyList(),
+) {
     val summary = buildList {
         add(quantityStringResource(R.plurals.awards_photo_count, awards.photos))
         if (awards.guests > 0) add(quantityStringResource(R.plurals.awards_guest_count, awards.guests))
@@ -91,6 +100,14 @@ fun AwardsScreen(awards: PartyAwards, onBack: () -> Unit, onCapsule: (() -> Unit
                 AwardCard(Icons.Rounded.Celebration, stringResource(R.string.awards_last), senderName(photo), arrivalTime(photo), photo, Modifier.weight(1f))
             }
         }
+        // Chi è arrivato per primo e per ultimo, dal QR dell'ingresso.
+        if (arrivals.size >= 2) {
+            val format = DateFormat.getTimeFormat(LocalContext.current)
+            Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
+                ArrivalAward(Icons.Rounded.EmojiPeople, stringResource(R.string.awards_first_arrival), arrivals.first().name, format.format(Date(arrivals.first().atMillis)))
+                ArrivalAward(Icons.Rounded.Bedtime, stringResource(R.string.awards_last_arrival), arrivals.last().name, format.format(Date(arrivals.last().atMillis)))
+            }
+        }
     }
 }
 
@@ -102,6 +119,21 @@ private fun senderName(photo: PhotoItem): String =
 private fun arrivalTime(photo: PhotoItem): String {
     val millis = photo.receivedAtMillis ?: return ""
     return stringResource(R.string.awards_at, DateFormat.getTimeFormat(LocalContext.current).format(Date(millis)))
+}
+
+@Composable
+private fun ArrivalAward(icon: ImageVector, award: String, name: String, time: String) {
+    Row(
+        Modifier.background(SurfaceDark, RoundedCornerShape(16.dp)).padding(horizontal = 18.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Icon(icon, contentDescription = null, tint = Accent, modifier = Modifier.size(24.dp))
+        Column {
+            Kicker(award)
+            Text(stringResource(R.string.awards_arrival_detail, name, time), style = MaterialTheme.typography.titleMedium, color = TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+    }
 }
 
 /** Scheda di un premio: la foto, il nome del premio, chi lo vince e un dettaglio. */

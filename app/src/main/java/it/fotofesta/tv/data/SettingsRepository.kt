@@ -48,6 +48,10 @@ class SettingsRepository(context: Context) {
         showClock = prefs.getBoolean("clock", true),
         musicVolume = prefs.getFloat("volume", 0.35f),
         beatSync = prefs.getBoolean("beat_sync", false),
+        songRequests = prefs.getBoolean("song_requests", true),
+        guestAlbum = prefs.getBoolean("guest_album", true),
+        fixedAddress = prefs.getBoolean("fixed_address", false),
+        guestVideos = prefs.getBoolean("guest_videos", true),
         kenBurns = prefs.getBoolean("ken_burns", false),
         sleepTimerMinutes = prefs.getInt("sleep_timer", 0),
         countdown = prefs.getBoolean("countdown", false),
@@ -88,6 +92,10 @@ class SettingsRepository(context: Context) {
             .putBoolean("clock", value.showClock)
             .putFloat("volume", value.musicVolume)
             .putBoolean("beat_sync", value.beatSync)
+            .putBoolean("song_requests", value.songRequests)
+            .putBoolean("guest_album", value.guestAlbum)
+            .putBoolean("fixed_address", value.fixedAddress)
+            .putBoolean("guest_videos", value.guestVideos)
             .putBoolean("ken_burns", value.kenBurns)
             .putInt("sleep_timer", value.sleepTimerMinutes)
             .putBoolean("countdown", value.countdown)

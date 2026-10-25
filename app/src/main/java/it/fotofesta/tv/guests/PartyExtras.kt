@@ -29,6 +29,9 @@ interface PartyExtras {
     /** Brano [id] della silent disco, solo se è quello che sta suonando. */
     fun discoTrack(id: String): DiscoTrack? = null
 
+    /** Foto approvate da portare a casa in un archivio; null se chi organizza non lo permette. */
+    fun album(): List<ZipStream.Entry>? = null
+
     /** Muro di telefoni per il telefono [player], in JSON; "null" se è spento. */
     fun phoneWallJson(player: String?): String = "null"
 

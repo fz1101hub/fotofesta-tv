@@ -450,6 +450,34 @@ fun SettingsScreen(
                                 checked = state.settings.phoneMessages,
                             )
                             SettingsItem(
+                                stringResource(R.string.settings_song_requests),
+                                { onChange(state.settings.copy(songRequests = !state.settings.songRequests)) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_song_requests_body),
+                                checked = state.settings.songRequests,
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_guest_album),
+                                { onChange(state.settings.copy(guestAlbum = !state.settings.guestAlbum)) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_guest_album_body),
+                                checked = state.settings.guestAlbum,
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_guest_videos),
+                                { onChange(state.settings.copy(guestVideos = !state.settings.guestVideos)) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_guest_videos_body),
+                                checked = state.settings.guestVideos,
+                            )
+                            SettingsItem(
+                                stringResource(R.string.settings_fixed_address),
+                                { onChange(state.settings.copy(fixedAddress = !state.settings.fixedAddress)) },
+                                toCategory,
+                                subtitle = stringResource(R.string.settings_fixed_address_body),
+                                checked = state.settings.fixedAddress,
+                            )
+                            SettingsItem(
                                 stringResource(R.string.settings_phone_host),
                                 { onChange(state.settings.copy(phoneHost = !state.settings.phoneHost)) },
                                 toCategory,

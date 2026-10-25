@@ -107,6 +107,19 @@ class GuestParty(
     @Volatile var onPhotoSaved: ((bytes: ByteArray, sender: String?) -> Unit)? = null
     /** Silent disco accesa: il brano che sta suonando la TV (a volume zero), letto dai thread del server. */
     @Volatile var discoSource: (() -> BackgroundMusicPlayer.NowPlaying?)? = null
+    /** Video brevi degli invitati, su disco con un limite: si cancellano con le foto a fine festa. */
+    val videos = GuestVideoStore(java.io.File(context.cacheDir, "guest_videos"), maxTotalBytes = MAX_VIDEO_TOTAL_BYTES)
+
+    /** La TV accetta video brevi (impostazione della festa; non con l'approvazione o senza tracce). */
+    @Volatile var videosEnabled = true
+
+    /** Indirizzo fisso: la stessa chiave a ogni festa, per QR stampati e adesivi NFC. */
+    @Volatile var fixedAddress = false
+
+    /** Gli invitati possono scaricare le foto approvate (impostazione della festa). */
+    @Volatile var albumEnabled = true
+    private val crcs = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
     /** Muro di telefoni: i telefoni sul tavolo mostrano insieme una foto della parete. */
     @Volatile var phoneWall: PhoneWall? = null
     private var hubSave: ScheduledFuture<*>? = null
@@ -185,6 +198,30 @@ class GuestParty(
             }
         }
 
+        override fun album(): List<ZipStream.Entry>? {
+            if (!albumEnabled) return null
+            val approved = store.photos.value.filter { it.approved }.take(ZipStream.MAX_ENTRIES)
+            var total = 0L
+            return approved.mapIndexedNotNull { index, photo ->
+                if (total + photo.sizeBytes > ZipStream.MAX_BYTES) return@mapIndexedNotNull null
+                // Il CRC si calcola una volta per foto: le foto non cambiano mai.
+                val crc = crcs[photo.id] ?: store.read(photo.id)?.let(ZipStream::crcOf)?.also { crcs[photo.id] = it }
+                    ?: return@mapIndexedNotNull null
+                total += photo.sizeBytes
+                val name = String.format(java.util.Locale.ROOT, "FotoFesta-%03d", index + 1) +
+                    (photo.sender?.let { "-" + it.filter { char -> char.isLetterOrDigit() }.take(20) } ?: "") + ".jpg"
+                ZipStream.Entry(name, photo.sizeBytes.toLong(), crc) { store.read(photo.id)?.inputStream() }
+            } + videos.videos.value.mapIndexedNotNull { index, video ->
+                if (total + video.sizeBytes > ZipStream.MAX_BYTES) return@mapIndexedNotNull null
+                val crc = crcs[video.id] ?: runCatching { video.file.inputStream().use(ZipStream::crcOf) }.getOrNull()
+                    ?.also { crcs[video.id] = it } ?: return@mapIndexedNotNull null
+                total += video.sizeBytes
+                val name = String.format(java.util.Locale.ROOT, "FotoFesta-video-%03d", index + 1) +
+                    (video.sender?.let { "-" + it.filter { char -> char.isLetterOrDigit() }.take(20) } ?: "") + ".mp4"
+                ZipStream.Entry(name, video.sizeBytes, crc) { video.file.takeIf { it.exists() }?.inputStream() }
+            }
+        }
+
         override fun phoneWallJson(player: String?): String = phoneWall?.phoneJson(player) ?: "null"
 
         override fun phoneWallAction(form: Map<String, String>): Pair<Int, String>? = phoneWall?.handle(form)
@@ -202,8 +239,10 @@ class GuestParty(
         _state.update { it.copy(wifi = wifi) }
         if (!_state.value.active) {
             store.clear()
+            videos.clear()
         } else {
             store.restore(IDLE_LIMIT_MS)
+            videos.restore(IDLE_LIMIT_MS)
             val newest = store.photos.value.maxOfOrNull { it.receivedAtMillis } ?: 0L
             val lastActivity = max(prefs.getLong(KEY_STARTED_AT, 0L), newest)
             if (System.currentTimeMillis() - lastActivity > IDLE_LIMIT_MS) {
@@ -221,7 +260,7 @@ class GuestParty(
         if (_state.value.active) return@execute
         prefs.edit()
             .putBoolean(KEY_ACTIVE, true)
-            .putString(KEY_SECRET, newSecret())
+            .putString(KEY_SECRET, partySecret())
             .putLong(KEY_STARTED_AT, System.currentTimeMillis())
             .apply()
         host?.reset()
@@ -320,6 +359,8 @@ class GuestParty(
     private fun endParty() {
         stopServing()
         store.clear()
+        videos.clear()
+        crcs.clear()
         hub?.clear()
         play?.clear()
         host?.reset()
@@ -353,6 +394,8 @@ class GuestParty(
             key = secret,
             page = ::page,
             onPhoto = ::receive,
+            onDeletePhoto = ::deleteByGuest,
+            onVideo = ::receiveVideo,
             // Il sistema ha chiuso il server (ad esempio togliendo l'indirizzo): si riavvia a breve.
             onFailure = { scheduleRetry(FAILURE_RETRY_SECONDS) },
             game = phoneGame,
@@ -478,25 +521,62 @@ class GuestParty(
             .firstOrNull { !it.isLoopbackAddress && !it.isLinkLocalAddress && !it.isAnyLocalAddress }
 
     /** Chiamato dai thread del server per ogni foto ricevuta. */
-    private fun receive(bytes: ByteArray, sender: String?, player: String?): GuestUploadServer.UploadResult {
-        if (!isDisplayable(bytes)) return GuestUploadServer.UploadResult.UNSUPPORTED
+    private fun receive(bytes: ByteArray, sender: String?, player: String?): GuestUploadServer.Upload {
+        if (!isDisplayable(bytes)) return GuestUploadServer.Upload(GuestUploadServer.UploadResult.UNSUPPORTED)
         // Limite di foto a testa (una a testa, rullino) e tre minuti senza telefoni.
         when (hub?.takePhoto(player)) {
-            PartyHub.PhotoTake.QUIET -> return GuestUploadServer.UploadResult.QUIET
-            PartyHub.PhotoTake.LIMIT, PartyHub.PhotoTake.NO_PLAYER -> return GuestUploadServer.UploadResult.LIMIT
+            PartyHub.PhotoTake.QUIET -> return GuestUploadServer.Upload(GuestUploadServer.UploadResult.QUIET)
+            PartyHub.PhotoTake.LIMIT, PartyHub.PhotoTake.NO_PLAYER -> return GuestUploadServer.Upload(GuestUploadServer.UploadResult.LIMIT)
             else -> Unit
         }
-        val result = when (val added = store.add(bytes, sender, approved = !_state.value.approval)) {
+        val upload = when (val added = store.add(bytes, sender, approved = !_state.value.approval)) {
             is GuestPhotoStore.AddResult.Added -> {
                 play?.photoArrived(player, added.photo.id)
-                if (added.photo.approved) GuestUploadServer.UploadResult.SHOWN else GuestUploadServer.UploadResult.PENDING
+                val result = if (added.photo.approved) GuestUploadServer.UploadResult.SHOWN else GuestUploadServer.UploadResult.PENDING
+                GuestUploadServer.Upload(result, added.photo.id)
             }
-            GuestPhotoStore.AddResult.Full -> GuestUploadServer.UploadResult.FULL
-            GuestPhotoStore.AddResult.TooManyPending -> GuestUploadServer.UploadResult.TOO_MANY_PENDING
+            GuestPhotoStore.AddResult.Full -> GuestUploadServer.Upload(GuestUploadServer.UploadResult.FULL)
+            GuestPhotoStore.AddResult.TooManyPending -> GuestUploadServer.Upload(GuestUploadServer.UploadResult.TOO_MANY_PENDING)
         }
-        if (result == GuestUploadServer.UploadResult.FULL || result == GuestUploadServer.UploadResult.TOO_MANY_PENDING) hub?.returnPhoto(player)
+        if (upload.photoId == null) hub?.returnPhoto(player)
         else onPhotoSaved?.invoke(bytes, sender)
-        return result
+        return upload
+    }
+
+    /** Video breve: dritto su disco; conta come una foto per i limiti a testa. */
+    private fun receiveVideo(input: java.io.InputStream, length: Long, sender: String?, player: String?): GuestUploadServer.Upload {
+        if (!videosEnabled || _state.value.approval) return GuestUploadServer.Upload(GuestUploadServer.UploadResult.UNSUPPORTED)
+        when (hub?.takePhoto(player)) {
+            PartyHub.PhotoTake.QUIET -> return GuestUploadServer.Upload(GuestUploadServer.UploadResult.QUIET)
+            PartyHub.PhotoTake.LIMIT, PartyHub.PhotoTake.NO_PLAYER -> return GuestUploadServer.Upload(GuestUploadServer.UploadResult.LIMIT)
+            else -> Unit
+        }
+        val result = try {
+            videos.add(input, length, sender, GuestVideoStore::looksLikeVideo)
+        } catch (failure: java.io.IOException) {
+            hub?.returnPhoto(player)
+            throw failure
+        }
+        return when (result) {
+            is GuestVideoStore.AddResult.Added -> GuestUploadServer.Upload(GuestUploadServer.UploadResult.SHOWN, result.video.id)
+            GuestVideoStore.AddResult.Full -> {
+                hub?.returnPhoto(player)
+                GuestUploadServer.Upload(GuestUploadServer.UploadResult.FULL)
+            }
+            GuestVideoStore.AddResult.Invalid -> {
+                hub?.returnPhoto(player)
+                GuestUploadServer.Upload(GuestUploadServer.UploadResult.UNSUPPORTED)
+            }
+        }
+    }
+
+    /** Foto o video tolto da chi l'ha mandato (con la ricevuta): sparisce dalla TV, dalla parete e dall'album. */
+    private fun deleteByGuest(id: String): Boolean {
+        crcs.remove(id)
+        if (videos.remove(id)) return true
+        if (store.photos.value.none { it.id == id }) return false
+        store.remove(id)
+        return true
     }
 
     /** Legge solo le dimensioni: un file danneggiato o enorme non arriva mai allo slideshow. */
@@ -518,7 +598,7 @@ class GuestParty(
         val config = """{"maxWidth":${(longSide * ZOOM_MARGIN).roundToInt()},""" +
             """"maxHeight":${(shortSide * ZOOM_MARGIN).roundToInt()},"fit":"$fit","quality":$JPEG_QUALITY,""" +
             """"maxBytes":${GuestUploadServer.MAX_UPLOAD_BYTES},"maxPixels":$MAX_IMAGE_PIXELS,"maxSide":$MAX_IMAGE_SIDE,""" +
-            """"approval":${_state.value.approval}}"""
+            """"approval":${_state.value.approval},"maxVideoBytes":${GuestUploadServer.MAX_VIDEO_BYTES},"videoSeconds":$MAX_VIDEO_SECONDS}"""
         return template.replace("__FOTOFESTA_CONFIG__", config)
     }
 
@@ -534,6 +614,20 @@ class GuestParty(
     private fun deviceName(): String =
         runCatching { android.provider.Settings.Global.getString(context.contentResolver, "device_name") }.getOrNull()
             ?.takeIf { it.isNotBlank() } ?: android.os.Build.MODEL.orEmpty().ifBlank { "FotoFesta TV" }
+
+    /**
+     * Chiave della nuova festa. Con l'indirizzo fisso è sempre la stessa (cartoncini stampati,
+     * adesivi NFC): resta valida finché l'impostazione non si spegne, che ne fa generare una nuova.
+     */
+    private fun partySecret(): String {
+        if (!fixedAddress) {
+            prefs.edit().remove(KEY_FIXED_SECRET).apply()
+            return newSecret()
+        }
+        return prefs.getString(KEY_FIXED_SECRET, null) ?: newSecret().also {
+            prefs.edit().putString(KEY_FIXED_SECRET, it).apply()
+        }
+    }
 
     private fun newSecret(): String {
         val bytes = ByteArray(16)
@@ -555,6 +649,10 @@ class GuestParty(
         const val JPEG_QUALITY = 0.88
         const val KEY_ACTIVE = "active"
         const val KEY_SECRET = "secret"
+        const val KEY_FIXED_SECRET = "fixed_secret"
+        const val MAX_VIDEO_TOTAL_BYTES = 600L * 1024 * 1024
+        /** Video "brevi": la pagina rifiuta quelli più lunghi prima di mandarli. */
+        const val MAX_VIDEO_SECONDS = 30
         const val KEY_STARTED_AT = "started_at"
         const val KEY_APPROVAL = "approval"
         const val KEY_QR_IN_SLIDESHOW = "qr_in_slideshow"

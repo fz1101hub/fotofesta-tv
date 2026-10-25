@@ -980,4 +980,22 @@
     <!-- Slideshow a ritmo -->
     <string name="settings_beat_sync">Diashow im Takt</string>
     <string name="settings_beat_sync_body">Mit Hintergrundmusik wechseln die Fotos am Taktanfang und pulsieren im Beat. Der Fernseher hört sich die ersten 45 Sekunden jedes Titels an.</string>
+
+    <!-- Ondata 9: invitati e pagina dei telefoni -->
+    <string name="guest_video">Video eines Gastes</string>
+    <string name="guest_video_from">Video von %s</string>
+    <string name="settings_song_requests">Liedwünsche</string>
+    <string name="settings_song_requests_body">Gäste wünschen sich Lieder vom Handy; die Musik-Verantwortlichen sehen sie in der Regie und der Fernseher zeigt einen Hinweis.</string>
+    <string name="settings_guest_album">Fotos zum Mitnehmen</string>
+    <string name="settings_guest_album_body">Gäste können die gezeigten Fotos als .zip-Datei aufs Handy laden. Nicht mit „Party ohne Spuren“.</string>
+    <string name="settings_fixed_address">Feste Adresse</string>
+    <string name="settings_fixed_address_body">Der Party-QR-Code bleibt jeden Abend gleich, gedruckte Tischkarten und NFC-Aufkleber funktionieren weiter. Gib dem Fernseher auch im Router eine feste IP-Adresse.</string>
+    <string name="settings_guest_videos">Kurze Videos von Gästen</string>
+    <string name="settings_guest_videos_body">Videos bis 30 Sekunden, nur für die Party auf dem Fernseher gespeichert. Nicht mit Fotofreigabe oder „Party ohne Spuren“.</string>
+    <string name="song_message">🎵 Liedwunsch: %s</string>
+    <string name="song_message_named">🎵 %1$s wünscht sich: %2$s</string>
+    <string name="phone_wall_finale">Großes Finale 🎉</string>
+    <string name="awards_first_arrival">Als Erstes da</string>
+    <string name="awards_last_arrival">Als Letztes da</string>
+    <string name="awards_arrival_detail">%1$s um %2$s</string>
 </resources>

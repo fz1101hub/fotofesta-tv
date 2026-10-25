@@ -18,6 +18,8 @@ sealed interface PartyCommand {
     data object StartDirector : PartyCommand
     data object StartQuiet : PartyCommand
     data object Develop : PartyCommand
+    /** Canzone richiesta già suonata (o scartata) da chi fa la musica. */
+    data class SongDone(val id: String) : PartyCommand
 }
 
 /**
@@ -136,6 +138,7 @@ class HostRemote(
             "director" -> PartyCommand.StartDirector
             "quiet" -> PartyCommand.StartQuiet
             "develop" -> PartyCommand.Develop
+            "song_done" -> id?.let(PartyCommand::SongDone)
             else -> null
         } ?: return 400 to """{"error":"invalid"}"""
         onCommand?.invoke(command)
@@ -164,6 +167,13 @@ class HostRemote(
                 append("""{"id":""").append(GuestUploadServer.jsonString(message.id))
                 append(""","text":""").append(GuestUploadServer.jsonString(message.text))
                 append(""","name":""").append(message.name?.let(GuestUploadServer::jsonString) ?: "null").append('}')
+            }
+            append("""],"songs":[""")
+            hub.songRequests().takeLast(MAX_LISTED).forEachIndexed { index, song ->
+                if (index > 0) append(',')
+                append("""{"id":""").append(GuestUploadServer.jsonString(song.id))
+                append(""","text":""").append(GuestUploadServer.jsonString(song.text))
+                append(""","name":""").append(song.name?.let(GuestUploadServer::jsonString) ?: "null").append('}')
             }
             append("""],"director":""").append(director?.let { GuestUploadServer.jsonString(it.name) } ?: "null")
             append('}')

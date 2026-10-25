@@ -19,6 +19,8 @@ class PhoneWall {
     private var photoId: String? = null
     /** Cresce a ogni foto: i telefoni ridisegnano anche se la foto è la stessa di prima. */
     private var serial = 0L
+    /** Cresce a ogni gran finale: i telefoni del muro esplodono in coriandoli tutti insieme. */
+    private var finale = 0L
 
     fun start() {
         synchronized(this) {
@@ -53,6 +55,15 @@ class PhoneWall {
         onChange?.invoke()
     }
 
+    /** Gran finale: coriandoli e lampi su tutti i telefoni del muro. */
+    fun finale() {
+        synchronized(this) {
+            if (phase != Phase.SHOWING) return
+            finale++
+        }
+        onChange?.invoke()
+    }
+
     fun stop() {
         synchronized(this) {
             phase = null
@@ -81,6 +92,7 @@ class PhoneWall {
             append(""","rows":""").append(rows)
             append(""","photo":""").append(photoId?.let { GuestUploadServer.jsonString(it) } ?: "null")
             append(""","serial":""").append(serial)
+            append(""","finale":""").append(finale)
             append('}')
         }
     }

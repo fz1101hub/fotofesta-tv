@@ -1025,4 +1025,22 @@
     <!-- Slideshow a ritmo -->
     <string name="settings_beat_sync">Diaporama en rythme</string>
     <string name="settings_beat_sync_body">Avec la musique de fond, les photos changent au début de chaque mesure et battent au rythme. La TV écoute les 45 premières secondes de chaque morceau.</string>
+
+    <!-- Ondata 9: invitati e pagina dei telefoni -->
+    <string name="guest_video">Vidéo d\'un invité</string>
+    <string name="guest_video_from">Vidéo de %s</string>
+    <string name="settings_song_requests">Demandes de chansons</string>
+    <string name="settings_song_requests_body">Les invités demandent des chansons depuis leur téléphone ; la personne qui gère la musique les voit dans la régie et la TV affiche un message.</string>
+    <string name="settings_guest_album">Photos à emporter</string>
+    <string name="settings_guest_album_body">Les invités peuvent télécharger sur leur téléphone les photos montrées sur la TV, dans un fichier .zip. Pas avec « Fête sans traces ».</string>
+    <string name="settings_fixed_address">Adresse fixe</string>
+    <string name="settings_fixed_address_body">Le QR de la fête reste le même chaque soir : les cartes imprimées et les autocollants NFC continuent de fonctionner. Donnez aussi à la TV une adresse IP fixe dans le routeur.</string>
+    <string name="settings_guest_videos">Courtes vidéos des invités</string>
+    <string name="settings_guest_videos_body">Vidéos jusqu\'à 30 secondes, enregistrées sur la TV le temps de la fête. Pas avec l\'approbation des photos ni « Fête sans traces ».</string>
+    <string name="song_message">🎵 Chanson demandée : %s</string>
+    <string name="song_message_named">🎵 %1$s demande : %2$s</string>
+    <string name="phone_wall_finale">Grand final 🎉</string>
+    <string name="awards_first_arrival">Premier arrivé</string>
+    <string name="awards_last_arrival">Dernier arrivé</string>
+    <string name="awards_arrival_detail">%1$s à %2$s</string>
 </resources>
