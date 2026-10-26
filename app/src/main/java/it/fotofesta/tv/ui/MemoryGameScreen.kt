@@ -91,14 +91,14 @@ fun MemoryGameScreen(photos: List<PhotoItem>, onBack: () -> Unit) {
                     },
                     modifier = Modifier.aspectRatio(1.45f).onFocusChanged { focused = it.isFocused },
                     shape = RoundedCornerShape(18.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = if (focused) Amber else SurfaceBlue),
+                    colors = ButtonDefaults.buttonColors(containerColor = if (focused) GraphiteWhite else GraphiteElevated),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(if (focused) 4.dp else 6.dp),
                 ) {
                     if (card.revealed || card.matched) {
                         PhotoContent(card.photo, FitMode.CROP, Modifier.fillMaxSize().clip(RoundedCornerShape(14.dp)))
                     } else {
                         Box(
-                            Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Coral, Color(0xFF7D3C98))), RoundedCornerShape(14.dp)),
+                            Modifier.fillMaxSize().background(Brush.linearGradient(listOf(GraphiteElevated, GraphiteSurface)), RoundedCornerShape(14.dp)),
                             contentAlignment = Alignment.Center,
                         ) { Text("?", style = MaterialTheme.typography.displayLarge) }
                     }
