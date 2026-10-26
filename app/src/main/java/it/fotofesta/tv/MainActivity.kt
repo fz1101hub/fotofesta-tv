@@ -133,7 +133,7 @@ class MainActivity : ComponentActivity() {
                             onSettings = { viewModel.pause(); viewModel.navigate(Destination.SETTINGS) },
                         )
                         Destination.GAMES -> GamesScreen(
-                            photoCount = state.photos.size,
+                            photos = state.photos,
                             onBack = { viewModel.navigate(Destination.HOME) },
                             onMemory = { viewModel.navigate(Destination.MEMORY) },
                             onMystery = { viewModel.navigate(Destination.MYSTERY) },
