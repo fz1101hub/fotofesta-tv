@@ -40,6 +40,7 @@ import it.fotofesta.tv.ui.HomeScreen
 import it.fotofesta.tv.ui.MemoryGameScreen
 import it.fotofesta.tv.ui.MysteryGameScreen
 import it.fotofesta.tv.ui.SettingsScreen
+import it.fotofesta.tv.ui.SourcesScreen
 import it.fotofesta.tv.ui.SlideshowScreen
 import kotlinx.coroutines.delay
 
@@ -103,8 +104,16 @@ class MainActivity : ComponentActivity() {
                             onUsb = { usbPicker.launch(null) },
                             onDemo = viewModel::useDemoAndPlay,
                             onPlay = viewModel::playCurrent,
+                            onSources = { viewModel.navigate(Destination.SOURCES) },
                             onSettings = { viewModel.navigate(Destination.SETTINGS) },
                             onGames = { viewModel.navigate(Destination.GAMES) },
+                        )
+                        Destination.SOURCES -> SourcesScreen(
+                            state = state,
+                            onBack = { viewModel.navigate(Destination.HOME) },
+                            onGoogle = viewModel::startGoogleConnect,
+                            onUsb = { usbPicker.launch(null) },
+                            onDemo = viewModel::useDemoAndPlay,
                         )
                         Destination.SETTINGS -> SettingsScreen(
                             state = state,
