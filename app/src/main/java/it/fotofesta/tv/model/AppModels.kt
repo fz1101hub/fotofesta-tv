@@ -2,7 +2,7 @@ package it.fotofesta.tv.model
 
 import androidx.annotation.DrawableRes
 
-enum class Destination { HOME, SETTINGS, SLIDESHOW, GAMES, MEMORY, MYSTERY, GOOGLE_CONNECT }
+enum class Destination { HOME, SOURCES, SETTINGS, SLIDESHOW, GAMES, MEMORY, MYSTERY, GOOGLE_CONNECT }
 enum class TransitionType(val label: String) { FADE("Dissolvenza"), SLIDE("Scorrimento"), ZOOM("Zoom dolce") }
 enum class FitMode(val label: String) { CONTAIN("Foto intera"), CROP("Riempi schermo") }
 enum class SourceType { DEMO, USB, GOOGLE_PHOTOS, CAST }
