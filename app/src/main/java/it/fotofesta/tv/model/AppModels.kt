@@ -27,6 +27,7 @@ data class SlideshowSettings(
     val fitMode: FitMode = FitMode.CONTAIN,
     val shuffle: Boolean = false,
     val reducedMotion: Boolean = false,
+    val highContrast: Boolean = false,
     val showClock: Boolean = true,
     val musicVolume: Float = 0.35f,
 )
