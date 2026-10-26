@@ -85,6 +85,18 @@ class FotoFestaViewModel(application: Application) : AndroidViewModel(applicatio
         _state.update { it.copy(destination = destination, message = null) }
     }
 
+    private var settingsOrigin = Destination.HOME
+
+    fun openSettings() {
+        settingsOrigin = _state.value.destination
+        if (settingsOrigin == Destination.SLIDESHOW) pause()
+        navigate(Destination.SETTINGS)
+    }
+
+    fun returnFromSettings() {
+        navigate(if (settingsOrigin == Destination.SLIDESHOW) Destination.SLIDESHOW else Destination.HOME)
+    }
+
     fun useDemoAndPlay() {
         settingsRepository.saveLastSource("DEMO")
         _state.update {
