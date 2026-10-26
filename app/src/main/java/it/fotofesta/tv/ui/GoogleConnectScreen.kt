@@ -36,7 +36,7 @@ fun GoogleConnectScreen(
 ) {
     Column(Modifier.fillMaxSize().padding(46.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            SectionTitle("Collegamento sicuro", "Google Foto", "Usa il telefono: non dovrai digitare password con il telecomando.")
+            SectionTitle("Aggiungi le tue foto", "Collega Google Foto", "Usa il telefono per scegliere soltanto le fotografie da mostrare.")
             Spacer(Modifier.weight(1f))
             TvButton("Indietro", onCancel, icon = Icons.AutoMirrored.Rounded.ArrowBack)
         }
@@ -52,7 +52,8 @@ fun GoogleConnectScreen(
                 is GoogleConnectState.WaitingForAuthorization -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(44.dp)) {
                     QrCode(state.verificationUrl, "Codice QR per autorizzare Google Foto")
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                        Text("1. Scansiona il QR", style = MaterialTheme.typography.headlineMedium)
+                        Text("PASSAGGIO 1 DI 3  ·  COLLEGA IL TELEFONO", color = GraphiteSecondary, style = MaterialTheme.typography.labelLarge)
+                        Text("Scansiona il QR", style = MaterialTheme.typography.headlineMedium)
                         Text("Apri ${state.verificationUrl} sul telefono e inserisci questo codice:", style = MaterialTheme.typography.bodyLarge, color = TextSecondary)
                         Text(
                             state.userCode,
@@ -67,7 +68,8 @@ fun GoogleConnectScreen(
                 is GoogleConnectState.WaitingForPhotos -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(44.dp)) {
                     QrCode(state.pickerUri, "Codice QR per scegliere le foto")
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                        Text("2. Scegli le foto", style = MaterialTheme.typography.headlineMedium)
+                        Text("PASSAGGIO 2 DI 3  ·  SCEGLI LE FOTO", color = GraphiteSecondary, style = MaterialTheme.typography.labelLarge)
+                        Text("Seleziona i tuoi ricordi", style = MaterialTheme.typography.headlineMedium)
                         Text("Scansiona il QR, seleziona le immagini in Google Foto e premi Fine.", style = MaterialTheme.typography.bodyLarge)
                         Text("Puoi cercare per data, luogo o nome dell’album. La TV rileverà automaticamente quando hai finito.", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
                         CircularProgressIndicator(color = Cyan)
@@ -78,20 +80,21 @@ fun GoogleConnectScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(18.dp),
                 ) {
-                    Text("Preparazione foto in 4K", style = MaterialTheme.typography.headlineMedium)
+                    Text("PASSAGGIO 3 DI 3  ·  PREPARAZIONE", color = GraphiteSecondary, style = MaterialTheme.typography.labelLarge)
+                    Text("Le tue fotografie sono quasi pronte", style = MaterialTheme.typography.headlineMedium)
                     Text("${state.completed} di ${state.total}", style = MaterialTheme.typography.titleLarge, color = Amber)
                     LinearProgressIndicator(progress = { state.completed.toFloat() / state.total.coerceAtLeast(1) }, modifier = Modifier.fillMaxWidth())
                     Text("La cache privata evita interruzioni durante lo slideshow. Non viene aggiunto nulla alla galleria della TV.", style = MaterialTheme.typography.bodyMedium, color = TextSecondary, textAlign = TextAlign.Center)
                 }
                 is GoogleConnectState.Error -> Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                    Text("Collegamento non disponibile", style = MaterialTheme.typography.headlineMedium)
+                    Text("Non è stato possibile completare il collegamento", style = MaterialTheme.typography.headlineMedium)
                     Text(state.message, style = MaterialTheme.typography.bodyLarge, color = TextSecondary, textAlign = TextAlign.Center)
                     TvButton("Riprova", onRetry, icon = Icons.Rounded.Refresh)
                 }
                 is GoogleConnectState.Complete -> Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                    Text("${state.count} foto pronte", style = MaterialTheme.typography.headlineLarge, color = Cyan)
+                    Text("${state.count} foto pronte", style = MaterialTheme.typography.headlineLarge, color = GraphiteWhite)
                     Text("Puoi avviare subito lo slideshow o tornare indietro per cambiare musica e transizioni.", style = MaterialTheme.typography.bodyLarge, color = TextSecondary, textAlign = TextAlign.Center)
-                    TvButton("Avvia slideshow", onPlay, icon = Icons.Rounded.PlayArrow)
+                    TvButton("Avvia slideshow", onPlay, icon = Icons.Rounded.PlayArrow, primary = true)
                 }
             }
         }

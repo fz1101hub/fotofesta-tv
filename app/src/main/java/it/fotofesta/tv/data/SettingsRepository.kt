@@ -16,6 +16,7 @@ class SettingsRepository(context: Context) {
         fitMode = enumValueOrDefault(prefs.getString("fit", null), FitMode.CONTAIN),
         shuffle = prefs.getBoolean("shuffle", false),
         reducedMotion = prefs.getBoolean("reduced_motion", false),
+        highContrast = prefs.getBoolean("high_contrast", false),
         showClock = prefs.getBoolean("clock", true),
         musicVolume = prefs.getFloat("volume", 0.35f),
     )
@@ -27,6 +28,7 @@ class SettingsRepository(context: Context) {
             .putString("fit", value.fitMode.name)
             .putBoolean("shuffle", value.shuffle)
             .putBoolean("reduced_motion", value.reducedMotion)
+            .putBoolean("high_contrast", value.highContrast)
             .putBoolean("clock", value.showClock)
             .putFloat("volume", value.musicVolume)
             .apply()

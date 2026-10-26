@@ -100,6 +100,7 @@ object CastBridge {
         fitMode = runCatching { FitMode.valueOf(json.optString("fitMode", "CONTAIN")) }.getOrDefault(FitMode.CONTAIN),
         shuffle = json.optBoolean("shuffle", false),
         reducedMotion = json.optBoolean("reducedMotion", false),
+        highContrast = json.optBoolean("highContrast", false),
         showClock = json.optBoolean("showClock", true),
         musicVolume = json.optDouble("musicVolume", 0.35).toFloat().coerceIn(0f, 1f),
     )

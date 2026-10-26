@@ -33,6 +33,7 @@ import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import it.fotofesta.tv.model.Destination
+import it.fotofesta.tv.ui.GraphiteSurface
 import it.fotofesta.tv.ui.FotoFestaTheme
 import it.fotofesta.tv.ui.GamesScreen
 import it.fotofesta.tv.ui.GoogleConnectScreen
@@ -40,6 +41,7 @@ import it.fotofesta.tv.ui.HomeScreen
 import it.fotofesta.tv.ui.MemoryGameScreen
 import it.fotofesta.tv.ui.MysteryGameScreen
 import it.fotofesta.tv.ui.SettingsScreen
+import it.fotofesta.tv.ui.SourcesScreen
 import it.fotofesta.tv.ui.SlideshowScreen
 import kotlinx.coroutines.delay
 
@@ -69,7 +71,9 @@ class MainActivity : ComponentActivity() {
 
                 BackHandler(enabled = state.destination != Destination.HOME) {
                     if (state.destination == Destination.SLIDESHOW) viewModel.pause()
-                    viewModel.navigate(
+                    if (state.destination == Destination.SETTINGS) {
+                        viewModel.returnFromSettings()
+                    } else viewModel.navigate(
                         if (state.destination in setOf(Destination.MEMORY, Destination.MYSTERY)) Destination.GAMES
                         else Destination.HOME
                     )
@@ -103,12 +107,20 @@ class MainActivity : ComponentActivity() {
                             onUsb = { usbPicker.launch(null) },
                             onDemo = viewModel::useDemoAndPlay,
                             onPlay = viewModel::playCurrent,
-                            onSettings = { viewModel.navigate(Destination.SETTINGS) },
+                            onSources = { viewModel.navigate(Destination.SOURCES) },
+                            onSettings = viewModel::openSettings,
                             onGames = { viewModel.navigate(Destination.GAMES) },
+                        )
+                        Destination.SOURCES -> SourcesScreen(
+                            state = state,
+                            onBack = { viewModel.navigate(Destination.HOME) },
+                            onGoogle = viewModel::startGoogleConnect,
+                            onUsb = { usbPicker.launch(null) },
+                            onDemo = viewModel::useDemoAndPlay,
                         )
                         Destination.SETTINGS -> SettingsScreen(
                             state = state,
-                            onBack = { viewModel.navigate(Destination.HOME) },
+                            onBack = viewModel::returnFromSettings,
                             onChange = viewModel::updateSettings,
                             onPickMusic = { musicPicker.launch(arrayOf("audio/*")) },
                             onRemoveMusic = viewModel::removeMusic,
@@ -121,10 +133,11 @@ class MainActivity : ComponentActivity() {
                             onToggle = viewModel::togglePlayback,
                             onNext = viewModel::next,
                             onPrevious = viewModel::previous,
-                            onSettings = { viewModel.pause(); viewModel.navigate(Destination.SETTINGS) },
+                            onSettings = viewModel::openSettings,
                         )
                         Destination.GAMES -> GamesScreen(
-                            photoCount = state.photos.size,
+                            photos = state.photos,
+                            reducedMotion = state.settings.reducedMotion,
                             onBack = { viewModel.navigate(Destination.HOME) },
                             onMemory = { viewModel.navigate(Destination.MEMORY) },
                             onMystery = { viewModel.navigate(Destination.MYSTERY) },
@@ -144,7 +157,7 @@ class MainActivity : ComponentActivity() {
                             message,
                             modifier = Modifier.align(Alignment.TopCenter)
                                 .padding(top = 20.dp)
-                                .background(Color(0xEE17213A), RoundedCornerShape(14.dp))
+                                .background(GraphiteSurface.copy(alpha = .95f), RoundedCornerShape(14.dp))
                                 .padding(horizontal = 22.dp, vertical = 12.dp),
                             color = MaterialTheme.colorScheme.tertiary,
                             style = MaterialTheme.typography.bodyLarge,
