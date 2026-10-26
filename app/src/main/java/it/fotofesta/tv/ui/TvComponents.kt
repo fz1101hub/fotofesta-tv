@@ -32,12 +32,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -90,7 +90,6 @@ fun SourceCard(
     title: String,
     subtitle: String,
     icon: ImageVector,
-    accent: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     reducedMotion: Boolean = false,
@@ -145,11 +144,11 @@ fun AppHeader(sourceLabel: String, castConnected: Boolean) {
             Icon(Icons.Rounded.PhotoLibrary, contentDescription = null, tint = GraphiteBackground, modifier = Modifier.padding(10.dp).size(30.dp))
         }
         Spacer(Modifier.size(14.dp))
-        Column {
+        Column(Modifier.weight(1f)) {
             Text("FotoFesta TV", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Text(sourceLabel, style = MaterialTheme.typography.bodyMedium, color = GraphiteSecondary)
+            Text(sourceLabel, style = MaterialTheme.typography.bodyMedium, color = GraphiteSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        Spacer(Modifier.weight(1f))
+        Spacer(Modifier.size(12.dp))
         if (castConnected) {
             Row(
                 Modifier.border(1.dp, GraphiteOutline, RoundedCornerShape(18.dp)).padding(horizontal = 14.dp, vertical = 8.dp),
