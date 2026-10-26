@@ -33,6 +33,7 @@ import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import it.fotofesta.tv.model.Destination
+import it.fotofesta.tv.ui.GraphiteSurface
 import it.fotofesta.tv.ui.FotoFestaTheme
 import it.fotofesta.tv.ui.GamesScreen
 import it.fotofesta.tv.ui.GoogleConnectScreen
@@ -155,7 +156,7 @@ class MainActivity : ComponentActivity() {
                             message,
                             modifier = Modifier.align(Alignment.TopCenter)
                                 .padding(top = 20.dp)
-                                .background(Color(0xEE17213A), RoundedCornerShape(14.dp))
+                                .background(GraphiteSurface.copy(alpha = .95f), RoundedCornerShape(14.dp))
                                 .padding(horizontal = 22.dp, vertical = 12.dp),
                             color = MaterialTheme.colorScheme.tertiary,
                             style = MaterialTheme.typography.bodyLarge,
