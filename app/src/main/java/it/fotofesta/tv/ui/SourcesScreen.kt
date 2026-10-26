@@ -26,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,6 +35,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -49,6 +52,8 @@ fun SourcesScreen(
     onUsb: () -> Unit,
     onDemo: () -> Unit,
 ) {
+    val initialFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { initialFocus.requestFocus() }
     Column(
         Modifier.fillMaxSize().background(GraphiteBackground).padding(horizontal = 46.dp, vertical = 24.dp),
         verticalArrangement = Arrangement.spacedBy(22.dp),
@@ -62,7 +67,7 @@ fun SourcesScreen(
         Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
             PhotoSourceCard(
                 "Foto demo", "Quattro fotografie incluse", Icons.Rounded.PhotoLibrary,
-                onDemo, Modifier.weight(1f), demo = true, reducedMotion = state.settings.reducedMotion,
+                onDemo, Modifier.weight(1f).focusRequester(initialFocus), demo = true, reducedMotion = state.settings.reducedMotion,
             )
             PhotoSourceCard(
                 "Google Foto", "Collega e scegli dal telefono", Icons.Rounded.Cloud,
