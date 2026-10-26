@@ -163,7 +163,7 @@ fun SlideshowScreen(
         ) {
             Column(
                 Modifier.fillMaxWidth().background(
-                    Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .94f)))
+                    Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = if (state.settings.highContrast) 1f else .94f)))
                 ).padding(horizontal = 40.dp, vertical = 26.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
