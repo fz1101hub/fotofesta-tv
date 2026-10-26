@@ -19,11 +19,14 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import it.fotofesta.tv.model.AppState
 import it.fotofesta.tv.model.FitMode
@@ -49,6 +52,8 @@ fun SettingsScreen(
 ) {
     val settings = state.settings
     var category by remember { mutableStateOf(SettingsCategory.PHOTOS) }
+    val firstCategoryFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { firstCategoryFocus.requestFocus() }
     var confirmDisconnect by remember { mutableStateOf(false) }
     if (confirmDisconnect) {
         AlertDialog(
@@ -91,7 +96,7 @@ fun SettingsScreen(
                 SettingsCategory.entries.forEach { option ->
                     TvButton(
                         option.label, { category = option },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = if (option == SettingsCategory.PHOTOS) Modifier.fillMaxWidth().focusRequester(firstCategoryFocus) else Modifier.fillMaxWidth(),
                         selected = category == option,
                         reducedMotion = settings.reducedMotion,
                     )
