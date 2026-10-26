@@ -47,8 +47,8 @@ fun HomeScreen(
                     Brush.horizontalGradient(
                         0.0f to GraphiteBackground,
                         0.38f to GraphiteBackground.copy(alpha = .98f),
-                        0.75f to GraphiteBackground.copy(alpha = .67f),
-                        1f to GraphiteBackground.copy(alpha = .28f),
+                        0.75f to GraphiteBackground.copy(alpha = if (state.settings.highContrast) .92f else .67f),
+                        1f to GraphiteBackground.copy(alpha = if (state.settings.highContrast) .68f else .28f),
                     )
                 )
             )
