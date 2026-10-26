@@ -137,6 +137,7 @@ class MainActivity : ComponentActivity() {
                         )
                         Destination.GAMES -> GamesScreen(
                             photos = state.photos,
+                            reducedMotion = state.settings.reducedMotion,
                             onBack = { viewModel.navigate(Destination.HOME) },
                             onMemory = { viewModel.navigate(Destination.MEMORY) },
                             onMystery = { viewModel.navigate(Destination.MYSTERY) },
