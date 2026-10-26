@@ -70,7 +70,9 @@ class MainActivity : ComponentActivity() {
 
                 BackHandler(enabled = state.destination != Destination.HOME) {
                     if (state.destination == Destination.SLIDESHOW) viewModel.pause()
-                    viewModel.navigate(
+                    if (state.destination == Destination.SETTINGS) {
+                        viewModel.returnFromSettings()
+                    } else viewModel.navigate(
                         if (state.destination in setOf(Destination.MEMORY, Destination.MYSTERY)) Destination.GAMES
                         else Destination.HOME
                     )
@@ -105,7 +107,7 @@ class MainActivity : ComponentActivity() {
                             onDemo = viewModel::useDemoAndPlay,
                             onPlay = viewModel::playCurrent,
                             onSources = { viewModel.navigate(Destination.SOURCES) },
-                            onSettings = { viewModel.navigate(Destination.SETTINGS) },
+                            onSettings = viewModel::openSettings,
                             onGames = { viewModel.navigate(Destination.GAMES) },
                         )
                         Destination.SOURCES -> SourcesScreen(
@@ -117,7 +119,7 @@ class MainActivity : ComponentActivity() {
                         )
                         Destination.SETTINGS -> SettingsScreen(
                             state = state,
-                            onBack = { viewModel.navigate(Destination.HOME) },
+                            onBack = viewModel::returnFromSettings,
                             onChange = viewModel::updateSettings,
                             onPickMusic = { musicPicker.launch(arrayOf("audio/*")) },
                             onRemoveMusic = viewModel::removeMusic,
@@ -130,7 +132,7 @@ class MainActivity : ComponentActivity() {
                             onToggle = viewModel::togglePlayback,
                             onNext = viewModel::next,
                             onPrevious = viewModel::previous,
-                            onSettings = { viewModel.pause(); viewModel.navigate(Destination.SETTINGS) },
+                            onSettings = viewModel::openSettings,
                         )
                         Destination.GAMES -> GamesScreen(
                             photos = state.photos,
