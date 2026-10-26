@@ -5,6 +5,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -93,6 +94,7 @@ fun SourceCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     reducedMotion: Boolean = false,
+    compact: Boolean = false,
 ) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(if (focused && !reducedMotion) 1.035f else 1f, label = "sourceFocus")
@@ -104,15 +106,31 @@ fun SourceCard(
         colors = ButtonDefaults.buttonColors(containerColor = if (focused) GraphiteElevated else GraphiteSurface, contentColor = GraphiteWhite),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
     ) {
-        Column(
-            Modifier.fillMaxWidth().padding(22.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Surface(color = GraphiteElevated, shape = RoundedCornerShape(12.dp)) {
-                Icon(icon, contentDescription = null, tint = GraphiteWhite, modifier = Modifier.padding(12.dp).size(32.dp))
+        if (compact) {
+            Row(
+                Modifier.fillMaxWidth().padding(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Surface(color = GraphiteElevated, shape = RoundedCornerShape(10.dp)) {
+                    Icon(icon, contentDescription = null, tint = GraphiteWhite, modifier = Modifier.padding(9.dp).size(28.dp))
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(title, style = MaterialTheme.typography.titleLarge)
+                    Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = GraphiteSecondary)
+                }
             }
-            Text(title, style = MaterialTheme.typography.titleLarge)
-            Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = GraphiteSecondary)
+        } else {
+            Column(
+                Modifier.fillMaxWidth().padding(22.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Surface(color = GraphiteElevated, shape = RoundedCornerShape(12.dp)) {
+                    Icon(icon, contentDescription = null, tint = GraphiteWhite, modifier = Modifier.padding(12.dp).size(32.dp))
+                }
+                Text(title, style = MaterialTheme.typography.titleLarge)
+                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = GraphiteSecondary)
+            }
         }
     }
 }
