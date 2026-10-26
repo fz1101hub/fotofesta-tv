@@ -41,7 +41,7 @@ private val FotoColors = darkColorScheme(
     surfaceVariant = GraphiteElevated,
     onSurfaceVariant = GraphiteSecondary,
     outline = GraphiteOutline,
-    error = Color(0xFFE0B7B7),
+    error = GraphiteWhite,
 )
 
 private val TvTypography = Typography(
