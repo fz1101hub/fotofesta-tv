@@ -59,14 +59,14 @@ fun HomeScreen(
                 )
             )
             Column(
-                Modifier.fillMaxSize().padding(horizontal = 46.dp, vertical = 20.dp),
+                Modifier.fillMaxSize().padding(horizontal = 46.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.Center,
             ) {
                 Text("LA TUA GALLERIA PERSONALE", color = GraphiteSecondary, style = MaterialTheme.typography.labelLarge)
                 Text(
                     "I tuoi ricordi.\nAl centro di tutto.",
-                    style = MaterialTheme.typography.displayLarge,
-                    modifier = Modifier.padding(top = 10.dp, bottom = 12.dp),
+                    style = MaterialTheme.typography.headlineLarge,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 5.dp),
                 )
                 Text(
                     "${state.photos.size} fotografie pronte · ${state.sourceLabel}",
@@ -74,7 +74,7 @@ fun HomeScreen(
                     style = MaterialTheme.typography.bodyLarge,
                 )
                 Row(
-                    Modifier.padding(top = 26.dp),
+                    Modifier.padding(top = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     TvButton(
@@ -93,25 +93,25 @@ fun HomeScreen(
             }
         }
         Column(
-            Modifier.fillMaxWidth().padding(horizontal = 46.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(15.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 46.dp).padding(top = 4.dp, bottom = 26.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text("SCEGLI UNA SORGENTE", color = GraphiteSecondary, style = MaterialTheme.typography.labelLarge)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 SourceCard(
-                    "Google Foto", "Scegli le immagini dal telefono.",
+                    "Google Foto", "Dal telefono", 
                     Icons.Rounded.Cloud, GraphiteWhite, onGoogle,
-                    Modifier.weight(1f), state.settings.reducedMotion,
+                    Modifier.weight(1f), state.settings.reducedMotion, compact = true,
                 )
                 SourceCard(
-                    "Unità USB", "Fotografie da una cartella locale.",
+                    "Unità USB", "Foto locali", 
                     Icons.Rounded.Usb, GraphiteWhite, onUsb,
-                    Modifier.weight(1f), state.settings.reducedMotion,
+                    Modifier.weight(1f), state.settings.reducedMotion, compact = true,
                 )
                 SourceCard(
-                    "Foto demo", "Esplora subito l'app.",
+                    "Foto demo", "Prova subito", 
                     Icons.Rounded.PlayArrow, GraphiteWhite, onDemo,
-                    Modifier.weight(1f), state.settings.reducedMotion,
+                    Modifier.weight(1f), state.settings.reducedMotion, compact = true,
                 )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
