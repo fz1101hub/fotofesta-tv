@@ -18,12 +18,11 @@ import androidx.compose.material.icons.rounded.Usb
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import it.fotofesta.tv.model.AppState
+import it.fotofesta.tv.model.FitMode
 
 @Composable
 fun HomeScreen(
@@ -32,62 +31,86 @@ fun HomeScreen(
     onUsb: () -> Unit,
     onDemo: () -> Unit,
     onPlay: () -> Unit,
+    onSources: () -> Unit,
     onSettings: () -> Unit,
     onGames: () -> Unit,
 ) {
-    Box(
-        Modifier.fillMaxSize().background(
-            Brush.radialGradient(listOf(Color(0xFF1A2948), Navy), radius = 1_250f)
-        )
-    ) {
-        Column(Modifier.fillMaxSize()) {
-            AppHeader(state.sourceLabel, state.castSenderConnected)
+    Column(Modifier.fillMaxSize().background(GraphiteBackground)) {
+        AppHeader(state.sourceLabel, state.castSenderConnected)
+
+        Box(Modifier.fillMaxWidth().weight(1f)) {
+            state.photos.getOrNull(state.currentIndex)?.let { photo ->
+                PhotoContent(photo, FitMode.CROP, Modifier.fillMaxSize())
+            }
+            Box(
+                Modifier.fillMaxSize().background(
+                    Brush.horizontalGradient(
+                        0.0f to GraphiteBackground,
+                        0.38f to GraphiteBackground.copy(alpha = .98f),
+                        0.75f to GraphiteBackground.copy(alpha = .67f),
+                        1f to GraphiteBackground.copy(alpha = .28f),
+                    )
+                )
+            )
             Column(
-                Modifier.fillMaxSize().padding(horizontal = 46.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(26.dp),
+                Modifier.fillMaxSize().padding(horizontal = 46.dp, vertical = 20.dp),
+                verticalArrangement = Arrangement.Center,
             ) {
-                Row(verticalAlignment = Alignment.Bottom) {
-                    SectionTitle(
-                        "I tuoi ricordi sul grande schermo",
-                        "Scegli da dove iniziare",
-                        "Google Foto resta sul tuo account. USB funziona anche senza internet.",
+                Text("LA TUA GALLERIA PERSONALE", color = GraphiteSecondary, style = MaterialTheme.typography.labelLarge)
+                Text(
+                    "I tuoi ricordi.\nAl centro di tutto.",
+                    style = MaterialTheme.typography.displayLarge,
+                    modifier = Modifier.padding(top = 10.dp, bottom = 12.dp),
+                )
+                Text(
+                    "${state.photos.size} fotografie pronte · ${state.sourceLabel}",
+                    color = GraphiteSecondary,
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Row(
+                    Modifier.padding(top = 26.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    TvButton(
+                        "Avvia slideshow",
+                        onPlay,
+                        icon = Icons.Rounded.PlayArrow,
+                        enabled = state.photos.isNotEmpty(),
+                        primary = true,
+                        reducedMotion = state.settings.reducedMotion,
                     )
-                    Spacer(Modifier.weight(1f))
-                    TvButton("Avvia slideshow", onPlay, icon = Icons.Rounded.PlayArrow)
+                    TvButton("Gestisci foto", onSources, reducedMotion = state.settings.reducedMotion)
                 }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                    SourceCard(
-                        "Google Foto",
-                        "Seleziona dal telefono con QR. Nessun cast e nessun import manuale.",
-                        Icons.Rounded.Cloud,
-                        Cyan,
-                        onGoogle,
-                        Modifier.weight(1f),
-                    )
-                    SourceCard(
-                        "Hard disk USB",
-                        "Scegli una cartella. L’accesso resta solo su questa TV.",
-                        Icons.Rounded.Usb,
-                        Amber,
-                        onUsb,
-                        Modifier.weight(1f),
-                    )
-                    SourceCard(
-                        "Prova subito",
-                        "Quattro foto demo per esplorare transizioni, musica e giochi.",
-                        Icons.Rounded.PlayArrow,
-                        Coral,
-                        onDemo,
-                        Modifier.weight(1f),
-                    )
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    TvButton("Impostazioni", onSettings, icon = Icons.Rounded.Settings)
-                    TvButton("Giochi con le foto", onGames, icon = Icons.Rounded.SportsEsports)
-                }
-                if (state.message != null) {
-                    Text(state.message, style = MaterialTheme.typography.bodyLarge, color = Amber)
-                }
+            }
+        }
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = 46.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(15.dp),
+        ) {
+            Text("SCEGLI UNA SORGENTE", color = GraphiteSecondary, style = MaterialTheme.typography.labelLarge)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                SourceCard(
+                    "Google Foto", "Scegli le immagini dal telefono.",
+                    Icons.Rounded.Cloud, GraphiteWhite, onGoogle,
+                    Modifier.weight(1f), state.settings.reducedMotion,
+                )
+                SourceCard(
+                    "Unità USB", "Fotografie da una cartella locale.",
+                    Icons.Rounded.Usb, GraphiteWhite, onUsb,
+                    Modifier.weight(1f), state.settings.reducedMotion,
+                )
+                SourceCard(
+                    "Foto demo", "Esplora subito l'app.",
+                    Icons.Rounded.PlayArrow, GraphiteWhite, onDemo,
+                    Modifier.weight(1f), state.settings.reducedMotion,
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                TvButton("Giochi con le foto", onGames, icon = Icons.Rounded.SportsEsports, reducedMotion = state.settings.reducedMotion)
+                TvButton("Impostazioni", onSettings, icon = Icons.Rounded.Settings, reducedMotion = state.settings.reducedMotion)
+            }
+            state.message?.let {
+                Text(it, style = MaterialTheme.typography.bodyMedium, color = GraphiteWhite)
             }
         }
     }
