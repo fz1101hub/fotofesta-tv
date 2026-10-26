@@ -43,6 +43,7 @@ import it.fotofesta.tv.model.PhotoItem
 @Composable
 fun GamesScreen(
     photos: List<PhotoItem>,
+    reducedMotion: Boolean,
     onBack: () -> Unit,
     onMemory: () -> Unit,
     onMystery: () -> Unit,
@@ -68,6 +69,7 @@ fun GamesScreen(
                 onClick = onMemory,
                 modifier = Modifier.weight(1f).focusRequester(initialFocus),
                 enabled = photos.isNotEmpty(),
+                reducedMotion = reducedMotion,
             )
             GamePhotoCard(
                 title = "Foto misteriosa",
@@ -78,6 +80,7 @@ fun GamesScreen(
                 modifier = Modifier.weight(1f),
                 enabled = photos.isNotEmpty(),
                 mystery = true,
+                reducedMotion = reducedMotion,
             )
         }
         Text(
@@ -97,9 +100,10 @@ private fun GamePhotoCard(
     modifier: Modifier,
     enabled: Boolean,
     mystery: Boolean = false,
+    reducedMotion: Boolean = false,
 ) {
     var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(if (focused) 1.03f else 1f, label = "gameCardFocus")
+    val scale by animateFloatAsState(if (focused && !reducedMotion) 1.03f else 1f, label = "gameCardFocus")
     Button(
         onClick = onClick,
         enabled = enabled,
