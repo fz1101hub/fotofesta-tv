@@ -18,7 +18,11 @@ import androidx.compose.material.icons.rounded.Usb
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
 import it.fotofesta.tv.model.AppState
@@ -35,6 +39,8 @@ fun HomeScreen(
     onSettings: () -> Unit,
     onGames: () -> Unit,
 ) {
+    val initialFocus = remember { FocusRequester() }
+    LaunchedEffect(state.photos.isNotEmpty()) { initialFocus.requestFocus() }
     Column(Modifier.fillMaxSize().background(GraphiteBackground)) {
         AppHeader(state.sourceLabel, state.castSenderConnected)
 
@@ -77,9 +83,12 @@ fun HomeScreen(
                         icon = Icons.Rounded.PlayArrow,
                         enabled = state.photos.isNotEmpty(),
                         primary = true,
+                        modifier = if (state.photos.isNotEmpty()) Modifier.focusRequester(initialFocus) else Modifier,
                         reducedMotion = state.settings.reducedMotion,
                     )
-                    TvButton("Gestisci foto", onSources, reducedMotion = state.settings.reducedMotion)
+                    TvButton("Gestisci foto", onSources,
+                        modifier = if (state.photos.isEmpty()) Modifier.focusRequester(initialFocus) else Modifier,
+                        reducedMotion = state.settings.reducedMotion)
                 }
             }
         }
