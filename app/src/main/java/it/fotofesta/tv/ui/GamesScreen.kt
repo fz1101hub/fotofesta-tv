@@ -23,6 +23,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,6 +32,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
@@ -44,6 +47,8 @@ fun GamesScreen(
     onMemory: () -> Unit,
     onMystery: () -> Unit,
 ) {
+    val initialFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { initialFocus.requestFocus() }
     Column(
         Modifier.fillMaxSize().background(GraphiteBackground).padding(horizontal = 46.dp, vertical = 24.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
@@ -61,7 +66,7 @@ fun GamesScreen(
                 icon = Icons.Rounded.GridView,
                 photo = photos.getOrNull(0),
                 onClick = onMemory,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).focusRequester(initialFocus),
                 enabled = photos.isNotEmpty(),
             )
             GamePhotoCard(
