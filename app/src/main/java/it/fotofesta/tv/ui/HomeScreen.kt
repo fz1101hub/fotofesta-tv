@@ -100,17 +100,17 @@ fun HomeScreen(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 SourceCard(
                     "Google Foto", "Dal telefono", 
-                    Icons.Rounded.Cloud, GraphiteWhite, onGoogle,
+                    Icons.Rounded.Cloud, onGoogle,
                     Modifier.weight(1f), state.settings.reducedMotion, compact = true,
                 )
                 SourceCard(
                     "Unità USB", "Foto locali", 
-                    Icons.Rounded.Usb, GraphiteWhite, onUsb,
+                    Icons.Rounded.Usb, onUsb,
                     Modifier.weight(1f), state.settings.reducedMotion, compact = true,
                 )
                 SourceCard(
                     "Foto demo", "Prova subito", 
-                    Icons.Rounded.PlayArrow, GraphiteWhite, onDemo,
+                    Icons.Rounded.PlayArrow, onDemo,
                     Modifier.weight(1f), state.settings.reducedMotion, compact = true,
                 )
             }
